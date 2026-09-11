@@ -139,6 +139,66 @@ export interface MarketingDictionary {
     copyright: string;
     madeFor: string;
   };
+  auth: {
+    hero: {
+      eyebrow: string;
+      titleLine1: string;
+      titleLine2: string;
+      titleAccent: string;
+      description: string;
+      features: [string, string, string, string, string, string];
+      tagline: string;
+      valueProps: [
+        { title: string; caption: string },
+        { title: string; caption: string },
+        { title: string; caption: string },
+      ];
+    };
+    login: {
+      newToGarageOS: string;
+      createAccount: string;
+      welcomeBack: string;
+      subtitle: string;
+      emailLabel: string;
+      emailPlaceholder: string;
+      passwordLabel: string;
+      forgotPassword: string;
+      signIn: string;
+      or: string;
+      continueWithGoogle: string;
+      termsPrefix: string;
+      termsLink: string;
+      and: string;
+      privacyLink: string;
+    };
+    signup: {
+      alreadyHaveAccount: string;
+      signIn: string;
+      title: string;
+      subtitle: string;
+      shopNameLabel: string;
+      shopNamePlaceholder: string;
+      yourNameLabel: string;
+      yourNamePlaceholder: string;
+      passwordPlaceholder: string;
+      createAccount: string;
+      signUpWithGoogle: string;
+      termsPrefix: string;
+    };
+    errors: {
+      missingCredentials: string;
+      invalidCredentials: string;
+      connectionError: string;
+      sessionError: string;
+      missingShopName: string;
+      missingName: string;
+      invalidEmail: string;
+      weakPassword: string;
+      emailTaken: string;
+      signupError: string;
+      accountCreatedSignIn: string;
+    };
+  };
 }
 
 export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary> = {
@@ -433,6 +493,74 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
       copyright: "GarageOS. All rights reserved.",
       madeFor: "Built for the people who keep the world moving.",
     },
+    auth: {
+      hero: {
+        eyebrow: "Built for independent shops",
+        titleLine1: "Run your shop",
+        titleLine2: "with",
+        titleAccent: "confidence.",
+        description:
+          "GarageOS brings appointments, customers, vehicles, quotes and invoicing together in one place — so you can focus on what you do best.",
+        features: [
+          "Appointments & Scheduling",
+          "Customer Management",
+          "Vehicle History",
+          "Quotes & Invoicing",
+          "Service Reminders",
+          "Reports & Cash Flow",
+        ],
+        tagline: "Simple to use. Ready to grow.",
+        valueProps: [
+          { title: "Less paperwork", caption: "More time in the shop" },
+          { title: "Happy customers", caption: "Automatic reminders" },
+          { title: "Everything in one place", caption: "Appointments, quotes & cash flow" },
+        ],
+      },
+      login: {
+        newToGarageOS: "New to GarageOS?",
+        createAccount: "Create account",
+        welcomeBack: "Welcome back",
+        subtitle: "Sign in to your account",
+        emailLabel: "Email address",
+        emailPlaceholder: "you@yourshop.com",
+        passwordLabel: "Password",
+        forgotPassword: "Forgot your password?",
+        signIn: "Sign in",
+        or: "or",
+        continueWithGoogle: "Continue with Google",
+        termsPrefix: "By signing in you agree to our",
+        termsLink: "Terms of Service",
+        and: "and",
+        privacyLink: "Privacy Policy",
+      },
+      signup: {
+        alreadyHaveAccount: "Already have an account?",
+        signIn: "Sign in",
+        title: "Create your account",
+        subtitle: "Start using GarageOS at your shop",
+        shopNameLabel: "Shop name",
+        shopNamePlaceholder: "Joe's Auto Repair",
+        yourNameLabel: "Your name",
+        yourNamePlaceholder: "Alex Martin",
+        passwordPlaceholder: "At least 8 characters",
+        createAccount: "Create account",
+        signUpWithGoogle: "Sign up with Google",
+        termsPrefix: "By creating an account you agree to our",
+      },
+      errors: {
+        missingCredentials: "Enter your email and password",
+        invalidCredentials: "Incorrect email or password",
+        connectionError: "Connection error. Please try again.",
+        sessionError: "Error creating your session. Please try again.",
+        missingShopName: "Enter your shop name",
+        missingName: "Enter your name",
+        invalidEmail: "Invalid email address",
+        weakPassword: "Password must be at least 8 characters",
+        emailTaken: "That email already has an account. Sign in instead.",
+        signupError: "Error creating your account. Please try again.",
+        accountCreatedSignIn: "Account created. Please sign in to continue.",
+      },
+    },
   },
   fr: {
     meta: {
@@ -724,6 +852,74 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
       },
       copyright: "GarageOS. Tous droits réservés.",
       madeFor: "Conçu pour les gens qui gardent le monde en mouvement.",
+    },
+    auth: {
+      hero: {
+        eyebrow: "Conçu pour les garages indépendants",
+        titleLine1: "Gérez votre atelier",
+        titleLine2: "en toute",
+        titleAccent: "confiance.",
+        description:
+          "GarageOS regroupe rendez-vous, clients, véhicules, soumissions et facturation en un seul endroit — pour que vous puissiez vous concentrer sur votre métier.",
+        features: [
+          "Rendez-vous et horaire",
+          "Gestion des clients",
+          "Historique des véhicules",
+          "Soumissions et facturation",
+          "Rappels de service",
+          "Rapports et caisse",
+        ],
+        tagline: "Simple à utiliser. Prêt à grandir.",
+        valueProps: [
+          { title: "Moins de paperasse", caption: "Plus de temps à l'atelier" },
+          { title: "Clients satisfaits", caption: "Rappels automatiques" },
+          { title: "Tout au même endroit", caption: "Rendez-vous, soumissions et caisse" },
+        ],
+      },
+      login: {
+        newToGarageOS: "Nouveau sur GarageOS?",
+        createAccount: "Créer un compte",
+        welcomeBack: "Content de vous revoir",
+        subtitle: "Connectez-vous à votre compte",
+        emailLabel: "Adresse courriel",
+        emailPlaceholder: "vous@votreatelier.com",
+        passwordLabel: "Mot de passe",
+        forgotPassword: "Mot de passe oublié?",
+        signIn: "Se connecter",
+        or: "ou",
+        continueWithGoogle: "Continuer avec Google",
+        termsPrefix: "En vous connectant, vous acceptez nos",
+        termsLink: "conditions d'utilisation",
+        and: "et notre",
+        privacyLink: "politique de confidentialité",
+      },
+      signup: {
+        alreadyHaveAccount: "Vous avez déjà un compte?",
+        signIn: "Se connecter",
+        title: "Créez votre compte",
+        subtitle: "Commencez à utiliser GarageOS dans votre atelier",
+        shopNameLabel: "Nom de l'atelier",
+        shopNamePlaceholder: "Garage Martin",
+        yourNameLabel: "Votre nom",
+        yourNamePlaceholder: "Alex Martin",
+        passwordPlaceholder: "8 caractères minimum",
+        createAccount: "Créer un compte",
+        signUpWithGoogle: "S'inscrire avec Google",
+        termsPrefix: "En créant un compte, vous acceptez nos",
+      },
+      errors: {
+        missingCredentials: "Entrez votre courriel et votre mot de passe",
+        invalidCredentials: "Courriel ou mot de passe incorrect",
+        connectionError: "Erreur de connexion. Veuillez réessayer.",
+        sessionError: "Erreur lors de la création de votre session. Veuillez réessayer.",
+        missingShopName: "Entrez le nom de votre atelier",
+        missingName: "Entrez votre nom",
+        invalidEmail: "Adresse courriel invalide",
+        weakPassword: "Le mot de passe doit contenir au moins 8 caractères",
+        emailTaken: "Ce courriel a déjà un compte. Connectez-vous plutôt.",
+        signupError: "Erreur lors de la création de votre compte. Veuillez réessayer.",
+        accountCreatedSignIn: "Compte créé. Veuillez vous connecter pour continuer.",
+      },
     },
   },
 };
