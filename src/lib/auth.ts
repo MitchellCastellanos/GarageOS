@@ -1,5 +1,6 @@
 import NextAuth, { type NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 
@@ -11,11 +12,45 @@ export const authConfig: NextAuthConfig = {
     signIn: ADMIN.login,
   },
   callbacks: {
+    // Login con Google: self-serve. Si el correo no existe todavía, le
+    // creamos su propio taller (Shop) y queda como OWNER — sin adapter de
+    // BD, todo el enlace se resuelve por email en jwt() abajo.
+    async signIn({ user, account }) {
+      if (account?.provider !== "google") return true;
+      if (!user.email) return false;
+
+      const existing = await db.user.findUnique({ where: { email: user.email } });
+      if (existing) return true;
+
+      const ownerName = user.name?.trim() || user.email.split("@")[0];
+      const shop = await db.shop.create({
+        data: { name: `Taller de ${ownerName}` },
+      });
+      await db.user.create({
+        data: {
+          shopId: shop.id,
+          name: ownerName,
+          email: user.email,
+          role: "OWNER",
+        },
+      });
+      return true;
+    },
     async jwt({ token, user }) {
-      if (user) {
-        token.shopId = (user as { shopId?: string }).shopId;
-        token.role = (user as { role?: string }).role;
-        token.userId = user.id;
+      // `user` solo viene en el sign-in inicial. Credentials ya trae
+      // shopId/role, pero para Google (perfil sin esos campos) resolvemos
+      // siempre por email — así el signIn() de arriba (que puede crear el
+      // taller recién) queda reflejado de una.
+      if (user?.email) {
+        const dbUser = await db.user.findUnique({
+          where: { email: user.email },
+          select: { id: true, shopId: true, role: true },
+        });
+        if (dbUser) {
+          token.userId = dbUser.id;
+          token.shopId = dbUser.shopId ?? undefined;
+          token.role = dbUser.role;
+        }
       }
       return token;
     },
@@ -29,6 +64,10 @@ export const authConfig: NextAuthConfig = {
     },
   },
   providers: [
+    Google({
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    }),
     Credentials({
       credentials: {
         email: { label: "Email", type: "email" },

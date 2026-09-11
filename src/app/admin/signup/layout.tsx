@@ -1,8 +1,6 @@
 import { AuthHero } from "@/components/auth/AuthHero";
 
-// Layout para rutas sin autenticación (login, signup) — pantalla partida,
-// sin sidebar ni topbar del admin.
-export default function AuthLayout({
+export default function SignupLayout({
   children,
 }: {
   children: React.ReactNode;
