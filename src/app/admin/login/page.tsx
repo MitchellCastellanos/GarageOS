@@ -16,21 +16,21 @@ export default async function LoginPage({ searchParams }: Props) {
 
   return (
     <AuthPanel topBarText="¿Nuevo en GarageOS?" topBarLinkHref={ADMIN.signup} topBarLinkLabel="Crear cuenta">
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 sm:p-10">
-        <div className="text-center mb-6">
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8">
+        <div className="text-center mb-5">
           <Image
             src="/brand/logo-stacked.png"
             alt="GarageOS"
             width={480}
             height={320}
-            className="h-16 w-auto mx-auto mb-5"
+            className="h-12 w-auto mx-auto mb-3"
             priority
           />
           <h1 className="text-2xl font-bold text-slate-900">Bienvenido de nuevo</h1>
           <p className="text-slate-500 text-sm mt-1">Inicia sesión en tu cuenta</p>
         </div>
 
-        <form action="/api/auth/login" method="POST" className="space-y-4">
+        <form action="/api/auth/login" method="POST" className="space-y-3">
           <input type="hidden" name="callbackUrl" value={destination} />
 
           <div>
@@ -73,7 +73,7 @@ export default async function LoginPage({ searchParams }: Props) {
           </button>
         </form>
 
-        <div className="flex items-center gap-3 my-6">
+        <div className="flex items-center gap-3 my-4">
           <div className="h-px bg-slate-200 flex-1" />
           <span className="text-xs text-slate-400">o</span>
           <div className="h-px bg-slate-200 flex-1" />
@@ -81,7 +81,7 @@ export default async function LoginPage({ searchParams }: Props) {
 
         <GoogleSignInButton callbackUrl={destination} />
 
-        <p className="text-center text-xs text-slate-400 mt-6">
+        <p className="text-center text-xs text-slate-400 mt-4">
           Al iniciar sesión aceptas nuestros{" "}
           <Link href="#" className="text-slate-500 hover:underline">
             Términos de servicio
@@ -95,7 +95,7 @@ export default async function LoginPage({ searchParams }: Props) {
       </div>
 
       {/* Build tag — tells you instantly which deployment is live */}
-      <p className="text-center text-xs text-slate-400 mt-4">
+      <p className="text-center text-xs text-slate-400 mt-2">
         build: {process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? "dev"}
       </p>
     </AuthPanel>

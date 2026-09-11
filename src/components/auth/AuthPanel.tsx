@@ -11,11 +11,11 @@ interface AuthPanelProps {
 // el link cruzado entre las dos pantallas + la tarjeta del formulario.
 export function AuthPanel({ topBarText, topBarLinkHref, topBarLinkLabel, children }: AuthPanelProps) {
   return (
-    <div className="flex-1 relative overflow-hidden bg-slate-50">
+    <div className="flex-1 relative overflow-hidden bg-slate-50 flex flex-col min-h-screen">
       <div className="pointer-events-none absolute -bottom-24 -right-24 w-96 h-96 rounded-full bg-brand-blue/10 blur-3xl" />
       <div className="pointer-events-none absolute top-0 right-0 w-64 h-64 rounded-full bg-brand-blue/5 blur-2xl" />
 
-      <div className="relative flex justify-end px-6 py-6 sm:px-10">
+      <div className="relative flex justify-end px-6 py-4 sm:px-10">
         <p className="text-sm text-slate-500">
           {topBarText}{" "}
           <Link
@@ -27,7 +27,7 @@ export function AuthPanel({ topBarText, topBarLinkHref, topBarLinkLabel, childre
         </p>
       </div>
 
-      <div className="relative flex items-center justify-center px-6 pb-16">
+      <div className="relative flex-1 flex items-center justify-center px-6 py-2 min-h-0">
         <div className="w-full max-w-sm">{children}</div>
       </div>
     </div>
