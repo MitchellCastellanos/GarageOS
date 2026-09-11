@@ -2,7 +2,7 @@
 
 import { ArrowRight, CalendarPlus } from "lucide-react";
 import { useMarketingLocale } from "@/components/marketing/MarketingLocaleProvider";
-import { GarageOSLogo } from "@/components/marketing/GarageOSLogo";
+import { GarageOSAppIcon } from "@/components/marketing/GarageOSLogo";
 
 export function BrandControlSection() {
   const { t } = useMarketingLocale();
@@ -46,7 +46,7 @@ export function BrandControlSection() {
             {/* Invoice mockup */}
             <div className="w-32 sm:w-52 shrink-0 -ml-8 sm:-ml-10 mt-10 rounded-xl bg-white shadow-2xl shadow-slate-900/20 border border-slate-100 p-3.5">
               <div className="flex items-center gap-1.5">
-                <GarageOSLogo className="w-4 h-4" />
+                <GarageOSAppIcon className="w-4 h-4" />
                 <p className="text-[9px] font-bold tracking-wide text-slate-900">{invoice.shopName}</p>
               </div>
               <div className="flex items-center justify-between mt-2 text-[9px] text-slate-500">

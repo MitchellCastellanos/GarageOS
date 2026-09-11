@@ -1,27 +1,19 @@
 /**
- * GarageOS product mark: a rounded blue square with a stylized gauge/"G"
- * glyph — ties the brand to a dashboard without being literally a car part.
+ * GarageOS "Connected / Modular" brand mark — official artwork from the
+ * brand kit (garageos-brand-kit/), not a redrawn approximation. See
+ * garageos-brand-kit/README.md for usage rules.
+ *
+ * Two variants: the standalone mark (transparent, for lockups next to the
+ * "GarageOS" wordmark text) and the app-icon badge (mark on a filled blue
+ * rounded square, for tiny contexts where the mark alone would float
+ * without a container — favicons, in-mockup app badges).
  */
 export function GarageOSLogo({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-      <rect width="32" height="32" rx="9" fill="var(--brand-blue)" />
-      <path
-        d="M20.8 11.2A6.4 6.4 0 1 0 16 22.4h3.2"
-        stroke="white"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-      />
-      <path
-        d="M20.8 18v-3.4h-3.4"
-        stroke="white"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-      />
-    </svg>
-  );
+  // eslint-disable-next-line @next/next/no-img-element -- fixed small brand icon reused at many sizes across components; a plain <img> avoids next/image's per-size intrinsic-dimension bookkeeping for what is already a small pre-optimized asset
+  return <img src="/brand/mark.png" alt="GarageOS" className={className} />;
+}
+
+export function GarageOSAppIcon({ className }: { className?: string }) {
+  // eslint-disable-next-line @next/next/no-img-element -- see GarageOSLogo above
+  return <img src="/brand/app-icon.png" alt="GarageOS" className={`${className} rounded-[22%]`} />;
 }

@@ -4,12 +4,14 @@
   --background: #ffffff;
   --foreground: #0f172a;
 
-  /* Marca GarageOS — sitio de marketing (src/app/page.tsx) y producto en general */
-  --brand-blue: #2563eb;
-  --brand-blue-dark: #1d4ed8;
-  --brand-blue-light: #eff6ff;
-  --brand-navy: #0b1220;
-  --brand-navy-light: #131c2e;
+  /* Marca GarageOS — valores oficiales de garageos-brand-kit/README.md.
+     Sitio de marketing (src/app/page.tsx) y producto en general. */
+  --brand-blue: #1769ff; /* Primary Blue */
+  --brand-blue-dark: #0f4fc9; /* sombreado propio para hover/active, no está en el kit */
+  --brand-blue-bright: #2583ff; /* Bright Blue */
+  --brand-blue-light: #f8fafc; /* Off White */
+  --brand-navy: #07182f; /* Deep Navy */
+  --brand-navy-light: #101f38; /* variante clara de Deep Navy para paneles sobre fondo oscuro */
 
   /* Paleta del sitio público de reservas por taller (roja/negra, estética
      "industrial") — src/app/book/[slug] y componentes en src/components/booking.
@@ -25,6 +27,7 @@
   --color-foreground: var(--foreground);
   --color-brand-blue: var(--brand-blue);
   --color-brand-blue-dark: var(--brand-blue-dark);
+  --color-brand-blue-bright: var(--brand-blue-bright);
   --color-brand-blue-light: var(--brand-blue-light);
   --color-brand-navy: var(--brand-navy);
   --color-brand-navy-light: var(--brand-navy-light);
@@ -65,6 +68,14 @@ body {
     linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
   background-size: 40px 40px;
+}
+
+/* Marca GarageOS — patrón oficial (garageos-brand-kit/marks, public/brand/brand-pattern.png),
+   para paneles oscuros del sitio de marketing. No confundir con .garage-grid-texture de arriba. */
+.brand-pattern {
+  background-image: url("/brand/brand-pattern.png");
+  background-size: 340px 340px;
+  background-repeat: repeat;
 }
 
 @keyframes garage-float {

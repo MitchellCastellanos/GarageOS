@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Check, Quote, Wrench } from "lucide-react";
+import { ArrowRight, Check, Quote } from "lucide-react";
 import { useMarketingLocale } from "@/components/marketing/MarketingLocaleProvider";
 
 export function ToolsSection() {
@@ -11,9 +11,7 @@ export function ToolsSection() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           <div className="relative">
-            <div className="garage-grid-texture rounded-2xl aspect-[4/3] bg-gradient-to-br from-brand-navy to-brand-navy-light flex items-center justify-center">
-              <Wrench className="w-16 h-16 text-white/15" strokeWidth={1.25} />
-            </div>
+            <div className="brand-pattern rounded-2xl aspect-[4/3] bg-brand-navy" />
             <div className="absolute -bottom-6 left-4 right-4 sm:left-8 sm:right-auto sm:w-72 bg-white rounded-xl shadow-xl border border-slate-100 p-4">
               <Quote className="w-4 h-4 text-brand-blue mb-1.5" />
               <p className="text-xs text-slate-600 leading-relaxed">&ldquo;{t.tools.quote.text}&rdquo;</p>

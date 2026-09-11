@@ -35,6 +35,15 @@ operating system for the garage.
     treatment for invoices, print, PDFs, and restrained applications.
 -   `garageos-logo-monochrome-white.png` --- single-color white
     treatment for dark photography, dark UI, footers, and video.
+-   `garageos-logo-horizontal-v2.png` --- generated attempt at fixing
+    the broken-"Garage"-text defect in `garageos-logo-horizontal.png`
+    (see Integration notes). **Not usable as delivered either:** it
+    composites the lockup onto an unrequested off-white torn-paper card
+    with a blue glow/halo around the mark, instead of plain alpha
+    transparency, and has visible edge noise. Not copied into
+    `public/`; needs another regeneration pass with an explicit
+    "no card, no paper texture, no halo/glow, pure transparent
+    background" constraint before it replaces the original.
 
 ### `marks/`
 
@@ -43,6 +52,13 @@ operating system for the garage.
     wordmark is unnecessary.
 -   `garageos-favicon.png` --- square master of the mark intended as the
     source for browser favicon sizes.
+-   `garageos-email-mark.png` --- standalone mark, generated to fill the
+    gap this kit's own "not present" list originally flagged; for
+    transactional email headers. See Integration notes — has some edge
+    noise at full resolution (same class of artifact as the two files
+    above), acceptable at the small sizes it's actually used at. Wired
+    in as `public/brand/email-mark.png` (256px); not yet referenced from
+    `src/emails/`.
 
 ### `app/`
 
@@ -53,8 +69,14 @@ operating system for the garage.
 
 ### `graphics/`
 
-Reserved for secondary GarageOS graphic assets such as the official
-brand pattern.
+-   `garageos-brand-pattern.png` --- the official repeating diagonal
+    module pattern, for texture on dark brand panels.
+-   `garageos-og-image.png` --- 1734×907 (≈1.91:1) social share image:
+    mark + wordmark + tagline on the brand pattern over Deep Navy.
+    Generated to fill the gap this kit's own "not present" list
+    originally flagged; see Integration notes. Wired in as
+    `public/og-image.png` (cropped to the standard 1200×630) via
+    `openGraph.images`/`twitter.images` in `src/app/layout.tsx`.
 
 ## Usage guidance
 
@@ -79,16 +101,46 @@ transparency in their supplied originals. The PNG conversion preserves
 their visible artwork rather than attempting destructive automatic
 background removal.
 
-## Assets not present in the supplied batch
+## Assets not present in the original supplied batch
 
 Two assets from the planned full package were not present as distinct
-files in the uploaded set:
+files in the originally uploaded set: `garageos-email-mark.png` and
+`garageos-brand-pattern.png`. Both have since been added —
+`garageos-brand-pattern.png` was actually already in the upload under
+`marks/brand pattern.png` and got moved/renamed to
+`graphics/garageos-brand-pattern.png` to match this document's
+structure (otherwise unedited); `garageos-email-mark.png` and a
+`graphics/garageos-og-image.png` (not part of the original planned
+package, but needed once the site went live with no social-share
+image) were generated separately — see Integration notes for their
+quality caveats.
 
--   `garageos-email-mark.png`
--   `garageos-brand-pattern.png`
+## Integration notes (added when wiring this kit into the app)
 
-The `graphics/` directory is retained so the pattern can be added later
-without changing the package structure.
+Two files in this kit have a defect that made them unusable as supplied.
+Both were worked around in `src/components/marketing/` and
+`src/app/apple-icon.png` rather than by editing the source files here:
+
+-   **`logos/garageos-logo-horizontal.png`** — the "Garage" portion of the
+    wordmark is rendered fully opaque **white**, not Deep Navy as this
+    document describes, so it is invisible on the white/light backgrounds
+    it's meant for. Confirmed by sampling pixel values, not a rendering
+    artifact. Not copied into the app; the header/footer instead compose
+    the standalone mark (`marks/garageos-imagotipo.png`) with a real
+    `GarageOS` text node, which also keeps the wordmark crisp and
+    selectable instead of a flattened raster.
+-   **`app/garageos-app-icon.png`** — the rounded-square icon does not
+    fill its canvas edge-to-edge; there's a fully opaque near-black
+    margin around it instead of the blue field this document describes.
+    Visible as black corners behind the icon on any surface that doesn't
+    apply its own additional rounding (e.g. `apple-touch-icon`). The app
+    build script chroma-keys that near-black margin to Primary Blue
+    before resizing (safe because no real part of the mark uses
+    near-black) rather than shipping the defect.
+
+If regenerating this kit from source, both should be fixed at the
+origin: the horizontal lockup's "Garage" text should be Deep Navy, and
+the app icon's blue field should extend to all four edges of the canvas.
 
 ## Suggested web implementation
 
