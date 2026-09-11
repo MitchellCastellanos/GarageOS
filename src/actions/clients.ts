@@ -27,6 +27,17 @@ export async function getClients(search?: string) {
               { lastName: { contains: search, mode: "insensitive" } },
               { email: { contains: search, mode: "insensitive" } },
               { phone: { contains: search, mode: "insensitive" } },
+              {
+                vehicles: {
+                  some: {
+                    OR: [
+                      { licensePlate: { contains: search, mode: "insensitive" } },
+                      { make: { contains: search, mode: "insensitive" } },
+                      { model: { contains: search, mode: "insensitive" } },
+                    ],
+                  },
+                },
+              },
             ],
           }
         : {}),
