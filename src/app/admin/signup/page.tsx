@@ -1,21 +1,20 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Mail } from "lucide-react";
+import { Mail, User, Building2 } from "lucide-react";
 import { ADMIN } from "@/lib/routes";
 import { AuthPanel } from "@/components/auth/AuthPanel";
 import { PasswordField } from "@/components/auth/PasswordField";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 
 interface Props {
-  searchParams: Promise<{ error?: string; callbackUrl?: string }>;
+  searchParams: Promise<{ error?: string }>;
 }
 
-export default async function LoginPage({ searchParams }: Props) {
-  const { error, callbackUrl } = await searchParams;
-  const destination = callbackUrl ?? ADMIN.dashboard;
+export default async function SignupPage({ searchParams }: Props) {
+  const { error } = await searchParams;
 
   return (
-    <AuthPanel topBarText="¿Nuevo en GarageOS?" topBarLinkHref={ADMIN.signup} topBarLinkLabel="Crear cuenta">
+    <AuthPanel topBarText="¿Ya tienes cuenta?" topBarLinkHref={ADMIN.login} topBarLinkLabel="Iniciar sesión">
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 sm:p-10">
         <div className="text-center mb-6">
           <Image
@@ -26,12 +25,46 @@ export default async function LoginPage({ searchParams }: Props) {
             className="h-16 w-auto mx-auto mb-5"
             priority
           />
-          <h1 className="text-2xl font-bold text-slate-900">Bienvenido de nuevo</h1>
-          <p className="text-slate-500 text-sm mt-1">Inicia sesión en tu cuenta</p>
+          <h1 className="text-2xl font-bold text-slate-900">Crea tu cuenta</h1>
+          <p className="text-slate-500 text-sm mt-1">Empieza a usar GarageOS en tu taller</p>
         </div>
 
-        <form action="/api/auth/login" method="POST" className="space-y-4">
-          <input type="hidden" name="callbackUrl" value={destination} />
+        <form action="/api/auth/signup" method="POST" className="space-y-4">
+          <div>
+            <label htmlFor="shopName" className="block text-sm font-medium text-slate-700 mb-1.5">
+              Nombre del taller
+            </label>
+            <div className="relative">
+              <Building2 className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                id="shopName"
+                name="shopName"
+                type="text"
+                autoComplete="organization"
+                required
+                className="w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Taller El Rápido"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="name" className="block text-sm font-medium text-slate-700 mb-1.5">
+              Tu nombre
+            </label>
+            <div className="relative">
+              <User className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                id="name"
+                name="name"
+                type="text"
+                autoComplete="name"
+                required
+                className="w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Alex Martínez"
+              />
+            </div>
+          </div>
 
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1.5">
@@ -51,13 +84,11 @@ export default async function LoginPage({ searchParams }: Props) {
             </div>
           </div>
 
-          <PasswordField />
-
-          <div className="flex justify-end -mt-2">
-            <Link href="#" className="text-sm text-blue-600 hover:underline">
-              ¿Olvidaste tu contraseña?
-            </Link>
-          </div>
+          <PasswordField
+            autoComplete="new-password"
+            placeholder="Mínimo 8 caracteres"
+            minLength={8}
+          />
 
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-3 py-2">
@@ -69,7 +100,7 @@ export default async function LoginPage({ searchParams }: Props) {
             type="submit"
             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg text-sm transition-colors"
           >
-            Iniciar sesión
+            Crear cuenta
           </button>
         </form>
 
@@ -79,10 +110,10 @@ export default async function LoginPage({ searchParams }: Props) {
           <div className="h-px bg-slate-200 flex-1" />
         </div>
 
-        <GoogleSignInButton callbackUrl={destination} />
+        <GoogleSignInButton callbackUrl={ADMIN.dashboard} label="Registrarte con Google" />
 
         <p className="text-center text-xs text-slate-400 mt-6">
-          Al iniciar sesión aceptas nuestros{" "}
+          Al crear una cuenta aceptas nuestros{" "}
           <Link href="#" className="text-slate-500 hover:underline">
             Términos de servicio
           </Link>{" "}
@@ -93,11 +124,6 @@ export default async function LoginPage({ searchParams }: Props) {
           .
         </p>
       </div>
-
-      {/* Build tag — tells you instantly which deployment is live */}
-      <p className="text-center text-xs text-slate-400 mt-4">
-        build: {process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? "dev"}
-      </p>
     </AuthPanel>
   );
 }

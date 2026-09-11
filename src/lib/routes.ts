@@ -1,6 +1,7 @@
 /** Rutas del panel del taller (bajo /admin). El sitio público vive en /. */
 export const ADMIN = {
   login: "/admin/login",
+  signup: "/admin/signup",
   dashboard: "/admin/dashboard",
   clients: "/admin/clients",
   invoices: "/admin/invoices",
