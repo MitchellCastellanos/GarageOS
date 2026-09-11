@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { ArrowRight, CalendarPlus } from "lucide-react";
 import { useMarketingLocale } from "@/components/marketing/MarketingLocaleProvider";
 import { GarageOSAppIcon } from "@/components/marketing/GarageOSLogo";
@@ -20,10 +21,13 @@ export function BrandControlSection() {
               {t.brandControl.heading}
             </h2>
             <p className="mt-4 text-slate-600 leading-relaxed max-w-md">{t.brandControl.description}</p>
-            <button className="mt-8 inline-flex items-center gap-1.5 bg-brand-blue hover:bg-brand-blue-dark text-white font-semibold text-sm px-6 py-3.5 rounded-xl transition-colors shadow-md shadow-blue-600/20">
+            <Link
+              href="/features#branding"
+              className="mt-8 inline-flex items-center gap-1.5 bg-brand-blue hover:bg-brand-blue-dark text-white font-semibold text-sm px-6 py-3.5 rounded-xl transition-colors shadow-md shadow-blue-600/20"
+            >
               {t.brandControl.cta}
               <ArrowRight className="w-4 h-4" />
-            </button>
+            </Link>
           </div>
 
           <div className="relative flex items-center justify-center gap-4 sm:gap-6 py-6">

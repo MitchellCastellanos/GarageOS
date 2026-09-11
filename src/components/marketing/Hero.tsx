@@ -30,10 +30,13 @@ export function Hero() {
               >
                 {t.hero.ctaPrimary}
               </Link>
-              <button className="inline-flex items-center gap-2 border border-slate-200 hover:border-slate-300 text-slate-700 font-semibold text-sm px-6 py-3.5 rounded-xl transition-colors">
+              <Link
+                href="/demo"
+                className="inline-flex items-center gap-2 border border-slate-200 hover:border-slate-300 text-slate-700 font-semibold text-sm px-6 py-3.5 rounded-xl transition-colors"
+              >
                 <PlayCircle className="w-4 h-4 text-brand-blue" />
                 {t.hero.ctaSecondary}
-              </button>
+              </Link>
             </div>
 
             <div className="mt-10 flex flex-wrap gap-x-6 gap-y-3">

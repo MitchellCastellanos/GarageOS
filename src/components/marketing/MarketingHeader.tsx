@@ -66,18 +66,15 @@ export function MarketingHeader() {
               {resourcesOpen && (
                 <div className="absolute top-full left-1/2 -translate-x-1/2 pt-3">
                   <div className="w-44 bg-white rounded-xl shadow-lg border border-slate-100 py-2">
-                    {[
-                      t.resourcesMenu.helpCenter,
-                      t.resourcesMenu.blog,
-                      t.resourcesMenu.guides,
-                      t.resourcesMenu.changelog,
-                    ].map((item) => (
-                      <span
-                        key={item}
-                        className="block px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900 cursor-default"
+                    {t.resourcesMenu.map((item) => (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setResourcesOpen(false)}
+                        className="block px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                       >
-                        {item}
-                      </span>
+                        {item.label}
+                      </Link>
                     ))}
                   </div>
                 </div>
@@ -122,7 +119,21 @@ export function MarketingHeader() {
               {link.label}
             </button>
           ))}
-          <span className="block text-slate-700 font-medium py-2">{t.nav.resources}</span>
+          <div className="pt-1">
+            <span className="block text-slate-700 font-medium py-2">{t.nav.resources}</span>
+            <div className="pl-3 space-y-1">
+              {t.resourcesMenu.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setMenuOpen(false)}
+                  className="block text-slate-600 text-sm py-1.5"
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+          </div>
           <div className="flex items-center justify-between pt-2">
             <LanguageToggle />
             <Link href="/admin/login" className="text-sm font-medium text-slate-600">
