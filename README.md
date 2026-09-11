@@ -1,8 +1,8 @@
 # GarageOS
 
-Base inicial para productizar Mecanico Management como software de gestión para garages independientes de Quebec y Canadá.
+Software de gestión para garages independientes de Quebec y Canadá, construido a partir del código operativo de Mecanico Management.
 
-**Estado: modelo de dominio y utilidades comprobables. Todavía no es una aplicación operativa.** No incluye frontend, autenticación ejecutable, conexión a proveedores ni migraciones para producción.
+**Estado: aplicación Next.js que compila y corre (`npm run dev` / `next build`), sin base de datos conectada todavía y con deuda conocida documentada en [docs/reuse-audit.md](docs/reuse-audit.md).** Auth, permisos, storage e impuestos vienen adaptados de Mecanico pero no están probados contra datos reales ni aislamiento multi-taller. No desplegar a producción — ver invariantes pendientes en [docs/domain-model.md](docs/domain-model.md).
 
 Flujo objetivo: clientes → vehículos → citas → cotización → aprobación → orden de trabajo → factura → pago → recordatorio.
 
@@ -11,11 +11,12 @@ Flujo objetivo: clientes → vehículos → citas → cotización → aprobació
 Node.js 22.12+ y npm. Desde este repositorio:
 
 ```sh
-npm ci
-npm run check
+npm install
+npm run check   # valida schema, tipos y pruebas de dominio — sin DB
+npm run dev     # app en http://localhost:3000 — sin DB, las páginas con datos fallarán al usarse
 ```
 
-El comando valida el esquema Prisma, genera sus tipos, comprueba TypeScript y ejecuta pruebas de dominio. No modifica ninguna base de datos. `.env.example` documenta la futura conexión local; Prisma recibe `DATABASE_URL` del entorno. No hay carga automática de `.env` en esta base.
+`npm run check` valida el esquema Prisma, genera sus tipos, comprueba TypeScript y ejecuta pruebas de dominio; no modifica ninguna base de datos. `.env.example` documenta las variables necesarias — copiarlo a `.env` y completar `DATABASE_URL`/`NEXTAUTH_SECRET` como mínimo para levantar el dashboard contra datos reales. No hay carga automática de `.env` en esta base (usar `.env.local` o exportar variables).
 
 ## Contenido
 
