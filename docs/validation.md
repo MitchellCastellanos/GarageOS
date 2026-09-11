@@ -6,4 +6,6 @@ Comprobaciones: formato y validación del esquema, generación del cliente, Type
 
 `npm audit` reportó 7 vulnerabilidades (4 altas, 3 moderadas) en la cadena de herramientas de Prisma: `prisma`, `@prisma/config`, `@prisma/dev`, `deepmerge-ts`, `mysql2`, `@hono/node-server` y `valibot`. Se conservan como deuda explícita de esta base de desarrollo. El arreglo automático propuesto cambia a Prisma 6.19.3; requiere evaluar compatibilidad y no se aplicó con `--force`. No ejecutar servidores de herramientas expuestos ni desplegar esta base antes de resolver la selección de versiones.
 
+**Actualización (vaciado completo + Vercel/Neon):** tras importar el resto de `src/` de Mecanico (con sus dependencias de runtime: `sharp`, `@react-pdf/renderer`, Twilio, etc.) `npm audit` sube a 12 vulnerabilidades (1 crítica, 8 altas, 3 moderadas). No se investigó cuáles son nuevas vs. las 7 originales ni se aplicó `--force` — sigue siendo deuda abierta, ahora mayor. Repetir `npm audit` antes de cualquier decisión de producción.
+
 La aceptación de este commit es como punto de partida de modelado, no como versión apta para producción. Repetir `npm audit` al actualizar dependencias: el resultado depende de la fecha y del registro.

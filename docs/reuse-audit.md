@@ -42,3 +42,17 @@ Lo demás se copió y se adaptó lo mínimo para compilar: `src/config/app.ts` r
 **Resultado verificado:** `npm install`, `next build` y `npm run check` (`prisma validate` + `prisma generate` + `tsc --noEmit` + pruebas de dominio) pasan limpio salvo deuda pre-existente de Mecanico ya presente antes de esta extracción (incompatibilidad de tipos entre `zod@4` y `@hookform/resolvers@5` en `AppointmentForm`/`InvoiceForm`, y un prop de más en `ServiceReminderEmail`) — enmascarada por `typescript.ignoreBuildErrors: true` en `next.config.ts`, que ya traía Mecanico y se conservó marcada como temporal. `npm run dev` sirve `/` y `/admin/login` correctamente sin DB conectada.
 
 **No se tocó en esta pasada:** los 9 invariantes de `docs/domain-model.md` (aislamiento multi-taller, folios atómicos, aprobación append-only, etc.) siguen sin implementarse — el código importado es el mismo de Mecanico con los mismos huecos de seguridad que ya señalaba ese documento, solo que ahora compila como app. No conectar a producción ni exponerlo públicamente antes de cerrar esos puntos.
+
+## Tercera entrega: rama `main`, Neon y primer deploy en Vercel
+
+El vaciado completo se hizo primero en `claude/garageos-initial-code-kbksof` (subido en lotes vía API de GitHub porque el push directo estaba bloqueado en esa sesión; luego se reconcilió con un merge cuando el push directo volvió a funcionar — los únicos conflictos fueron cosméticos: fin de línea CRLF/LF y guiones de comentario acortados por la transcripción manual, resueltos a favor de la copia fiel al import). Esa rama se integró en `main` con fast-forward (`ca267b1..7cae130`); `main` es ahora la rama que despliega Vercel.
+
+Se creó un proyecto Postgres en Neon y se conectó:
+
+- `src/lib/db.ts`: el `ssl` del `pg.Pool` dependía de `NODE_ENV === "production"`, así que en `npm run dev` se desactivaba explícitamente — y Neon exige SSL siempre. Se cambió el criterio a si el host de `DATABASE_URL` es local (`localhost`/`127.0.0.1`), no al ambiente.
+- `prisma.config.ts`: Prisma 7 no carga `.env` automáticamente para el archivo de config (a diferencia de versiones previas); sin esto, `prisma db push`/`migrate` fallaban con `datasource.url` vacío pese a tener `DATABASE_URL` en `.env`. Se agregó `import "dotenv/config"` y `dotenv` como devDependency explícita (antes era transitiva vía Prisma).
+- El primer intento de importar el repo a Vercel falló porque Vercel apuntaba a `main`, que aún era solo el commit fundacional sin Next.js (`Error: No Next.js version detected`). Se resolvió mergeando la rama del vaciado a `main` en vez de cambiar la rama de producción en Vercel.
+
+**Sin verificar todavía:** `prisma db push`/`migrate dev` contra Neon nunca se ejecutó con éxito. Esta sesión corre en un sandbox cuya política de red solo permite HTTPS saliente por un proxy (documentado explícitamente: no soporta conexiones raw-TCP a bases de datos ni upgrades de WebSocket), así que no hay forma de abrir una conexión Postgres real desde aquí — ni siquiera para probar. El schema `garageos` **puede no existir todavía en la base de Neon**. Falta correr `npm run db:push` (o `db:migrate`) desde una máquina con salida TCP normal (local del usuario, o como paso de build/CI en Vercel) antes de que cualquier página que use `db` funcione contra datos reales.
+
+Vercel completó un build exitoso sobre `main` después del fix de rama (confirmado por el usuario: "ya corre"), pero eso solo prueba que compila — no que el login o el dashboard funcionen contra la DB, porque las tablas no están confirmadas como creadas.
