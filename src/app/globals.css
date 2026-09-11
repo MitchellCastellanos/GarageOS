@@ -3,7 +3,17 @@
 :root {
   --background: #ffffff;
   --foreground: #0f172a;
-  /* Paleta placeholder de GarageOS (roja/negra) — reemplazar por marca propia */
+
+  /* Marca GarageOS — sitio de marketing (src/app/page.tsx) y producto en general */
+  --brand-blue: #2563eb;
+  --brand-blue-dark: #1d4ed8;
+  --brand-blue-light: #eff6ff;
+  --brand-navy: #0b1220;
+  --brand-navy-light: #131c2e;
+
+  /* Paleta del sitio público de reservas por taller (roja/negra, estética
+     "industrial") — src/app/book/[slug] y componentes en src/components/booking.
+     No es la marca GarageOS; no confundir con --brand-blue de arriba. */
   --brand-red: #c8102e;
   --brand-red-dark: #98081f;
   --brand-black: #131417;
@@ -13,6 +23,11 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-brand-blue: var(--brand-blue);
+  --color-brand-blue-dark: var(--brand-blue-dark);
+  --color-brand-blue-light: var(--brand-blue-light);
+  --color-brand-navy: var(--brand-navy);
+  --color-brand-navy-light: var(--brand-navy-light);
   --color-brand-red: var(--brand-red);
   --color-brand-red-dark: var(--brand-red-dark);
   --color-brand-black: var(--brand-black);
