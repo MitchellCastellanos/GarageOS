@@ -15,23 +15,23 @@ export default async function SignupPage({ searchParams }: Props) {
 
   return (
     <AuthPanel topBarText="¿Ya tienes cuenta?" topBarLinkHref={ADMIN.login} topBarLinkLabel="Iniciar sesión">
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 sm:p-10">
-        <div className="text-center mb-6">
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 sm:p-6">
+        <div className="text-center mb-3">
           <Image
             src="/brand/logo-stacked.png"
             alt="GarageOS"
             width={480}
             height={320}
-            className="h-16 w-auto mx-auto mb-5"
+            className="h-9 w-auto mx-auto mb-2"
             priority
           />
-          <h1 className="text-2xl font-bold text-slate-900">Crea tu cuenta</h1>
+          <h1 className="text-xl font-bold text-slate-900">Crea tu cuenta</h1>
           <p className="text-slate-500 text-sm mt-1">Empieza a usar GarageOS en tu taller</p>
         </div>
 
-        <form action="/api/auth/signup" method="POST" className="space-y-4">
+        <form action="/api/auth/signup" method="POST" className="space-y-2">
           <div>
-            <label htmlFor="shopName" className="block text-sm font-medium text-slate-700 mb-1.5">
+            <label htmlFor="shopName" className="block text-sm font-medium text-slate-700 mb-1">
               Nombre del taller
             </label>
             <div className="relative">
@@ -42,14 +42,14 @@ export default async function SignupPage({ searchParams }: Props) {
                 type="text"
                 autoComplete="organization"
                 required
-                className="w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Taller El Rápido"
               />
             </div>
           </div>
 
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-slate-700 mb-1.5">
+            <label htmlFor="name" className="block text-sm font-medium text-slate-700 mb-1">
               Tu nombre
             </label>
             <div className="relative">
@@ -60,14 +60,14 @@ export default async function SignupPage({ searchParams }: Props) {
                 type="text"
                 autoComplete="name"
                 required
-                className="w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Alex Martínez"
               />
             </div>
           </div>
 
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1.5">
+            <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1">
               Correo electrónico
             </label>
             <div className="relative">
@@ -78,7 +78,7 @@ export default async function SignupPage({ searchParams }: Props) {
                 type="email"
                 autoComplete="email"
                 required
-                className="w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="tu@taller.com"
               />
             </div>
@@ -104,7 +104,7 @@ export default async function SignupPage({ searchParams }: Props) {
           </button>
         </form>
 
-        <div className="flex items-center gap-3 my-6">
+        <div className="flex items-center gap-3 my-2.5">
           <div className="h-px bg-slate-200 flex-1" />
           <span className="text-xs text-slate-400">o</span>
           <div className="h-px bg-slate-200 flex-1" />
@@ -112,7 +112,7 @@ export default async function SignupPage({ searchParams }: Props) {
 
         <GoogleSignInButton callbackUrl={ADMIN.dashboard} label="Registrarte con Google" />
 
-        <p className="text-center text-xs text-slate-400 mt-6">
+        <p className="text-center text-xs text-slate-400 mt-2.5">
           Al crear una cuenta aceptas nuestros{" "}
           <Link href="#" className="text-slate-500 hover:underline">
             Términos de servicio
