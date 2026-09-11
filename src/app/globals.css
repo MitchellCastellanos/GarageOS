@@ -50,6 +50,11 @@ body {
   font-family: var(--font-sans);
 }
 
+/* Keep section headings visible below the public sticky navigation. */
+#product, #features, #pricing, #branding, .resource-section {
+  scroll-margin-top: 6rem;
+}
+
 /* ─────────────────────────────────────────
    Sitio público de citas — textura industrial
    ───────────────────────────────────────── */

@@ -28,17 +28,17 @@ const FEATURES = [
   {
     icon: ClipboardList,
     title: "Work orders & estimates",
-    description: "Digital inspections and estimates with a clear client approval flow.",
+    description: "Prepare estimates, record customer decisions and convert estimates into draft invoices.",
   },
   {
     icon: Receipt,
     title: "Invoicing & payments",
-    description: "Card, cash and mixed payments, with clean, professional invoices.",
+    description: "Professional invoices and records of card, cash and mixed payments collected by your shop.",
   },
   {
     icon: MessageCircle,
     title: "Customer communication",
-    description: "Confirmations, estimates, invoices and follow-ups sent automatically.",
+    description: "Send appointment messages, estimates and invoices through configured email and SMS services.",
   },
   {
     icon: Wrench,
@@ -47,8 +47,8 @@ const FEATURES = [
   },
   {
     icon: PackageSearch,
-    title: "Inventory & parts",
-    description: "Keep track of parts used on every job.",
+    title: "Service & parts lines",
+    description: "Itemize services and parts on estimates and invoices, with quantities and prices.",
   },
   {
     icon: Layers,

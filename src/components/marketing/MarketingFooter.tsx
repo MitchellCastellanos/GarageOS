@@ -14,10 +14,10 @@ export function MarketingFooter() {
     <footer className="bg-brand-navy">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 grid sm:grid-cols-2 lg:grid-cols-5 gap-10">
         <div className="lg:col-span-2">
-          <div className="flex items-center gap-2">
+          <Link href="/" className="inline-flex items-center gap-2" aria-label="GarageOS — Home">
             <GarageOSLogo className="h-7 w-7" />
             <span className="font-semibold text-white">GarageOS</span>
-          </div>
+          </Link>
           <p className="mt-3 text-sm text-slate-400 max-w-xs leading-relaxed">{t.footer.tagline}</p>
         </div>
 

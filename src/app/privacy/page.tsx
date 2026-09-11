@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { MarketingPageShell } from "@/components/marketing/MarketingPageShell";
 import { PageHero } from "@/components/marketing/PageHero";
 
@@ -58,7 +59,7 @@ export default function PrivacyPage() {
           </div>
           <div>
             <h2 className="text-base font-semibold text-slate-900 mb-2">Questions</h2>
-            <p>Reach out through our contact page for anything related to this policy.</p>
+            <p>Reach out through our <Link href="/contact" className="font-semibold text-brand-blue hover:underline">contact page</Link> for anything related to this policy.</p>
           </div>
         </div>
       </section>
