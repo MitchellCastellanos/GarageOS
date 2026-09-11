@@ -1,4 +1,4 @@
-// Email de notificación a la contadora cuando Carlos sube documentos
+// Email de notificación a la contadora cuando el dueño sube documentos
 // La contadora recibe: qué se subió, qué categoría, link a Drive
 
 import {

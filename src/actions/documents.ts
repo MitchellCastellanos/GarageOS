@@ -96,7 +96,7 @@ export async function getAccountingPageData() {
 export async function uploadDocument(formData: FormData) {
   const session = await getSession();
   const shopId = session.user.shopId!;
-  const uploaderName = session.user.name ?? "Carlos";
+  const uploaderName = session.user.name ?? "Equipo del taller";
 
   const file = formData.get("file") as File | null;
   const category = formData.get("category") as DocCategory | null;

@@ -6,6 +6,7 @@ import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { LayoutDashboard, LogOut, Shield } from "lucide-react";
 import { ADMIN, PLATFORM } from "@/lib/routes";
+import { APP_NAME } from "@/config/app";
 
 export function AdminSidebar() {
   const pathname = usePathname();
@@ -18,7 +19,7 @@ export function AdminSidebar() {
             <Shield className="w-4 h-4 text-slate-950" />
           </div>
           <div>
-            <p className="text-white font-semibold text-sm leading-none">Mecanico</p>
+            <p className="text-white font-semibold text-sm leading-none">{APP_NAME}</p>
             <p className="text-amber-400/90 text-xs mt-0.5">Admin plataforma</p>
           </div>
         </div>

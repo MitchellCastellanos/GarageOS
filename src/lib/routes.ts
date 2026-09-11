@@ -12,7 +12,7 @@ export const ADMIN = {
   settings: "/admin/settings",
 } as const;
 
-/** Panel super-admin (Mitchell) — separado del /admin del taller */
+/** Panel super-admin de la plataforma — separado del /admin de cada taller */
 export const PLATFORM = {
   home: "/platform",
   shop: (id: string) => `/platform/shops/${id}`,

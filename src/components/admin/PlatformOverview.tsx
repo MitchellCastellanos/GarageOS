@@ -42,7 +42,7 @@ export function PlatformOverview({ shops }: { shops: ShopRow[] }) {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Panel de plataforma</h1>
           <p className="text-slate-500 text-sm mt-1">
-            Administras todos los talleres. Carlos y su equipo solo ven el suyo.
+            Administras todos los talleres. Cada dueño y su equipo solo ven el suyo.
           </p>
         </div>
         <button
@@ -74,7 +74,7 @@ export function PlatformOverview({ shops }: { shops: ShopRow[] }) {
 
       <div className="grid gap-4">
         {shops.length === 0 && (
-          <p className="text-slate-500 text-sm">No hay talleres. Crea uno y asigna un dueño (Carlos).</p>
+          <p className="text-slate-500 text-sm">No hay talleres. Crea uno y asigna un dueño.</p>
         )}
         {shops.map((shop) => {
           const owner = shop.users.find((u) => u.role === "OWNER");

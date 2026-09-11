@@ -71,7 +71,7 @@ export function ClientForm({
           <input
             {...register("firstName")}
             type="text"
-            placeholder="Carlos o Acme Inc."
+            placeholder="Juan Pérez o Acme Inc."
             className={inputClass(!!errors.firstName)}
           />
         </Field>
@@ -99,7 +99,7 @@ export function ClientForm({
           <input
             {...register("email")}
             type="email"
-            placeholder="carlos@email.com"
+            placeholder="cliente@email.com"
             className={inputClass(!!errors.email)}
           />
         </Field>

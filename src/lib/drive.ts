@@ -1,7 +1,7 @@
 // Integración Google Drive con Service Account
 //
 // ¿Por qué Service Account y no OAuth?
-// OAuth requiere que el usuario (Carlos) haga login con Google y apruebe permisos.
+// OAuth requiere que el dueño del taller haga login con Google y apruebe permisos.
 // Con Service Account: el servidor se autentica solo, sin interacción del usuario.
 //
 // Setup (una vez, en Google Cloud Console):

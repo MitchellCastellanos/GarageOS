@@ -15,7 +15,7 @@ import React from "react";
 import { getInvoiceStrings, type InvoiceLanguage } from "@/lib/invoice-i18n";
 import { getDefaultEmailLogoUrl } from "@/lib/app-url";
 
-// TODO(garageos): Mecanico enviaba siempre al mismo correo de e-transfer de un
+// TODO(garageos): la app original enviaba siempre al mismo correo de e-transfer de un
 // solo taller. Aquí se usa el email general del taller como destino — antes
 // de aceptar pagos reales hace falta un campo dedicado por taller.
 

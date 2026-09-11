@@ -140,7 +140,7 @@ const ES: Strings = {
     contactPrompt: "Para consultas sobre esta factura:",
     bookOnlineLabel: "¿Necesitas otra cita? Resérvala en línea:",
     footer: (shop) => `Este correo fue enviado por ${shop}.`,
-    poweredBy: "Enviado con Mecanico Management",
+    poweredBy: "Enviado con GarageOS",
   },
 };
 
@@ -215,7 +215,7 @@ const EN: Strings = {
     contactPrompt: "For questions about this invoice:",
     bookOnlineLabel: "Need another appointment? Book online:",
     footer: (shop) => `This email was sent by ${shop}.`,
-    poweredBy: "Sent with Mecanico Management",
+    poweredBy: "Sent with GarageOS",
   },
 };
 
@@ -290,7 +290,7 @@ const FR: Strings = {
     contactPrompt: "Pour toute question concernant cette facture :",
     bookOnlineLabel: "Besoin d'un autre rendez-vous ? Réservez en ligne :",
     footer: (shop) => `Ce courriel a été envoyé par ${shop}.`,
-    poweredBy: "Envoyé avec Mecanico Management",
+    poweredBy: "Envoyé avec GarageOS",
   },
 };
 

@@ -94,7 +94,7 @@ export function ShopAdminPanel({ shop }: { shop: ShopDetail }) {
           className="bg-white border border-amber-200 rounded-xl p-5 space-y-3 max-w-lg"
         >
           <p className="font-medium">Crear dueño del taller</p>
-          <input name="name" placeholder="Nombre (ej. Carlos)" required className={inputClass} />
+          <input name="name" placeholder="Nombre del dueño" required className={inputClass} />
           <input name="email" type="email" placeholder="Email de login" required className={inputClass} />
           <input name="password" type="password" placeholder="Contraseña temporal" required minLength={8} className={inputClass} />
           <button type="submit" disabled={pending} className="bg-amber-500 text-slate-950 text-sm font-medium px-4 py-2 rounded-lg">
