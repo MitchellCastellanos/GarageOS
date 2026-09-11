@@ -30,6 +30,7 @@ npm run db:push
 - [Auditoría de reutilización y procedencia](docs/reuse-audit.md)
 - [Modelo y reglas pendientes](docs/domain-model.md)
 - [Próximas entregas](docs/roadmap.md)
+- [Brecha entre el homepage y el producto, y plan de construcción unificado](docs/feature-gap.md)
 - [Validación y deuda de dependencias](docs/validation.md)
 - [Esquema inicial](prisma/schema.prisma)
 
