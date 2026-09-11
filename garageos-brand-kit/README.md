@@ -35,6 +35,15 @@ operating system for the garage.
     treatment for invoices, print, PDFs, and restrained applications.
 -   `garageos-logo-monochrome-white.png` --- single-color white
     treatment for dark photography, dark UI, footers, and video.
+-   `garageos-logo-horizontal-v2.png` --- generated attempt at fixing
+    the broken-"Garage"-text defect in `garageos-logo-horizontal.png`
+    (see Integration notes). **Not usable as delivered either:** it
+    composites the lockup onto an unrequested off-white torn-paper card
+    with a blue glow/halo around the mark, instead of plain alpha
+    transparency, and has visible edge noise. Not copied into
+    `public/`; needs another regeneration pass with an explicit
+    "no card, no paper texture, no halo/glow, pure transparent
+    background" constraint before it replaces the original.
 
 ### `marks/`
 
@@ -43,6 +52,13 @@ operating system for the garage.
     wordmark is unnecessary.
 -   `garageos-favicon.png` --- square master of the mark intended as the
     source for browser favicon sizes.
+-   `garageos-email-mark.png` --- standalone mark, generated to fill the
+    gap this kit's own "not present" list originally flagged; for
+    transactional email headers. See Integration notes — has some edge
+    noise at full resolution (same class of artifact as the two files
+    above), acceptable at the small sizes it's actually used at. Wired
+    in as `public/brand/email-mark.png` (256px); not yet referenced from
+    `src/emails/`.
 
 ### `app/`
 
@@ -53,8 +69,14 @@ operating system for the garage.
 
 ### `graphics/`
 
-Reserved for secondary GarageOS graphic assets such as the official
-brand pattern.
+-   `garageos-brand-pattern.png` --- the official repeating diagonal
+    module pattern, for texture on dark brand panels.
+-   `garageos-og-image.png` --- 1734×907 (≈1.91:1) social share image:
+    mark + wordmark + tagline on the brand pattern over Deep Navy.
+    Generated to fill the gap this kit's own "not present" list
+    originally flagged; see Integration notes. Wired in as
+    `public/og-image.png` (cropped to the standard 1200×630) via
+    `openGraph.images`/`twitter.images` in `src/app/layout.tsx`.
 
 ## Usage guidance
 
@@ -79,16 +101,19 @@ transparency in their supplied originals. The PNG conversion preserves
 their visible artwork rather than attempting destructive automatic
 background removal.
 
-## Assets not present in the supplied batch
+## Assets not present in the original supplied batch
 
-One asset from the planned full package was not present as a distinct
-file in the uploaded set:
-
--   `garageos-email-mark.png`
-
-`garageos-brand-pattern.png` *was* present in the uploaded set, under
-`marks/brand pattern.png` — moved to `graphics/garageos-brand-pattern.png`
-to match this document's structure. It is otherwise unedited.
+Two assets from the planned full package were not present as distinct
+files in the originally uploaded set: `garageos-email-mark.png` and
+`garageos-brand-pattern.png`. Both have since been added —
+`garageos-brand-pattern.png` was actually already in the upload under
+`marks/brand pattern.png` and got moved/renamed to
+`graphics/garageos-brand-pattern.png` to match this document's
+structure (otherwise unedited); `garageos-email-mark.png` and a
+`graphics/garageos-og-image.png` (not part of the original planned
+package, but needed once the site went live with no social-share
+image) were generated separately — see Integration notes for their
+quality caveats.
 
 ## Integration notes (added when wiring this kit into the app)
 
