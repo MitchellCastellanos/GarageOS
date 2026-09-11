@@ -1,0 +1,663 @@
+// GarageOS foundation adapted from Mecanico_Management; see docs/reuse-audit.md.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["garageos"]
+}
+
+model Shop {
+  defaultLanguage InvoiceLanguage @default(FR)
+  workOrders      WorkOrder[]
+
+  id                       String   @id @default(cuid())
+  name                     String
+  logoUrl                  String?
+  address                  String?
+  phone                    String?
+  email                    String?
+  billingEmail             String?
+  infoEmail                String?
+  providersEmail           String?
+  newsletterEmail          String?
+  taxId                    String?
+  currency                 String   @default("CAD")
+  appointmentReminderHours Int      @default(24)
+  appointmentEmailsEnabled Boolean  @default(true)
+  appointmentSmsEnabled    Boolean  @default(true)
+  slug                     String?  @unique
+  bookingEnabled           Boolean  @default(false)
+  timezone                 String   @default("America/Montreal")
+  bookingSlotMinutes       Int      @default(60)
+  bookingLeadTimeHours     Int      @default(24)
+  bookingAdvanceDays       Int      @default(30)
+  createdAt                DateTime @default(now())
+
+  users             User[]
+  workingHours      ShopWorkingHours[]
+  bookingServices   ShopBookingService[]
+  clients           Client[]
+  invoices          Invoice[]
+  quotes            Quote[]
+  appointments      Appointment[]
+  reminders         ServiceReminder[]
+  documents         AccountingDocument[]
+  savedLineItems    SavedLineItem[]
+  cashDrawerEntries CashDrawerEntry[]
+
+  @@schema("garageos")
+}
+
+model User {
+
+  id           String   @id @default(cuid())
+  shopId       String?
+  shop         Shop?    @relation(fields: [shopId], references: [id])
+  name         String
+  email        String   @unique
+  passwordHash String?
+  role         Role     @default(MECHANIC)
+  bookable     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  accounts     Account[]
+  sessions     Session[]
+  appointments Appointment[]          @relation("AppointmentMechanic")
+  workingHours MechanicWorkingHours[]
+
+  @@schema("garageos")
+}
+
+enum Role {
+
+  SUPER_ADMIN
+  OWNER
+  MECHANIC
+  VIEWER
+
+  @@schema("garageos")
+}
+
+model Account {
+
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@schema("garageos")
+}
+
+model Session {
+
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@schema("garageos")
+}
+
+model VerificationToken {
+
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@schema("garageos")
+}
+
+model Client {
+  workOrders WorkOrder[]
+
+  id        String          @id @default(cuid())
+  shopId    String
+  shop      Shop            @relation(fields: [shopId], references: [id])
+  firstName String
+  lastName  String?
+  email     String?
+  phone     String?
+  address   String?
+  notes     String?         @db.Text
+  language  InvoiceLanguage @default(FR)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  vehicles     Vehicle[]
+  invoices     Invoice[]
+  quotes       Quote[]
+  appointments Appointment[]
+
+  @@schema("garageos")
+}
+
+model Vehicle {
+  workOrders WorkOrder[]
+
+  id           String      @id @default(cuid())
+  clientId     String
+  client       Client      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  make         String
+  model        String
+  year         Int
+  licensePlate String
+  vin          String?
+  color        String?
+  mileageUnit  MileageUnit @default(KM)
+  createdAt    DateTime    @default(now())
+
+  invoiceVehicles InvoiceVehicle[]
+  quoteVehicles   QuoteVehicle[]
+  appointments    Appointment[]
+  reminders       ServiceReminder[]
+
+  @@schema("garageos")
+}
+
+enum MileageUnit {
+
+  KM
+  MILES
+
+  @@schema("garageos")
+}
+
+model Invoice {
+  sourceQuote Quote?      @relation("QuoteConversion")
+  workOrders  WorkOrder[]
+
+  id                String              @id @default(cuid())
+  shopId            String
+  shop              Shop                @relation(fields: [shopId], references: [id])
+  clientId          String
+  client            Client              @relation(fields: [clientId], references: [id])
+  invoiceNumber     String
+  status            InvoiceStatus       @default(DRAFT)
+  issuedAt          DateTime            @default(now())
+  dueAt             DateTime?
+  paidAt            DateTime?
+  sentAt            DateTime?
+  emailSentAt       DateTime?
+  emailSendCount    Int                 @default(0)
+  smsSentAt         DateTime?
+  smsSendCount      Int                 @default(0)
+  downloadToken     String?             @unique
+  clientPackagePath String?
+  subtotal          Decimal             @db.Decimal(10, 2)
+  taxRate           Decimal             @db.Decimal(6, 5)
+  taxAmount         Decimal             @db.Decimal(10, 2)
+  total             Decimal             @db.Decimal(10, 2)
+  language          InvoiceLanguage     @default(FR)
+  notes             String?             @db.Text
+  pdfUrl            String?
+  paymentMode       InvoicePaymentMode?
+  paymentExtraPaths Json                @default("[]")
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  vehicles          InvoiceVehicle[]
+  paymentEntries    InvoicePaymentEntry[]
+  cashDrawerEntries CashDrawerEntry[]
+
+  @@unique([shopId, invoiceNumber])
+  @@schema("garageos")
+}
+
+model InvoiceVehicle {
+
+  id         String  @id @default(cuid())
+  invoiceId  String
+  invoice    Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  vehicleId  String
+  vehicle    Vehicle @relation(fields: [vehicleId], references: [id])
+  mileageIn  Int?
+  mileageOut Int?
+  sortOrder  Int     @default(0)
+
+  lineItems InvoiceLineItem[]
+
+  @@schema("garageos")
+}
+
+enum InvoicePaymentMode {
+
+  CARD
+  CASH
+  MIXED
+
+  @@schema("garageos")
+}
+
+model InvoicePaymentEntry {
+
+  id          String                    @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice                   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  method      InvoicePaymentEntryMethod
+  amount      Decimal                   @db.Decimal(10, 2)
+  receiptPath String?
+  sortOrder   Int                       @default(0)
+  createdAt   DateTime                  @default(now())
+
+  @@schema("garageos")
+}
+
+enum InvoicePaymentEntryMethod {
+
+  CARD
+  CASH
+
+  @@schema("garageos")
+}
+
+enum InvoiceStatus {
+
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  CANCELLED
+
+  @@schema("garageos")
+}
+
+enum InvoiceLanguage {
+
+  ES
+  EN
+  FR
+
+  @@schema("garageos")
+}
+
+model InvoiceLineItem {
+
+  id               String         @id @default(cuid())
+  invoiceVehicleId String
+  invoiceVehicle   InvoiceVehicle @relation(fields: [invoiceVehicleId], references: [id], onDelete: Cascade)
+  description      String
+  quantity         Decimal        @db.Decimal(8, 2)
+  unitPrice        Decimal        @db.Decimal(10, 2)
+  lineTotal        Decimal        @db.Decimal(10, 2)
+  itemType         LineItemType   @default(LABOUR)
+  warrantyTerm     String?
+  sortOrder        Int            @default(0)
+
+  @@schema("garageos")
+}
+
+model SavedLineItem {
+
+  id          String       @id @default(cuid())
+  shopId      String
+  shop        Shop         @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  description String
+  itemType    LineItemType @default(LABOUR)
+  unitPrice   Decimal      @db.Decimal(10, 2)
+  useCount    Int          @default(1)
+  lastUsedAt  DateTime     @default(now()) @updatedAt
+
+  @@unique([shopId, description])
+  @@schema("garageos")
+}
+
+enum LineItemType {
+
+  LABOUR
+  PART
+  OTHER
+
+  @@schema("garageos")
+}
+
+model Quote {
+  approvals  QuoteApproval[]
+  workOrders WorkOrder[]
+
+  id                 String          @id @default(cuid())
+  shopId             String
+  shop               Shop            @relation(fields: [shopId], references: [id])
+  clientId           String
+  client             Client          @relation(fields: [clientId], references: [id])
+  quoteNumber        String
+  status             QuoteStatus     @default(DRAFT)
+  issuedAt           DateTime        @default(now())
+  validUntil         DateTime?
+  sentAt             DateTime?
+  emailSentAt        DateTime?
+  emailSendCount     Int             @default(0)
+  convertedInvoiceId String?         @unique
+  convertedInvoice   Invoice?        @relation("QuoteConversion", fields: [convertedInvoiceId], references: [id])
+  subtotal           Decimal         @db.Decimal(10, 2)
+  taxRate            Decimal         @db.Decimal(6, 5)
+  taxAmount          Decimal         @db.Decimal(10, 2)
+  total              Decimal         @db.Decimal(10, 2)
+  language           InvoiceLanguage @default(FR)
+  notes              String?         @db.Text
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  vehicles QuoteVehicle[]
+
+  @@unique([shopId, quoteNumber])
+  @@schema("garageos")
+}
+
+enum QuoteStatus {
+
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  CONVERTED
+  CANCELLED
+
+  @@schema("garageos")
+}
+
+model QuoteVehicle {
+
+  id         String  @id @default(cuid())
+  quoteId    String
+  quote      Quote   @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  vehicleId  String
+  vehicle    Vehicle @relation(fields: [vehicleId], references: [id])
+  mileageIn  Int?
+  mileageOut Int?
+  sortOrder  Int     @default(0)
+
+  lineItems QuoteLineItem[]
+
+  @@schema("garageos")
+}
+
+model QuoteLineItem {
+
+  id             String       @id @default(cuid())
+  quoteVehicleId String
+  quoteVehicle   QuoteVehicle @relation(fields: [quoteVehicleId], references: [id], onDelete: Cascade)
+  description    String
+  quantity       Decimal      @db.Decimal(8, 2)
+  unitPrice      Decimal      @db.Decimal(10, 2)
+  lineTotal      Decimal      @db.Decimal(10, 2)
+  itemType       LineItemType @default(LABOUR)
+  warrantyTerm   String?
+  sortOrder      Int          @default(0)
+
+  @@schema("garageos")
+}
+
+model Appointment {
+
+  id                 String            @id @default(cuid())
+  shopId             String
+  shop               Shop              @relation(fields: [shopId], references: [id])
+  clientId           String
+  client             Client            @relation(fields: [clientId], references: [id])
+  vehicleId          String?
+  vehicle            Vehicle?          @relation(fields: [vehicleId], references: [id])
+  mechanicId         String?
+  mechanic           User?             @relation("AppointmentMechanic", fields: [mechanicId], references: [id])
+  title              String
+  startsAt           DateTime
+  endsAt             DateTime
+  durationMinutes    Int
+  status             AppointmentStatus @default(SCHEDULED)
+  notes              String?           @db.Text
+  confirmationSentAt DateTime?
+  reminderSentAt     DateTime?
+  cancellationSentAt DateTime?
+  source             AppointmentSource @default(INTERNAL)
+  manageToken        String?           @unique
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  @@schema("garageos")
+}
+
+enum AppointmentSource {
+
+  INTERNAL
+  PUBLIC_WEB
+
+  @@schema("garageos")
+}
+
+enum AppointmentStatus {
+
+  SCHEDULED
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+
+  @@schema("garageos")
+}
+
+model ShopWorkingHours {
+
+  id        String  @id @default(cuid())
+  shopId    String
+  shop      Shop    @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  dayOfWeek Int
+  openTime  String
+  closeTime String
+  isClosed  Boolean @default(false)
+
+  @@unique([shopId, dayOfWeek])
+  @@schema("garageos")
+}
+
+model MechanicWorkingHours {
+
+  id        String  @id @default(cuid())
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dayOfWeek Int
+  openTime  String
+  closeTime String
+  isClosed  Boolean @default(false)
+
+  @@unique([userId, dayOfWeek])
+  @@schema("garageos")
+}
+
+model ShopBookingService {
+
+  id              String   @id @default(cuid())
+  shopId          String
+  shop            Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  labelFr         String
+  labelEn         String
+  labelEs         String
+  durationMinutes Int
+  isActive        Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@schema("garageos")
+}
+
+model ServiceReminder {
+
+  id          String         @id @default(cuid())
+  shopId      String
+  shop        Shop           @relation(fields: [shopId], references: [id])
+  vehicleId   String
+  vehicle     Vehicle        @relation(fields: [vehicleId], references: [id])
+  serviceType String
+  dueMileage  Int?
+  dueDate     DateTime?
+  notes       String?
+  status      ReminderStatus @default(PENDING)
+  sentAt      DateTime?
+  createdAt   DateTime       @default(now())
+
+  @@schema("garageos")
+}
+
+enum ReminderStatus {
+
+  PENDING
+  SENT
+  ACKNOWLEDGED
+  DISMISSED
+
+  @@schema("garageos")
+}
+
+model AccountingDocument {
+
+  id            String      @id @default(cuid())
+  shopId        String
+  shop          Shop        @relation(fields: [shopId], references: [id])
+  category      DocCategory
+  fileName      String
+  storagePath   String
+  driveFileId   String?
+  driveFolderId String?
+  uploadedAt    DateTime    @default(now())
+  uploadedById  String?
+  notes         String?
+
+  @@schema("garageos")
+}
+
+enum DocCategory {
+
+  INVOICES
+  RECEIPTS
+  PAYROLL
+  TAX_DOCUMENTS
+  BANK_STATEMENTS
+  OTHER
+
+  @@schema("garageos")
+}
+
+model CashDrawerEntry {
+
+  id              String                     @id @default(cuid())
+  shopId          String
+  shop            Shop                       @relation(fields: [shopId], references: [id])
+  type            CashDrawerEntryType
+  amount          Decimal                    @db.Decimal(10, 2)
+  description     String?                    @db.Text
+  occurredAt      DateTime                   @default(now())
+  linkedInvoiceId String?
+  linkedInvoice   Invoice?                   @relation(fields: [linkedInvoiceId], references: [id], onDelete: SetNull)
+  paymentMethod   InvoicePaymentEntryMethod?
+  createdById     String?
+  createdAt       DateTime                   @default(now())
+
+  @@index([shopId, occurredAt])
+  @@index([linkedInvoiceId])
+  @@schema("garageos")
+}
+
+enum CashDrawerEntryType {
+
+  OPENING_BALANCE
+  CASH_IN
+  CASH_OUT
+  ADJUSTMENT
+  CLOSING_BALANCE
+
+  @@schema("garageos")
+}
+
+// New GarageOS concepts. Application services must enforce same-shop ownership,
+// approval revision matching and transactional conversion; see docs/domain-model.md.
+model QuoteApproval {
+  id               String           @id @default(cuid())
+  quoteId          String
+  quote            Quote            @relation(fields: [quoteId], references: [id])
+  decision         ApprovalDecision
+  documentHash     String
+  documentSnapshot Json
+  actorName        String
+  recordedAt       DateTime         @default(now())
+  channel          String
+
+  @@index([quoteId, recordedAt])
+  @@schema("garageos")
+}
+
+enum ApprovalDecision {
+  ACCEPTED
+  REJECTED
+
+  @@schema("garageos")
+}
+
+model WorkOrder {
+  id          String          @id @default(cuid())
+  shopId      String
+  shop        Shop            @relation(fields: [shopId], references: [id])
+  clientId    String
+  client      Client          @relation(fields: [clientId], references: [id])
+  vehicleId   String
+  vehicle     Vehicle         @relation(fields: [vehicleId], references: [id])
+  quoteId     String?
+  quote       Quote?          @relation(fields: [quoteId], references: [id])
+  invoiceId   String?
+  invoice     Invoice?        @relation(fields: [invoiceId], references: [id])
+  orderNumber String
+  status      WorkOrderStatus @default(OPEN)
+  concern     String
+  diagnosis   String?         @db.Text
+  mileageIn   Int?
+  mileageOut  Int?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  lines       WorkOrderLine[]
+
+  @@unique([shopId, orderNumber])
+  @@index([shopId, status])
+  @@schema("garageos")
+}
+
+model WorkOrderLine {
+  id           String       @id @default(cuid())
+  workOrderId  String
+  workOrder    WorkOrder    @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  description  String
+  quantity     Decimal      @db.Decimal(8, 2)
+  unitPrice    Decimal      @db.Decimal(10, 2)
+  itemType     LineItemType @default(LABOUR)
+  warrantyTerm String?
+  sortOrder    Int          @default(0)
+
+  @@schema("garageos")
+}
+
+enum WorkOrderStatus {
+  OPEN
+  AWAITING_APPROVAL
+  APPROVED
+  IN_PROGRESS
+  COMPLETED
+  INVOICED
+  CANCELLED
+
+  @@schema("garageos")
+}
