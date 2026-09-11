@@ -4,13 +4,25 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { signIn } from "@/lib/auth";
 import { ADMIN } from "@/lib/routes";
+import {
+  MARKETING_DICTIONARIES,
+  DEFAULT_MARKETING_LOCALE,
+  type MarketingLocale,
+  type MarketingDictionary,
+} from "@/lib/marketing-locale";
 
-const signupSchema = z.object({
-  shopName: z.string().trim().min(1, "Ingresa el nombre de tu taller").max(100),
-  name: z.string().trim().min(1, "Ingresa tu nombre").max(100),
-  email: z.string().trim().toLowerCase().email("Email inválido"),
-  password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
-});
+function resolveLocale(value: unknown): MarketingLocale {
+  return value === "fr" ? "fr" : DEFAULT_MARKETING_LOCALE;
+}
+
+function signupSchema(errors: MarketingDictionary["auth"]["errors"]) {
+  return z.object({
+    shopName: z.string().trim().min(1, errors.missingShopName).max(100),
+    name: z.string().trim().min(1, errors.missingName).max(100),
+    email: z.string().trim().toLowerCase().email(errors.invalidEmail),
+    password: z.string().min(8, errors.weakPassword),
+  });
+}
 
 function signupRedirect(req: NextRequest, error: string) {
   const url = new URL(ADMIN.signup, req.url);
@@ -20,8 +32,10 @@ function signupRedirect(req: NextRequest, error: string) {
 
 export async function POST(req: NextRequest) {
   const formData = await req.formData();
+  const locale = resolveLocale(formData.get("locale"));
+  const errors = MARKETING_DICTIONARIES[locale].auth.errors;
 
-  const parsed = signupSchema.safeParse({
+  const parsed = signupSchema(errors).safeParse({
     shopName: formData.get("shopName"),
     name: formData.get("name"),
     email: formData.get("email"),
@@ -29,7 +43,7 @@ export async function POST(req: NextRequest) {
   });
 
   if (!parsed.success) {
-    const message = parsed.error.issues[0]?.message ?? "Datos inválidos";
+    const message = parsed.error.issues[0]?.message ?? errors.signupError;
     return signupRedirect(req, message);
   }
 
@@ -38,7 +52,7 @@ export async function POST(req: NextRequest) {
   try {
     const existing = await db.user.findUnique({ where: { email } });
     if (existing) {
-      return signupRedirect(req, "Ese correo ya tiene una cuenta. Inicia sesión.");
+      return signupRedirect(req, errors.emailTaken);
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
@@ -57,7 +71,7 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     console.error("[/api/auth/signup] error:", err);
-    return signupRedirect(req, "Error al crear tu cuenta. Intenta de nuevo.");
+    return signupRedirect(req, errors.signupError);
   }
 
   try {
@@ -66,7 +80,7 @@ export async function POST(req: NextRequest) {
     console.error("[/api/auth/signup] signIn error:", err);
     // La cuenta ya quedó creada; que inicie sesión manualmente.
     const url = new URL(ADMIN.login, req.url);
-    url.searchParams.set("error", "Cuenta creada. Inicia sesión para continuar.");
+    url.searchParams.set("error", errors.accountCreatedSignIn);
     return NextResponse.redirect(url, { status: 303 });
   }
 

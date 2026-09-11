@@ -7,7 +7,7 @@ interface GoogleSignInButtonProps {
   label?: string;
 }
 
-export function GoogleSignInButton({ callbackUrl, label = "Continuar con Google" }: GoogleSignInButtonProps) {
+export function GoogleSignInButton({ callbackUrl, label = "Continue with Google" }: GoogleSignInButtonProps) {
   return (
     <button
       type="button"

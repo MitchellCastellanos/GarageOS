@@ -1,21 +1,32 @@
+"use client";
+
 import Link from "next/link";
+import { ADMIN } from "@/lib/routes";
+import { useMarketingLocale } from "@/components/marketing/MarketingLocaleProvider";
+import { LanguageToggle } from "@/components/marketing/LanguageToggle";
 
 interface AuthPanelProps {
-  topBarText: string;
-  topBarLinkHref: string;
-  topBarLinkLabel: string;
+  variant: "login" | "signup";
   children: React.ReactNode;
 }
 
 // Lado derecho (claro) de /admin/login y /admin/signup: barra superior con
-// el link cruzado entre las dos pantallas + la tarjeta del formulario.
-export function AuthPanel({ topBarText, topBarLinkHref, topBarLinkLabel, children }: AuthPanelProps) {
+// el selector de idioma + el link cruzado entre las dos pantallas, y la
+// tarjeta del formulario.
+export function AuthPanel({ variant, children }: AuthPanelProps) {
+  const { t } = useMarketingLocale();
+
+  const topBarText = variant === "login" ? t.auth.login.newToGarageOS : t.auth.signup.alreadyHaveAccount;
+  const topBarLinkLabel = variant === "login" ? t.auth.login.createAccount : t.auth.signup.signIn;
+  const topBarLinkHref = variant === "login" ? ADMIN.signup : ADMIN.login;
+
   return (
     <div className="flex-1 relative overflow-hidden bg-slate-50 flex flex-col min-h-screen">
       <div className="pointer-events-none absolute -bottom-24 -right-24 w-96 h-96 rounded-full bg-brand-blue/10 blur-3xl" />
       <div className="pointer-events-none absolute top-0 right-0 w-64 h-64 rounded-full bg-brand-blue/5 blur-2xl" />
 
-      <div className="relative flex justify-end px-6 py-4 sm:px-10">
+      <div className="relative flex items-center justify-end gap-4 px-6 py-4 sm:px-10">
+        <LanguageToggle />
         <p className="text-sm text-slate-500">
           {topBarText}{" "}
           <Link

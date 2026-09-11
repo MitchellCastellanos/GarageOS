@@ -2,6 +2,12 @@
 
 import { useState } from "react";
 import { Lock, Eye, EyeOff } from "lucide-react";
+import { useMarketingLocale } from "@/components/marketing/MarketingLocaleProvider";
+
+const ARIA_LABEL = {
+  en: { show: "Show password", hide: "Hide password" },
+  fr: { show: "Afficher le mot de passe", hide: "Masquer le mot de passe" },
+};
 
 interface PasswordFieldProps {
   id?: string;
@@ -15,12 +21,13 @@ interface PasswordFieldProps {
 export function PasswordField({
   id = "password",
   name = "password",
-  label = "Contraseña",
+  label = "Password",
   placeholder = "••••••••",
   autoComplete = "current-password",
   minLength,
 }: PasswordFieldProps) {
   const [visible, setVisible] = useState(false);
+  const { locale } = useMarketingLocale();
 
   return (
     <div>
@@ -44,7 +51,7 @@ export function PasswordField({
           tabIndex={-1}
           onClick={() => setVisible((v) => !v)}
           className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-          aria-label={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
+          aria-label={visible ? ARIA_LABEL[locale].hide : ARIA_LABEL[locale].show}
         >
           {visible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
         </button>
