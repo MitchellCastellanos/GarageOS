@@ -2,7 +2,7 @@
 
 Software de gestión para garages independientes de Quebec y Canadá, construido a partir del código operativo de Mecanico Management.
 
-**Estado: aplicación Next.js que compila y corre (`npm run dev` / `next build`), desplegada en Vercel sobre `main`. Hay un proyecto Postgres en Neon creado y el código ya sabe conectarse, pero `prisma db push`/`migrate` nunca se ejecutó con éxito — el schema `garageos` puede no existir todavía en esa base.** Deuda conocida en [docs/reuse-audit.md](docs/reuse-audit.md). Auth, permisos, storage e impuestos vienen adaptados de Mecanico pero no están probados contra datos reales ni aislamiento multi-taller. No exponer a usuarios reales — ver invariantes pendientes en [docs/domain-model.md](docs/domain-model.md), ninguno implementado todavía.
+**Estado: aplicación Next.js que compila y corre (`npm run dev` / `next build`), desplegada en Vercel sobre `main`. Hay un proyecto Postgres en Neon creado y el código ya sabe conectarse. `npm run build` ahora aplica las migraciones pendientes automáticamente en cada deploy (ver [docs/db-migrations.md](docs/db-migrations.md)); antes era un paso manual (`npm run db:deploy`) y se olvidó tras la migración inicial, dejando el schema `garageos` sin crear.** Deuda conocida en [docs/reuse-audit.md](docs/reuse-audit.md). Auth, permisos, storage e impuestos vienen adaptados de Mecanico pero no están probados contra datos reales ni aislamiento multi-taller. No exponer a usuarios reales — ver invariantes pendientes en [docs/domain-model.md](docs/domain-model.md), ninguno implementado todavía.
 
 Flujo objetivo: clientes → vehículos → citas → cotización → aprobación → orden de trabajo → factura → pago → recordatorio.
 
@@ -32,6 +32,7 @@ npm run db:push
 - [Próximas entregas](docs/roadmap.md)
 - [Brecha entre el homepage y el producto, y plan de construcción unificado](docs/feature-gap.md)
 - [Validación y deuda de dependencias](docs/validation.md)
+- [Migraciones automáticas de base de datos](docs/db-migrations.md)
 - [Esquema inicial](prisma/schema.prisma)
 
 El esquema es una adaptación del origen, no una migración compatible con su base de datos. No ejecutar contra Mecanico. Los datos, secretos, branding, scripts de bootstrap y automatizaciones del taller original no forman parte de esta extracción.
