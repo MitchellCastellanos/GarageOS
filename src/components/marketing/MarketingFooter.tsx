@@ -26,10 +26,10 @@ export function MarketingFooter() {
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-4">{col.title}</p>
             <ul className="space-y-2.5">
               {col.links.map((link) => (
-                <li key={link}>
-                  <span className="text-sm text-slate-300 hover:text-white transition-colors cursor-default">
-                    {link}
-                  </span>
+                <li key={link.href}>
+                  <Link href={link.href} className="text-sm text-slate-300 hover:text-white transition-colors">
+                    {link.label}
+                  </Link>
                 </li>
               ))}
             </ul>

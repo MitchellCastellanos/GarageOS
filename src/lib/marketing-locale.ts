@@ -21,12 +21,7 @@ export interface MarketingDictionary {
     login: string;
     getStarted: string;
   };
-  resourcesMenu: {
-    helpCenter: string;
-    blog: string;
-    guides: string;
-    changelog: string;
-  };
+  resourcesMenu: { label: string; href: string }[];
   hero: {
     eyebrow: string;
     titleLine1: string;
@@ -137,9 +132,9 @@ export interface MarketingDictionary {
   footer: {
     tagline: string;
     columns: {
-      product: { title: string; links: string[] };
-      resources: { title: string; links: string[] };
-      company: { title: string; links: string[] };
+      product: { title: string; links: { label: string; href: string }[] };
+      resources: { title: string; links: { label: string; href: string }[] };
+      company: { title: string; links: { label: string; href: string }[] };
     };
     copyright: string;
     madeFor: string;
@@ -161,12 +156,12 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
       login: "Login",
       getStarted: "Get Started",
     },
-    resourcesMenu: {
-      helpCenter: "Help Center",
-      blog: "Blog",
-      guides: "Guides",
-      changelog: "Changelog",
-    },
+    resourcesMenu: [
+      { label: "Help Center", href: "/help" },
+      { label: "Blog", href: "/blog" },
+      { label: "Guides", href: "/guides" },
+      { label: "Changelog", href: "/changelog" },
+    ],
     hero: {
       eyebrow: "Auto shop management software",
       titleLine1: "Less admin.",
@@ -408,9 +403,32 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
     footer: {
       tagline: "The operating system for modern auto shops.",
       columns: {
-        product: { title: "Product", links: ["Features", "Pricing", "Integrations", "Changelog"] },
-        resources: { title: "Resources", links: ["Help Center", "Blog", "Guides", "Contact"] },
-        company: { title: "Company", links: ["About", "Privacy", "Terms"] },
+        product: {
+          title: "Product",
+          links: [
+            { label: "Features", href: "/features" },
+            { label: "Pricing", href: "/#pricing" },
+            { label: "Integrations", href: "/integrations" },
+            { label: "Changelog", href: "/changelog" },
+          ],
+        },
+        resources: {
+          title: "Resources",
+          links: [
+            { label: "Help Center", href: "/help" },
+            { label: "Blog", href: "/blog" },
+            { label: "Guides", href: "/guides" },
+            { label: "Contact", href: "/contact" },
+          ],
+        },
+        company: {
+          title: "Company",
+          links: [
+            { label: "About", href: "/about" },
+            { label: "Privacy", href: "/privacy" },
+            { label: "Terms", href: "/terms" },
+          ],
+        },
       },
       copyright: "GarageOS. All rights reserved.",
       madeFor: "Built for the people who keep the world moving.",
@@ -430,12 +448,12 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
       login: "Connexion",
       getStarted: "Commencer",
     },
-    resourcesMenu: {
-      helpCenter: "Centre d'aide",
-      blog: "Blogue",
-      guides: "Guides",
-      changelog: "Nouveautés",
-    },
+    resourcesMenu: [
+      { label: "Centre d'aide", href: "/help" },
+      { label: "Blogue", href: "/blog" },
+      { label: "Guides", href: "/guides" },
+      { label: "Nouveautés", href: "/changelog" },
+    ],
     hero: {
       eyebrow: "Logiciel de gestion pour ateliers mécaniques",
       titleLine1: "Moins d'admin.",
@@ -677,9 +695,32 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
     footer: {
       tagline: "Le système d'exploitation des ateliers mécaniques modernes.",
       columns: {
-        product: { title: "Produit", links: ["Fonctionnalités", "Tarifs", "Intégrations", "Nouveautés"] },
-        resources: { title: "Ressources", links: ["Centre d'aide", "Blogue", "Guides", "Contact"] },
-        company: { title: "Entreprise", links: ["À propos", "Confidentialité", "Conditions"] },
+        product: {
+          title: "Produit",
+          links: [
+            { label: "Fonctionnalités", href: "/features" },
+            { label: "Tarifs", href: "/#pricing" },
+            { label: "Intégrations", href: "/integrations" },
+            { label: "Nouveautés", href: "/changelog" },
+          ],
+        },
+        resources: {
+          title: "Ressources",
+          links: [
+            { label: "Centre d'aide", href: "/help" },
+            { label: "Blogue", href: "/blog" },
+            { label: "Guides", href: "/guides" },
+            { label: "Contact", href: "/contact" },
+          ],
+        },
+        company: {
+          title: "Entreprise",
+          links: [
+            { label: "À propos", href: "/about" },
+            { label: "Confidentialité", href: "/privacy" },
+            { label: "Conditions", href: "/terms" },
+          ],
+        },
       },
       copyright: "GarageOS. Tous droits réservés.",
       madeFor: "Conçu pour les gens qui gardent le monde en mouvement.",
