@@ -13,7 +13,7 @@ import {
   Users,
   Wrench,
 } from "lucide-react";
-import { GarageOSLogo } from "@/components/marketing/GarageOSLogo";
+import { GarageOSAppIcon } from "@/components/marketing/GarageOSLogo";
 
 const NAV_ICONS = [
   LayoutGrid,
@@ -73,7 +73,7 @@ export function DashboardMockup(props: DashboardMockupProps) {
       {/* Top bar */}
       <div className="flex items-center gap-4 border-b border-slate-100 px-4 py-3 bg-white">
         <div className="flex items-center gap-2 shrink-0">
-          <GarageOSLogo className="h-6 w-6" />
+          <GarageOSAppIcon className="h-6 w-6" />
           <span className="font-semibold text-slate-900 text-sm hidden sm:inline">GarageOS</span>
         </div>
         <div className="flex-1 hidden sm:flex items-center gap-2 bg-slate-50 border border-slate-100 rounded-lg px-3 py-1.5 text-xs text-slate-400">

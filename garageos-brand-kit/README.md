@@ -81,14 +81,41 @@ background removal.
 
 ## Assets not present in the supplied batch
 
-Two assets from the planned full package were not present as distinct
-files in the uploaded set:
+One asset from the planned full package was not present as a distinct
+file in the uploaded set:
 
 -   `garageos-email-mark.png`
--   `garageos-brand-pattern.png`
 
-The `graphics/` directory is retained so the pattern can be added later
-without changing the package structure.
+`garageos-brand-pattern.png` *was* present in the uploaded set, under
+`marks/brand pattern.png` — moved to `graphics/garageos-brand-pattern.png`
+to match this document's structure. It is otherwise unedited.
+
+## Integration notes (added when wiring this kit into the app)
+
+Two files in this kit have a defect that made them unusable as supplied.
+Both were worked around in `src/components/marketing/` and
+`src/app/apple-icon.png` rather than by editing the source files here:
+
+-   **`logos/garageos-logo-horizontal.png`** — the "Garage" portion of the
+    wordmark is rendered fully opaque **white**, not Deep Navy as this
+    document describes, so it is invisible on the white/light backgrounds
+    it's meant for. Confirmed by sampling pixel values, not a rendering
+    artifact. Not copied into the app; the header/footer instead compose
+    the standalone mark (`marks/garageos-imagotipo.png`) with a real
+    `GarageOS` text node, which also keeps the wordmark crisp and
+    selectable instead of a flattened raster.
+-   **`app/garageos-app-icon.png`** — the rounded-square icon does not
+    fill its canvas edge-to-edge; there's a fully opaque near-black
+    margin around it instead of the blue field this document describes.
+    Visible as black corners behind the icon on any surface that doesn't
+    apply its own additional rounding (e.g. `apple-touch-icon`). The app
+    build script chroma-keys that near-black margin to Primary Blue
+    before resizing (safe because no real part of the mark uses
+    near-black) rather than shipping the defect.
+
+If regenerating this kit from source, both should be fixed at the
+origin: the horizontal lockup's "Garage" text should be Deep Navy, and
+the app icon's blue field should extend to all four edges of the canvas.
 
 ## Suggested web implementation
 
