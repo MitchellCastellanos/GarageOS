@@ -21,10 +21,18 @@ const VALUE_PROPS = [
 export function AuthHero() {
   return (
     <div className="hidden lg:flex lg:w-[46%] xl:w-[42%] relative overflow-hidden bg-brand-navy text-white">
-      <div className="absolute inset-0 brand-pattern opacity-[0.08]" />
-      <div className="pointer-events-none absolute -top-24 -left-16 w-80 h-80 rounded-full bg-brand-blue/30 blur-3xl" />
-      <div className="pointer-events-none absolute bottom-0 right-0 w-96 h-96 rounded-full bg-brand-blue-bright/20 blur-3xl" />
-      <div className="absolute inset-0 bg-gradient-to-b from-brand-navy/40 via-transparent to-brand-navy" />
+      <Image
+        src="/brand/auth-hero.png"
+        alt=""
+        fill
+        priority
+        sizes="(min-width: 1280px) 42vw, 46vw"
+        className="object-cover"
+      />
+      <div className="absolute inset-0 bg-brand-navy/40" />
+      <div className="absolute inset-0 bg-gradient-to-b from-brand-navy/70 via-brand-navy/35 to-brand-navy/90" />
+      <div className="absolute inset-0 bg-gradient-to-r from-brand-navy/70 via-transparent to-brand-navy/60" />
+      <div className="pointer-events-none absolute -top-24 -left-16 w-80 h-80 rounded-full bg-brand-blue/20 blur-3xl" />
 
       <div className="relative z-10 flex flex-col justify-between h-full w-full p-10 xl:p-14">
         <div className="flex items-center gap-3">
