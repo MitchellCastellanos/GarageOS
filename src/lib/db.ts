@@ -6,12 +6,14 @@ import { Pool } from "pg";
 // Usamos pg.Pool para poder configurar SSL — requerido por Supabase en producción.
 function createPrismaClient() {
   const connectionString = process.env.DATABASE_URL ?? "";
+  const isLocalHost = /localhost|127\.0\.0\.1/.test(connectionString);
 
   const pool = new Pool({
     connectionString,
-    // Supabase (y la mayoría de Postgres en la nube) requiere SSL.
-    // rejectUnauthorized: false acepta el certificado auto-firmado de Supabase.
-    ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : undefined,
+    // Neon, Supabase y la mayoría de Postgres en la nube requieren SSL —
+    // se activa salvo que apuntemos a un Postgres local sin TLS.
+    // rejectUnauthorized: false acepta certificados auto-firmados.
+    ssl: isLocalHost ? undefined : { rejectUnauthorized: false },
   });
 
   const adapter = new PrismaPg(pool);
