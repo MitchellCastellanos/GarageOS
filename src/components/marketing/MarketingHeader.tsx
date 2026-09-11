@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ChevronDown, Menu, X } from "lucide-react";
 import { useMarketingLocale } from "@/components/marketing/MarketingLocaleProvider";
@@ -12,6 +12,15 @@ export function MarketingHeader() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [resourcesOpen, setResourcesOpen] = useState(false);
+  const resourcesRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onPointerDown = (event: PointerEvent) => {
+      if (!resourcesRef.current?.contains(event.target as Node)) setResourcesOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, []);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
@@ -21,50 +30,60 @@ export function MarketingHeader() {
   }, []);
 
   const navLinks = [
-    { href: "#product", label: t.nav.product },
-    { href: "#features", label: t.nav.features },
-    { href: "#pricing", label: t.nav.pricing },
+    { href: "/#product", label: t.nav.product },
+    { href: "/#features", label: t.nav.features },
+    { href: "/#pricing", label: t.nav.pricing },
   ];
 
-  function goTo(href: string) {
+  function closeMenus() {
     setMenuOpen(false);
-    document.querySelector(href)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    setResourcesOpen(false);
   }
 
   return (
     <header
+      onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          closeMenus();
+          const target = menuOpen ? "marketing-menu-toggle" : "marketing-resources-toggle";
+          document.getElementById(target)?.focus();
+        }
+      }}
       className={`sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-slate-100 transition-shadow duration-300 ${
         scrolled ? "shadow-sm" : ""
       }`}
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-16 sm:h-[72px]">
-          <button onClick={() => goTo("#top")} className="flex items-center gap-2" aria-label="GarageOS">
+          <Link href="/" onClick={closeMenus} className="flex items-center gap-2" aria-label="GarageOS — Home">
             <GarageOSLogo className="h-8 w-8" />
             <span className="font-semibold text-slate-900 text-lg tracking-tight">GarageOS</span>
-          </button>
+          </Link>
 
           <nav className="hidden md:flex items-center gap-8">
             {navLinks.map((link) => (
-              <button
+              <Link
                 key={link.href}
-                onClick={() => goTo(link.href)}
+                href={link.href}
+                onClick={closeMenus}
                 className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
               >
                 {link.label}
-              </button>
+              </Link>
             ))}
             <div
+              ref={resourcesRef}
               className="relative"
-              onMouseEnter={() => setResourcesOpen(true)}
-              onMouseLeave={() => setResourcesOpen(false)}
+              onBlur={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget)) setResourcesOpen(false);
+              }}
             >
-              <button className="flex items-center gap-1 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
+              <button id="marketing-resources-toggle" type="button" aria-expanded={resourcesOpen} aria-controls="marketing-resources" onClick={() => setResourcesOpen((open) => !open)} className="flex items-center gap-1 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
                 {t.nav.resources}
                 <ChevronDown className="w-3.5 h-3.5" />
               </button>
               {resourcesOpen && (
-                <div className="absolute top-full left-1/2 -translate-x-1/2 pt-3">
+                <div id="marketing-resources" className="absolute top-full left-1/2 -translate-x-1/2 pt-3">
                   <div className="w-44 bg-white rounded-xl shadow-lg border border-slate-100 py-2">
                     {t.resourcesMenu.map((item) => (
                       <Link
@@ -99,6 +118,10 @@ export function MarketingHeader() {
           </div>
 
           <button
+            id="marketing-menu-toggle"
+            type="button"
+            aria-expanded={menuOpen}
+            aria-controls="marketing-mobile-menu"
             className="md:hidden text-slate-700 p-2"
             onClick={() => setMenuOpen((v) => !v)}
             aria-label={menuOpen ? "Close menu" : "Open menu"}
@@ -109,15 +132,16 @@ export function MarketingHeader() {
       </div>
 
       {menuOpen && (
-        <div className="md:hidden bg-white border-t border-slate-100 px-4 py-4 space-y-3">
+        <nav id="marketing-mobile-menu" className="md:hidden bg-white border-t border-slate-100 px-4 py-4 space-y-3">
           {navLinks.map((link) => (
-            <button
+            <Link
               key={link.href}
-              onClick={() => goTo(link.href)}
+              href={link.href}
+              onClick={closeMenus}
               className="block w-full text-left text-slate-700 font-medium py-2"
             >
               {link.label}
-            </button>
+            </Link>
           ))}
           <div className="pt-1">
             <span className="block text-slate-700 font-medium py-2">{t.nav.resources}</span>
@@ -146,7 +170,7 @@ export function MarketingHeader() {
           >
             {t.nav.getStarted}
           </Link>
-        </div>
+        </nav>
       )}
     </header>
   );

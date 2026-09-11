@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Mail } from "lucide-react";
+import Link from "next/link";
 import { MarketingPageShell } from "@/components/marketing/MarketingPageShell";
 import { PageHero } from "@/components/marketing/PageHero";
 
@@ -33,6 +34,11 @@ export default function ContactPage() {
           <p className="mt-3 text-sm text-slate-600 leading-relaxed">
             Send us a note and someone from the team will follow up.
           </p>
+          <div className="mt-8 rounded-2xl bg-slate-50 p-6 text-left">
+            <h2 className="font-semibold text-slate-900">Help us understand your question</h2>
+            <p className="mt-3 text-sm leading-relaxed text-slate-600">Include your shop name, the page you were using, what you expected and the error message you saw. For a product walkthrough, tell us which workflow you want to explore. Please leave out passwords and customer payment details.</p>
+            <Link href="/help" className="mt-4 inline-block text-sm font-semibold text-brand-blue">Browse the Help Center →</Link>
+          </div>
         </div>
       </section>
     </MarketingPageShell>

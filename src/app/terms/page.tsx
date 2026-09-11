@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { MarketingPageShell } from "@/components/marketing/MarketingPageShell";
 import { PageHero } from "@/components/marketing/PageHero";
 
@@ -26,7 +27,7 @@ export default function TermsPage() {
             <h2 className="text-base font-semibold text-slate-900 mb-2">Your data</h2>
             <p>
               Your shop owns the client, vehicle, appointment and invoice data it enters into GarageOS. We only use
-              it to provide the service to you, as described in our Privacy Policy.
+              it to provide the service to you, as described in our <Link href="/privacy" className="font-semibold text-brand-blue hover:underline">Privacy Policy</Link>.
             </p>
           </div>
           <div>
@@ -49,7 +50,7 @@ export default function TermsPage() {
           </div>
           <div>
             <h2 className="text-base font-semibold text-slate-900 mb-2">Questions</h2>
-            <p>Reach out through our contact page for anything related to these terms.</p>
+            <p>Reach out through our <Link href="/contact" className="font-semibold text-brand-blue hover:underline">contact page</Link> for anything related to these terms.</p>
           </div>
         </div>
       </section>
