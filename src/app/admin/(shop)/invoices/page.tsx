@@ -1,4 +1,4 @@
-import { ADMIN } from "@/lib/routes";
+import { ADMIN, adminPath } from "@/lib/routes";
 import Link from "next/link";
 import { FileText, Plus } from "lucide-react";
 import { getInvoices } from "@/actions/invoices";
@@ -93,7 +93,7 @@ export default async function InvoicesPage({ searchParams }: PageProps) {
             {invoices.map((invoice) => (
               <Link
                 key={invoice.id}
-                href={`/invoices/${invoice.id}`}
+                href={adminPath(`/invoices/${invoice.id}`)}
                 className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_160px_120px_100px_110px] gap-4 px-5 py-4 items-center hover:bg-slate-50 transition-colors"
               >
                 {/* Invoice # + Client */}

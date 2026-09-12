@@ -85,7 +85,7 @@ export default async function QuoteDetailPage({ params }: PageProps) {
         <div className="flex items-center gap-2 flex-shrink-0">
           {quote.status === "DRAFT" && (
             <Link
-              href={`/quotes/${quote.id}/edit`}
+              href={adminPath(`/quotes/${quote.id}/edit`)}
               className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition-colors"
             >
               <Pencil className="w-4 h-4" />

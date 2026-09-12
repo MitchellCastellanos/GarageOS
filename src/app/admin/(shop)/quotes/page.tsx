@@ -1,4 +1,4 @@
-import { ADMIN } from "@/lib/routes";
+import { ADMIN, adminPath } from "@/lib/routes";
 import Link from "next/link";
 import { FileText, Plus } from "lucide-react";
 import { getQuotes } from "@/actions/quotes";
@@ -113,7 +113,7 @@ export default async function QuotesPage({ searchParams }: PageProps) {
             {quotes.map((quote) => (
               <Link
                 key={quote.id}
-                href={`/quotes/${quote.id}`}
+                href={adminPath(`/quotes/${quote.id}`)}
                 className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_160px_120px_100px_110px] gap-4 px-5 py-4 items-center hover:bg-slate-50 transition-colors"
               >
                 <div>

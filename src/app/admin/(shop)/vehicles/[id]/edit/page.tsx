@@ -1,4 +1,5 @@
 import { getVehicleById, updateVehicle } from "@/actions/vehicles";
+import { adminPath } from "@/lib/routes";
 import { VehicleForm } from "@/components/clients/VehicleForm";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
@@ -24,7 +25,7 @@ export default async function EditVehiclePage({ params }: Props) {
   return (
     <div className="max-w-2xl">
       <Link
-        href={`/vehicles/${id}`}
+        href={adminPath(`/vehicles/${id}`)}
         className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 mb-4 transition-colors"
       >
         <ChevronLeft className="w-4 h-4" />

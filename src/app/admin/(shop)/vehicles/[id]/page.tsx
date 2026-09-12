@@ -1,4 +1,5 @@
 import { getVehicleById, deleteVehicle } from "@/actions/vehicles";
+import { adminPath } from "@/lib/routes";
 import { formatDate, formatCurrency } from "@/lib/utils";
 import { formatClientName } from "@/lib/client-name";
 import { INVOICE_STATUS_BADGE, INVOICE_STATUS_LABEL } from "@/lib/invoice-status";
@@ -20,7 +21,7 @@ export default async function VehicleDetailPage({ params }: Props) {
       <div className="flex items-start justify-between">
         <div>
           <Link
-            href={`/clients/${vehicle.clientId}`}
+            href={adminPath(`/clients/${vehicle.clientId}`)}
             className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 mb-2 transition-colors"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -37,7 +38,7 @@ export default async function VehicleDetailPage({ params }: Props) {
         </div>
         <div className="flex items-center gap-2">
           <Link
-            href={`/vehicles/${id}/edit`}
+            href={adminPath(`/vehicles/${id}/edit`)}
             className="flex items-center gap-1.5 border border-slate-300 hover:border-slate-400 text-slate-700 text-sm font-medium px-3 py-2 rounded-lg transition-colors"
           >
             <Pencil className="w-3.5 h-3.5" />
@@ -59,7 +60,7 @@ export default async function VehicleDetailPage({ params }: Props) {
             <h2 className="font-semibold text-slate-900">Historial de servicio</h2>
           </div>
           <Link
-            href={`/invoices/new?vehicleId=${id}&clientId=${vehicle.clientId}`}
+            href={adminPath(`/invoices/new?vehicleId=${id}&clientId=${vehicle.clientId}`)}
             className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 transition-colors"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -77,7 +78,7 @@ export default async function VehicleDetailPage({ params }: Props) {
             {vehicle.invoiceVehicles.map((iv) => (
               <Link
                 key={iv.id}
-                href={`/invoices/${iv.invoice.id}`}
+                href={adminPath(`/invoices/${iv.invoice.id}`)}
                 className="flex items-center justify-between px-5 py-3.5 hover:bg-slate-50 transition-colors"
               >
                 <div>
