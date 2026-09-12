@@ -3,6 +3,8 @@ import { adminPath } from "@/lib/routes";
 import { VehicleForm } from "@/components/clients/VehicleForm";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
+import { getAdminLocale } from "@/lib/admin-locale";
+import { CLIENTS_DICT } from "@/lib/admin-locale/clients";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -10,7 +12,8 @@ interface Props {
 
 export default async function EditVehiclePage({ params }: Props) {
   const { id } = await params;
-  const vehicle = await getVehicleById(id);
+  const [vehicle, locale] = await Promise.all([getVehicleById(id), getAdminLocale()]);
+  const t = CLIENTS_DICT[locale];
 
   const defaultValues = {
     make: vehicle.make,
@@ -32,9 +35,9 @@ export default async function EditVehiclePage({ params }: Props) {
         {vehicle.year} {vehicle.make} {vehicle.model}
       </Link>
 
-      <h1 className="text-2xl font-bold text-slate-900 mb-1">Editar vehículo</h1>
+      <h1 className="text-2xl font-bold text-slate-900 mb-1">{t.vehicleEdit.title}</h1>
       <p className="text-slate-500 text-sm mb-6">
-        Actualiza los datos de {vehicle.year} {vehicle.make} {vehicle.model}.
+        {t.vehicleEdit.subtitle(`${vehicle.year} ${vehicle.make} ${vehicle.model}`)}
       </p>
 
       <div className="bg-white rounded-xl border border-slate-200 p-6">
@@ -42,7 +45,7 @@ export default async function EditVehiclePage({ params }: Props) {
           clientId={vehicle.clientId}
           defaultValues={defaultValues}
           onSubmit={updateVehicle.bind(null, id)}
-          submitLabel="Guardar cambios"
+          submitLabel={t.common.saveChanges}
         />
       </div>
     </div>

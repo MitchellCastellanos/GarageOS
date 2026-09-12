@@ -5,6 +5,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useTransition } from "react";
 import { vehicleSchema, type VehicleFormData } from "@/lib/validations";
 import { adminPath } from "@/lib/routes";
+import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
+import { CLIENTS_DICT } from "@/lib/admin-locale/clients";
 
 interface VehicleFormProps {
   clientId: string;
@@ -17,8 +19,10 @@ export function VehicleForm({
   clientId,
   defaultValues,
   onSubmit,
-  submitLabel = "Guardar vehículo",
+  submitLabel,
 }: VehicleFormProps) {
+  const locale = useAdminLocale();
+  const t = CLIENTS_DICT[locale];
   const [isPending, startTransition] = useTransition();
 
   const {
@@ -54,19 +58,19 @@ export function VehicleForm({
     <form onSubmit={handleSubmit(onValid)} className="space-y-6">
       {/* Marca y Modelo */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Field label="Marca *" error={errors.make?.message}>
+        <Field label={t.vehicleForm.makeLabel} error={errors.make?.message}>
           <input
             {...register("make")}
             type="text"
-            placeholder="Toyota"
+            placeholder={t.vehicleForm.makePlaceholder}
             className={inputClass(!!errors.make)}
           />
         </Field>
-        <Field label="Modelo *" error={errors.model?.message}>
+        <Field label={t.vehicleForm.modelLabel} error={errors.model?.message}>
           <input
             {...register("model")}
             type="text"
-            placeholder="Corolla"
+            placeholder={t.vehicleForm.modelPlaceholder}
             className={inputClass(!!errors.model)}
           />
         </Field>
@@ -74,21 +78,21 @@ export function VehicleForm({
 
       {/* Año y Placa */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Field label="Año *" error={errors.year?.message}>
+        <Field label={t.vehicleForm.yearLabel} error={errors.year?.message}>
           <input
             {...register("year", { valueAsNumber: true })}
             type="number"
             min={1900}
             max={new Date().getFullYear() + 1}
-            placeholder="2020"
+            placeholder={t.vehicleForm.yearPlaceholder}
             className={inputClass(!!errors.year)}
           />
         </Field>
-        <Field label="Placa *" error={errors.licensePlate?.message}>
+        <Field label={t.vehicleForm.plateLabel} error={errors.licensePlate?.message}>
           <input
             {...register("licensePlate")}
             type="text"
-            placeholder="ABC 1234"
+            placeholder={t.vehicleForm.platePlaceholder}
             className={`${inputClass(!!errors.licensePlate)} uppercase`}
           />
         </Field>
@@ -96,33 +100,33 @@ export function VehicleForm({
 
       {/* VIN y Color */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Field label="VIN" error={errors.vin?.message}>
+        <Field label={t.vehicleForm.vinLabel} error={errors.vin?.message}>
           <input
             {...register("vin")}
             type="text"
             maxLength={17}
-            placeholder="1HGBH41JXMN109186"
+            placeholder={t.vehicleForm.vinPlaceholder}
             className={inputClass(!!errors.vin)}
           />
         </Field>
-        <Field label="Color" error={errors.color?.message}>
+        <Field label={t.vehicleForm.colorLabel} error={errors.color?.message}>
           <input
             {...register("color")}
             type="text"
-            placeholder="Blanco"
+            placeholder={t.vehicleForm.colorPlaceholder}
             className={inputClass(!!errors.color)}
           />
         </Field>
       </div>
 
       {/* Unidad de km */}
-      <Field label="Unidad de kilometraje" error={errors.mileageUnit?.message}>
+      <Field label={t.vehicleForm.mileageUnitLabel} error={errors.mileageUnit?.message}>
         <select
           {...register("mileageUnit")}
           className={inputClass(!!errors.mileageUnit)}
         >
-          <option value="KM">Kilómetros (km)</option>
-          <option value="MILES">Millas (mi)</option>
+          <option value="KM">{t.vehicleForm.km}</option>
+          <option value="MILES">{t.vehicleForm.miles}</option>
         </select>
       </Field>
 
@@ -133,13 +137,13 @@ export function VehicleForm({
           disabled={isPending}
           className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium px-5 py-2.5 rounded-lg text-sm transition-colors"
         >
-          {isPending ? "Guardando..." : submitLabel}
+          {isPending ? t.common.saving : (submitLabel ?? t.vehicleForm.saveDefault)}
         </button>
         <a
           href={adminPath(`/clients/${clientId}`)}
           className="text-sm text-slate-500 hover:text-slate-800 transition-colors"
         >
-          Cancelar
+          {t.common.cancel}
         </a>
       </div>
     </form>
