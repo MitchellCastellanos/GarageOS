@@ -350,6 +350,11 @@ model Quote {
   sentAt             DateTime?
   emailSentAt        DateTime?
   emailSendCount     Int             @default(0)
+  smsSentAt          DateTime?
+  smsSendCount       Int             @default(0)
+  approvalToken      String?         @unique
+  approvalTokenExpiresAt DateTime?
+  approvalTokenConsumedAt DateTime?
   convertedInvoiceId String?         @unique
   convertedInvoice   Invoice?        @relation("QuoteConversion", fields: [convertedInvoiceId], references: [id])
   subtotal           Decimal         @db.Decimal(10, 2)

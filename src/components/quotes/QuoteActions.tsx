@@ -13,6 +13,7 @@ import {
   deleteQuote,
 } from "@/actions/quotes";
 import { QuoteSendDialog } from "@/components/quotes/QuoteSendDialog";
+import { QuoteSmsButton } from "@/components/quotes/QuoteSmsButton";
 import { adminPath } from "@/lib/routes";
 import { FileText, Loader2, Ban, Trash2, Mail, Check, X, ArrowRightLeft } from "lucide-react";
 import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
@@ -24,7 +25,9 @@ interface QuoteActionsProps {
   status: string;
   clientId: string;
   clientEmail?: string | null;
+  clientPhone?: string | null;
   emailSendCount?: number;
+  smsSendCount?: number;
   convertedInvoiceId?: string | null;
 }
 
@@ -38,7 +41,9 @@ export function QuoteActions({
   status,
   clientId,
   clientEmail,
+  clientPhone,
   emailSendCount = 0,
+  smsSendCount = 0,
   convertedInvoiceId,
 }: QuoteActionsProps) {
   const router = useRouter();
@@ -55,6 +60,7 @@ export function QuoteActions({
     sentPending || acceptPending || rejectPending || convertPending || cancelPending || deletePending;
 
   const hasClientEmail = Boolean(clientEmail?.trim());
+  const hasClientPhone = Boolean(clientPhone?.trim());
   const canEmail = EMAILABLE.has(status) && hasClientEmail;
   const isResend = emailSendCount > 0;
 
@@ -123,6 +129,15 @@ export function QuoteActions({
             </Link>
           )}
         </>
+      )}
+
+      {EMAILABLE.has(status) && hasClientPhone && (
+        <QuoteSmsButton
+          quoteId={quoteId}
+          phone={clientPhone!.trim()}
+          isResend={smsSendCount > 0}
+          disabled={isAnyPending}
+        />
       )}
 
       {status === "DRAFT" && (

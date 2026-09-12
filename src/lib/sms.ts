@@ -193,3 +193,43 @@ export async function sendInvoiceSms(data: InvoiceSmsData): Promise<void> {
         : undefined,
   });
 }
+
+export interface QuoteSmsData {
+  to: string;
+  shopId: string;
+  clientId?: string;
+  quoteId?: string;
+  sendAttempt?: number;
+  shopName: string;
+  quoteNumber: string;
+  totalFormatted: string;
+  approvalUrl: string;
+  language?: SmsLanguage | string | null;
+  isResend?: boolean;
+}
+
+const QUOTE_SMS_COPY: Record<SmsLanguage, (data: QuoteSmsData) => string> = {
+  ES: (data) =>
+    `${data.shopName}: ${data.isResend ? "reenvío de " : ""}cotización ${data.quoteNumber} — ${data.totalFormatted}. Revísala y responde: ${data.approvalUrl}`,
+  EN: (data) =>
+    `${data.shopName}: ${data.isResend ? "resend of " : ""}quote ${data.quoteNumber} — ${data.totalFormatted}. Review and respond: ${data.approvalUrl}`,
+  FR: (data) =>
+    `${data.shopName} : ${data.isResend ? "renvoi de " : ""}soumission ${data.quoteNumber} — ${data.totalFormatted}. Consultez-la et répondez : ${data.approvalUrl}`,
+};
+
+export async function sendQuoteSms(data: QuoteSmsData): Promise<void> {
+  const body = QUOTE_SMS_COPY[resolveSmsLanguage(data.language)](data);
+  await sendSms({
+    to: data.to,
+    body,
+    shopId: data.shopId,
+    purpose: "QUOTE",
+    clientId: data.clientId,
+    businessEntityType: data.quoteId ? "QUOTE" : undefined,
+    businessEntityId: data.quoteId,
+    idempotencyKey:
+      data.quoteId && data.sendAttempt !== undefined
+        ? `quote-sms:${data.quoteId}:${data.sendAttempt}`
+        : undefined,
+  });
+}
