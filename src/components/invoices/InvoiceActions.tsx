@@ -13,6 +13,8 @@ import { InvoiceSendDialog } from "@/components/invoices/InvoiceSendDialog";
 import { InvoiceMarkPaidDialog } from "@/components/invoices/InvoiceMarkPaidDialog";
 import { isInvoicePending } from "@/lib/invoice-status";
 import { adminPath } from "@/lib/routes";
+import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
+import { INVOICES_DICT } from "@/lib/admin-locale/invoices";
 import { Ban, Trash2, RotateCcw, Send, Loader2 } from "lucide-react";
 
 interface InvoiceActionsProps {
@@ -44,6 +46,8 @@ export function InvoiceActions({
   isPaid = false,
 }: InvoiceActionsProps) {
   const router = useRouter();
+  const locale = useAdminLocale();
+  const t = INVOICES_DICT[locale].actions;
   const [cancelPending, startCancel] = useTransition();
   const [deletePending, startDelete] = useTransition();
   const [revertPendingPending, startRevertPending] = useTransition();
@@ -56,11 +60,7 @@ export function InvoiceActions({
   const isPending = isInvoicePending(status);
 
   function handleCancel() {
-    if (
-      !confirm(
-        `¿Anular la factura ${invoiceNumber}? Dejará de contar como pagada o activa, pero permanecerá en el historial.`
-      )
-    ) {
+    if (!confirm(t.cancelConfirm(invoiceNumber))) {
       return;
     }
     startCancel(async () => {
@@ -69,17 +69,13 @@ export function InvoiceActions({
         toast.error(result.error);
         return;
       }
-      toast.info("Factura anulada");
+      toast.info(t.cancelledToast);
       router.refresh();
     });
   }
 
   function handleDelete() {
-    if (
-      !confirm(
-        `¿Eliminar definitivamente ${invoiceNumber}? Esta acción no se puede deshacer.`
-      )
-    ) {
+    if (!confirm(t.deleteConfirm(invoiceNumber))) {
       return;
     }
     startDelete(async () => {
@@ -109,11 +105,11 @@ export function InvoiceActions({
           ) : (
             <Link
               href={adminPath(`/clients/${clientId}`)}
-              title="Agrega email o teléfono al cliente para enviar la factura"
+              title={t.noContactTitle}
               className="flex items-center gap-2 px-4 py-2 border border-dashed border-slate-300 text-slate-500 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors"
             >
               <Send className="w-4 h-4" />
-              <span className="hidden sm:inline">Sin contacto del cliente</span>
+              <span className="hidden sm:inline">{t.noContactLabel}</span>
             </Link>
           )}
         </>
@@ -139,7 +135,7 @@ export function InvoiceActions({
                 toast.error(result.error);
                 return;
               }
-              toast.info("Factura regresada a pendiente");
+              toast.info(t.revertedToast);
               router.refresh();
             })
           }
@@ -150,7 +146,7 @@ export function InvoiceActions({
           ) : (
             <RotateCcw className="w-3.5 h-3.5" />
           )}
-          Regresar a pendiente
+          {t.revertToPending}
         </button>
       )}
 
@@ -166,7 +162,7 @@ export function InvoiceActions({
           ) : (
             <Ban className="w-3.5 h-3.5" />
           )}
-          Anular
+          {t.cancelButton}
         </button>
       )}
 
@@ -181,7 +177,7 @@ export function InvoiceActions({
         ) : (
           <Trash2 className="w-3.5 h-3.5" />
         )}
-        Eliminar
+        {t.deleteButton}
       </button>
     </div>
   );

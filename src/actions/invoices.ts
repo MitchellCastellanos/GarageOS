@@ -48,8 +48,102 @@ import {
 import { archivePaidInvoiceToAccountant } from "@/lib/invoice-accounting";
 import { ensureCashInFromInvoice } from "@/actions/cash-drawer";
 import { auth } from "@/lib/auth";
+import { getAdminLocale, type AdminLocale } from "@/lib/admin-locale";
 import Decimal from "decimal.js";
 import { z } from "zod";
+
+const INVOICE_ACTION_MESSAGES: Record<
+  AdminLocale,
+  {
+    numberAllocationFailed: string;
+    createFailed: string;
+    notFound: string;
+    cancelledCannotSend: string;
+    notSendable: string;
+    noClientEmail: string;
+    noClientPhone: string;
+    sendGenericError: string;
+    notPending: string;
+    invalidPaymentData: string;
+    incompletePaymentData: string;
+    paidTotalMismatch: (paid: string, target: string) => string;
+    cardModeMismatch: string;
+    cashModeMismatch: string;
+    invalidPaymentExtras: string;
+    invalidPaymentReceipt: string;
+    invalidExtraDocument: string;
+    notPaidStatus: string;
+    cannotCancel: string;
+    editOnlyPending: string;
+  }
+> = {
+  es: {
+    numberAllocationFailed: "No se pudo asignar un número de factura único. Intenta de nuevo en unos segundos.",
+    createFailed: "No se pudo crear la factura. Intenta de nuevo.",
+    notFound: "Factura no encontrada",
+    cancelledCannotSend: "No se puede enviar una factura anulada",
+    notSendable: "Esta factura no se puede enviar al cliente",
+    noClientEmail: "El cliente no tiene email. Agrégalo en su ficha o envía por SMS si tiene teléfono.",
+    noClientPhone: "El cliente no tiene teléfono. Agrégalo en su ficha o envía por email si tiene correo.",
+    sendGenericError: "Error desconocido",
+    notPending: "La factura no está pendiente o no existe",
+    invalidPaymentData: "Datos de pago inválidos",
+    incompletePaymentData: "Completa el registro de pago correctamente",
+    paidTotalMismatch: (paid, target) => `El total registrado (${paid}) debe ser ${target}`,
+    cardModeMismatch: "En pago con tarjeta todos los montos deben ser con tarjeta",
+    cashModeMismatch: "En pago en efectivo todos los montos deben ser en efectivo",
+    invalidPaymentExtras: "Documentos adicionales inválidos",
+    invalidPaymentReceipt: "Comprobante de pago inválido",
+    invalidExtraDocument: "Documento adicional inválido",
+    notPaidStatus: "La factura no está en estado Pagada",
+    cannotCancel: "No se puede anular esta factura",
+    editOnlyPending: "Factura no encontrada o no disponible para edición (solo pendientes)",
+  },
+  en: {
+    numberAllocationFailed: "Could not assign a unique invoice number. Please try again in a few seconds.",
+    createFailed: "Could not create the invoice. Please try again.",
+    notFound: "Invoice not found",
+    cancelledCannotSend: "A voided invoice cannot be sent",
+    notSendable: "This invoice cannot be sent to the client",
+    noClientEmail: "The client has no email. Add one on their profile or send by SMS if they have a phone number.",
+    noClientPhone: "The client has no phone number. Add one on their profile or send by email if they have an email address.",
+    sendGenericError: "Unknown error",
+    notPending: "The invoice is not pending or does not exist",
+    invalidPaymentData: "Invalid payment data",
+    incompletePaymentData: "Complete the payment record correctly",
+    paidTotalMismatch: (paid, target) => `The recorded total (${paid}) must be ${target}`,
+    cardModeMismatch: "For card payments, all amounts must be by card",
+    cashModeMismatch: "For cash payments, all amounts must be in cash",
+    invalidPaymentExtras: "Invalid additional documents",
+    invalidPaymentReceipt: "Invalid payment receipt",
+    invalidExtraDocument: "Invalid additional document",
+    notPaidStatus: "The invoice is not in Paid status",
+    cannotCancel: "This invoice cannot be voided",
+    editOnlyPending: "Invoice not found or not available for editing (pending only)",
+  },
+  fr: {
+    numberAllocationFailed: "Impossible d'attribuer un numéro de facture unique. Réessayez dans quelques secondes.",
+    createFailed: "Impossible de créer la facture. Réessayez.",
+    notFound: "Facture introuvable",
+    cancelledCannotSend: "Impossible d'envoyer une facture annulée",
+    notSendable: "Cette facture ne peut pas être envoyée au client",
+    noClientEmail: "Le client n'a pas de courriel. Ajoutez-en un dans sa fiche ou envoyez par SMS s'il a un téléphone.",
+    noClientPhone: "Le client n'a pas de téléphone. Ajoutez-en un dans sa fiche ou envoyez par courriel s'il a une adresse courriel.",
+    sendGenericError: "Erreur inconnue",
+    notPending: "La facture n'est pas en attente ou n'existe pas",
+    invalidPaymentData: "Données de paiement invalides",
+    incompletePaymentData: "Complétez correctement l'enregistrement du paiement",
+    paidTotalMismatch: (paid, target) => `Le total enregistré (${paid}) doit être ${target}`,
+    cardModeMismatch: "Pour un paiement par carte, tous les montants doivent être par carte",
+    cashModeMismatch: "Pour un paiement comptant, tous les montants doivent être comptant",
+    invalidPaymentExtras: "Documents supplémentaires invalides",
+    invalidPaymentReceipt: "Reçu de paiement invalide",
+    invalidExtraDocument: "Document supplémentaire invalide",
+    notPaidStatus: "La facture n'est pas au statut Payée",
+    cannotCancel: "Cette facture ne peut pas être annulée",
+    editOnlyPending: "Facture introuvable ou non disponible pour modification (en attente seulement)",
+  },
+};
 
 const paymentEntrySchema = z.object({
   method: z.enum(["CARD", "CASH"]),
@@ -126,6 +220,8 @@ export async function getInvoiceById(id: string) {
 
 export async function createInvoice(formData: InvoiceFormData) {
   const shopId = await getShopId();
+  const locale = await getAdminLocale();
+  const msg = INVOICE_ACTION_MESSAGES[locale];
 
   const parsed = invoiceSchema.safeParse(formData);
   if (!parsed.success) {
@@ -193,9 +289,7 @@ export async function createInvoice(formData: InvoiceFormData) {
         console.error("createInvoice failed:", err);
         return {
           error: {
-            _form: [
-              "No se pudo asignar un número de factura único. Intenta de nuevo en unos segundos.",
-            ],
+            _form: [msg.numberAllocationFailed],
           },
         };
       }
@@ -205,7 +299,7 @@ export async function createInvoice(formData: InvoiceFormData) {
   if (!invoice) {
     return {
       error: {
-        _form: ["No se pudo crear la factura. Intenta de nuevo."],
+        _form: [msg.createFailed],
       },
     };
   }
@@ -237,32 +331,37 @@ async function loadInvoiceForSend(id: string, shopId: string) {
   });
 }
 
-function validateInvoiceSendable(invoice: { status: string }) {
+function validateInvoiceSendable(
+  invoice: { status: string },
+  msg: (typeof INVOICE_ACTION_MESSAGES)[AdminLocale]
+) {
   if (invoice.status === "CANCELLED") {
-    return { error: "No se puede enviar una factura anulada" };
+    return { error: msg.cancelledCannotSend };
   }
   if (!EMAILABLE_STATUSES.includes(invoice.status as (typeof EMAILABLE_STATUSES)[number])) {
-    return { error: "Esta factura no se puede enviar al cliente" };
+    return { error: msg.notSendable };
   }
   return null;
 }
 
 export async function sendInvoiceByEmail(id: string, formData?: FormData) {
   const shopId = await getShopId();
+  const locale = await getAdminLocale();
+  const msg = INVOICE_ACTION_MESSAGES[locale];
 
   const invoice = await loadInvoiceForSend(id, shopId);
 
   if (!invoice) {
-    return { error: "Factura no encontrada" };
+    return { error: msg.notFound };
   }
 
-  const validationError = validateInvoiceSendable(invoice);
+  const validationError = validateInvoiceSendable(invoice, msg);
   if (validationError) return validationError;
 
   const clientEmail = invoice.client.email?.trim();
   if (!clientEmail) {
     return {
-      error: "El cliente no tiene email. Agrégalo en su ficha o envía por SMS si tiene teléfono.",
+      error: msg.noClientEmail,
     };
   }
 
@@ -305,7 +404,7 @@ export async function sendInvoiceByEmail(id: string, formData?: FormData) {
       bookingUrl,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Error desconocido";
+    const message = err instanceof Error ? err.message : msg.sendGenericError;
     console.error(`Error enviando factura ${invoice.invoiceNumber}:`, err);
     return { error: message };
   }
@@ -334,20 +433,22 @@ export async function sendInvoiceByEmail(id: string, formData?: FormData) {
 
 export async function sendInvoiceBySms(id: string, formData?: FormData) {
   const shopId = await getShopId();
+  const locale = await getAdminLocale();
+  const msg = INVOICE_ACTION_MESSAGES[locale];
 
   const invoice = await loadInvoiceForSend(id, shopId);
 
   if (!invoice) {
-    return { error: "Factura no encontrada" };
+    return { error: msg.notFound };
   }
 
-  const validationError = validateInvoiceSendable(invoice);
+  const validationError = validateInvoiceSendable(invoice, msg);
   if (validationError) return validationError;
 
   const clientPhone = invoice.client.phone?.trim();
   if (!clientPhone) {
     return {
-      error: "El cliente no tiene teléfono. Agrégalo en su ficha o envía por email si tiene correo.",
+      error: msg.noClientPhone,
     };
   }
 
@@ -368,7 +469,7 @@ export async function sendInvoiceBySms(id: string, formData?: FormData) {
   try {
     clientPackagePath = await uploadInvoiceClientPackage(shopId, downloadToken, packagePdf);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Error desconocido";
+    const message = err instanceof Error ? err.message : msg.sendGenericError;
     console.error(`Error subiendo PDF de factura ${invoice.invoiceNumber}:`, err);
     return { error: message };
   }
@@ -388,7 +489,7 @@ export async function sendInvoiceBySms(id: string, formData?: FormData) {
       isResend,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Error desconocido";
+    const message = err instanceof Error ? err.message : msg.sendGenericError;
     console.error(`Error enviando SMS de factura ${invoice.invoiceNumber}:`, err);
     return { error: message };
   }
@@ -421,6 +522,8 @@ export async function sendInvoiceBySms(id: string, formData?: FormData) {
 export async function markInvoiceAsPaid(id: string, formData: FormData) {
   const shopId = await getShopId();
   const session = await auth();
+  const locale = await getAdminLocale();
+  const msg = INVOICE_ACTION_MESSAGES[locale];
   const uploaderName = session?.user?.name ?? "Taller";
 
   const invoice = await db.invoice.findFirst({
@@ -436,7 +539,7 @@ export async function markInvoiceAsPaid(id: string, formData: FormData) {
   });
 
   if (!invoice) {
-    return { error: "La factura no está pendiente o no existe" };
+    return { error: msg.notPending };
   }
 
   const paymentMode = formData.get("paymentMode") as InvoicePaymentMode | null;
@@ -444,12 +547,12 @@ export async function markInvoiceAsPaid(id: string, formData: FormData) {
   try {
     entries = JSON.parse(String(formData.get("entries") ?? "[]")) as PaymentEntryInput[];
   } catch {
-    return { error: "Datos de pago inválidos" };
+    return { error: msg.invalidPaymentData };
   }
 
   const parsed = markPaidPayloadSchema.safeParse({ paymentMode, entries });
   if (!parsed.success) {
-    return { error: "Completa el registro de pago correctamente" };
+    return { error: msg.incompletePaymentData };
   }
 
   const { paymentMode: mode, entries: validEntries } = parsed.data;
@@ -461,15 +564,15 @@ export async function markInvoiceAsPaid(id: string, formData: FormData) {
 
   if (!paidSum.equals(target)) {
     return {
-      error: `El total registrado (${paidSum.toFixed(2)}) debe ser ${target.toFixed(2)}`,
+      error: msg.paidTotalMismatch(paidSum.toFixed(2), target.toFixed(2)),
     };
   }
 
   if (mode === "CARD" && validEntries.some((e) => e.method !== "CARD")) {
-    return { error: "En pago con tarjeta todos los montos deben ser con tarjeta" };
+    return { error: msg.cardModeMismatch };
   }
   if (mode === "CASH" && validEntries.some((e) => e.method !== "CASH")) {
-    return { error: "En pago en efectivo todos los montos deben ser en efectivo" };
+    return { error: msg.cashModeMismatch };
   }
 
   const cardEntries = validEntries.filter((e) => e.method === "CARD");
@@ -478,7 +581,7 @@ export async function markInvoiceAsPaid(id: string, formData: FormData) {
   try {
     extraPaths = JSON.parse(String(formData.get("extraPaths") ?? "[]")) as string[];
   } catch {
-    return { error: "Documentos adicionales inválidos" };
+    return { error: msg.invalidPaymentExtras };
   }
 
   // El comprobante de terminal es opcional: solo validamos la ruta si se adjuntó.
@@ -487,13 +590,13 @@ export async function markInvoiceAsPaid(id: string, formData: FormData) {
       entry.receiptPath?.trim() &&
       !isValidPaymentStoragePath(shopId, invoice.invoiceNumber, entry.receiptPath)
     ) {
-      return { error: "Comprobante de pago inválido" };
+      return { error: msg.invalidPaymentReceipt };
     }
   }
 
   for (const path of extraPaths) {
     if (!isValidPaymentStoragePath(shopId, invoice.invoiceNumber, path)) {
-      return { error: "Documento adicional inválido" };
+      return { error: msg.invalidExtraDocument };
     }
   }
 

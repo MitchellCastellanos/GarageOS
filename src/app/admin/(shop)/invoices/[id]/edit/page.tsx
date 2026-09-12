@@ -6,6 +6,8 @@ import { InvoiceForm } from "@/components/invoices/InvoiceForm";
 import { getInvoiceById, getInvoiceFormData, updateInvoice } from "@/actions/invoices";
 import { type InvoiceFormData } from "@/lib/validations";
 import { isInvoicePending } from "@/lib/invoice-status";
+import { getAdminLocale } from "@/lib/admin-locale";
+import { INVOICES_DICT } from "@/lib/admin-locale/invoices";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -14,10 +16,12 @@ interface PageProps {
 export default async function EditInvoicePage({ params }: PageProps) {
   const { id } = await params;
 
-  const [invoice, { clients }] = await Promise.all([
+  const [invoice, { clients }, locale] = await Promise.all([
     getInvoiceById(id),
     getInvoiceFormData(),
+    getAdminLocale(),
   ]);
+  const t = INVOICES_DICT[locale].form;
 
   if (!isInvoicePending(invoice.status)) {
     redirect(`${ADMIN.invoices}/${id}`);
@@ -54,10 +58,10 @@ export default async function EditInvoicePage({ params }: PageProps) {
         </Link>
         <div>
           <h1 className="text-2xl font-bold text-slate-900">
-            Editar {invoice.invoiceNumber}
+            {t.editTitle(invoice.invoiceNumber)}
           </h1>
           <p className="text-slate-500 text-sm mt-1">
-            Modifica los datos del borrador antes de enviarlo
+            {t.editSubtitle}
           </p>
         </div>
       </div>

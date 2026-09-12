@@ -4,9 +4,13 @@ import { InvoiceForm } from "@/components/invoices/InvoiceForm";
 import { createInvoice } from "@/actions/invoices";
 import { getInvoiceFormData } from "@/actions/invoices";
 import { type InvoiceFormData } from "@/lib/validations";
+import { getAdminLocale } from "@/lib/admin-locale";
+import { INVOICES_DICT } from "@/lib/admin-locale/invoices";
 
 export default async function NewInvoicePage() {
   const { clients } = await getInvoiceFormData();
+  const locale = await getAdminLocale();
+  const t = INVOICES_DICT[locale].form;
 
   if (clients.length === 0) {
     redirect(`${ADMIN.clients}/new?hint=invoice`);
@@ -15,9 +19,9 @@ export default async function NewInvoicePage() {
   return (
     <div className="max-w-4xl">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Nueva factura</h1>
+        <h1 className="text-2xl font-bold text-slate-900">{t.newTitle}</h1>
         <p className="text-slate-500 text-sm mt-1">
-          Completa los datos para crear una factura electrónica
+          {t.newSubtitle}
         </p>
       </div>
 

@@ -8,6 +8,7 @@ import { emailPendingConfirmMessage } from "@/lib/invoice-status";
 import { Loader2, Mail, MessageSquare, Send, X } from "lucide-react";
 import { FileAttachmentButtons } from "@/components/ui/FileAttachmentButtons";
 import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
+import { INVOICES_DICT } from "@/lib/admin-locale/invoices";
 
 type SendChannel = "email" | "sms";
 
@@ -39,6 +40,7 @@ export function InvoiceSendDialog({
 }: InvoiceSendDialogProps) {
   const router = useRouter();
   const locale = useAdminLocale();
+  const t = INVOICES_DICT[locale].sendDialog;
   const [open, setOpen] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
   const [pending, startTransition] = useTransition();
@@ -55,7 +57,7 @@ export function InvoiceSendDialog({
   function addFiles(incoming: File[]) {
     const merged = [...files, ...incoming].slice(0, MAX_EMAIL_EXTRAS);
     if (files.length + incoming.length > MAX_EMAIL_EXTRAS) {
-      toast.error(`Máximo ${MAX_EMAIL_EXTRAS} documentos extra`);
+      toast.error(t.maxExtraDocs(MAX_EMAIL_EXTRAS));
     }
     setFiles(merged);
   }
@@ -93,10 +95,11 @@ export function InvoiceSendDialog({
       }
 
       const destination = result.sentTo ?? "";
+      const channelLabel = channel === "email" ? t.channelEmail : t.channelSms;
       toast.success(
         result.isResend
-          ? `Factura reenviada por ${channel === "email" ? "email" : "SMS"} a ${destination}`
-          : `Factura enviada por ${channel === "email" ? "email" : "SMS"} a ${destination}`
+          ? t.resentToast(channelLabel, destination)
+          : t.sentToast(channelLabel, destination)
       );
       closeDialog();
       router.refresh();
@@ -115,7 +118,7 @@ export function InvoiceSendDialog({
         className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
       >
         {anySent ? <Send className="w-4 h-4" /> : <Mail className="w-4 h-4" />}
-        {anySent ? "Reenviar factura" : "Enviar factura"}
+        {anySent ? t.resendInvoice : t.sendInvoice}
       </button>
 
       {open && (
@@ -124,7 +127,7 @@ export function InvoiceSendDialog({
             <div className="flex items-start justify-between p-5 border-b border-slate-100">
               <div>
                 <h2 className="text-lg font-semibold text-slate-900">
-                  {isResend ? "Reenviar factura" : "Enviar factura"}
+                  {isResend ? t.resendInvoice : t.sendInvoice}
                 </h2>
                 <p className="text-sm text-slate-500 mt-1">
                   {invoiceNumber}
@@ -154,7 +157,7 @@ export function InvoiceSendDialog({
                     }`}
                   >
                     <Mail className="w-4 h-4" />
-                    Email
+                    {t.tabEmailLabel}
                   </button>
                   <button
                     type="button"
@@ -167,29 +170,15 @@ export function InvoiceSendDialog({
                     }`}
                   >
                     <MessageSquare className="w-4 h-4" />
-                    SMS
+                    {t.tabSmsLabel}
                   </button>
                 </div>
               )}
 
               <p className="text-sm text-slate-600">
-                {channel === "email" ? (
-                  <>
-                    Se envía un solo PDF con la factura
-                    {isPaid
-                      ? ", los documentos que agregues aquí y los comprobantes de pago al final"
-                      : " y los documentos que agregues aquí"}
-                    .
-                  </>
-                ) : (
-                  <>
-                    Se envía un SMS con un enlace para descargar la factura en PDF
-                    {isPaid
-                      ? " (incluye comprobantes de pago si aplica)"
-                      : ""}
-                    {files.length > 0 ? " y los documentos extra que agregues aquí" : ""}.
-                  </>
-                )}
+                {channel === "email"
+                  ? t.emailDescription(isPaid)
+                  : t.smsDescription(isPaid, files.length > 0)}
               </p>
 
               <div className="flex flex-wrap gap-2">
@@ -220,8 +209,8 @@ export function InvoiceSendDialog({
               )}
 
               <p className="text-xs text-slate-400">
-                PDF o imágenes · Máx. {MAX_EMAIL_EXTRAS} documentos · 5 MB c/u
-                {channel === "email" ? " · un solo archivo adjunto al correo" : " · incluidos en el PDF del enlace"}
+                {t.maxDocsHint(MAX_EMAIL_EXTRAS)}
+                {channel === "email" ? t.emailAttachHint : t.smsAttachHint}
               </p>
             </div>
 
@@ -232,7 +221,7 @@ export function InvoiceSendDialog({
                 onClick={closeDialog}
                 className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg"
               >
-                Cancelar
+                {t.cancel}
               </button>
               <button
                 type="button"
@@ -247,7 +236,7 @@ export function InvoiceSendDialog({
                 ) : (
                   <MessageSquare className="w-4 h-4" />
                 )}
-                {pending ? "Enviando…" : channel === "email" ? "Enviar por email" : "Enviar por SMS"}
+                {pending ? t.sending : channel === "email" ? t.sendByEmail : t.sendBySms}
               </button>
             </div>
           </div>

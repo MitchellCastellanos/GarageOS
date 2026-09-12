@@ -10,6 +10,7 @@ import {
   invoiceStatusLabel,
 } from "@/lib/invoice-status";
 import { getAdminLocale } from "@/lib/admin-locale";
+import { INVOICES_DICT } from "@/lib/admin-locale/invoices";
 
 interface PageProps {
   searchParams: Promise<{ status?: string }>;
@@ -20,17 +21,18 @@ export default async function InvoicesPage({ searchParams }: PageProps) {
   const activeTab = status ?? "ALL";
   const [invoices, locale] = await Promise.all([getInvoices(activeTab), getAdminLocale()]);
   const statusTabs = invoiceListStatusTabs(locale);
+  const t = INVOICES_DICT[locale].list;
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Facturas</h1>
+          <h1 className="text-2xl font-bold text-slate-900">{t.title}</h1>
           <p className="text-slate-500 text-sm mt-1">
-            {invoices.length} factura{invoices.length !== 1 ? "s" : ""}
+            {t.invoiceCount(invoices.length)}
             {activeTab !== "ALL"
-              ? ` · ${invoiceStatusLabel(activeTab, locale) !== activeTab ? invoiceStatusLabel(activeTab, locale) : (statusTabs.find((t) => t.value === activeTab)?.label ?? activeTab)}`
+              ? ` · ${invoiceStatusLabel(activeTab, locale) !== activeTab ? invoiceStatusLabel(activeTab, locale) : (statusTabs.find((tab) => tab.value === activeTab)?.label ?? activeTab)}`
               : ""}
           </p>
         </div>
@@ -39,7 +41,7 @@ export default async function InvoicesPage({ searchParams }: PageProps) {
           className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
         >
           <Plus className="w-4 h-4" />
-          Nueva factura
+          {t.newInvoice}
         </Link>
       </div>
 
@@ -67,8 +69,12 @@ export default async function InvoicesPage({ searchParams }: PageProps) {
           <FileText className="w-12 h-12 text-slate-300 mx-auto mb-3" />
           <p className="text-slate-500 font-medium">
             {activeTab === "ALL"
-              ? "No hay facturas todavía"
-              : `No hay facturas en estado "${invoiceStatusLabel(activeTab, locale) !== activeTab ? invoiceStatusLabel(activeTab, locale) : (statusTabs.find((t) => t.value === activeTab)?.label ?? activeTab)}"`}
+              ? t.emptyAll
+              : t.emptyStatus(
+                  invoiceStatusLabel(activeTab, locale) !== activeTab
+                    ? invoiceStatusLabel(activeTab, locale)
+                    : (statusTabs.find((tab) => tab.value === activeTab)?.label ?? activeTab)
+                )}
           </p>
           {activeTab === "ALL" && (
             <Link
@@ -76,7 +82,7 @@ export default async function InvoicesPage({ searchParams }: PageProps) {
               className="mt-4 inline-flex items-center gap-2 text-blue-600 hover:underline text-sm"
             >
               <Plus className="w-4 h-4" />
-              Crear primera factura
+              {t.createFirst}
             </Link>
           )}
         </div>
@@ -84,11 +90,11 @@ export default async function InvoicesPage({ searchParams }: PageProps) {
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
           {/* Table header */}
           <div className="hidden sm:grid grid-cols-[1fr_160px_120px_100px_110px] gap-4 px-5 py-3 bg-slate-50 border-b border-slate-200 text-xs font-medium text-slate-500 uppercase">
-            <span>Factura / Cliente</span>
-            <span>Vehículo</span>
-            <span>Fecha</span>
-            <span>Estado</span>
-            <span className="text-right">Total</span>
+            <span>{t.tableHeaders.invoiceClient}</span>
+            <span>{t.tableHeaders.vehicle}</span>
+            <span>{t.tableHeaders.date}</span>
+            <span>{t.tableHeaders.status}</span>
+            <span className="text-right">{t.tableHeaders.total}</span>
           </div>
 
           <div className="divide-y divide-slate-100">

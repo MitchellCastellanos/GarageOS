@@ -13,6 +13,8 @@ import {
 } from "@/lib/invoice-payments";
 import { formatCurrency } from "@/lib/utils";
 import { FileAttachmentButtons } from "@/components/ui/FileAttachmentButtons";
+import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
+import { INVOICES_DICT } from "@/lib/admin-locale/invoices";
 import { Loader2, X, CreditCard, Banknote, Split, Trash2 } from "lucide-react";
 
 interface InvoiceMarkPaidDialogProps {
@@ -30,32 +32,6 @@ type LocalEntry = PaymentEntryInput & {
   receiptChoice?: "yes" | "no";
 };
 
-const MODES: {
-  value: InvoicePaymentMode;
-  label: string;
-  hint: string;
-  icon: typeof CreditCard;
-}[] = [
-  {
-    value: "CARD",
-    label: "Tarjeta",
-    hint: "Comprobante de terminal opcional por cada cobro",
-    icon: CreditCard,
-  },
-  {
-    value: "CASH",
-    label: "Efectivo",
-    hint: "Cuenta en ingresos de caja del negocio",
-    icon: Banknote,
-  },
-  {
-    value: "MIXED",
-    label: "Ambos",
-    hint: "Parte en tarjeta, parte en efectivo",
-    icon: Split,
-  },
-];
-
 export function InvoiceMarkPaidDialog({
   invoiceId,
   invoiceNumber,
@@ -63,6 +39,18 @@ export function InvoiceMarkPaidDialog({
   disabled,
 }: InvoiceMarkPaidDialogProps) {
   const router = useRouter();
+  const locale = useAdminLocale();
+  const t = INVOICES_DICT[locale].markPaidDialog;
+  const MODES: {
+    value: InvoicePaymentMode;
+    label: string;
+    hint: string;
+    icon: typeof CreditCard;
+  }[] = [
+    { value: "CARD", label: t.modes.card.label, hint: t.modes.card.hint, icon: CreditCard },
+    { value: "CASH", label: t.modes.cash.label, hint: t.modes.cash.hint, icon: Banknote },
+    { value: "MIXED", label: t.modes.mixed.label, hint: t.modes.mixed.hint, icon: Split },
+  ];
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<InvoicePaymentMode>("CARD");
   const [entries, setEntries] = useState<LocalEntry[]>([]);
@@ -101,7 +89,7 @@ export function InvoiceMarkPaidDialog({
       error?: string;
     };
     if (!uploadRes.ok || !uploadJson.storagePath) {
-      toast.error(uploadJson.error ?? "Error al subir archivo");
+      toast.error(uploadJson.error ?? t.uploadError);
       return null;
     }
     return uploadJson.storagePath;
@@ -118,7 +106,7 @@ export function InvoiceMarkPaidDialog({
   function addEntry() {
     const amount = parseFloat(draftAmount);
     if (!Number.isFinite(amount) || amount <= 0) {
-      toast.error("Ingresa un monto válido");
+      toast.error(t.invalidAmount);
       return;
     }
     const method =
@@ -170,7 +158,7 @@ export function InvoiceMarkPaidDialog({
 
   function handleSubmit() {
     if (!remaining.isZero()) {
-      toast.error(`Falta por registrar ${formatCurrency(remaining.toNumber())}`);
+      toast.error(t.missingAmount(formatCurrency(remaining.toNumber())));
       return;
     }
 
@@ -180,7 +168,7 @@ export function InvoiceMarkPaidDialog({
       const payload: PaymentEntryInput[] = [];
       const cardUploads = entries.filter((e) => e.method === "CARD" && e.receiptFile);
       if (cardUploads.length > 0) {
-        toast.info("Subiendo comprobantes…");
+        toast.info(t.uploadingReceipts);
       }
 
       const extraPaths: string[] = [];
@@ -214,7 +202,7 @@ export function InvoiceMarkPaidDialog({
         toast.error(result.error);
         return;
       }
-      toast.success("Factura marcada como pagada");
+      toast.success(t.markedPaidToast);
       if (result.accountantExport?.status === "skipped") {
         toast.info(result.accountantExport.reason, { duration: 6000 });
       }
@@ -234,7 +222,7 @@ export function InvoiceMarkPaidDialog({
         className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
       >
         {pending ? <Loader2 className="w-4 h-4 animate-spin inline" /> : null}
-        Marcar como pagada
+        {t.button}
       </button>
 
       {open && (
@@ -242,7 +230,7 @@ export function InvoiceMarkPaidDialog({
           <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-start justify-between p-5 border-b border-slate-100">
               <div>
-                <h2 className="text-lg font-semibold text-slate-900">Registrar pago</h2>
+                <h2 className="text-lg font-semibold text-slate-900">{t.dialogTitle}</h2>
                 <p className="text-sm text-slate-500 mt-1">{invoiceNumber}</p>
               </div>
               <button
@@ -260,23 +248,23 @@ export function InvoiceMarkPaidDialog({
 
             <div className="p-5 space-y-4">
               <p className="text-xs text-slate-500">
-                Al confirmar se genera un solo PDF: factura, documentos extra y comprobantes al final.
+                {t.pdfNote}
               </p>
               <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-slate-600">Total a cubrir</span>
+                  <span className="text-slate-600">{t.totalToCover}</span>
                   <span className="font-semibold text-slate-900">
                     {formatCurrency(target.toNumber())}
                   </span>
                 </div>
                 <div className="flex justify-between mt-1">
-                  <span className="text-slate-600">Registrado</span>
+                  <span className="text-slate-600">{t.registered}</span>
                   <span className="text-emerald-700 font-medium">
                     {formatCurrency(paidSoFar.toNumber())}
                   </span>
                 </div>
                 <div className="flex justify-between mt-1 border-t border-slate-200 pt-2">
-                  <span className="font-medium text-slate-800">Falta</span>
+                  <span className="font-medium text-slate-800">{t.missing}</span>
                   <span
                     className={
                       remaining.isZero()
@@ -291,7 +279,7 @@ export function InvoiceMarkPaidDialog({
 
               <div>
                 <p className="text-xs font-semibold text-slate-500 uppercase mb-2">
-                  Forma de pago
+                  {t.paymentMethodTitle}
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   {MODES.map((m) => {
@@ -331,7 +319,7 @@ export function InvoiceMarkPaidDialog({
                         : "border-slate-200 text-slate-600"
                     }`}
                   >
-                    Tarjeta
+                    {t.modes.card.label}
                   </button>
                   <button
                     type="button"
@@ -342,7 +330,7 @@ export function InvoiceMarkPaidDialog({
                         : "border-slate-200 text-slate-600"
                     }`}
                   >
-                    Efectivo
+                    {t.modes.cash.label}
                   </button>
                 </div>
               )}
@@ -356,7 +344,7 @@ export function InvoiceMarkPaidDialog({
                     step="0.01"
                     value={draftAmount}
                     onChange={(e) => setDraftAmount(e.target.value)}
-                    placeholder="Monto"
+                    placeholder={t.amountPlaceholder}
                     className="w-full pl-7 pr-3 py-2 border border-slate-200 rounded-lg text-sm"
                   />
                 </div>
@@ -366,7 +354,7 @@ export function InvoiceMarkPaidDialog({
                   disabled={remaining.lte(0)}
                   className="px-4 py-2 bg-slate-800 hover:bg-slate-900 disabled:opacity-40 text-white rounded-lg text-sm font-medium"
                 >
-                  Agregar
+                  {t.addButton}
                 </button>
               </div>
 
@@ -382,10 +370,10 @@ export function InvoiceMarkPaidDialog({
                           {e.method === "CARD" && (
                             <p className="text-xs text-slate-500">
                               {e.receiptFile
-                                ? `Comprobante: ${e.receiptFile.name}`
+                                ? t.receiptLabel(e.receiptFile.name)
                                 : e.receiptChoice === "no"
-                                ? "Sin comprobante de terminal"
-                                : "Comprobante de terminal (opcional)"}
+                                ? t.noReceipt
+                                : t.receiptOptional}
                             </p>
                           )}
                         </div>
@@ -406,7 +394,7 @@ export function InvoiceMarkPaidDialog({
                           {e.receiptChoice === undefined ? (
                             <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-2">
                               <p className="text-sm text-slate-700">
-                                ¿Deseas subir el recibo de la terminal?
+                                {t.askUploadReceipt}
                               </p>
                               <div className="flex gap-2">
                                 <button
@@ -414,14 +402,14 @@ export function InvoiceMarkPaidDialog({
                                   onClick={() => setReceiptChoice(e.id, "yes")}
                                   className="flex-1 py-1.5 rounded-lg text-sm border border-blue-500 bg-blue-50 text-blue-800 font-medium hover:bg-blue-100"
                                 >
-                                  Sí, subir recibo
+                                  {t.yesUpload}
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setReceiptChoice(e.id, "no")}
                                   className="flex-1 py-1.5 rounded-lg text-sm border border-slate-300 text-slate-600 hover:bg-slate-100"
                                 >
-                                  No, continuar sin recibo
+                                  {t.noContinue}
                                 </button>
                               </div>
                             </div>
@@ -430,8 +418,8 @@ export function InvoiceMarkPaidDialog({
                               onFilesSelected={(files) => attachReceipt(e.id, files)}
                               multiple={false}
                               accept="image/jpeg,image/png,image/webp,application/pdf"
-                              uploadLabel="Subir comprobante"
-                              cameraLabel="Foto comprobante"
+                              uploadLabel={t.uploadReceiptLabel}
+                              cameraLabel={t.cameraReceiptLabel}
                             />
                           ) : (
                             <button
@@ -439,7 +427,7 @@ export function InvoiceMarkPaidDialog({
                               onClick={() => setReceiptChoice(e.id, "yes")}
                               className="text-xs text-blue-600 hover:text-blue-800 underline"
                             >
-                              Subir recibo de la terminal
+                              {t.uploadReceiptLink}
                             </button>
                           )}
                         </div>
@@ -451,10 +439,10 @@ export function InvoiceMarkPaidDialog({
 
               <div className="border-t border-slate-100 pt-4 space-y-2">
                 <p className="text-xs font-semibold text-slate-500 uppercase">
-                  Documentos adicionales (opcional)
+                  {t.extraDocsTitle}
                 </p>
                 <p className="text-xs text-slate-500">
-                  Alineación, cotización, fotos de servicio, etc. Van en el PDF después de la factura.
+                  {t.extraDocsHint}
                 </p>
                 <FileAttachmentButtons
                   disabled={pending}
@@ -474,7 +462,7 @@ export function InvoiceMarkPaidDialog({
                             setExtraFiles((prev) => prev.filter((_, j) => j !== i))
                           }
                         >
-                          Quitar
+                          {t.remove}
                         </button>
                       </li>
                     ))}
@@ -494,7 +482,7 @@ export function InvoiceMarkPaidDialog({
                 }}
                 className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg"
               >
-                Cancelar
+                {t.cancel}
               </button>
               <button
                 type="button"
@@ -503,7 +491,7 @@ export function InvoiceMarkPaidDialog({
                 className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium"
               >
                 {pending && <Loader2 className="w-4 h-4 animate-spin" />}
-                Confirmar pago
+                {t.confirmPayment}
               </button>
             </div>
           </div>
