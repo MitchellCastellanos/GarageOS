@@ -7,6 +7,7 @@ import type { SiteLocale } from "@/lib/site-locale";
 import { OTHER_VALUE, VEHICLE_MAKES, VEHICLE_MODELS, VEHICLE_YEARS } from "@/lib/vehicle-catalog";
 import { resolveServiceDuration } from "@/lib/service-catalog";
 import { MonthCalendar } from "@/components/booking/MonthCalendar";
+import { BookingUnavailable } from "@/components/booking/BookingUnavailable";
 
 interface ShopInfo {
   name: string;
@@ -60,6 +61,7 @@ export function PublicBookingForm({ slug, shop, services }: PublicBookingFormPro
   const [loadingDates, setLoadingDates] = useState(false);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [bookingPaused, setBookingPaused] = useState(false);
   const [pending, startTransition] = useTransition();
 
   const [year, setYear] = useState("");
@@ -136,6 +138,10 @@ export function PublicBookingForm({ slug, shop, services }: PublicBookingFormPro
     fetch(`/api/book/${slug}/slots?service=${encodeURIComponent(serviceValue)}`)
       .then((r) => r.json())
       .then((data) => {
+        if (data.code === "BOOKING_DISABLED") {
+          setBookingPaused(true);
+          return;
+        }
         if (data.dates) {
           setDates(data.dates);
           setAvailableDates(new Set(data.availableDates ?? data.dates));
@@ -151,7 +157,10 @@ export function PublicBookingForm({ slug, shop, services }: PublicBookingFormPro
     const params = new URLSearchParams({ date: dateStr, service: serviceValue });
     fetch(`/api/book/${slug}/slots?${params}`)
       .then((r) => r.json())
-      .then((data) => setSlots(data.slots ?? []))
+      .then((data) => {
+        if (data.code === "BOOKING_DISABLED") setBookingPaused(true);
+        setSlots(data.slots ?? []);
+      })
       .catch(() => setSlots([]))
       .finally(() => setLoadingSlots(false));
   }
@@ -199,6 +208,10 @@ export function PublicBookingForm({ slug, shop, services }: PublicBookingFormPro
       const data = await res.json();
 
       if (!res.ok) {
+        if (data.code === "BOOKING_DISABLED") {
+          setBookingPaused(true);
+          return;
+        }
         const msg =
           data.error?.time?.[0] ??
           data.error?.phone?.[0] ??
@@ -245,6 +258,10 @@ export function PublicBookingForm({ slug, shop, services }: PublicBookingFormPro
         )}
       </div>
     );
+  }
+
+  if (bookingPaused) {
+    return <BookingUnavailable shopName={shop.name} phone={shop.phone} />;
   }
 
   return (

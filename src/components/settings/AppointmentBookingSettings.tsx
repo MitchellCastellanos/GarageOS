@@ -10,8 +10,8 @@ import {
   updateShopWorkingHours,
 } from "@/actions/booking-settings";
 import type { WorkingHoursRow } from "@/lib/working-hours";
-import { Switch } from "@/components/ui/Switch";
-import { Calendar, ChevronDown, Copy, ExternalLink, Loader2 } from "lucide-react";
+import { OnlineBookingSettings } from "@/components/settings/OnlineBookingSettings";
+import { Calendar, ChevronDown, Loader2 } from "lucide-react";
 import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
 import { SETTINGS_DICT, type SettingsDictionary } from "@/lib/admin-locale/settings";
 
@@ -82,21 +82,15 @@ export function AppointmentBookingSettings({
 
   return (
     <div className="space-y-6 max-w-2xl">
+      <OnlineBookingSettings shop={shop} />
       <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
         <div>
-          <h2 className="font-semibold text-slate-900">{t.booking.title}</h2>
-          <p className="text-sm text-slate-500 mt-1">{t.booking.subtitle}</p>
+          <h2 className="font-semibold text-slate-900">{t.booking.rulesTitle}</h2>
+          <p className="text-sm text-slate-500 mt-1">{t.booking.rulesSubtitle}</p>
         </div>
 
         <form onSubmit={handleBookingSubmit} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="flex items-center gap-3 sm:col-span-2">
-              <Switch id="bookingEnabled" name="bookingEnabled" defaultChecked={shop.bookingEnabled} />
-              <label htmlFor="bookingEnabled" className="text-sm text-slate-700">
-                {t.booking.enableLabel}
-              </label>
-            </div>
-
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">
                 {t.booking.slotMinutes}
@@ -140,32 +134,6 @@ export function AppointmentBookingSettings({
               {t.booking.timezone}: {shop.timezone}
             </div>
           </div>
-
-          {shop.bookingUrl && (
-            <div className="flex flex-wrap items-center gap-2 p-3 bg-teal-50 border border-teal-100 rounded-lg">
-              <code className="text-xs text-teal-800 flex-1 break-all">{shop.bookingUrl}</code>
-              <button
-                type="button"
-                onClick={() => {
-                  navigator.clipboard.writeText(shop.bookingUrl!);
-                  toast.success(t.booking.linkCopied);
-                }}
-                className="p-2 text-teal-700 hover:bg-teal-100 rounded-lg"
-                title={t.booking.copyLink}
-              >
-                <Copy className="w-4 h-4" />
-              </button>
-              <a
-                href={shop.bookingUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-2 text-teal-700 hover:bg-teal-100 rounded-lg"
-                title={t.booking.openPage}
-              >
-                <ExternalLink className="w-4 h-4" />
-              </a>
-            </div>
-          )}
 
           <div className="flex justify-end">
             <button
@@ -248,7 +216,7 @@ export function AppointmentBookingSettings({
           <div className="divide-y divide-slate-100 border border-slate-100 rounded-lg">
             {mechanics.map((m) => (
               <div key={m.id}>
-                <div className="flex items-center justify-between gap-4 p-4 hover:bg-slate-50">
+                <div className="flex flex-col items-start sm:flex-row sm:items-center justify-between gap-4 p-4 hover:bg-slate-50">
                   <label className="flex items-center gap-4 flex-1 cursor-pointer">
                     <div>
                       <p className="font-medium text-slate-900">{m.name}</p>
@@ -258,7 +226,7 @@ export function AppointmentBookingSettings({
                       </p>
                     </div>
                   </label>
-                  <div className="flex items-center gap-3 shrink-0">
+                  <div className="flex flex-wrap items-center gap-3">
                     <MechanicScheduleToggle mechanicId={m.id} label={t.booking.scheduleButton} />
                     <span className="text-xs text-slate-500">{t.booking.receivesWebBookings}</span>
                     <input

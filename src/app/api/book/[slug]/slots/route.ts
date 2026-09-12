@@ -19,6 +19,13 @@ export async function GET(
     return NextResponse.json({ error: "Reservas no disponibles" }, { status: 404 });
   }
 
+  if (!shop.bookingEnabled) {
+    return NextResponse.json(
+      { code: "BOOKING_DISABLED", error: "Este taller no está recibiendo citas por internet" },
+      { status: 403 }
+    );
+  }
+
   const date = req.nextUrl.searchParams.get("date");
   const service = req.nextUrl.searchParams.get("service");
   const serviceDurations = await getShopServiceDurations(shop.id);

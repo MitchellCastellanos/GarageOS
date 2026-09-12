@@ -73,7 +73,25 @@ export interface SettingsDictionary {
     missingConfig: string;
     newsletterHint: (address: string) => string;
   };
+  embed: {
+    title: string;
+    description: string;
+    hint: string;
+    iframeTitle: string;
+    copy: string;
+    copied: string;
+    copyError: string;
+  };
   booking: {
+    toggling: string;
+    enabledStatus: string;
+    disabledStatus: string;
+    toggleHint: string;
+    toggleError: string;
+    copyError: string;
+    publicLink: string;
+    rulesTitle: string;
+    rulesSubtitle: string;
     title: string;
     subtitle: string;
     enableLabel: string;
@@ -237,11 +255,28 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       newsletterHint: (address) =>
         `Newsletter usará ${address} con Brevo/Mailchimp cuando esté activo — no pasa por Resend.`,
     },
+    embed: {
+      title: "Formulario para tu sitio web",
+      description: "Pega este código donde quieras mostrar «Reservar cita». Usa el mismo interruptor que el enlace público; puedes instalarlo aunque las reservas estén apagadas.",
+      hint: "Al reactivar las reservas no necesitas cambiar el código. Ajusta el ancho y alto del formulario a tu sitio.",
+      iframeTitle: "Reservar cita",
+      copy: "Copiar código",
+      copied: "Código copiado",
+      copyError: "No se pudo copiar el código",
+    },
     booking: {
-      title: "Citas — reservas desde el website",
-      subtitle:
-        "Cuando entregues el sitio web del taller, enlaza a esta página pública para que los clientes agenden citas en línea. También puedes compartir el enlace directo.",
-      enableLabel: "Activar reservas en línea (visible en /book/…)",
+      toggling: "Guardando...",
+      enabledStatus: "Reservas por internet activadas",
+      disabledStatus: "Reservas por internet desactivadas",
+      toggleHint: "Se guarda al cambiar el interruptor. Al desactivarlo, ambos dejan de aceptar citas nuevas; el enlace y el código se conservan. Las citas existentes y las creadas desde el admin no cambian.",
+      toggleError: "No se pudo cambiar el estado de las reservas",
+      copyError: "No se pudo copiar el enlace",
+      publicLink: "Enlace de tu taller",
+      rulesTitle: "Reglas de las reservas",
+      rulesSubtitle: "Define la anticipación, el período disponible y la frecuencia de los horarios para reservar.",
+      title: "Reservas por internet",
+      subtitle: "Tu enlace público y el formulario insertado en tu sitio web reciben citas con el mismo interruptor.",
+      enableLabel: "Recibir citas por internet",
       slotMinutes: "Duración de cada cita (min)",
       leadTime: "Anticipación mínima (horas)",
       advanceDays: "Reservar hasta (días adelante)",
@@ -257,8 +292,7 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       saveHours: "Guardar horario",
       hoursSaved: "Horario del taller guardado",
       mechanicsTitle: "Mecánicos disponibles para citas",
-      mechanicsSubtitle:
-        "Crea cuentas de mecánico en Equipo del taller (abajo). Aquí eliges quién aparece en el calendario de reservas y recibe citas automáticamente.",
+      mechanicsSubtitle: "Elige qué mecánicos reciben citas web y configura sus horarios semanales. La disponibilidad combina sus horarios, el horario del taller, la duración del servicio y las citas ocupadas. Crea o elimina cuentas en la pestaña Equipo.",
       noMechanics: "No hay mecánicos. Ve a Equipo del taller y crea al menos un usuario con rol Mecánico.",
       owner: "Dueño",
       mechanic: "Mecánico",
@@ -401,11 +435,28 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       newsletterHint: (address) =>
         `Newsletter will use ${address} with Brevo/Mailchimp once active — it doesn't go through Resend.`,
     },
+    embed: {
+      title: "Booking form for your website",
+      description: "Paste this code wherever you want to show “Book an appointment”. It uses the same switch as your public link; you can install it while bookings are turned off.",
+      hint: "You do not need to change the code when you turn bookings back on. Adjust the form width and height to fit your website.",
+      iframeTitle: "Book an appointment",
+      copy: "Copy code",
+      copied: "Code copied",
+      copyError: "Could not copy the code",
+    },
     booking: {
-      title: "Appointments — bookings from the website",
-      subtitle:
-        "Once you hand off the shop's website, link to this public page so clients can book appointments online. You can also share the direct link.",
-      enableLabel: "Enable online booking (visible at /book/…)",
+      toggling: "Saving...",
+      enabledStatus: "Online appointments enabled",
+      disabledStatus: "Online appointments disabled",
+      toggleHint: "Changes save immediately. Turning this off stops new bookings through both options; your link and code stay the same. Existing appointments and those created in the admin are unaffected.",
+      toggleError: "Could not change online booking status",
+      copyError: "Could not copy the link",
+      publicLink: "Your shop link",
+      rulesTitle: "Booking rules",
+      rulesSubtitle: "Set the lead time, booking window, and interval between available start times.",
+      title: "Online appointments",
+      subtitle: "Your public link and the booking form embedded on your website use the same switch.",
+      enableLabel: "Accept online appointments",
       slotMinutes: "Duration of each appointment (min)",
       leadTime: "Minimum lead time (hours)",
       advanceDays: "Bookable up to (days ahead)",
@@ -421,8 +472,7 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       saveHours: "Save hours",
       hoursSaved: "Shop hours saved",
       mechanicsTitle: "Mechanics available for appointments",
-      mechanicsSubtitle:
-        "Create mechanic accounts under Shop team (below). Here you choose who appears on the booking calendar and automatically receives appointments.",
+      mechanicsSubtitle: "Choose which mechanics receive online appointments and set their weekly hours. Availability combines their hours, shop hours, service duration, and existing appointments. Create or remove accounts in the Team tab.",
       noMechanics: "No mechanics yet. Go to Shop team and create at least one user with the Mechanic role.",
       owner: "Owner",
       mechanic: "Mechanic",
@@ -565,11 +615,28 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       newsletterHint: (address) =>
         `L'infolettre utilisera ${address} avec Brevo/Mailchimp une fois active — elle ne passe pas par Resend.`,
     },
+    embed: {
+      title: "Formulaire pour votre site web",
+      description: "Collez ce code là où vous souhaitez afficher « Prendre rendez-vous ». Il utilise le même interrupteur que votre lien public; vous pouvez l’installer même lorsque les réservations sont désactivées.",
+      hint: "Vous n’avez pas besoin de changer le code lors de la réactivation. Ajustez la largeur et la hauteur du formulaire à votre site.",
+      iframeTitle: "Prendre rendez-vous",
+      copy: "Copier le code",
+      copied: "Code copié",
+      copyError: "Impossible de copier le code",
+    },
     booking: {
-      title: "Rendez-vous — réservations depuis le site web",
-      subtitle:
-        "Lorsque vous livrez le site web du garage, référez cette page publique pour que les clients prennent rendez-vous en ligne. Vous pouvez aussi partager le lien direct.",
-      enableLabel: "Activer les réservations en ligne (visible à /book/…)",
+      toggling: "Enregistrement...",
+      enabledStatus: "Rendez-vous en ligne activés",
+      disabledStatus: "Rendez-vous en ligne désactivés",
+      toggleHint: "Le changement est enregistré immédiatement. La désactivation bloque les nouvelles réservations par les deux moyens; votre lien et votre code restent identiques. Les rendez-vous existants et ceux créés dans le panneau admin ne changent pas.",
+      toggleError: "Impossible de modifier le statut des réservations",
+      copyError: "Impossible de copier le lien",
+      publicLink: "Lien de votre garage",
+      rulesTitle: "Règles de réservation",
+      rulesSubtitle: "Définissez le délai minimum, la période de réservation et l’intervalle entre les heures de début.",
+      title: "Rendez-vous en ligne",
+      subtitle: "Votre lien public et le formulaire intégré à votre site web utilisent le même interrupteur.",
+      enableLabel: "Accepter les rendez-vous en ligne",
       slotMinutes: "Durée de chaque rendez-vous (min)",
       leadTime: "Délai minimum (heures)",
       advanceDays: "Réservable jusqu'à (jours à l'avance)",
@@ -585,8 +652,7 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       saveHours: "Enregistrer l'horaire",
       hoursSaved: "Horaire du garage enregistré",
       mechanicsTitle: "Mécaniciens disponibles pour les rendez-vous",
-      mechanicsSubtitle:
-        "Créez des comptes de mécanicien dans Équipe du garage (ci-dessous). Choisissez ici qui apparaît au calendrier de réservation et reçoit des rendez-vous automatiquement.",
+      mechanicsSubtitle: "Choisissez les mécaniciens qui reçoivent des rendez-vous en ligne et configurez leur horaire hebdomadaire. La disponibilité tient compte de leurs heures, des heures du garage, de la durée du service et des rendez-vous existants. Créez ou supprimez des comptes dans l’onglet Équipe.",
       noMechanics: "Aucun mécanicien. Allez dans Équipe du garage et créez au moins un utilisateur avec le rôle Mécanicien.",
       owner: "Propriétaire",
       mechanic: "Mécanicien",
