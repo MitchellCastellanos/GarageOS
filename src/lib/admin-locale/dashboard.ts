@@ -64,6 +64,33 @@ export interface DashboardDictionary {
     pending: (count: number) => string;
     viewReminders: string;
   };
+  commandCenter: {
+    eyebrow: string;
+    title: string;
+    subtitle: string;
+    today: string;
+    appointments: string;
+    appointmentsEmpty: string;
+    openQuotes: string;
+    conversations: string;
+    campaigns: string;
+    workOrders: string;
+    documents: string;
+    view: string;
+  };
+  modules: {
+    title: string;
+    subtitle: string;
+    operations: string;
+    customers: string;
+    communications: string;
+    finance: string;
+    settings: string;
+    planLabel: string;
+    planName: string;
+    planHint: string;
+    planLink: string;
+  };
 }
 
 export const DASHBOARD_DICT: Record<AdminLocale, DashboardDictionary> = {
@@ -123,6 +150,33 @@ export const DASHBOARD_DICT: Record<AdminLocale, DashboardDictionary> = {
         `${count} recordatorio${count !== 1 ? "s" : ""} pendiente${count !== 1 ? "s" : ""}`,
       viewReminders: "Ver recordatorios →",
     },
+    commandCenter: {
+      eyebrow: "Centro de control",
+      title: "Lo importante para hoy",
+      subtitle: "Una vista rápida de la operación, los clientes y el dinero del taller.",
+      today: "Agenda de hoy",
+      appointments: "citas",
+      appointmentsEmpty: "No hay citas programadas para hoy.",
+      openQuotes: "Cotizaciones abiertas",
+      conversations: "Conversaciones",
+      campaigns: "Campañas activas",
+      workOrders: "Órdenes de trabajo",
+      documents: "Documentos contables",
+      view: "Ver todo",
+    },
+    modules: {
+      title: "Todo tu taller, en un solo lugar",
+      subtitle: "Accesos directos a las áreas que ya forman parte de GarageOS.",
+      operations: "Operación",
+      customers: "Clientes y documentos",
+      communications: "Comunicación",
+      finance: "Finanzas",
+      settings: "Configuración",
+      planLabel: "Tu plan",
+      planName: "GarageOS Pro",
+      planHint: "Reportes, documentos de marca y soporte prioritario.",
+      planLink: "Conocer los planes",
+    },
   },
   en: {
     intlLocale: "en-CA",
@@ -179,6 +233,33 @@ export const DASHBOARD_DICT: Record<AdminLocale, DashboardDictionary> = {
       pending: (count) => `${count} pending reminder${count !== 1 ? "s" : ""}`,
       viewReminders: "View reminders →",
     },
+    commandCenter: {
+      eyebrow: "Command center",
+      title: "What matters today",
+      subtitle: "A quick view of your shop's operations, customers, and cash flow.",
+      today: "Today's schedule",
+      appointments: "appointments",
+      appointmentsEmpty: "No appointments scheduled for today.",
+      openQuotes: "Open quotes",
+      conversations: "Conversations",
+      campaigns: "Active campaigns",
+      workOrders: "Work orders",
+      documents: "Accounting documents",
+      view: "View all",
+    },
+    modules: {
+      title: "Your whole shop, in one place",
+      subtitle: "Shortcuts to the areas already included in GarageOS.",
+      operations: "Operations",
+      customers: "Customers & documents",
+      communications: "Communications",
+      finance: "Finance",
+      settings: "Settings",
+      planLabel: "Your plan",
+      planName: "GarageOS Pro",
+      planHint: "Reports, branded documents, and priority support.",
+      planLink: "Explore plans",
+    },
   },
   fr: {
     intlLocale: "fr-CA",
@@ -234,6 +315,33 @@ export const DASHBOARD_DICT: Record<AdminLocale, DashboardDictionary> = {
     remindersAlert: {
       pending: (count) => `${count} rappel${count !== 1 ? "s" : ""} en attente`,
       viewReminders: "Voir les rappels →",
+    },
+    commandCenter: {
+      eyebrow: "Centre de contrôle",
+      title: "L’essentiel pour aujourd’hui",
+      subtitle: "Un aperçu rapide des opérations, des clients et des finances de l’atelier.",
+      today: "Horaire du jour",
+      appointments: "rendez-vous",
+      appointmentsEmpty: "Aucun rendez-vous prévu aujourd’hui.",
+      openQuotes: "Soumissions ouvertes",
+      conversations: "Conversations",
+      campaigns: "Campagnes actives",
+      workOrders: "Ordres de travail",
+      documents: "Documents comptables",
+      view: "Tout voir",
+    },
+    modules: {
+      title: "Tout votre atelier, au même endroit",
+      subtitle: "Accès rapides aux sections déjà présentes dans GarageOS.",
+      operations: "Opérations",
+      customers: "Clients et documents",
+      communications: "Communications",
+      finance: "Finances",
+      settings: "Configuration",
+      planLabel: "Votre forfait",
+      planName: "GarageOS Pro",
+      planHint: "Rapports, documents à votre image et soutien prioritaire.",
+      planLink: "Voir les forfaits",
     },
   },
 };

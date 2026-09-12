@@ -1,4 +1,4 @@
-import { ADMIN, PLATFORM, adminPath } from "@/lib/routes";
+import { ADMIN, adminPath } from "@/lib/routes";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { formatCurrency } from "@/lib/utils";
@@ -14,6 +14,13 @@ import {
   Plus,
   ArrowUpRight,
   ArrowDownRight,
+  CalendarDays,
+  MessageSquare,
+  Megaphone,
+  ClipboardList,
+  ChevronRight,
+  Wrench,
+  BarChart3,
 } from "lucide-react";
 import { RevenueChart } from "@/components/dashboard/RevenueChart";
 import { StatusPie } from "@/components/dashboard/StatusPie";
@@ -28,6 +35,7 @@ import { computeRevenueBreakdown } from "@/lib/revenue-analytics";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import type { AdminLocale } from "@/lib/admin-locale";
 import { DASHBOARD_DICT, monthShort } from "@/lib/admin-locale/dashboard";
+import { LAYOUT_DICT } from "@/lib/admin-locale/layout";
 
 const PIE_STATUSES = ["PENDING", "PAID", "OVERDUE", "CANCELLED"] as const;
 
@@ -36,6 +44,7 @@ export default async function DashboardPage() {
   const shopId = session?.user?.shopId;
   const locale = await getAdminLocale();
   const t = DASHBOARD_DICT[locale];
+  const nav = LAYOUT_DICT[locale].nav;
 
   if (!shopId) {
     return <div className="text-center py-20 text-slate-500">{t.loadingShop}</div>;
@@ -45,6 +54,8 @@ export default async function DashboardPage() {
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
 
   // 6 meses atrás (primer día)
   const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
@@ -59,6 +70,12 @@ export default async function DashboardPage() {
     paidInvoicesLast6Months,
     invoicesByStatus,
     allPaidInvoices,
+    todayAppointments,
+    quoteCount,
+    inboxCount,
+    campaignCount,
+    accountingDocumentCount,
+    workOrderCount,
   ] = await Promise.all([
     db.client.count({ where: { shopId } }),
     db.invoice.count({ where: { shopId } }),
@@ -102,6 +119,21 @@ export default async function DashboardPage() {
       where: { shopId, status: "PAID" },
       select: { clientId: true, total: true, status: true },
     }),
+    db.appointment.findMany({
+      where: {
+        shopId,
+        startsAt: { gte: startOfDay, lt: endOfDay },
+        status: { not: "CANCELLED" },
+      },
+      orderBy: { startsAt: "asc" },
+      take: 5,
+      include: { client: true, vehicle: true, mechanic: true },
+    }),
+    db.quote.count({ where: { shopId, status: { in: ["DRAFT", "SENT", "ACCEPTED"] } } }),
+    db.communicationThread.count({ where: { shopId } }),
+    db.campaign.count({ where: { shopId, status: { not: "CANCELLED" } } }),
+    db.accountingDocument.count({ where: { shopId } }),
+    db.workOrder.count({ where: { shopId, status: { not: "CANCELLED" } } }),
   ]);
 
   const thisMonthRevenue = paidInvoicesThisMonth.reduce(
@@ -260,6 +292,96 @@ export default async function DashboardPage() {
           );
         })}
       </div>
+
+      {/* Centro de control: primero la operación del día, luego el reporting. */}
+      <section className="overflow-hidden rounded-2xl bg-slate-950 text-white shadow-xl shadow-slate-900/10">
+        <div className="grid gap-0 lg:grid-cols-[1.25fr_1fr]">
+          <div className="relative p-6 sm:p-8">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(37,99,235,.35),transparent_44%)]" />
+            <div className="relative">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-300">{t.commandCenter.eyebrow}</p>
+              <h2 className="mt-3 max-w-lg text-2xl font-semibold tracking-tight sm:text-3xl">{t.commandCenter.title}</h2>
+              <p className="mt-2 max-w-xl text-sm leading-6 text-slate-300">{t.commandCenter.subtitle}</p>
+              <div className="mt-7 flex flex-wrap gap-3">
+                <Link href={ADMIN.appointments} className="inline-flex items-center gap-2 rounded-lg bg-blue-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-400">
+                  <CalendarDays className="h-4 w-4" /> {t.commandCenter.today}
+                </Link>
+                <Link href={ADMIN.invoices} className="inline-flex items-center gap-2 rounded-lg border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:bg-slate-900">
+                  <BarChart3 className="h-4 w-4" /> {t.revenueChart.title}
+                </Link>
+              </div>
+            </div>
+          </div>
+          <div className="border-t border-slate-800 bg-slate-900/70 p-5 sm:p-6 lg:border-l lg:border-t-0">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-white">{t.commandCenter.today}</p>
+                <p className="mt-0.5 text-xs text-slate-400">{todayAppointments.length} {t.commandCenter.appointments}</p>
+              </div>
+              <CalendarDays className="h-5 w-5 text-blue-300" />
+            </div>
+            {todayAppointments.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-slate-700 px-4 py-6 text-center text-sm text-slate-400">{t.commandCenter.appointmentsEmpty}</p>
+            ) : (
+              <div className="space-y-2">
+                {todayAppointments.map((appointment) => (
+                  <Link key={appointment.id} href={`${ADMIN.appointments}/${appointment.id}`} className="flex items-center gap-3 rounded-xl bg-slate-800/80 px-3 py-2.5 transition hover:bg-slate-700">
+                    <span className="w-12 text-xs font-semibold text-blue-300">{appointment.startsAt.toLocaleTimeString(t.intlLocale, { hour: "numeric", minute: "2-digit" })}</span>
+                    <span className="min-w-0 flex-1 truncate text-sm text-slate-100">{formatClientName(appointment.client)}</span>
+                    <ChevronRight className="h-4 w-4 shrink-0 text-slate-500" />
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        {[
+          { label: t.commandCenter.openQuotes, value: quoteCount, href: ADMIN.quotes, icon: ClipboardList, color: "text-violet-600", bg: "bg-violet-50" },
+          { label: t.commandCenter.conversations, value: inboxCount, href: ADMIN.inbox, icon: MessageSquare, color: "text-sky-600", bg: "bg-sky-50" },
+          { label: t.commandCenter.campaigns, value: campaignCount, href: ADMIN.campaigns, icon: Megaphone, color: "text-pink-600", bg: "bg-pink-50" },
+          { label: t.commandCenter.workOrders, value: workOrderCount, href: ADMIN.appointments, icon: Wrench, color: "text-orange-600", bg: "bg-orange-50" },
+          { label: t.commandCenter.documents, value: accountingDocumentCount, href: ADMIN.accounting, icon: FileText, color: "text-emerald-600", bg: "bg-emerald-50" },
+          { label: t.metrics.pendingReminders, value: pendingReminders, href: ADMIN.reminders, icon: Bell, color: "text-amber-600", bg: "bg-amber-50" },
+        ].map(({ label, value, href, icon: Icon, color, bg }) => (
+          <Link key={label} href={href} className="group rounded-xl border border-slate-200 bg-white p-4 transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-sm">
+            <div className={`mb-3 flex h-8 w-8 items-center justify-center rounded-lg ${bg}`}><Icon className={`h-4 w-4 ${color}`} /></div>
+            <p className="text-2xl font-bold text-slate-900">{value}</p>
+            <p className="mt-1 truncate text-xs text-slate-500">{label}</p>
+          </Link>
+        ))}
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+        <div className="mb-5 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div><h2 className="text-lg font-semibold text-slate-900">{t.modules.title}</h2><p className="mt-1 text-sm text-slate-500">{t.modules.subtitle}</p></div>
+          <span className="text-xs font-medium text-slate-400">{t.modules.settings}: {nav.settings}</span>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            { title: t.modules.operations, links: [[nav.appointments, ADMIN.appointments, CalendarDays], [nav.quotes, ADMIN.quotes, ClipboardList], [nav.reminders, ADMIN.reminders, Bell]] },
+            { title: t.modules.customers, links: [[nav.clients, ADMIN.clients, Users], [nav.invoices, ADMIN.invoices, FileText], [nav.accounting, ADMIN.accounting, BarChart3]] },
+            { title: t.modules.communications, links: [[nav.inbox, ADMIN.inbox, MessageSquare], [nav.campaigns, ADMIN.campaigns, Megaphone], [nav.notifications, ADMIN.notifications, Bell]] },
+            { title: t.modules.finance, links: [[nav.caja, ADMIN.caja, DollarSign], [nav.invoices, ADMIN.invoices, TrendingUp], [t.modules.settings, ADMIN.settings, Wrench]] },
+          ].map((group) => (
+            <div key={group.title} className="rounded-xl bg-slate-50 p-4">
+              <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">{group.title}</p>
+              <div className="space-y-1">
+                {group.links.map(([label, href, Icon]) => {
+                  const LinkIcon = Icon as typeof Users;
+                  return <Link key={label as string} href={href as string} className="flex items-center gap-2 rounded-lg px-2 py-2 text-sm font-medium text-slate-700 transition hover:bg-white hover:text-blue-600"><LinkIcon className="h-4 w-4 text-slate-400" />{label as string}<ChevronRight className="ml-auto h-3.5 w-3.5 text-slate-300" /></Link>;
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 flex flex-col gap-3 rounded-xl bg-blue-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div><p className="text-xs font-semibold uppercase tracking-wider text-blue-600">{t.modules.planLabel}</p><p className="mt-1 font-semibold text-slate-900">{t.modules.planName}</p><p className="mt-1 text-sm text-slate-600">{t.modules.planHint}</p></div>
+          <Link href="/#pricing" className="inline-flex items-center gap-1 text-sm font-semibold text-blue-700 hover:text-blue-900">{t.modules.planLink}<ArrowUpRight className="h-4 w-4" /></Link>
+        </div>
+      </section>
 
       {/* ── Desglose de ingresos (mes actual) ── */}
       <div className="bg-white rounded-xl border border-slate-200 p-5">
