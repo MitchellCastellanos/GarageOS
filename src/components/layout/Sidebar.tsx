@@ -13,6 +13,8 @@ import {
   FolderOpen,
   Banknote,
   Settings,
+  Inbox,
+  Megaphone,
 } from "lucide-react";
 
 import { ADMIN } from "@/lib/routes";
@@ -58,10 +60,12 @@ export function Sidebar() {
 
   const navItems = [
     { label: t.nav.dashboard, href: ADMIN.dashboard, icon: LayoutDashboard },
+    { label: t.nav.inbox, href: ADMIN.inbox, icon: Inbox },
     { label: t.nav.appointments, href: ADMIN.appointments, icon: Calendar },
     { label: t.nav.clients, href: ADMIN.clients, icon: Users },
     { label: t.nav.quotes, href: ADMIN.quotes, icon: FileSpreadsheet },
     { label: t.nav.invoices, href: ADMIN.invoices, icon: FileText },
+    { label: t.nav.campaigns, href: ADMIN.campaigns, icon: Megaphone },
     { label: t.nav.caja, href: ADMIN.caja, icon: Banknote },
     { label: t.nav.accounting, href: ADMIN.accounting, icon: FolderOpen },
     { label: t.nav.reminders, href: ADMIN.reminders, icon: Bell },

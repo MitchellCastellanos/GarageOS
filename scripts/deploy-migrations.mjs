@@ -24,3 +24,17 @@ if (result.status !== 0) {
 }
 
 console.log("[deploy-migrations] Migrations applied successfully.");
+
+// Backfill de SenderIdentity/CommunicationRoute (Communications Platform, Fase 1).
+// Idempotente — no bloquea el deploy si falla (se puede reintentar en el próximo build).
+console.log("[deploy-migrations] Backfilling sender identities...");
+const backfill = spawnSync("npx", ["tsx", "scripts/backfill-sender-identities.ts"], {
+  stdio: "inherit",
+  env: process.env,
+});
+
+if (backfill.status !== 0) {
+  console.error(
+    "[deploy-migrations] backfill-sender-identities falló — continuando el deploy de todos modos."
+  );
+}

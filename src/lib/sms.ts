@@ -3,6 +3,8 @@
 // Ver docs/SMS_SETUP.md.
 
 import twilio from "twilio";
+import { recordAndSend } from "@/lib/communications/outbox";
+import { resolveSenderIdentity } from "@/lib/communications/sender-identity";
 
 function getTwilioClient() {
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
@@ -22,19 +24,50 @@ export function toE164(phone: string): string | null {
   return null;
 }
 
-export async function sendSms(to: string, body: string): Promise<void> {
-  const from = process.env.TWILIO_FROM_NUMBER;
+export interface SendSmsParams {
+  to: string;
+  body: string;
+  shopId: string;
+  /** Purpose/route key (ej. "APPOINTMENT", "INVOICE") — ver CommunicationRoute. */
+  purpose: string;
+  clientId?: string;
+  businessEntityType?: string;
+  businessEntityId?: string;
+  idempotencyKey?: string;
+}
+
+export async function sendSms(params: SendSmsParams): Promise<void> {
+  // Fase 2: la identidad activa de la ruta (hoy siempre el número compartido, salvo que
+  // Fase 6 aprovisione uno dedicado) manda sobre el env var — mismo motor de resolución
+  // que el email, ver resolveActiveEmailRoute.
+  const identity = await resolveSenderIdentity(params.shopId, params.purpose, "SMS");
+  const from = identity?.address ?? process.env.TWILIO_FROM_NUMBER;
   if (!from) {
     throw new Error("TWILIO_FROM_NUMBER no está configurado");
   }
 
-  const e164 = toE164(to);
+  const e164 = toE164(params.to);
   if (!e164) {
-    throw new Error(`Número de teléfono inválido para SMS: ${to}`);
+    throw new Error(`Número de teléfono inválido para SMS: ${params.to}`);
   }
 
-  const client = getTwilioClient();
-  await client.messages.create({ to: e164, from, body });
+  await recordAndSend({
+    shopId: params.shopId,
+    clientId: params.clientId,
+    purpose: params.purpose,
+    channel: "SMS",
+    provider: "twilio",
+    from,
+    to: [e164],
+    textBody: params.body,
+    businessEntityType: params.businessEntityType,
+    businessEntityId: params.businessEntityId,
+    idempotencyKey: params.idempotencyKey,
+    send: async () => {
+      const message = await getTwilioClient().messages.create({ to: e164, from, body: params.body });
+      return { providerMessageId: message.sid };
+    },
+  });
 }
 
 export type AppointmentSmsType = "confirmation" | "reminder" | "cancellation";
@@ -43,6 +76,9 @@ export type SmsLanguage = "ES" | "EN" | "FR";
 export interface AppointmentSmsData {
   type: AppointmentSmsType;
   to: string;
+  shopId: string;
+  clientId?: string;
+  appointmentId?: string;
   shopName: string;
   title: string;
   startsAtFormatted: string;
@@ -98,11 +134,27 @@ function resolveSmsLanguage(language?: string | null): SmsLanguage {
 
 export async function sendAppointmentSms(data: AppointmentSmsData): Promise<void> {
   const body = SMS_COPY[resolveSmsLanguage(data.language)][data.type](data);
-  await sendSms(data.to, body);
+  await sendSms({
+    to: data.to,
+    body,
+    shopId: data.shopId,
+    purpose: "APPOINTMENT",
+    clientId: data.clientId,
+    businessEntityType: data.appointmentId ? "APPOINTMENT" : undefined,
+    businessEntityId: data.appointmentId,
+    idempotencyKey: data.appointmentId
+      ? `appointment-sms:${data.type}:${data.appointmentId}`
+      : undefined,
+  });
 }
 
 export interface InvoiceSmsData {
   to: string;
+  shopId: string;
+  clientId?: string;
+  invoiceId?: string;
+  /** smsSendCount actual (antes de incrementar) — usado para deduplicar reenvíos accidentales. */
+  sendAttempt?: number;
   shopName: string;
   invoiceNumber: string;
   totalFormatted: string;
@@ -127,5 +179,17 @@ const INVOICE_SMS_COPY: Record<SmsLanguage, (data: InvoiceSmsData) => string> = 
 
 export async function sendInvoiceSms(data: InvoiceSmsData): Promise<void> {
   const body = INVOICE_SMS_COPY[resolveSmsLanguage(data.language)](data);
-  await sendSms(data.to, body);
+  await sendSms({
+    to: data.to,
+    body,
+    shopId: data.shopId,
+    purpose: "INVOICE",
+    clientId: data.clientId,
+    businessEntityType: data.invoiceId ? "INVOICE" : undefined,
+    businessEntityId: data.invoiceId,
+    idempotencyKey:
+      data.invoiceId && data.sendAttempt !== undefined
+        ? `invoice-sms:${data.invoiceId}:${data.sendAttempt}`
+        : undefined,
+  });
 }

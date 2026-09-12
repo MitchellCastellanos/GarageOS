@@ -391,6 +391,9 @@ export async function sendInvoiceByEmail(id: string, formData?: FormData) {
       pdfFilename,
       extraAttachments: [],
       clientName,
+      clientId: invoice.clientId,
+      invoiceId: invoice.id,
+      sendAttempt: invoice.emailSendCount,
       shopName: invoice.shop.name,
       shopPhone: invoice.shop.phone,
       shopAddress: invoice.shop.address,
@@ -480,6 +483,10 @@ export async function sendInvoiceBySms(id: string, formData?: FormData) {
   try {
     await sendInvoiceSms({
       to: clientPhone,
+      shopId,
+      clientId: invoice.clientId,
+      invoiceId: invoice.id,
+      sendAttempt: invoice.smsSendCount,
       shopName: invoice.shop.name,
       invoiceNumber: invoice.invoiceNumber,
       totalFormatted: formatCurrency(Number(invoice.total)),

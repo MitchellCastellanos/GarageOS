@@ -21,6 +21,7 @@ import {
 import { INVOICE_LANGUAGES } from "@/lib/invoice-i18n";
 import { DeleteButton } from "@/components/clients/DeleteButton";
 import { CLIENTS_DICT } from "@/lib/admin-locale/clients";
+import { MarketingConsentToggle } from "@/components/clients/MarketingConsentToggle";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -104,6 +105,14 @@ export default async function ClientDetailPage({ params }: Props) {
                 <p className="text-sm text-slate-600 whitespace-pre-wrap">{client.notes}</p>
               </div>
             )}
+          </div>
+
+          <div className="bg-white rounded-xl border border-slate-200 p-5">
+            <MarketingConsentToggle
+              clientId={id}
+              consent={client.marketingEmailConsent}
+              hasEmail={Boolean(client.email)}
+            />
           </div>
 
           {/* Stats rápidos */}

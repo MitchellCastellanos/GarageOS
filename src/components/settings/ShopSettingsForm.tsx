@@ -5,12 +5,11 @@ import { toast } from "sonner";
 import { updateShopSettings, uploadShopLogo, changePassword } from "@/actions/settings";
 import { Upload, Loader2 } from "lucide-react";
 import Image from "next/image";
-import { EmailRoutingPreview } from "@/components/settings/EmailRoutingPreview";
-import { shopToEmailConfig } from "@/lib/email-config";
 import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
 import { SETTINGS_DICT } from "@/lib/admin-locale/settings";
 
 interface Shop {
+  id: string;
   name: string;
   address: string | null;
   phone: string | null;
@@ -34,7 +33,6 @@ export function ShopSettingsForm({ shop }: ShopSettingsFormProps) {
   const locale = useAdminLocale();
   const t = SETTINGS_DICT[locale];
   const [logoUrl, setLogoUrl] = useState(shop.logoUrl);
-  const [emailDraft, setEmailDraft] = useState(shopToEmailConfig(shop));
   const [infopending, startInfoTransition] = useTransition();
   const [logoPending, startLogoTransition] = useTransition();
   const [pwPending, startPwTransition] = useTransition();
@@ -47,14 +45,6 @@ export function ShopSettingsForm({ shop }: ShopSettingsFormProps) {
     startInfoTransition(async () => {
       const result = await updateShopSettings(formData);
       if (result?.success) {
-        setEmailDraft({
-          name: (formData.get("name") as string) || shop.name,
-          email: (formData.get("email") as string) || null,
-          billingEmail: (formData.get("billingEmail") as string) || null,
-          infoEmail: (formData.get("infoEmail") as string) || null,
-          providersEmail: (formData.get("providersEmail") as string) || null,
-          newsletterEmail: (formData.get("newsletterEmail") as string) || null,
-        });
         toast.success(t.shopInfo.saved);
       } else if (result?.error) {
         const msg = Object.values(result.error).flat()[0];
@@ -326,8 +316,6 @@ export function ShopSettingsForm({ shop }: ShopSettingsFormProps) {
           </button>
         </div>
       </form>
-
-      <EmailRoutingPreview shop={emailDraft} />
 
       {/* ── Cambiar contraseña ── */}
       <form ref={pwFormRef} onSubmit={handlePasswordSubmit} className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">

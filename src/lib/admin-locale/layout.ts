@@ -3,10 +3,12 @@ import type { AdminLocale } from "@/lib/admin-locale";
 export interface LayoutDictionary {
   nav: {
     dashboard: string;
+    inbox: string;
     appointments: string;
     clients: string;
     quotes: string;
     invoices: string;
+    campaigns: string;
     caja: string;
     accounting: string;
     reminders: string;
@@ -24,10 +26,12 @@ export const LAYOUT_DICT: Record<AdminLocale, LayoutDictionary> = {
   es: {
     nav: {
       dashboard: "Dashboard",
+      inbox: "Bandeja",
       appointments: "Citas",
       clients: "Clientes",
       quotes: "Cotizaciones",
       invoices: "Facturas",
+      campaigns: "Campañas",
       caja: "Caja",
       accounting: "Contabilidad",
       reminders: "Recordatorios",
@@ -43,10 +47,12 @@ export const LAYOUT_DICT: Record<AdminLocale, LayoutDictionary> = {
   en: {
     nav: {
       dashboard: "Dashboard",
+      inbox: "Inbox",
       appointments: "Appointments",
       clients: "Clients",
       quotes: "Quotes",
       invoices: "Invoices",
+      campaigns: "Campaigns",
       caja: "Cash drawer",
       accounting: "Accounting",
       reminders: "Reminders",
@@ -62,10 +68,12 @@ export const LAYOUT_DICT: Record<AdminLocale, LayoutDictionary> = {
   fr: {
     nav: {
       dashboard: "Tableau de bord",
+      inbox: "Boîte de réception",
       appointments: "Rendez-vous",
       clients: "Clients",
       quotes: "Soumissions",
       invoices: "Factures",
+      campaigns: "Campagnes",
       caja: "Caisse",
       accounting: "Comptabilité",
       reminders: "Rappels",

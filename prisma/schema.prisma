@@ -36,17 +36,26 @@ model Shop {
   bookingAdvanceDays       Int      @default(30)
   createdAt                DateTime @default(now())
 
-  users             User[]
-  workingHours      ShopWorkingHours[]
-  bookingServices   ShopBookingService[]
-  clients           Client[]
-  invoices          Invoice[]
-  quotes            Quote[]
-  appointments      Appointment[]
-  reminders         ServiceReminder[]
-  documents         AccountingDocument[]
-  savedLineItems    SavedLineItem[]
-  cashDrawerEntries CashDrawerEntry[]
+  users                     User[]
+  workingHours              ShopWorkingHours[]
+  bookingServices           ShopBookingService[]
+  clients                   Client[]
+  invoices                  Invoice[]
+  quotes                    Quote[]
+  appointments              Appointment[]
+  reminders                 ServiceReminder[]
+  documents                 AccountingDocument[]
+  savedLineItems            SavedLineItem[]
+  cashDrawerEntries         CashDrawerEntry[]
+  domains                   ShopDomain[]
+  senderIdentities          SenderIdentity[]
+  commRoutes                CommunicationRoute[]
+  commMessages              CommunicationMessage[]
+  commAuditLogs             CommunicationAuditLog[]
+  commThreads               CommunicationThread[]
+  suppressions              CommunicationSuppression[]
+  campaigns                 Campaign[]
+  communicationsSuspendedAt DateTime?
 
   @@schema("garageos")
 }
@@ -136,10 +145,22 @@ model Client {
   createdAt DateTime        @default(now())
   updatedAt DateTime        @updatedAt
 
-  vehicles     Vehicle[]
-  invoices     Invoice[]
-  quotes       Quote[]
-  appointments Appointment[]
+  // Consentimiento de marketing (Communications Platform §12) — separado de las
+  // comunicaciones transaccionales, que nunca dependen de estos campos.
+  marketingEmailConsent  Boolean   @default(false)
+  marketingSmsConsent    Boolean   @default(false)
+  consentSource          String?
+  consentAt              DateTime?
+  emailMarketingOptOutAt DateTime?
+  smsMarketingOptOutAt   DateTime?
+
+  vehicles           Vehicle[]
+  invoices           Invoice[]
+  quotes             Quote[]
+  appointments       Appointment[]
+  commMessages       CommunicationMessage[]
+  commThreads        CommunicationThread[]
+  campaignRecipients CampaignRecipient[]
 
   @@schema("garageos")
 }
@@ -630,5 +651,355 @@ enum WorkOrderStatus {
   INVOICED
   CANCELLED
 
+  @@schema("garageos")
+}
+
+/**
+ * Dominio propio de un taller, para dos usos independientes: enviar sus
+ * correos transaccionales desde su dominio (vía Resend) o exponer su
+ * landing/booking en su propio dominio en vez de /book/[slug]. Un taller
+ * puede tener a lo más un dominio por propósito. Ver docs/domain-model.md.
+ */
+model ShopDomain {
+  id            String            @id @default(cuid())
+  shopId        String
+  shop          Shop              @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  purpose       ShopDomainPurpose
+  domain        String
+  status        ShopDomainStatus  @default(PENDING)
+  dnsRecords    Json              @default("[]")
+  providerId    String?
+  lastCheckedAt DateTime?
+  verifiedAt    DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  senderIdentities SenderIdentity[]
+
+  @@unique([shopId, purpose])
+  @@unique([domain, purpose])
+  @@schema("garageos")
+}
+
+enum ShopDomainPurpose {
+  EMAIL
+  LANDING
+
+  @@schema("garageos")
+}
+
+enum ShopDomainStatus {
+  PENDING
+  VERIFIED
+  FAILED
+
+  @@schema("garageos")
+}
+
+/**
+ * Fundación de Communications Platform (Fase 1) — ver docs/communications-platform.md.
+ * SenderIdentity/CommunicationRoute son hoy un espejo sincronizado de los campos de
+ * email de Shop (no la fuente de verdad de envío todavía); email-config.ts sigue
+ * resolviendo el From/Reply-To real. Cuando exista una UI de rutas (Fase 2), la
+ * dirección de sincronización se invierte y esta tabla pasa a ser la fuente de verdad.
+ * CommunicationMessage es el log/outbox: cada envío existente queda registrado aquí
+ * con idempotencyKey para evitar reintentos duplicados (ver docs/domain-model.md #9).
+ */
+enum SenderIdentityType {
+  GARAGEOS_MANAGED
+  CUSTOM_DOMAIN
+
+  @@schema("garageos")
+}
+
+enum SenderIdentityStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  FAILED
+
+  @@schema("garageos")
+}
+
+enum CommChannel {
+  EMAIL
+  SMS
+
+  @@schema("garageos")
+}
+
+enum CommDirection {
+  INBOUND
+  OUTBOUND
+  SYSTEM
+
+  @@schema("garageos")
+}
+
+enum CommMessageType {
+  HUMAN
+  TRANSACTIONAL
+  CAMPAIGN
+  SYSTEM_EVENT
+
+  @@schema("garageos")
+}
+
+enum CommStatus {
+  DRAFT
+  QUEUED
+  SENDING
+  SENT
+  DELIVERED
+  FAILED
+  BOUNCED
+  RECEIVED
+
+  @@schema("garageos")
+}
+
+model SenderIdentity {
+  id                     String               @id @default(cuid())
+  shopId                 String
+  shop                   Shop                 @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  channel                CommChannel
+  type                   SenderIdentityType   @default(GARAGEOS_MANAGED)
+  address                String
+  displayName            String?
+  domainId               String?
+  domain                 ShopDomain?          @relation(fields: [domainId], references: [id])
+  status                 SenderIdentityStatus @default(ACTIVE)
+  verifiedAt             DateTime?
+  // Fase 6 (aislamiento SMS por taller) — solo se llenan si se aprovisiona una
+  // subcuenta/número dedicado de Twilio; ver src/lib/communications/sms-provisioning.ts.
+  // No se usan todavía en ningún flujo activo.
+  providerAccountSid     String?
+  providerPhoneNumberSid String?
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+
+  routes   CommunicationRoute[]
+  messages CommunicationMessage[]
+
+  @@unique([shopId, channel, address])
+  @@schema("garageos")
+}
+
+model CommunicationRoute {
+  id               String         @id @default(cuid())
+  shopId           String
+  shop             Shop           @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  purpose          String
+  channel          CommChannel
+  senderIdentityId String
+  senderIdentity   SenderIdentity @relation(fields: [senderIdentityId], references: [id])
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@unique([shopId, purpose, channel])
+  @@schema("garageos")
+}
+
+model CommunicationMessage {
+  id                 String               @id @default(cuid())
+  shopId             String
+  shop               Shop                 @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  clientId           String?
+  client             Client?              @relation(fields: [clientId], references: [id])
+  threadId           String?
+  thread             CommunicationThread? @relation(fields: [threadId], references: [id], onDelete: SetNull)
+  direction          CommDirection        @default(OUTBOUND)
+  channel            CommChannel
+  messageType        CommMessageType      @default(TRANSACTIONAL)
+  status             CommStatus           @default(QUEUED)
+  provider           String?
+  providerMessageId  String?
+  internetMessageId  String?
+  inReplyTo          String?
+  references         String[]
+  senderIdentityId   String?
+  senderIdentity     SenderIdentity?      @relation(fields: [senderIdentityId], references: [id])
+  purpose            String?
+  businessEntityType String?
+  businessEntityId   String?
+  idempotencyKey     String?              @unique
+  from               String
+  replyTo            String?
+  to                 String[]
+  cc                 String[]
+  bcc                String[]
+  subject            String?
+  textBody           String?              @db.Text
+  htmlBody           String?              @db.Text
+  errorCode          String?
+  errorMessage       String?              @db.Text
+  sentAt             DateTime?
+  deliveredAt        DateTime?
+  failedAt           DateTime?
+  createdByUserId    String?
+  createdAt          DateTime             @default(now())
+
+  attachments CommunicationAttachment[]
+
+  @@index([shopId, businessEntityType, businessEntityId])
+  @@index([shopId, createdAt])
+  @@index([clientId])
+  @@index([threadId])
+  @@schema("garageos")
+}
+
+model CommunicationThread {
+  id            String           @id @default(cuid())
+  shopId        String
+  shop          Shop             @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  clientId      String?
+  client        Client?          @relation(fields: [clientId], references: [id])
+  subject       String?
+  status        CommThreadStatus @default(OPEN)
+  lastMessageAt DateTime         @default(now())
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  messages CommunicationMessage[]
+
+  @@index([shopId, status, lastMessageAt])
+  @@index([clientId])
+  @@schema("garageos")
+}
+
+enum CommThreadStatus {
+  OPEN
+  ARCHIVED
+
+  @@schema("garageos")
+}
+
+model CommunicationAttachment {
+  id         String               @id @default(cuid())
+  shopId     String
+  messageId  String
+  message    CommunicationMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  filename   String
+  mimeType   String
+  size       Int
+  storageKey String
+  createdAt  DateTime             @default(now())
+
+  @@index([shopId])
+  @@schema("garageos")
+}
+
+/**
+ * Auditoría de acciones sensibles de Communications (Fase 2/7) — creación/renombre de
+ * identidades, reasignación de rutas, altas de supresión, envíos de campaña.
+ */
+model CommunicationAuditLog {
+  id          String   @id @default(cuid())
+  shopId      String
+  shop        Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  actorUserId String?
+  action      String
+  targetType  String
+  targetId    String?
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now())
+
+  @@index([shopId, createdAt])
+  @@schema("garageos")
+}
+
+enum SuppressionReason {
+  BOUNCE
+  COMPLAINT
+  UNSUBSCRIBE
+  MANUAL
+
+  @@schema("garageos")
+}
+
+/**
+ * Direcciones a las que no se debe volver a enviar (Fase 5/7, doc §12.3). Se revisa
+ * antes de cada envío de campaña; los envíos transaccionales no se filtran por aquí.
+ */
+model CommunicationSuppression {
+  id        String            @id @default(cuid())
+  shopId    String
+  shop      Shop              @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  channel   CommChannel
+  address   String
+  reason    SuppressionReason
+  createdAt DateTime          @default(now())
+
+  @@unique([shopId, channel, address])
+  @@schema("garageos")
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  SENT
+  CANCELLED
+
+  @@schema("garageos")
+}
+
+/**
+ * Newsletter/outreach (Fase 5, doc §11) — el envío real lo procesa el cron de
+ * campañas en lotes, nunca de forma síncrona desde una request web.
+ */
+model Campaign {
+  id              String         @id @default(cuid())
+  shopId          String
+  shop            Shop           @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  name            String
+  channel         CommChannel    @default(EMAIL)
+  subject         String?
+  bodyHtml        String         @db.Text
+  /**
+   * Definición estructurada del segmento (nunca SQL/filtro arbitrario del tenant) — ver src/lib/communications/segments.ts.
+   */
+  segment         Json           @default("{}")
+  status          CampaignStatus @default(DRAFT)
+  scheduledFor    DateTime?
+  sentAt          DateTime?
+  createdByUserId String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  recipients CampaignRecipient[]
+
+  @@index([shopId, status])
+  @@schema("garageos")
+}
+
+enum CampaignRecipientStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+  BOUNCED
+  SKIPPED_SUPPRESSED
+  SKIPPED_NO_CONSENT
+
+  @@schema("garageos")
+}
+
+/**
+ * Snapshot inmutable de la audiencia al momento de crear la campaña — doc §11.3.
+ */
+model CampaignRecipient {
+  id         String                  @id @default(cuid())
+  campaignId String
+  campaign   Campaign                @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  clientId   String
+  client     Client                  @relation(fields: [clientId], references: [id])
+  address    String
+  status     CampaignRecipientStatus @default(PENDING)
+  messageId  String?
+  createdAt  DateTime                @default(now())
+
+  @@unique([campaignId, clientId])
+  @@index([campaignId, status])
   @@schema("garageos")
 }
