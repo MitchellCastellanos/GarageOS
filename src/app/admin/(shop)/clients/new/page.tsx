@@ -3,7 +3,7 @@ import { ClientForm } from "@/components/clients/ClientForm";
 import { createClient } from "@/actions/clients";
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
-import { getAdminLocale } from "@/lib/admin-locale";
+import { getAdminLocale } from "@/lib/get-admin-locale";
 import { CLIENTS_DICT } from "@/lib/admin-locale/clients";
 
 export default async function NewClientPage() {

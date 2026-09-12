@@ -48,7 +48,8 @@ import {
 import { archivePaidInvoiceToAccountant } from "@/lib/invoice-accounting";
 import { ensureCashInFromInvoice } from "@/actions/cash-drawer";
 import { auth } from "@/lib/auth";
-import { getAdminLocale, type AdminLocale } from "@/lib/admin-locale";
+import { getAdminLocale } from "@/lib/get-admin-locale";
+import type { AdminLocale } from "@/lib/admin-locale";
 import Decimal from "decimal.js";
 import { z } from "zod";
 

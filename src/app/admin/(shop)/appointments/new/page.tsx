@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { AppointmentForm } from "@/components/appointments/AppointmentForm";
 import { createAppointment, getAppointmentFormData } from "@/actions/appointments";
 import { type AppointmentFormData } from "@/lib/validations";
-import { getAdminLocale } from "@/lib/admin-locale";
+import { getAdminLocale } from "@/lib/get-admin-locale";
 import { APPOINTMENTS_DICT } from "@/lib/admin-locale/appointments";
 
 export default async function NewAppointmentPage() {

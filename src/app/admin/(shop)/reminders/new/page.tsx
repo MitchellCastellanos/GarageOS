@@ -4,7 +4,7 @@ import { createReminder } from "@/actions/reminders";
 import { getReminderFormData } from "@/actions/reminders";
 import { type ReminderFormData } from "@/lib/validations";
 import { redirect } from "next/navigation";
-import { getAdminLocale } from "@/lib/admin-locale";
+import { getAdminLocale } from "@/lib/get-admin-locale";
 import { APPOINTMENTS_DICT } from "@/lib/admin-locale/appointments";
 
 export default async function NewReminderPage() {

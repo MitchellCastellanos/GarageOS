@@ -4,7 +4,7 @@ import { ClientForm } from "@/components/clients/ClientForm";
 import { formatClientName } from "@/lib/client-name";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
-import { getAdminLocale } from "@/lib/admin-locale";
+import { getAdminLocale } from "@/lib/get-admin-locale";
 import { CLIENTS_DICT } from "@/lib/admin-locale/clients";
 
 interface Props {

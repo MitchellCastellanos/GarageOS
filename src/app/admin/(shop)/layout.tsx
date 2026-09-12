@@ -5,7 +5,7 @@ import { Topbar } from "@/components/layout/Topbar";
 import { Toaster } from "sonner";
 import { ADMIN, PLATFORM } from "@/lib/routes";
 import { db } from "@/lib/db";
-import { getAdminLocale } from "@/lib/admin-locale";
+import { getAdminLocale } from "@/lib/get-admin-locale";
 import { AdminLocaleProvider } from "@/components/admin/AdminLocaleProvider";
 
 export default async function DashboardLayout({

@@ -7,7 +7,7 @@ import { AppointmentMonthCalendar } from "@/components/appointments/AppointmentM
 import { AppointmentViewControls } from "@/components/appointments/AppointmentViewControls";
 import type { AppointmentView } from "@/lib/shop-timezone";
 import { monthFromDate } from "@/lib/shop-timezone";
-import { getAdminLocale } from "@/lib/admin-locale";
+import { getAdminLocale } from "@/lib/get-admin-locale";
 import { APPOINTMENTS_DICT } from "@/lib/admin-locale/appointments";
 
 interface PageProps {

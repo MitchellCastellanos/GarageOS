@@ -22,7 +22,8 @@ import { getPublicBookingUrl } from "@/lib/shop-slug";
 import { parseEmailAttachments } from "@/lib/email-attachments";
 import { syncSavedLineItems } from "@/actions/line-items";
 import { formatClientName } from "@/lib/client-name";
-import { getAdminLocale, type AdminLocale } from "@/lib/admin-locale";
+import { getAdminLocale } from "@/lib/get-admin-locale";
+import type { AdminLocale } from "@/lib/admin-locale";
 import Decimal from "decimal.js";
 
 const QUOTE_NOT_EDITABLE: Record<AdminLocale, string> = {

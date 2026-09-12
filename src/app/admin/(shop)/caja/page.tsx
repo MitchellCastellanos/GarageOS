@@ -1,6 +1,6 @@
 import { getCashDrawerEntries } from "@/actions/cash-drawer";
 import { CashDrawerClient } from "@/components/caja/CashDrawerClient";
-import { getAdminLocale } from "@/lib/admin-locale";
+import { getAdminLocale } from "@/lib/get-admin-locale";
 import { CAJA_DICT } from "@/lib/admin-locale/caja";
 
 interface PageProps {

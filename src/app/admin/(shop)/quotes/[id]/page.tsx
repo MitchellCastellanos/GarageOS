@@ -8,7 +8,7 @@ import { calculateTaxBreakdown, TPS_RATE, TVQ_RATE } from "@/lib/taxes";
 import { INVOICE_LANGUAGES } from "@/lib/invoice-i18n";
 import { QuoteActions } from "@/components/quotes/QuoteActions";
 import Decimal from "decimal.js";
-import { getAdminLocale } from "@/lib/admin-locale";
+import { getAdminLocale } from "@/lib/get-admin-locale";
 import { QUOTES_DICT } from "@/lib/admin-locale/quotes";
 
 const STATUS_BADGE: Record<string, string> = {

@@ -15,7 +15,7 @@ import { SupportCard } from "@/components/settings/SupportCard";
 import { LanguageSettings } from "@/components/settings/LanguageSettings";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { getAdminLocale } from "@/lib/admin-locale";
+import { getAdminLocale } from "@/lib/get-admin-locale";
 import { SETTINGS_DICT } from "@/lib/admin-locale/settings";
 
 export default async function SettingsPage() {

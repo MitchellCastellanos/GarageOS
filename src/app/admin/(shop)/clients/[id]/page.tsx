@@ -4,7 +4,8 @@ import { deleteClient } from "@/actions/clients";
 import { formatDate, formatCurrency } from "@/lib/utils";
 import { formatClientName } from "@/lib/client-name";
 import { INVOICE_STATUS_BADGE, invoiceStatusLabel } from "@/lib/invoice-status";
-import { getAdminLocale, type AdminLocale } from "@/lib/admin-locale";
+import { getAdminLocale } from "@/lib/get-admin-locale";
+import type { AdminLocale } from "@/lib/admin-locale";
 import Link from "next/link";
 import {
   ChevronLeft,

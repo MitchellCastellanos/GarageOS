@@ -4,7 +4,7 @@ import { InvoiceForm } from "@/components/invoices/InvoiceForm";
 import { createInvoice } from "@/actions/invoices";
 import { getInvoiceFormData } from "@/actions/invoices";
 import { type InvoiceFormData } from "@/lib/validations";
-import { getAdminLocale } from "@/lib/admin-locale";
+import { getAdminLocale } from "@/lib/get-admin-locale";
 import { INVOICES_DICT } from "@/lib/admin-locale/invoices";
 
 export default async function NewInvoicePage() {

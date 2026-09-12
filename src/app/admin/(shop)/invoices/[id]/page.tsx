@@ -15,7 +15,7 @@ import { INVOICE_STATUS_BADGE, invoiceStatusLabel, isInvoicePending } from "@/li
 import { labelPaymentEntries } from "@/lib/invoice-payments";
 import { cashDrawerEntryTypeLabel } from "@/lib/cash-drawer";
 import { publicUrlForStoragePath } from "@/lib/storage";
-import { getAdminLocale } from "@/lib/admin-locale";
+import { getAdminLocale } from "@/lib/get-admin-locale";
 import { INVOICES_DICT } from "@/lib/admin-locale/invoices";
 import Decimal from "decimal.js";
 

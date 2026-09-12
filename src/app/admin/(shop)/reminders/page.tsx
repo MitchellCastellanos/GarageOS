@@ -4,7 +4,7 @@ import { Bell, Plus, Send, X } from "lucide-react";
 import { getReminders, sendReminderNow, dismissReminder } from "@/actions/reminders";
 import { formatDate } from "@/lib/utils";
 import { formatClientName } from "@/lib/client-name";
-import { getAdminLocale } from "@/lib/admin-locale";
+import { getAdminLocale } from "@/lib/get-admin-locale";
 import { APPOINTMENTS_DICT } from "@/lib/admin-locale/appointments";
 
 const STATUS_BADGE: Record<string, string> = {

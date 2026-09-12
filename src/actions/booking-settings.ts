@@ -8,7 +8,8 @@ import { requireOwner } from "@/lib/permissions";
 import { DEFAULT_WORKING_HOURS, getShopServiceCatalog } from "@/lib/booking-slots";
 import { getPublicBookingUrl } from "@/lib/shop-slug";
 import { dayLabel, type WorkingHoursRow } from "@/lib/working-hours";
-import { getAdminLocale, type AdminLocale } from "@/lib/admin-locale";
+import { getAdminLocale } from "@/lib/get-admin-locale";
+import type { AdminLocale } from "@/lib/admin-locale";
 import { z } from "zod";
 
 const INVALID_SCHEDULE_FOR: Record<AdminLocale, (day: string) => string> = {

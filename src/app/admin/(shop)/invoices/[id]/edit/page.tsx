@@ -6,7 +6,7 @@ import { InvoiceForm } from "@/components/invoices/InvoiceForm";
 import { getInvoiceById, getInvoiceFormData, updateInvoice } from "@/actions/invoices";
 import { type InvoiceFormData } from "@/lib/validations";
 import { isInvoicePending } from "@/lib/invoice-status";
-import { getAdminLocale } from "@/lib/admin-locale";
+import { getAdminLocale } from "@/lib/get-admin-locale";
 import { INVOICES_DICT } from "@/lib/admin-locale/invoices";
 
 interface PageProps {

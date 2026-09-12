@@ -6,7 +6,8 @@ import { INVOICE_STATUS_BADGE, invoiceStatusLabel } from "@/lib/invoice-status";
 import Link from "next/link";
 import { ChevronLeft, Pencil, Car, FileText, Bell, Plus } from "lucide-react";
 import { DeleteVehicleButton } from "@/components/clients/DeleteVehicleButton";
-import { getAdminLocale, type AdminLocale } from "@/lib/admin-locale";
+import { getAdminLocale } from "@/lib/get-admin-locale";
+import type { AdminLocale } from "@/lib/admin-locale";
 import { CLIENTS_DICT, type ClientsDictionary } from "@/lib/admin-locale/clients";
 
 interface Props {

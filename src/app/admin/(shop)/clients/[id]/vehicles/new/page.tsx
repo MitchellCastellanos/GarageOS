@@ -5,7 +5,7 @@ import { createVehicle } from "@/actions/vehicles";
 import { VehicleForm } from "@/components/clients/VehicleForm";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
-import { getAdminLocale } from "@/lib/admin-locale";
+import { getAdminLocale } from "@/lib/get-admin-locale";
 import { CLIENTS_DICT } from "@/lib/admin-locale/clients";
 
 interface Props {

@@ -11,7 +11,8 @@ import { generateAppointmentManageToken, ensureAppointmentManageToken } from "@/
 import { notifyAppointmentEvent, type NotifyAppointmentEventResult } from "@/lib/appointment-notify";
 import { buildAppointmentManageUrl } from "@/lib/appointment-notify";
 import { DEFAULT_TIMEZONE } from "@/config/app";
-import { getAdminLocale, type AdminLocale } from "@/lib/admin-locale";
+import { getAdminLocale } from "@/lib/get-admin-locale";
+import type { AdminLocale } from "@/lib/admin-locale";
 import {
   type AppointmentView,
   addShopDays,

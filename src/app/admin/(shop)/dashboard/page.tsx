@@ -25,7 +25,8 @@ import {
 } from "@/lib/invoice-status";
 import { getInvoiceRecordedRevenue } from "@/lib/invoice-payments";
 import { computeRevenueBreakdown } from "@/lib/revenue-analytics";
-import { getAdminLocale, type AdminLocale } from "@/lib/admin-locale";
+import { getAdminLocale } from "@/lib/get-admin-locale";
+import type { AdminLocale } from "@/lib/admin-locale";
 import { DASHBOARD_DICT, monthShort } from "@/lib/admin-locale/dashboard";
 
 const PIE_STATUSES = ["PENDING", "PAID", "OVERDUE", "CANCELLED"] as const;

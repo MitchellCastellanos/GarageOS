@@ -4,7 +4,7 @@ import { getClients } from "@/actions/clients";
 import { formatDate } from "@/lib/utils";
 import { formatClientName } from "@/lib/client-name";
 import { Users, Plus, Search, Car, FileText } from "lucide-react";
-import { getAdminLocale } from "@/lib/admin-locale";
+import { getAdminLocale } from "@/lib/get-admin-locale";
 import { CLIENTS_DICT, type ClientsDictionary } from "@/lib/admin-locale/clients";
 
 interface Props {

@@ -9,7 +9,8 @@ import { getShopId } from "@/lib/shop-context";
 import { reminderSchema, type ReminderFormData } from "@/lib/validations";
 import { sendReminderEmail } from "@/lib/email";
 import { shopToEmailConfig } from "@/lib/email-config";
-import { getAdminLocale, type AdminLocale } from "@/lib/admin-locale";
+import { getAdminLocale } from "@/lib/get-admin-locale";
+import type { AdminLocale } from "@/lib/admin-locale";
 
 const REMINDER_NOT_FOUND: Record<AdminLocale, string> = {
   es: "Recordatorio no encontrado",

@@ -9,7 +9,7 @@ import {
   INVOICE_STATUS_BADGE,
   invoiceStatusLabel,
 } from "@/lib/invoice-status";
-import { getAdminLocale } from "@/lib/admin-locale";
+import { getAdminLocale } from "@/lib/get-admin-locale";
 import { INVOICES_DICT } from "@/lib/admin-locale/invoices";
 
 interface PageProps {

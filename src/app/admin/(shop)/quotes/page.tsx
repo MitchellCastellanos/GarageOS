@@ -4,7 +4,7 @@ import { FileText, Plus } from "lucide-react";
 import { getQuotes } from "@/actions/quotes";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { formatClientName } from "@/lib/client-name";
-import { getAdminLocale } from "@/lib/admin-locale";
+import { getAdminLocale } from "@/lib/get-admin-locale";
 import { QUOTES_DICT } from "@/lib/admin-locale/quotes";
 
 const STATUS_BADGE: Record<string, string> = {

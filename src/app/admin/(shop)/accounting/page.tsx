@@ -1,7 +1,7 @@
 import { getAccountingPageData } from "@/actions/documents";
 import { DOC_CATEGORIES } from "@/lib/validations";
 import { AccountingClient } from "@/components/accounting/AccountingClient";
-import { getAdminLocale } from "@/lib/admin-locale";
+import { getAdminLocale } from "@/lib/get-admin-locale";
 import { CAJA_DICT } from "@/lib/admin-locale/caja";
 
 // Server Component: fetches documents y los pasa al Client

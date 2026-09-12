@@ -13,7 +13,7 @@ import { ClientManageLink } from "@/components/appointments/ClientManageLink";
 import { type AppointmentEditFormData } from "@/lib/validations";
 import { appointmentStatusLabel } from "@/lib/appointment-status";
 import { formatShopDate } from "@/lib/shop-timezone";
-import { getAdminLocale } from "@/lib/admin-locale";
+import { getAdminLocale } from "@/lib/get-admin-locale";
 import { APPOINTMENTS_DICT } from "@/lib/admin-locale/appointments";
 
 interface PageProps {

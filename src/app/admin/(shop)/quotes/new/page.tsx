@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { InvoiceForm } from "@/components/invoices/InvoiceForm";
 import { createQuote, getQuoteFormData } from "@/actions/quotes";
 import { type QuoteFormData } from "@/lib/validations";
-import { getAdminLocale } from "@/lib/admin-locale";
+import { getAdminLocale } from "@/lib/get-admin-locale";
 import { QUOTES_DICT } from "@/lib/admin-locale/quotes";
 
 export default async function NewQuotePage() {
