@@ -48,10 +48,15 @@ El código vive en `src/lib/communications/sms-provisioning.ts`
 - `NEXTAUTH_SECRET` — ya existe, pero ahora también firma los tokens de unsubscribe de
   campañas (`src/lib/communications/suppression.ts`). Si se rota, todos los enlaces de
   baja ya enviados dejan de funcionar — coordinar con soporte antes de rotarlo.
-- `CRON_SECRET` — ya existe; confirmar que el plan de Vercel soporte la frecuencia nueva
-  en `vercel.json` (`/api/webhooks/cron/campaigns` cada 15 min). El plan Hobby de Vercel
-  limita los cron jobs a una vez al día — si el proyecto sigue en Hobby, hay que subir a
-  Pro o ajustar el schedule antes de depender de las campañas programadas.
+- `CRON_SECRET` — ya existe. `/api/webhooks/cron/campaigns` corre una vez al día (9am,
+  ver `vercel.json`) porque el plan de este proyecto es Hobby, que limita los cron jobs a
+  una vez al día — un intento anterior de correrlo cada 15 min tiró el deploy
+  (`Cron expressions that would run more frequently will fail during deployment`). Con
+  cadencia diaria, una campaña grande se termina de enviar en varios días (tope de
+  `GLOBAL_RECIPIENT_LIMIT_PER_RUN = 150` destinatarios por corrida, ver el propio archivo
+  de la ruta). Si el proyecto sube a plan Pro, se puede: (a) programar esa ruta con más
+  frecuencia en `vercel.json`, y (b) subir `GLOBAL_RECIPIENT_LIMIT_PER_RUN` y
+  `maxDuration` (Pro permite funciones más largas que los 60s tope de Hobby usados hoy).
 - Bucket privado `communications` en Supabase Storage — se crea solo en el primer uso
   (`ensureCommunicationsBucket`), pero conviene crearlo a mano de antemano y revisar las
   políticas de Storage del proyecto.
