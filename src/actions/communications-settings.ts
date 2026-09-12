@@ -48,7 +48,7 @@ export async function createSenderIdentityAction(formData: FormData) {
     return { error: "Error al crear la identidad" };
   }
 
-  revalidatePath(ADMIN.settings);
+  revalidatePath(ADMIN.notifications);
   return { success: true };
 }
 
@@ -76,6 +76,6 @@ export async function updateCommunicationRouteAction(formData: FormData) {
     return { error: "Error al actualizar la ruta" };
   }
 
-  revalidatePath(ADMIN.settings);
+  revalidatePath(ADMIN.notifications);
   return { success: true };
 }

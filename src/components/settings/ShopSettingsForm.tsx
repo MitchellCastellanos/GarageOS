@@ -14,15 +14,8 @@ interface Shop {
   address: string | null;
   phone: string | null;
   email: string | null;
-  billingEmail: string | null;
-  infoEmail: string | null;
-  providersEmail: string | null;
-  newsletterEmail: string | null;
   taxId: string | null;
   logoUrl: string | null;
-  appointmentReminderHours: number;
-  appointmentSmsEnabled: boolean;
-  appointmentEmailsEnabled: boolean;
 }
 
 interface ShopSettingsFormProps {
@@ -186,62 +179,6 @@ export function ShopSettingsForm({ shop }: ShopSettingsFormProps) {
             />
             <p className="text-xs text-slate-400 mt-1">{t.shopInfo.emailHint}</p>
           </div>
-          <div className="sm:col-span-2 border-t border-slate-100 pt-4 mt-2">
-            <h3 className="text-sm font-semibold text-slate-800 mb-3">{t.shopInfo.mailboxesTitle}</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  {t.shopInfo.billingLabel}
-                </label>
-                <input
-                  name="billingEmail"
-                  type="email"
-                  defaultValue={shop.billingEmail ?? ""}
-                  placeholder="billing@tutaller.com"
-                  className={inputClass}
-                />
-                <p className="text-xs text-slate-400 mt-1">{t.shopInfo.billingHint}</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  {t.shopInfo.infoLabel}
-                </label>
-                <input
-                  name="infoEmail"
-                  type="email"
-                  defaultValue={shop.infoEmail ?? ""}
-                  placeholder="info@tutaller.com"
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  {t.shopInfo.providersLabel}
-                </label>
-                <input
-                  name="providersEmail"
-                  type="email"
-                  defaultValue={shop.providersEmail ?? ""}
-                  placeholder="providers@tutaller.com"
-                  className={inputClass}
-                />
-                <p className="text-xs text-slate-400 mt-1">{t.shopInfo.providersHint}</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  {t.shopInfo.newsletterLabel}
-                </label>
-                <input
-                  name="newsletterEmail"
-                  type="email"
-                  defaultValue={shop.newsletterEmail ?? ""}
-                  placeholder="newsletter@tutaller.com"
-                  className={inputClass}
-                />
-                <p className="text-xs text-slate-400 mt-1">{t.shopInfo.newsletterHint}</p>
-              </div>
-            </div>
-          </div>
           <div className="sm:col-span-2">
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
               {t.shopInfo.taxId}
@@ -254,54 +191,6 @@ export function ShopSettingsForm({ shop }: ShopSettingsFormProps) {
               className={inputClass}
             />
             <p className="text-xs text-slate-400 mt-1">{t.shopInfo.taxIdHint}</p>
-          </div>
-          <div className="sm:col-span-2 border-t border-slate-100 pt-4 mt-2">
-            <h3 className="text-sm font-semibold text-slate-800 mb-3">
-              {t.shopInfo.notificationsTitle}
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  {t.shopInfo.reminderHours}
-                </label>
-                <input
-                  name="appointmentReminderHours"
-                  type="number"
-                  min={1}
-                  max={168}
-                  defaultValue={shop.appointmentReminderHours}
-                  className={inputClass}
-                />
-                <p className="text-xs text-slate-400 mt-1">{t.shopInfo.reminderHoursHint}</p>
-              </div>
-              <div className="flex flex-col gap-2 pt-6">
-                <div className="flex items-center gap-3">
-                  <input
-                    id="appointmentSmsEnabled"
-                    name="appointmentSmsEnabled"
-                    type="checkbox"
-                    defaultChecked={shop.appointmentSmsEnabled}
-                    className="w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
-                  />
-                  <label htmlFor="appointmentSmsEnabled" className="text-sm text-slate-700">
-                    {t.shopInfo.smsLabel}
-                  </label>
-                </div>
-                <div className="flex items-center gap-3">
-                  <input
-                    id="appointmentEmailsEnabled"
-                    name="appointmentEmailsEnabled"
-                    type="checkbox"
-                    defaultChecked={shop.appointmentEmailsEnabled}
-                    className="w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
-                  />
-                  <label htmlFor="appointmentEmailsEnabled" className="text-sm text-slate-700">
-                    {t.shopInfo.emailNotifLabel}
-                  </label>
-                </div>
-              </div>
-            </div>
-            <p className="text-xs text-slate-400 mt-3">{t.shopInfo.smsHint}</p>
           </div>
         </div>
 

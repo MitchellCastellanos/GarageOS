@@ -9,14 +9,14 @@ import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
 import { SETTINGS_DICT } from "@/lib/admin-locale/settings";
 import { updatePreferredLocale } from "@/actions/settings";
 
-export function LanguageSettings() {
+export function LanguageQuickSwitch() {
   const locale = useAdminLocale();
   const t = SETTINGS_DICT[locale];
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
   function handleSelect(next: AdminLocale) {
-    if (next === locale) return;
+    if (next === locale || pending) return;
     startTransition(async () => {
       try {
         await updatePreferredLocale(next);
@@ -29,20 +29,20 @@ export function LanguageSettings() {
   }
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-3 max-w-2xl">
-      <div>
-        <h2 className="font-semibold text-slate-900">{t.language.title}</h2>
-        <p className="text-sm text-slate-500 mt-1">{t.language.hint}</p>
-      </div>
+    <div className="px-3 py-2">
+      <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400 mb-1.5">
+        {t.language.title}
+      </p>
       <div className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1">
         {ADMIN_LOCALES.map((l) => (
           <button
             key={l.value}
             type="button"
             disabled={pending}
+            aria-pressed={locale === l.value}
             onClick={() => handleSelect(l.value)}
             className={[
-              "px-3 py-1.5 rounded-md text-xs font-semibold uppercase tracking-wide transition-colors disabled:opacity-50",
+              "px-2.5 py-1 rounded-md text-xs font-semibold uppercase tracking-wide transition-colors disabled:opacity-50",
               locale === l.value
                 ? "bg-teal-600 text-white"
                 : "text-slate-600 hover:bg-white hover:text-slate-900",
@@ -51,7 +51,7 @@ export function LanguageSettings() {
             {l.label}
           </button>
         ))}
-        {pending && <Loader2 className="w-4 h-4 animate-spin text-slate-400 mx-1" />}
+        {pending && <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400 mx-1" />}
       </div>
     </div>
   );

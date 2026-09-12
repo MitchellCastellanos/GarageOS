@@ -147,7 +147,7 @@ export const SITE_DICTIONARIES: Record<SiteLocale, SiteDictionary> = {
       eyebrow: "À propos",
       heading: "Le garage",
       paragraph:
-        "Un garage de quartier à Montréal, où les mécaniciens connaissent votre auto par son nom. Sans détour, sans surprise sur la facture.",
+        "Un garage de quartier où les mécaniciens connaissent votre auto par son nom. Sans détour, sans surprise sur la facture.",
       hoursLabel: "Horaire disponible lors de la réservation en ligne",
       photoComingSoon: "Photo du garage à venir",
     },
@@ -283,7 +283,7 @@ export const SITE_DICTIONARIES: Record<SiteLocale, SiteDictionary> = {
       eyebrow: "Get to know us",
       heading: "The shop",
       paragraph:
-        "A neighborhood garage in Montréal, where the mechanics know your car by name. No runaround, no surprises on the bill.",
+        "A neighborhood garage where the mechanics know your car by name. No runaround, no surprises on the bill.",
       hoursLabel: "Hours available when you book online",
       photoComingSoon: "Shop photo coming soon",
     },
@@ -418,7 +418,7 @@ export const SITE_DICTIONARIES: Record<SiteLocale, SiteDictionary> = {
       eyebrow: "Conócenos",
       heading: "El taller",
       paragraph:
-        "Un taller de barrio en Montréal, atendido por mecánicos que conocen tu auto por su nombre. Sin vueltas, sin sorpresas en la factura.",
+        "Un taller de barrio atendido por mecánicos que conocen tu auto por su nombre. Sin vueltas, sin sorpresas en la factura.",
       hoursLabel: "Horario disponible al reservar tu cita en línea",
       photoComingSoon: "Foto del taller próximamente",
     },
