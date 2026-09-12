@@ -80,6 +80,8 @@ export async function sendReminderNow(reminderId: string) {
 
   await sendReminderEmail({
     shop: shopToEmailConfig(reminder.shop),
+    clientId: client.id,
+    reminderId: reminder.id,
     clientName: [client.firstName, client.lastName].filter(Boolean).join(" "),
     clientEmail: client.email,
     vehicleDescription: `${reminder.vehicle.year} ${reminder.vehicle.make} ${reminder.vehicle.model}`,

@@ -9,6 +9,7 @@ import { getShopId } from "@/lib/shop-context";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { uploadShopLogoToStorage } from "@/lib/storage";
+import { provisionDefaultSenderIdentities } from "@/lib/communications/sender-identity";
 import bcrypt from "bcryptjs";
 import sharp from "sharp";
 
@@ -88,7 +89,7 @@ export async function updateShopSettings(formData: FormData) {
     appointmentEmailsEnabled,
   } = parsed.data;
 
-  await db.shop.update({
+  const updatedShop = await db.shop.update({
     where: { id: shopId },
     data: {
       name,
@@ -104,6 +105,13 @@ export async function updateShopSettings(formData: FormData) {
       appointmentSmsEnabled,
       appointmentEmailsEnabled,
     },
+  });
+
+  // Mantiene SenderIdentity/CommunicationRoute sincronizados con los campos de email
+  // recién guardados — ver docs/communications-platform.md y el comentario en
+  // src/lib/communications/sender-identity.ts.
+  await provisionDefaultSenderIdentities(updatedShop).catch((err) => {
+    console.error("[communications] provisionDefaultSenderIdentities falló:", err);
   });
 
   revalidatePath(ADMIN.settings);

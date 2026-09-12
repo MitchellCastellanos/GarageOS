@@ -69,6 +69,8 @@ export async function notifyAppointmentEvent(
       await sendAppointmentSms({
         type: params.type,
         to: phone,
+        shopId: params.shop.id,
+        appointmentId: params.appointmentId,
         shopName: params.shop.name,
         title: params.title,
         startsAtFormatted,
@@ -90,6 +92,7 @@ export async function notifyAppointmentEvent(
         shop: shopToEmailConfig(params.shop),
         to: email,
         type: params.type,
+        appointmentId: params.appointmentId,
         clientName: formatClientName(params.client),
         title: params.title,
         startsAtFormatted,
@@ -127,7 +130,15 @@ export async function notifyShopOfNewWebAppointment(params: {
   const body = `${params.shop.name}: nueva cita web — ${clientName}, ${params.title}, ${startsAtFormatted}. Tel. cliente: ${params.client.phone ?? "N/D"}`;
 
   try {
-    await sendSms(shopPhone, body);
+    await sendSms({
+      to: shopPhone,
+      body,
+      shopId: params.shop.id,
+      purpose: "APPOINTMENT",
+      businessEntityType: "APPOINTMENT",
+      businessEntityId: params.appointmentId,
+      idempotencyKey: `appointment-sms:web-notify:${params.appointmentId}`,
+    });
     return true;
   } catch (err) {
     console.error(`[appointment-sms] aviso al taller falló (${params.appointmentId}):`, err);

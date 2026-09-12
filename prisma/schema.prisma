@@ -48,6 +48,9 @@ model Shop {
   savedLineItems    SavedLineItem[]
   cashDrawerEntries CashDrawerEntry[]
   domains           ShopDomain[]
+  senderIdentities  SenderIdentity[]
+  commRoutes        CommunicationRoute[]
+  commMessages      CommunicationMessage[]
 
   @@schema("garageos")
 }
@@ -145,6 +148,7 @@ model Client {
   invoices     Invoice[]
   quotes       Quote[]
   appointments Appointment[]
+  commMessages CommunicationMessage[]
 
   @@schema("garageos")
 }
@@ -683,6 +687,8 @@ model ShopDomain {
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
 
+  senderIdentities SenderIdentity[]
+
   @@unique([shopId, purpose])
   @@unique([domain, purpose])
   @@schema("garageos")
@@ -700,5 +706,161 @@ enum ShopDomainStatus {
   VERIFIED
   FAILED
 
+  @@schema("garageos")
+}
+
+/**
+ * Fundación de Communications Platform (Fase 1) — ver docs/communications-platform.md.
+ * SenderIdentity/CommunicationRoute son hoy un espejo sincronizado de los campos de
+ * email de Shop (no la fuente de verdad de envío todavía); email-config.ts sigue
+ * resolviendo el From/Reply-To real. Cuando exista una UI de rutas (Fase 2), la
+ * dirección de sincronización se invierte y esta tabla pasa a ser la fuente de verdad.
+ * CommunicationMessage es el log/outbox: cada envío existente queda registrado aquí
+ * con idempotencyKey para evitar reintentos duplicados (ver docs/domain-model.md #9).
+ */
+enum SenderIdentityType {
+  GARAGEOS_MANAGED
+  CUSTOM_DOMAIN
+
+  @@schema("garageos")
+}
+
+enum SenderIdentityStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  FAILED
+
+  @@schema("garageos")
+}
+
+enum CommChannel {
+  EMAIL
+  SMS
+
+  @@schema("garageos")
+}
+
+enum CommDirection {
+  INBOUND
+  OUTBOUND
+  SYSTEM
+
+  @@schema("garageos")
+}
+
+enum CommMessageType {
+  HUMAN
+  TRANSACTIONAL
+  CAMPAIGN
+  SYSTEM_EVENT
+
+  @@schema("garageos")
+}
+
+enum CommStatus {
+  DRAFT
+  QUEUED
+  SENDING
+  SENT
+  DELIVERED
+  FAILED
+  BOUNCED
+  RECEIVED
+
+  @@schema("garageos")
+}
+
+model SenderIdentity {
+  id          String               @id @default(cuid())
+  shopId      String
+  shop        Shop                 @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  channel     CommChannel
+  type        SenderIdentityType   @default(GARAGEOS_MANAGED)
+  address     String
+  displayName String?
+  domainId    String?
+  domain      ShopDomain?          @relation(fields: [domainId], references: [id])
+  status      SenderIdentityStatus @default(ACTIVE)
+  verifiedAt  DateTime?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  routes   CommunicationRoute[]
+  messages CommunicationMessage[]
+
+  @@unique([shopId, channel, address])
+  @@schema("garageos")
+}
+
+model CommunicationRoute {
+  id               String         @id @default(cuid())
+  shopId           String
+  shop             Shop           @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  purpose          String
+  channel          CommChannel
+  senderIdentityId String
+  senderIdentity   SenderIdentity @relation(fields: [senderIdentityId], references: [id])
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@unique([shopId, purpose, channel])
+  @@schema("garageos")
+}
+
+model CommunicationMessage {
+  id                 String           @id @default(cuid())
+  shopId             String
+  shop               Shop             @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  clientId           String?
+  client             Client?          @relation(fields: [clientId], references: [id])
+  direction          CommDirection    @default(OUTBOUND)
+  channel            CommChannel
+  messageType        CommMessageType  @default(TRANSACTIONAL)
+  status             CommStatus       @default(QUEUED)
+  provider           String?
+  providerMessageId  String?
+  senderIdentityId   String?
+  senderIdentity     SenderIdentity?  @relation(fields: [senderIdentityId], references: [id])
+  purpose            String?
+  businessEntityType String?
+  businessEntityId   String?
+  idempotencyKey     String?          @unique
+  from               String
+  replyTo            String?
+  to                 String[]
+  cc                 String[]
+  bcc                String[]
+  subject            String?
+  textBody           String?          @db.Text
+  htmlBody           String?          @db.Text
+  errorCode          String?
+  errorMessage       String?          @db.Text
+  sentAt             DateTime?
+  deliveredAt        DateTime?
+  failedAt           DateTime?
+  createdByUserId    String?
+  createdAt          DateTime         @default(now())
+
+  attachments CommunicationAttachment[]
+
+  @@index([shopId, businessEntityType, businessEntityId])
+  @@index([shopId, createdAt])
+  @@index([clientId])
+  @@schema("garageos")
+}
+
+model CommunicationAttachment {
+  id         String               @id @default(cuid())
+  shopId     String
+  messageId  String
+  message    CommunicationMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  filename   String
+  mimeType   String
+  size       Int
+  storageKey String
+  createdAt  DateTime             @default(now())
+
+  @@index([shopId])
   @@schema("garageos")
 }

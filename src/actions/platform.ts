@@ -5,6 +5,7 @@ import { ADMIN, PLATFORM, adminPath } from "@/lib/routes";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireSuperAdmin } from "@/lib/permissions";
+import { provisionDefaultSenderIdentities } from "@/lib/communications/sender-identity";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 
@@ -76,6 +77,11 @@ export async function createShop(formData: FormData) {
       email: parsed.data.email || null,
       phone: parsed.data.phone || null,
     },
+  });
+
+  // Identidad de envío inicial (Communications Platform) — no bloquea la creación si falla.
+  await provisionDefaultSenderIdentities(shop).catch((err) => {
+    console.error("[communications] provisionDefaultSenderIdentities falló al crear taller:", err);
   });
 
   revalidatePath(PLATFORM.home);

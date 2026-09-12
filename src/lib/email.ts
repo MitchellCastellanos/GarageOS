@@ -17,6 +17,7 @@ import {
   type EmailChannel,
 } from "@/lib/email-config";
 import { getInvoiceStrings, type InvoiceLanguage } from "@/lib/invoice-i18n";
+import { recordAndSend } from "@/lib/communications/outbox";
 import React from "react";
 
 function getResend() {
@@ -27,6 +28,11 @@ function getResend() {
   return new Resend(key);
 }
 
+function toArray(value?: string | string[]): string[] {
+  if (!value) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
 interface TransactionalSendOptions {
   shop: ShopEmailConfig;
   channel: EmailChannel;
@@ -35,6 +41,11 @@ interface TransactionalSendOptions {
   react: React.ReactElement;
   attachments?: { filename: string; content: Buffer }[];
   cc?: string | string[];
+  bcc?: string | string[];
+  clientId?: string;
+  businessEntityType?: string;
+  businessEntityId?: string;
+  idempotencyKey?: string;
 }
 
 async function sendTransactionalEmail(options: TransactionalSendOptions) {
@@ -46,23 +57,47 @@ async function sendTransactionalEmail(options: TransactionalSendOptions) {
 
   const html = await render(options.react);
 
-  const { error } = await getResend().emails.send({
+  await recordAndSend({
+    shopId: options.shop.id,
+    clientId: options.clientId,
+    purpose: options.channel,
+    channel: "EMAIL",
+    provider: "resend",
     from: route.from,
     replyTo: route.replyTo,
-    to: options.to,
-    cc: options.cc,
+    to: toArray(options.to),
+    cc: toArray(options.cc),
+    bcc: toArray(options.bcc),
     subject: options.subject,
-    html,
-    attachments: options.attachments,
-  });
+    htmlBody: html,
+    businessEntityType: options.businessEntityType,
+    businessEntityId: options.businessEntityId,
+    idempotencyKey: options.idempotencyKey,
+    send: async () => {
+      const { data, error } = await getResend().emails.send({
+        from: route.from,
+        replyTo: route.replyTo,
+        to: options.to,
+        cc: options.cc,
+        bcc: options.bcc,
+        subject: options.subject,
+        html,
+        attachments: options.attachments,
+      });
 
-  if (error) {
-    throw new Error(`Error enviando email (${options.channel}): ${error.message}`);
-  }
+      if (error) {
+        throw new Error(`Error enviando email (${options.channel}): ${error.message}`);
+      }
+
+      return { providerMessageId: data?.id };
+    },
+  });
 }
 
 interface ReminderEmailData {
   shop: ShopEmailConfig;
+  clientId?: string;
+  reminderId?: string;
   clientName: string;
   clientEmail: string;
   vehicleDescription: string;
@@ -97,6 +132,10 @@ export async function sendReminderEmail(data: ReminderEmailData) {
     to: data.clientEmail,
     subject: `Recordatorio de servicio: ${data.serviceType} — ${data.vehicleDescription}`,
     react: element,
+    clientId: data.clientId,
+    businessEntityType: data.reminderId ? "SERVICE_REMINDER" : undefined,
+    businessEntityId: data.reminderId,
+    idempotencyKey: data.reminderId ? `service-reminder:${data.reminderId}` : undefined,
   });
 }
 
@@ -135,6 +174,10 @@ interface InvoiceEmailSendData extends InvoiceEmailProps {
   pdfBuffer: Buffer;
   pdfFilename: string;
   extraAttachments?: { filename: string; content: Buffer }[];
+  clientId?: string;
+  invoiceId?: string;
+  /** emailSendCount actual (antes de incrementar) — usado para deduplicar reenvíos accidentales. */
+  sendAttempt?: number;
 }
 
 export async function sendInvoiceEmail(data: InvoiceEmailSendData) {
@@ -162,6 +205,13 @@ export async function sendInvoiceEmail(data: InvoiceEmailSendData) {
       },
       ...(data.extraAttachments ?? []),
     ],
+    clientId: data.clientId,
+    businessEntityType: data.invoiceId ? "INVOICE" : undefined,
+    businessEntityId: data.invoiceId,
+    idempotencyKey:
+      data.invoiceId && data.sendAttempt !== undefined
+        ? `invoice-email:${data.invoiceId}:${data.sendAttempt}`
+        : undefined,
   });
 }
 
@@ -191,6 +241,10 @@ interface QuoteEmailSendData extends QuoteEmailProps {
   pdfBuffer: Buffer;
   pdfFilename: string;
   extraAttachments?: { filename: string; content: Buffer }[];
+  clientId?: string;
+  quoteId?: string;
+  /** emailSendCount actual (antes de incrementar) — usado para deduplicar reenvíos accidentales. */
+  sendAttempt?: number;
 }
 
 export async function sendQuoteEmail(data: QuoteEmailSendData) {
@@ -217,6 +271,13 @@ export async function sendQuoteEmail(data: QuoteEmailSendData) {
       { filename: data.pdfFilename, content: data.pdfBuffer },
       ...(data.extraAttachments ?? []),
     ],
+    clientId: data.clientId,
+    businessEntityType: data.quoteId ? "QUOTE" : undefined,
+    businessEntityId: data.quoteId,
+    idempotencyKey:
+      data.quoteId && data.sendAttempt !== undefined
+        ? `quote-email:${data.quoteId}:${data.sendAttempt}`
+        : undefined,
   });
 }
 
@@ -224,6 +285,8 @@ interface AppointmentEmailSendData {
   shop: ShopEmailConfig;
   to: string;
   type: AppointmentEmailType;
+  clientId?: string;
+  appointmentId?: string;
   clientName: string;
   title: string;
   startsAtFormatted: string;
@@ -292,5 +355,11 @@ export async function sendAppointmentEmail(data: AppointmentEmailSendData) {
     cc,
     subject,
     react: element,
+    clientId: data.clientId,
+    businessEntityType: data.appointmentId ? "APPOINTMENT" : undefined,
+    businessEntityId: data.appointmentId,
+    idempotencyKey: data.appointmentId
+      ? `appointment-email:${data.type}:${data.appointmentId}`
+      : undefined,
   });
 }

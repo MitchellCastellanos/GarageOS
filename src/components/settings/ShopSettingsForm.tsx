@@ -9,6 +9,7 @@ import { EmailRoutingPreview } from "@/components/settings/EmailRoutingPreview";
 import { shopToEmailConfig } from "@/lib/email-config";
 
 interface Shop {
+  id: string;
   name: string;
   address: string | null;
   phone: string | null;
@@ -44,6 +45,7 @@ export function ShopSettingsForm({ shop }: ShopSettingsFormProps) {
       const result = await updateShopSettings(formData);
       if (result?.success) {
         setEmailDraft({
+          id: shop.id,
           name: (formData.get("name") as string) || shop.name,
           email: (formData.get("email") as string) || null,
           billingEmail: (formData.get("billingEmail") as string) || null,

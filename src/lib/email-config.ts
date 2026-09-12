@@ -13,6 +13,7 @@ export type EmailChannel =
   | "NEWSLETTER";
 
 export type ShopEmailConfig = {
+  id: string;
   name: string;
   email?: string | null;
   billingEmail?: string | null;
@@ -233,8 +234,9 @@ export function getResolvedEmailMatrix(shop: ShopEmailConfig) {
   });
 }
 
-export function shopToEmailConfig(shop: ShopEmailConfig & { name: string }): ShopEmailConfig {
+export function shopToEmailConfig(shop: ShopEmailConfig): ShopEmailConfig {
   return {
+    id: shop.id,
     name: shop.name,
     email: shop.email,
     billingEmail: shop.billingEmail,
