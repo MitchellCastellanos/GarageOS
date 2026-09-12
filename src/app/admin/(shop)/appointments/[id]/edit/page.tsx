@@ -14,6 +14,7 @@ import { type AppointmentEditFormData } from "@/lib/validations";
 import { appointmentStatusLabel } from "@/lib/appointment-status";
 import { formatShopDate } from "@/lib/shop-timezone";
 import { getAdminLocale } from "@/lib/admin-locale";
+import { APPOINTMENTS_DICT } from "@/lib/admin-locale/appointments";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -29,6 +30,7 @@ export default async function EditAppointmentPage({ params }: PageProps) {
     getAdminLocale(),
   ]);
 
+  const t = APPOINTMENTS_DICT[locale];
   const timeZone = appointment.shop.timezone;
   const { date, time } = await appointmentToFormValues(appointment.startsAt, timeZone);
 
@@ -56,7 +58,7 @@ export default async function EditAppointmentPage({ params }: PageProps) {
           <ArrowLeft className="w-4 h-4 text-slate-600" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Editar cita</h1>
+          <h1 className="text-2xl font-bold text-slate-900">{t.editPage.title}</h1>
           <p className="text-slate-500 text-sm mt-1">
             {appointment.title} —{" "}
             <span className="font-medium text-slate-600">

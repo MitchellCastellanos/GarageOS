@@ -7,6 +7,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useTransition } from "react";
 import { reminderSchema, type ReminderFormData } from "@/lib/validations";
 import { formatClientName } from "@/lib/client-name";
+import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
+import { APPOINTMENTS_DICT } from "@/lib/admin-locale/appointments";
 
 interface Vehicle {
   id: string;
@@ -22,19 +24,9 @@ interface ReminderFormProps {
   onSubmit: (data: ReminderFormData) => Promise<{ error?: Record<string, string[]> } | void>;
 }
 
-const SERVICE_TYPES = [
-  "Cambio de aceite",
-  "Cambio de frenos",
-  "Alineación y balanceo",
-  "Revisión general",
-  "Cambio de llantas",
-  "Revisión de batería",
-  "Cambio de filtros",
-  "Revisión de transmisión",
-  "Otro",
-];
-
 export function ReminderForm({ vehicles, onSubmit }: ReminderFormProps) {
+  const locale = useAdminLocale();
+  const t = APPOINTMENTS_DICT[locale].reminders.form;
   const [isPending, startTransition] = useTransition();
 
   const {
@@ -69,16 +61,16 @@ export function ReminderForm({ vehicles, onSubmit }: ReminderFormProps) {
 
       {/* Vehículo */}
       <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
-        <h2 className="font-semibold text-slate-900">Vehículo</h2>
+        <h2 className="font-semibold text-slate-900">{t.vehicleSectionTitle}</h2>
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1.5">
-            Seleccionar vehículo *
+            {t.selectVehicleLabel}
           </label>
           <select
             {...register("vehicleId")}
             className={selectClass(!!errors.vehicleId)}
           >
-            <option value="">Seleccionar vehículo...</option>
+            <option value="">{t.selectVehiclePlaceholder}</option>
             {vehicles.map((v) => (
               <option key={v.id} value={v.id}>
                 {formatClientName(v.client)} — {v.year} {v.make} {v.model} ({v.licensePlate})
@@ -93,18 +85,18 @@ export function ReminderForm({ vehicles, onSubmit }: ReminderFormProps) {
 
       {/* Servicio */}
       <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
-        <h2 className="font-semibold text-slate-900">Tipo de servicio</h2>
+        <h2 className="font-semibold text-slate-900">{t.serviceSectionTitle}</h2>
 
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1.5">
-            Servicio *
+            {t.serviceLabel}
           </label>
           <select
             {...register("serviceType")}
             className={selectClass(!!errors.serviceType)}
           >
-            <option value="">Seleccionar servicio...</option>
-            {SERVICE_TYPES.map((s) => (
+            <option value="">{t.selectServicePlaceholder}</option>
+            {t.serviceTypes.map((s) => (
               <option key={s} value={s}>{s}</option>
             ))}
           </select>
@@ -112,7 +104,7 @@ export function ReminderForm({ vehicles, onSubmit }: ReminderFormProps) {
             <p className="text-red-600 text-xs mt-1">{errors.serviceType.message}</p>
           )}
           <p className="text-xs text-slate-400 mt-1">
-            También puedes escribir uno personalizado
+            {t.customHint}
           </p>
         </div>
 
@@ -120,7 +112,7 @@ export function ReminderForm({ vehicles, onSubmit }: ReminderFormProps) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              Fecha límite
+              {t.dueDateLabel}
             </label>
             <input
               {...register("dueDate")}
@@ -130,31 +122,31 @@ export function ReminderForm({ vehicles, onSubmit }: ReminderFormProps) {
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              Kilometraje límite
+              {t.mileageLabel}
             </label>
             <input
               {...register("dueMileage", { valueAsNumber: true })}
               type="number"
               min={0}
-              placeholder="ej: 80,000"
+              placeholder={t.mileagePlaceholder}
               className={inputClass(false)}
             />
           </div>
         </div>
         <p className="text-xs text-slate-400">
-          Puedes definir fecha, kilometraje, o ambos. El cron nocturno envía el email cuando la fecha límite esté a ≤7 días.
+          {t.cronHint}
         </p>
       </div>
 
       {/* Notas */}
       <div className="bg-white rounded-xl border border-slate-200 p-5">
         <label className="block text-sm font-medium text-slate-700 mb-1.5">
-          Notas (opcionales)
+          {t.notesLabel}
         </label>
         <textarea
           {...register("notes")}
           rows={3}
-          placeholder="Detalles adicionales del servicio..."
+          placeholder={t.notesPlaceholder}
           className={inputClass(false)}
         />
       </div>
@@ -166,13 +158,13 @@ export function ReminderForm({ vehicles, onSubmit }: ReminderFormProps) {
           disabled={isPending}
           className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium px-6 py-2.5 rounded-lg text-sm transition-colors"
         >
-          {isPending ? "Guardando..." : "Crear recordatorio"}
+          {isPending ? t.saving : t.createReminder}
         </button>
         <a
           href={ADMIN.reminders}
           className="text-sm text-slate-500 hover:text-slate-800 transition-colors"
         >
-          Cancelar
+          {t.cancel}
         </a>
       </div>
     </form>

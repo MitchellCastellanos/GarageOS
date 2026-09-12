@@ -11,6 +11,7 @@ import {
 import { APPOINTMENT_STATUS_BADGE, appointmentStatusLabel } from "@/lib/appointment-status";
 import { formatClientName } from "@/lib/client-name";
 import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
+import { APPOINTMENTS_DICT } from "@/lib/admin-locale/appointments";
 import {
   formatShopDate,
   formatShopDayHeader,
@@ -61,6 +62,7 @@ function AppointmentRow({
 }) {
   const router = useRouter();
   const locale = useAdminLocale();
+  const t = APPOINTMENTS_DICT[locale].list;
   const [confirmPending, startConfirm] = useTransition();
   const [cancelPending, startCancel] = useTransition();
   const [statusPending, startStatus] = useTransition();
@@ -78,7 +80,7 @@ function AppointmentRow({
 
   function handleStatusChange(
     status: "COMPLETED" | "NO_SHOW" | "SCHEDULED",
-    label: string
+    message: string
   ) {
     startStatus(async () => {
       const result = await updateAppointmentStatus(appointment.id, status);
@@ -86,7 +88,7 @@ function AppointmentRow({
         toast.error(result.error);
         return;
       }
-      toast.success(`Cita marcada como ${label}`);
+      toast.success(message);
       router.refresh();
     });
   }
@@ -130,7 +132,7 @@ function AppointmentRow({
         </span>
         {appointment.source === "PUBLIC_WEB" && (
           <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-            Web
+            {t.webBadge}
           </span>
         )}
 
@@ -139,7 +141,7 @@ function AppointmentRow({
           className="flex items-center gap-1 px-2.5 py-1.5 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg text-xs font-medium"
         >
           <Pencil className="w-3 h-3" />
-          Editar
+          {t.editButton}
         </Link>
 
         {isActive && (
@@ -147,7 +149,7 @@ function AppointmentRow({
             <button
               type="button"
               disabled={actionDisabled}
-              onClick={() => handleStatusChange("COMPLETED", "completada")}
+              onClick={() => handleStatusChange("COMPLETED", t.toastCompleted)}
               className="flex items-center gap-1 px-2.5 py-1.5 border border-emerald-200 text-emerald-700 hover:bg-emerald-50 rounded-lg text-xs font-medium disabled:opacity-50"
             >
               {statusPending ? (
@@ -155,12 +157,12 @@ function AppointmentRow({
               ) : (
                 <CheckCircle2 className="w-3 h-3" />
               )}
-              Completada
+              {t.completedButton}
             </button>
             <button
               type="button"
               disabled={actionDisabled}
-              onClick={() => handleStatusChange("NO_SHOW", "no asistió")}
+              onClick={() => handleStatusChange("NO_SHOW", t.toastNoShow)}
               className="flex items-center gap-1 px-2.5 py-1.5 border border-red-200 text-red-700 hover:bg-red-50 rounded-lg text-xs font-medium disabled:opacity-50"
             >
               {statusPending ? (
@@ -168,7 +170,7 @@ function AppointmentRow({
               ) : (
                 <UserX className="w-3 h-3" />
               )}
-              No asistió
+              {t.noShowButton}
             </button>
           </>
         )}
@@ -177,7 +179,7 @@ function AppointmentRow({
           <button
             type="button"
             disabled={actionDisabled}
-            onClick={() => handleStatusChange("SCHEDULED", "programada")}
+            onClick={() => handleStatusChange("SCHEDULED", t.toastReopened)}
             className="flex items-center gap-1 px-2.5 py-1.5 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg text-xs font-medium disabled:opacity-50"
           >
             {statusPending ? (
@@ -185,7 +187,7 @@ function AppointmentRow({
             ) : (
               <RotateCcw className="w-3 h-3" />
             )}
-            Reabrir
+            {t.reopenButton}
           </button>
         )}
 
@@ -200,11 +202,11 @@ function AppointmentRow({
                   toast.error(result.error);
                   return;
                 }
-                const via = result.sentVia?.length ? ` por ${result.sentVia.join(" y ")}` : "";
+                const via = t.viaSuffix(result.sentVia ?? []);
                 toast.success(
                   appointment.status === "SCHEDULED"
-                    ? `Confirmación enviada${via}`
-                    : `Enlace enviado al cliente${via}`
+                    ? t.toastConfirmationSent(via)
+                    : t.toastLinkSent(via)
                 );
                 router.refresh();
               })
@@ -216,7 +218,7 @@ function AppointmentRow({
             ) : (
               <Mail className="w-3 h-3" />
             )}
-            {appointment.status === "SCHEDULED" ? "Confirmar" : "Enviar enlace"}
+            {appointment.status === "SCHEDULED" ? t.confirmButton : t.sendLinkButton}
           </button>
         )}
 
@@ -225,14 +227,14 @@ function AppointmentRow({
             type="button"
             disabled={actionDisabled}
             onClick={() => {
-              if (!confirm("¿Cancelar esta cita?")) return;
+              if (!confirm(t.cancelConfirmPrompt)) return;
               startCancel(async () => {
                 const result = await cancelAppointment(appointment.id);
                 if (result?.error) {
                   toast.error(result.error);
                   return;
                 }
-                toast.info("Cita cancelada");
+                toast.info(t.toastCancelled);
                 router.refresh();
               });
             }}
@@ -243,7 +245,7 @@ function AppointmentRow({
             ) : (
               <Ban className="w-3 h-3" />
             )}
-            Cancelar
+            {t.cancelButton}
           </button>
         )}
       </div>

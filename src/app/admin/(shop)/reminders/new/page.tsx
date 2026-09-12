@@ -4,8 +4,12 @@ import { createReminder } from "@/actions/reminders";
 import { getReminderFormData } from "@/actions/reminders";
 import { type ReminderFormData } from "@/lib/validations";
 import { redirect } from "next/navigation";
+import { getAdminLocale } from "@/lib/admin-locale";
+import { APPOINTMENTS_DICT } from "@/lib/admin-locale/appointments";
 
 export default async function NewReminderPage() {
+  const locale = await getAdminLocale();
+  const t = APPOINTMENTS_DICT[locale].reminders.newPage;
   const vehicles = await getReminderFormData();
 
   if (vehicles.length === 0) {
@@ -15,9 +19,9 @@ export default async function NewReminderPage() {
   return (
     <div className="max-w-2xl">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Nuevo recordatorio</h1>
+        <h1 className="text-2xl font-bold text-slate-900">{t.title}</h1>
         <p className="text-slate-500 text-sm mt-1">
-          Programa un aviso de servicio para el cliente
+          {t.subtitle}
         </p>
       </div>
 

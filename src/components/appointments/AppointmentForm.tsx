@@ -14,6 +14,7 @@ import {
 import { APPOINTMENT_STATUSES, appointmentStatusLabel } from "@/lib/appointment-status";
 import { formatClientName } from "@/lib/client-name";
 import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
+import { APPOINTMENTS_DICT } from "@/lib/admin-locale/appointments";
 
 interface Client {
   id: string;
@@ -54,6 +55,7 @@ export function AppointmentForm({
   const [isPending, startTransition] = useTransition();
   const isEdit = mode === "edit";
   const locale = useAdminLocale();
+  const t = APPOINTMENTS_DICT[locale].form;
 
   const {
     register,
@@ -101,12 +103,12 @@ export function AppointmentForm({
   return (
     <form onSubmit={handleSubmit(onValid)} className="space-y-6 max-w-2xl">
       <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
-        <h2 className="font-semibold text-slate-900">Datos de la cita</h2>
+        <h2 className="font-semibold text-slate-900">{t.sectionTitle}</h2>
 
         {isEdit && (
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              Estado
+              {t.statusLabel}
             </label>
             <select {...register("status")} className={selectClass(!!errors.status)}>
               {APPOINTMENT_STATUSES.map((status) => (
@@ -123,12 +125,12 @@ export function AppointmentForm({
 
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1.5">
-            Título / servicio *
+            {t.titleLabel}
           </label>
           <input
             {...register("title")}
             type="text"
-            placeholder="Cambio de aceite, revisión de frenos..."
+            placeholder={t.titlePlaceholder}
             className={inputClass(!!errors.title)}
           />
           {errors.title && (
@@ -139,10 +141,10 @@ export function AppointmentForm({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              Cliente *
+              {t.clientLabel}
             </label>
             <select {...register("clientId")} className={selectClass(!!errors.clientId)}>
-              <option value="">Seleccionar cliente...</option>
+              <option value="">{t.selectClientPlaceholder}</option>
               {clients.map((client) => (
                 <option key={client.id} value={client.id}>
                   {formatClientName(client)}
@@ -156,7 +158,7 @@ export function AppointmentForm({
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              Vehículo (opcional)
+              {t.vehicleLabel}
             </label>
             <select
               {...register("vehicleId")}
@@ -165,10 +167,10 @@ export function AppointmentForm({
             >
               <option value="">
                 {!selectedClientId
-                  ? "Selecciona un cliente primero"
+                  ? t.selectClientFirst
                   : vehicles.length === 0
-                  ? "Sin vehículos"
-                  : "Sin vehículo específico"}
+                  ? t.noVehicles
+                  : t.noSpecificVehicle}
               </option>
               {vehicles.map((v) => (
                 <option key={v.id} value={v.id}>
@@ -181,10 +183,10 @@ export function AppointmentForm({
 
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1.5">
-            Mecánico (opcional)
+            {t.mechanicLabel}
           </label>
           <select {...register("mechanicId")} className={selectClass(!!errors.mechanicId)}>
-            <option value="">Sin asignar</option>
+            <option value="">{t.unassigned}</option>
             {mechanics.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.name}
@@ -199,7 +201,7 @@ export function AppointmentForm({
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              Fecha *
+              {t.dateLabel}
             </label>
             <input {...register("date")} type="date" className={inputClass(!!errors.date)} />
             {errors.date && (
@@ -208,7 +210,7 @@ export function AppointmentForm({
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              Hora *
+              {t.timeLabel}
             </label>
             <input {...register("time")} type="time" className={inputClass(!!errors.time)} />
             {errors.time && (
@@ -217,7 +219,7 @@ export function AppointmentForm({
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              Duración (min)
+              {t.durationLabel}
             </label>
             <input
               {...register("durationMinutes", { valueAsNumber: true })}
@@ -231,12 +233,12 @@ export function AppointmentForm({
 
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1.5">
-            Notas (opcionales)
+            {t.notesLabel}
           </label>
           <textarea
             {...register("notes")}
             rows={3}
-            placeholder="Instrucciones, piezas a pedir..."
+            placeholder={t.notesPlaceholder}
             className={inputClass(false)}
           />
         </div>
@@ -252,10 +254,10 @@ export function AppointmentForm({
           disabled={isPending}
           className="bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-medium px-6 py-2.5 rounded-lg text-sm transition-colors"
         >
-          {isPending ? "Guardando..." : isEdit ? "Guardar cambios" : "Crear cita"}
+          {isPending ? t.saving : isEdit ? t.saveChanges : t.createAppointment}
         </button>
         <a href={ADMIN.appointments} className="text-sm text-slate-500 hover:text-slate-800 transition-colors">
-          Cancelar
+          {t.cancel}
         </a>
       </div>
     </form>
