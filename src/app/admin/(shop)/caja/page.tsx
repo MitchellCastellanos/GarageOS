@@ -1,5 +1,7 @@
 import { getCashDrawerEntries } from "@/actions/cash-drawer";
 import { CashDrawerClient } from "@/components/caja/CashDrawerClient";
+import { getAdminLocale } from "@/lib/admin-locale";
+import { CAJA_DICT } from "@/lib/admin-locale/caja";
 
 interface PageProps {
   searchParams: Promise<{ date?: string }>;
@@ -8,6 +10,8 @@ interface PageProps {
 export default async function CajaPage({ searchParams }: PageProps) {
   const { date } = await searchParams;
   const { entries, summary, date: selectedDate } = await getCashDrawerEntries(date);
+  const locale = await getAdminLocale();
+  const t = CAJA_DICT[locale].cashDrawerPage;
 
   const serializedEntries = entries.map((entry) => ({
     id: entry.id,
@@ -21,10 +25,8 @@ export default async function CajaPage({ searchParams }: PageProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Caja</h1>
-        <p className="text-slate-500 text-sm mt-1">
-          Seguimiento interno de efectivo en el taller — saldo de apertura, cobros, gastos y ajustes
-        </p>
+        <h1 className="text-2xl font-bold text-slate-900">{t.title}</h1>
+        <p className="text-slate-500 text-sm mt-1">{t.subtitle}</p>
       </div>
 
       <CashDrawerClient
