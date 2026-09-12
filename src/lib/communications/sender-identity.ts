@@ -199,6 +199,19 @@ export async function listCommunicationRoutes(shopId: string): Promise<SenderIde
   return rows.map((r) => ({ purpose: r.purpose, channel: r.channel, senderIdentityId: r.senderIdentityId }));
 }
 
+/**
+ * Resuelve a qué taller pertenece una dirección de email entrante (Fase 4) — nunca
+ * confía en el contenido del mensaje (From, headers) para esto, solo en qué
+ * SenderIdentity activa de GarageOS recibió el correo (doc §7/§12).
+ */
+export async function resolveShopIdByInboundAddress(address: string): Promise<string | null> {
+  const identity = await db.senderIdentity.findFirst({
+    where: { channel: "EMAIL", address: address.trim().toLowerCase(), status: "ACTIVE" },
+    select: { shopId: true },
+  });
+  return identity?.shopId ?? null;
+}
+
 export class SenderIdentityError extends Error {}
 
 function localPartOf(address: string): string {
