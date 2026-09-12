@@ -109,7 +109,7 @@ export async function setEmailDomain(formData: FormData) {
     },
   });
 
-  revalidatePath(ADMIN.settings);
+  revalidatePath(ADMIN.notifications);
   return { success: true };
 }
 
@@ -139,7 +139,7 @@ export async function verifyEmailDomainAction() {
     },
   });
 
-  revalidatePath(ADMIN.settings);
+  revalidatePath(ADMIN.notifications);
   return { success: true, status: result.status };
 }
 
@@ -161,7 +161,7 @@ export async function removeEmailDomainAction() {
   }
 
   await db.shopDomain.delete({ where: { id: row.id } });
-  revalidatePath(ADMIN.settings);
+  revalidatePath(ADMIN.notifications);
   return { success: true };
 }
 

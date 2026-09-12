@@ -1,6 +1,6 @@
 "use server";
 
-import { ADMIN, PLATFORM, adminPath } from "@/lib/routes";
+import { ADMIN } from "@/lib/routes";
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
@@ -316,6 +316,30 @@ export async function updateServiceCatalog(formData: FormData) {
     }),
   ]);
 
+  revalidatePath(ADMIN.settings);
+  return { success: true };
+}
+
+const reminderSchema = z.object({
+  appointmentReminderHours: z.coerce.number().int().min(1).max(168),
+  appointmentSmsEnabled: z.coerce.boolean(),
+  appointmentEmailsEnabled: z.coerce.boolean(),
+});
+
+export async function updateAppointmentReminderSettings(formData: FormData) {
+  const session = await requireOwner();
+  const shopId = session.user.shopId!;
+
+  const parsed = reminderSchema.safeParse({
+    appointmentReminderHours: formData.get("appointmentReminderHours"),
+    appointmentSmsEnabled: formData.get("appointmentSmsEnabled") === "on",
+    appointmentEmailsEnabled: formData.get("appointmentEmailsEnabled") === "on",
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.flatten().fieldErrors };
+  }
+
+  await db.shop.update({ where: { id: shopId }, data: parsed.data });
   revalidatePath(ADMIN.settings);
   return { success: true };
 }

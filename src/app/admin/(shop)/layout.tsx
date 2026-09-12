@@ -1,7 +1,6 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { Sidebar } from "@/components/layout/Sidebar";
-import { Topbar } from "@/components/layout/Topbar";
+import { AdminChrome } from "@/components/layout/AdminChrome";
 import { Toaster } from "sonner";
 import { ADMIN, PLATFORM } from "@/lib/routes";
 import { db } from "@/lib/db";
@@ -37,18 +36,15 @@ export default async function DashboardLayout({
 
   return (
     <AdminLocaleProvider locale={locale}>
-      <div className="flex flex-col min-h-screen bg-slate-50">
-        <Topbar
-          shopName={shop?.name}
-          shopLogoUrl={shop?.logoUrl}
-          userName={session.user?.name}
-        />
-        <div className="flex flex-1 min-h-0">
-          <Sidebar />
-          <main className="flex-1 min-w-0 p-6 overflow-auto">{children}</main>
-        </div>
-        <Toaster position="bottom-right" richColors />
-      </div>
+      <AdminChrome
+        shopName={shop?.name}
+        shopLogoUrl={shop?.logoUrl}
+        userName={session.user.name}
+        isOwner={session.user.role === "OWNER"}
+      >
+        {children}
+      </AdminChrome>
+      <Toaster position="bottom-right" richColors />
     </AdminLocaleProvider>
   );
 }

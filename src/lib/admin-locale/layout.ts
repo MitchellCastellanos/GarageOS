@@ -9,12 +9,16 @@ export interface LayoutDictionary {
     quotes: string;
     invoices: string;
     campaigns: string;
+    notifications: string;
     caja: string;
     accounting: string;
     reminders: string;
     settings: string;
   };
   topbar: {
+    openMenu: string;
+    closeMenu: string;
+    closeSearch: string;
     searchPlaceholder: string;
     defaultUserName: string;
     settings: string;
@@ -32,12 +36,16 @@ export const LAYOUT_DICT: Record<AdminLocale, LayoutDictionary> = {
       quotes: "Cotizaciones",
       invoices: "Facturas",
       campaigns: "Campañas",
+      notifications: "Notificaciones",
       caja: "Caja",
       accounting: "Contabilidad",
       reminders: "Recordatorios",
       settings: "Configuración",
     },
     topbar: {
+      openMenu: "Abrir menú",
+      closeMenu: "Cerrar menú",
+      closeSearch: "Cerrar búsqueda",
       searchPlaceholder: "Buscar clientes, vehículos...",
       defaultUserName: "Usuario",
       settings: "Configuración",
@@ -53,12 +61,16 @@ export const LAYOUT_DICT: Record<AdminLocale, LayoutDictionary> = {
       quotes: "Quotes",
       invoices: "Invoices",
       campaigns: "Campaigns",
+      notifications: "Notifications",
       caja: "Cash drawer",
       accounting: "Accounting",
       reminders: "Reminders",
       settings: "Settings",
     },
     topbar: {
+      openMenu: "Open menu",
+      closeMenu: "Close menu",
+      closeSearch: "Close search",
       searchPlaceholder: "Search clients, vehicles...",
       defaultUserName: "User",
       settings: "Settings",
@@ -74,12 +86,16 @@ export const LAYOUT_DICT: Record<AdminLocale, LayoutDictionary> = {
       quotes: "Soumissions",
       invoices: "Factures",
       campaigns: "Campagnes",
+      notifications: "Notifications",
       caja: "Caisse",
       accounting: "Comptabilité",
       reminders: "Rappels",
       settings: "Configuration",
     },
     topbar: {
+      openMenu: "Ouvrir le menu",
+      closeMenu: "Fermer le menu",
+      closeSearch: "Fermer la recherche",
       searchPlaceholder: "Rechercher clients, véhicules...",
       defaultUserName: "Utilisateur",
       settings: "Configuration",

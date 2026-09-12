@@ -12,6 +12,7 @@ export const ADMIN = {
   caja: "/admin/caja",
   inbox: "/admin/inbox",
   campaigns: "/admin/campaigns",
+  notifications: "/admin/notifications",
   settings: "/admin/settings",
 } as const;
 

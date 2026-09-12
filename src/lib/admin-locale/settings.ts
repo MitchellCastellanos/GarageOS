@@ -2,6 +2,25 @@ import type { AdminLocale } from "@/lib/admin-locale";
 
 export interface SettingsDictionary {
   page: { title: string; subtitle: string };
+  tabs: {
+    general: string;
+    calendar: string;
+    services: string;
+    team: string;
+    domain: string;
+    support: string;
+  };
+  appointmentReminders: {
+    title: string;
+    reminderHours: string;
+    reminderHoursHint: string;
+    smsLabel: string;
+    emailNotifLabel: string;
+    smsHint: string;
+    save: string;
+    saving: string;
+    saved: string;
+  };
   language: {
     title: string;
     hint: string;
@@ -26,23 +45,9 @@ export interface SettingsDictionary {
     email: string;
     emailPlaceholder: string;
     emailHint: string;
-    mailboxesTitle: string;
-    billingLabel: string;
-    billingHint: string;
-    infoLabel: string;
-    providersLabel: string;
-    providersHint: string;
-    newsletterLabel: string;
-    newsletterHint: string;
     taxId: string;
     taxIdPlaceholder: string;
     taxIdHint: string;
-    notificationsTitle: string;
-    reminderHours: string;
-    reminderHoursHint: string;
-    smsLabel: string;
-    emailNotifLabel: string;
-    smsHint: string;
     save: string;
     saving: string;
     saved: string;
@@ -156,7 +161,15 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
   es: {
     page: {
       title: "Configuración",
-      subtitle: "Logo, datos del taller, citas, buzones de correo, contraseña y equipo",
+      subtitle: "Logo, datos del taller, equipo y catálogo de servicios",
+    },
+    tabs: {
+      general: "General",
+      calendar: "Calendario y Horarios",
+      services: "Servicios",
+      team: "Equipo",
+      domain: "Dominio",
+      support: "Soporte",
     },
     language: {
       title: "Idioma",
@@ -182,18 +195,15 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       email: "Email principal",
       emailPlaceholder: "info@tutaller.com",
       emailHint: "Contacto general y fallback si no hay buzón específico",
-      mailboxesTitle: "Buzones del dominio",
-      billingLabel: "billing@ — Sin uso",
-      billingHint: "Las facturas y contabilidad ahora salen de info@",
-      infoLabel: "info@ — Facturas, cotizaciones, recordatorios y web",
-      providersLabel: "providers@ — Proveedores",
-      providersHint: "Reservado para uso futuro",
-      newsletterLabel: "newsletter@ — Marketing",
-      newsletterHint: "Para Brevo/Mailchimp más adelante",
       taxId: "Número de impuestos (NEQ / TPS / TVQ)",
       taxIdPlaceholder: "TPS: 123456789 RT0001 · TVQ: 1234567890 TQ0001",
       taxIdHint: "Aparece en el pie de página de las facturas PDF",
-      notificationsTitle: "Citas — notificaciones (SMS y email)",
+      save: "Guardar cambios",
+      saving: "Guardando...",
+      saved: "Configuración guardada",
+    },
+    appointmentReminders: {
+      title: "Citas — notificaciones (SMS y email)",
       reminderHours: "Horas antes de la cita",
       reminderHoursHint: "El cron envía recordatorio cuando falten estas horas (por defecto 24 h)",
       smsLabel: "Enviar notificaciones de citas por SMS (canal principal)",
@@ -315,7 +325,15 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
   en: {
     page: {
       title: "Settings",
-      subtitle: "Logo, shop details, appointments, email routing, password, and team",
+      subtitle: "Logo, shop details, team, and service catalog",
+    },
+    tabs: {
+      general: "General",
+      calendar: "Calendar & Hours",
+      services: "Services",
+      team: "Team",
+      domain: "Domain",
+      support: "Support",
     },
     language: {
       title: "Language",
@@ -341,18 +359,15 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       email: "Main email",
       emailPlaceholder: "info@yourshop.com",
       emailHint: "General contact and fallback when no specific mailbox is set",
-      mailboxesTitle: "Domain mailboxes",
-      billingLabel: "billing@ — Unused",
-      billingHint: "Invoices and accounting now go out from info@",
-      infoLabel: "info@ — Invoices, quotes, reminders, and web",
-      providersLabel: "providers@ — Providers",
-      providersHint: "Reserved for future use",
-      newsletterLabel: "newsletter@ — Marketing",
-      newsletterHint: "For Brevo/Mailchimp later on",
       taxId: "Tax number (NEQ / GST / QST)",
       taxIdPlaceholder: "GST: 123456789 RT0001 · QST: 1234567890 TQ0001",
       taxIdHint: "Shown in the footer of PDF invoices",
-      notificationsTitle: "Appointments — notifications (SMS and email)",
+      save: "Save changes",
+      saving: "Saving...",
+      saved: "Settings saved",
+    },
+    appointmentReminders: {
+      title: "Appointments — notifications (SMS and email)",
       reminderHours: "Hours before the appointment",
       reminderHoursHint: "The cron sends a reminder when this many hours are left (default 24h)",
       smsLabel: "Send appointment notifications by SMS (main channel)",
@@ -474,7 +489,15 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
   fr: {
     page: {
       title: "Configuration",
-      subtitle: "Logo, informations du garage, rendez-vous, boîtes courriel, mot de passe et équipe",
+      subtitle: "Logo, infos du garage, équipe et catalogue de services",
+    },
+    tabs: {
+      general: "Général",
+      calendar: "Calendrier et horaires",
+      services: "Services",
+      team: "Équipe",
+      domain: "Domaine",
+      support: "Assistance",
     },
     language: {
       title: "Langue",
@@ -500,18 +523,15 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       email: "Courriel principal",
       emailPlaceholder: "info@votregarage.com",
       emailHint: "Contact général et solution de repli s'il n'y a pas de boîte spécifique",
-      mailboxesTitle: "Boîtes courriel du domaine",
-      billingLabel: "billing@ — Inutilisée",
-      billingHint: "Les factures et la comptabilité proviennent maintenant de info@",
-      infoLabel: "info@ — Factures, soumissions, rappels et site web",
-      providersLabel: "providers@ — Fournisseurs",
-      providersHint: "Réservée pour un usage futur",
-      newsletterLabel: "newsletter@ — Marketing",
-      newsletterHint: "Pour Brevo/Mailchimp plus tard",
       taxId: "Numéro de taxes (NEQ / TPS / TVQ)",
       taxIdPlaceholder: "TPS : 123456789 RT0001 · TVQ : 1234567890 TQ0001",
       taxIdHint: "Apparaît en bas des factures PDF",
-      notificationsTitle: "Rendez-vous — notifications (SMS et courriel)",
+      save: "Enregistrer les changements",
+      saving: "Enregistrement...",
+      saved: "Configuration enregistrée",
+    },
+    appointmentReminders: {
+      title: "Rendez-vous — notifications (SMS et courriel)",
       reminderHours: "Heures avant le rendez-vous",
       reminderHoursHint: "La tâche planifiée envoie un rappel quand il reste ce nombre d'heures (24 h par défaut)",
       smsLabel: "Envoyer les notifications de rendez-vous par SMS (canal principal)",

@@ -1,10 +1,11 @@
 "use server";
 
-import { ADMIN, PLATFORM, adminPath } from "@/lib/routes";
+import { ADMIN } from "@/lib/routes";
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { requireOwner } from "@/lib/permissions";
 import { getShopId } from "@/lib/shop-context";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -42,14 +43,7 @@ const shopSchema = z.object({
   address: z.string().max(255).optional().or(z.literal("")),
   phone: z.string().max(30).optional().or(z.literal("")),
   email: z.string().email("Email inválido").optional().or(z.literal("")),
-  billingEmail: z.string().email("Email inválido").optional().or(z.literal("")),
-  infoEmail: z.string().email("Email inválido").optional().or(z.literal("")),
-  providersEmail: z.string().email("Email inválido").optional().or(z.literal("")),
-  newsletterEmail: z.string().email("Email inválido").optional().or(z.literal("")),
   taxId: z.string().max(100).optional().or(z.literal("")),
-  appointmentReminderHours: z.coerce.number().int().min(1).max(168),
-  appointmentSmsEnabled: z.coerce.boolean(),
-  appointmentEmailsEnabled: z.coerce.boolean(),
 });
 
 export async function updateShopSettings(formData: FormData) {
@@ -60,14 +54,7 @@ export async function updateShopSettings(formData: FormData) {
     address: formData.get("address") as string,
     phone: formData.get("phone") as string,
     email: formData.get("email") as string,
-    billingEmail: formData.get("billingEmail") as string,
-    infoEmail: formData.get("infoEmail") as string,
-    providersEmail: formData.get("providersEmail") as string,
-    newsletterEmail: formData.get("newsletterEmail") as string,
     taxId: formData.get("taxId") as string,
-    appointmentReminderHours: formData.get("appointmentReminderHours") as string,
-    appointmentSmsEnabled: formData.get("appointmentSmsEnabled") === "on",
-    appointmentEmailsEnabled: formData.get("appointmentEmailsEnabled") === "on",
   };
 
   const parsed = shopSchema.safeParse(raw);
@@ -80,14 +67,7 @@ export async function updateShopSettings(formData: FormData) {
     address,
     phone,
     email,
-    billingEmail,
-    infoEmail,
-    providersEmail,
-    newsletterEmail,
     taxId,
-    appointmentReminderHours,
-    appointmentSmsEnabled,
-    appointmentEmailsEnabled,
   } = parsed.data;
 
   const updatedShop = await db.shop.update({
@@ -97,14 +77,7 @@ export async function updateShopSettings(formData: FormData) {
       address: address || null,
       phone: phone || null,
       email: email || null,
-      billingEmail: billingEmail || null,
-      infoEmail: infoEmail || null,
-      providersEmail: providersEmail || null,
-      newsletterEmail: newsletterEmail || null,
       taxId: taxId || null,
-      appointmentReminderHours,
-      appointmentSmsEnabled,
-      appointmentEmailsEnabled,
     },
   });
 
@@ -116,6 +89,59 @@ export async function updateShopSettings(formData: FormData) {
   });
 
   revalidatePath(ADMIN.settings);
+  return { success: true };
+}
+
+// ── MAILBOXES ───────────────────────────────────────────────
+
+const mailboxSchema = z.object({
+  billingEmail: z.string().email("Email inválido").optional().or(z.literal("")),
+  infoEmail: z.string().email("Email inválido").optional().or(z.literal("")),
+  providersEmail: z.string().email("Email inválido").optional().or(z.literal("")),
+  newsletterEmail: z.string().email("Email inválido").optional().or(z.literal("")),
+});
+
+export async function updateMailboxSettings(formData: FormData) {
+  const session = await requireOwner();
+  const shopId = session.user.shopId!;
+
+  const raw = {
+    billingEmail: formData.get("billingEmail") as string,
+    infoEmail: formData.get("infoEmail") as string,
+    providersEmail: formData.get("providersEmail") as string,
+    newsletterEmail: formData.get("newsletterEmail") as string,
+  };
+
+  const parsed = mailboxSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { error: parsed.error.flatten().fieldErrors };
+  }
+
+  const {
+    billingEmail,
+    infoEmail,
+    providersEmail,
+    newsletterEmail,
+  } = parsed.data;
+
+  const updatedShop = await db.shop.update({
+    where: { id: shopId },
+    data: {
+      billingEmail: billingEmail || null,
+      infoEmail: infoEmail || null,
+      providersEmail: providersEmail || null,
+      newsletterEmail: newsletterEmail || null,
+    },
+  });
+
+  // Mantiene SenderIdentity/CommunicationRoute sincronizados con los campos de email
+  // recién guardados — ver docs/communications-platform.md y el comentario en
+  // src/lib/communications/sender-identity.ts.
+  await provisionDefaultSenderIdentities(updatedShop).catch((err) => {
+    console.error("[communications] provisionDefaultSenderIdentities falló:", err);
+  });
+
+  revalidatePath(ADMIN.notifications);
   return { success: true };
 }
 
