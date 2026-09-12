@@ -8,6 +8,8 @@ import { calculateTaxBreakdown, TPS_RATE, TVQ_RATE } from "@/lib/taxes";
 import { INVOICE_LANGUAGES } from "@/lib/invoice-i18n";
 import { QuoteActions } from "@/components/quotes/QuoteActions";
 import Decimal from "decimal.js";
+import { getAdminLocale } from "@/lib/admin-locale";
+import { QUOTES_DICT } from "@/lib/admin-locale/quotes";
 
 const STATUS_BADGE: Record<string, string> = {
   DRAFT: "bg-slate-100 text-slate-600",
@@ -19,22 +21,6 @@ const STATUS_BADGE: Record<string, string> = {
   CANCELLED: "bg-slate-100 text-slate-400",
 };
 
-const STATUS_LABEL: Record<string, string> = {
-  DRAFT: "Borrador",
-  SENT: "Enviada",
-  ACCEPTED: "Aceptada",
-  REJECTED: "Rechazada",
-  EXPIRED: "Vencida",
-  CONVERTED: "Convertida",
-  CANCELLED: "Cancelada",
-};
-
-const ITEM_TYPE_LABEL: Record<string, string> = {
-  LABOUR: "Mano de obra",
-  PART: "Repuesto",
-  OTHER: "Otro",
-};
-
 interface PageProps {
   params: Promise<{ id: string }>;
 }
@@ -42,6 +28,8 @@ interface PageProps {
 export default async function QuoteDetailPage({ params }: PageProps) {
   const { id } = await params;
   const quote = await getQuoteById(id);
+  const locale = await getAdminLocale();
+  const t = QUOTES_DICT[locale];
 
   const { tpsAmount, tvqAmount } = calculateTaxBreakdown(
     quote.subtotal.toString(),
@@ -69,15 +57,15 @@ export default async function QuoteDetailPage({ params }: PageProps) {
               <span
                 className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${STATUS_BADGE[quote.status] ?? "bg-slate-100 text-slate-500"}`}
               >
-                {STATUS_LABEL[quote.status] ?? quote.status}
+                {t.status[quote.status as keyof typeof t.status] ?? quote.status}
               </span>
             </div>
             <p className="text-slate-500 text-sm mt-0.5">
-              Emitida el {formatDate(quote.issuedAt)}
-              {quote.validUntil && ` · Válida hasta ${formatDate(quote.validUntil)}`}
-              {` · Idioma: ${langLabel}`}
+              {t.detail.issuedOn(formatDate(quote.issuedAt))}
+              {quote.validUntil && ` · ${t.detail.validUntil(formatDate(quote.validUntil))}`}
+              {` · ${t.detail.languageLabel(langLabel)}`}
               {quote.emailSentAt &&
-                ` · Email: ${formatDate(quote.emailSentAt)}${quote.emailSendCount > 1 ? ` (${quote.emailSendCount}×)` : ""}`}
+                ` · ${t.detail.emailSent(formatDate(quote.emailSentAt))}${quote.emailSendCount > 1 ? ` ${t.detail.emailSentCount(quote.emailSendCount)}` : ""}`}
             </p>
           </div>
         </div>
@@ -89,7 +77,7 @@ export default async function QuoteDetailPage({ params }: PageProps) {
               className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition-colors"
             >
               <Pencil className="w-4 h-4" />
-              <span className="hidden sm:inline">Editar</span>
+              <span className="hidden sm:inline">{t.detail.editButton}</span>
             </Link>
           )}
           <a
@@ -98,7 +86,7 @@ export default async function QuoteDetailPage({ params }: PageProps) {
             className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition-colors"
           >
             <Download className="w-4 h-4" />
-            <span className="hidden sm:inline">Descargar PDF</span>
+            <span className="hidden sm:inline">{t.detail.downloadPdf}</span>
           </a>
           <QuoteActions
             quoteId={quote.id}
@@ -114,7 +102,7 @@ export default async function QuoteDetailPage({ params }: PageProps) {
 
       <div className="bg-white rounded-xl border border-slate-200 p-5">
         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">
-          Cliente
+          {t.detail.client}
         </p>
         <p className="font-semibold text-slate-900">{formatClientName(quote.client)}</p>
         {quote.client.email && (
@@ -129,22 +117,22 @@ export default async function QuoteDetailPage({ params }: PageProps) {
         <div key={qv.id} className="space-y-4">
           <div className="bg-white rounded-xl border border-slate-200 p-5">
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">
-              {quote.vehicles.length > 1 ? `Vehículo ${vIndex + 1}` : "Vehículo"}
+              {quote.vehicles.length > 1 ? t.detail.vehicleN(vIndex + 1) : t.detail.vehicle}
             </p>
             <p className="font-semibold text-slate-900">
               {qv.vehicle.year} {qv.vehicle.make} {qv.vehicle.model}
             </p>
-            <p className="text-sm text-slate-600 mt-1">Placa: {qv.vehicle.licensePlate}</p>
+            <p className="text-sm text-slate-600 mt-1">{t.detail.plate(qv.vehicle.licensePlate)}</p>
             {(qv.mileageIn || qv.mileageOut) && (
               <div className="flex gap-4 mt-2">
                 {qv.mileageIn && (
                   <p className="text-xs text-slate-500">
-                    Entrada: {qv.mileageIn.toLocaleString()} {qv.vehicle.mileageUnit}
+                    {t.detail.mileageIn(qv.mileageIn.toLocaleString(), qv.vehicle.mileageUnit)}
                   </p>
                 )}
                 {qv.mileageOut && (
                   <p className="text-xs text-slate-500">
-                    Salida: {qv.mileageOut.toLocaleString()} {qv.vehicle.mileageUnit}
+                    {t.detail.mileageOut(qv.mileageOut.toLocaleString(), qv.vehicle.mileageUnit)}
                   </p>
                 )}
               </div>
@@ -153,15 +141,15 @@ export default async function QuoteDetailPage({ params }: PageProps) {
 
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
             <div className="px-5 py-4 border-b border-slate-100">
-              <h2 className="font-semibold text-slate-900">Servicios y repuestos</h2>
+              <h2 className="font-semibold text-slate-900">{t.detail.lineItemsTitle}</h2>
             </div>
 
             <div className="hidden sm:grid grid-cols-[1fr_120px_80px_110px_110px] gap-3 px-5 py-2 bg-slate-50 border-b border-slate-100 text-xs font-medium text-slate-500 uppercase">
-              <span>Descripción</span>
-              <span>Tipo</span>
-              <span className="text-right">Cant.</span>
-              <span className="text-right">P. Unit.</span>
-              <span className="text-right">Total</span>
+              <span>{t.detail.colDescription}</span>
+              <span>{t.detail.colType}</span>
+              <span className="text-right">{t.detail.colQty}</span>
+              <span className="text-right">{t.detail.colUnitPrice}</span>
+              <span className="text-right">{t.detail.colTotal}</span>
             </div>
 
             <div className="divide-y divide-slate-100">
@@ -172,7 +160,7 @@ export default async function QuoteDetailPage({ params }: PageProps) {
                 >
                   <p className="text-sm text-slate-900 font-medium">{item.description}</p>
                   <p className="hidden sm:block text-sm text-slate-500">
-                    {ITEM_TYPE_LABEL[item.itemType] ?? item.itemType}
+                    {t.itemType[item.itemType as keyof typeof t.itemType] ?? item.itemType}
                   </p>
                   <p className="hidden sm:block text-sm text-slate-700 text-right">
                     {Number(item.quantity)}
@@ -194,7 +182,7 @@ export default async function QuoteDetailPage({ params }: PageProps) {
         {quote.notes && (
           <div className="bg-white rounded-xl border border-slate-200 p-5">
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
-              Notas
+              {t.detail.notes}
             </p>
             <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
               {quote.notes}
@@ -203,22 +191,22 @@ export default async function QuoteDetailPage({ params }: PageProps) {
         )}
 
         <div className={`bg-white rounded-xl border border-slate-200 p-5 ${!quote.notes ? "lg:col-start-2" : ""}`}>
-          <h2 className="font-semibold text-slate-900 mb-4">Resumen</h2>
+          <h2 className="font-semibold text-slate-900 mb-4">{t.detail.summary}</h2>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <span className="text-slate-600">Subtotal</span>
+              <span className="text-slate-600">{t.detail.subtotal}</span>
               <span className="text-slate-900">{formatCurrency(Number(quote.subtotal))}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-600">TPS ({tpsPct}%)</span>
+              <span className="text-slate-600">{t.detail.gstLabel(tpsPct)}</span>
               <span className="text-slate-900">{formatCurrency(Number(tpsAmount))}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-600">TVQ ({tvqPct}%)</span>
+              <span className="text-slate-600">{t.detail.qstLabel(tvqPct)}</span>
               <span className="text-slate-900">{formatCurrency(Number(tvqAmount))}</span>
             </div>
             <div className="flex justify-between items-center border-t border-slate-200 pt-3 mt-3">
-              <span className="font-semibold text-slate-900">Total CAD</span>
+              <span className="font-semibold text-slate-900">{t.detail.totalCad}</span>
               <span className="text-xl font-bold text-blue-600">
                 {formatCurrency(Number(quote.total))}
               </span>

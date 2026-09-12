@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { sendQuoteByEmail } from "@/actions/quotes";
 import { Loader2, Mail, Send, X } from "lucide-react";
 import { FileAttachmentButtons } from "@/components/ui/FileAttachmentButtons";
+import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
+import { QUOTES_DICT } from "@/lib/admin-locale/quotes";
 
 interface QuoteSendDialogProps {
   quoteId: string;
@@ -23,13 +25,15 @@ export function QuoteSendDialog({
   disabled,
 }: QuoteSendDialogProps) {
   const router = useRouter();
+  const locale = useAdminLocale();
+  const t = QUOTES_DICT[locale];
   const [open, setOpen] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
   const [pending, startTransition] = useTransition();
   function addFiles(incoming: File[]) {
     const merged = [...files, ...incoming].slice(0, 5);
     if (files.length + incoming.length > 5) {
-      toast.error("Máximo 5 archivos adjuntos");
+      toast.error(t.sendDialog.maxAttachments);
     }
     setFiles(merged);
   }
@@ -50,8 +54,8 @@ export function QuoteSendDialog({
       }
       toast.success(
         result.isResend
-          ? `Cotización reenviada a ${result.sentTo}`
-          : `Cotización enviada a ${result.sentTo}`
+          ? t.sendDialog.resentTo(clientEmail)
+          : t.sendDialog.sentTo(clientEmail)
       );
       setOpen(false);
       setFiles([]);
@@ -68,7 +72,7 @@ export function QuoteSendDialog({
         className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
       >
         {isResend ? <Send className="w-4 h-4" /> : <Mail className="w-4 h-4" />}
-        {isResend ? "Reenviar por email" : "Enviar por email"}
+        {isResend ? t.sendDialog.resend : t.sendDialog.send}
       </button>
 
       {open && (
@@ -77,7 +81,7 @@ export function QuoteSendDialog({
             <div className="flex items-start justify-between p-5 border-b border-slate-100">
               <div>
                 <h2 className="text-lg font-semibold text-slate-900">
-                  {isResend ? "Reenviar cotización" : "Enviar cotización"}
+                  {isResend ? t.sendDialog.resendTitle : t.sendDialog.sendTitle}
                 </h2>
                 <p className="text-sm text-slate-500 mt-1">
                   {quoteNumber} → {clientEmail}
@@ -97,8 +101,7 @@ export function QuoteSendDialog({
 
             <div className="p-5 space-y-4">
               <p className="text-sm text-slate-600">
-                La cotización PDF se adjunta automáticamente. Aquí puedes agregar documentos
-                extra si lo necesitas.
+                {t.sendDialog.attachInfo}
               </p>
 
               <div className="flex flex-wrap gap-2">
@@ -129,7 +132,7 @@ export function QuoteSendDialog({
               )}
 
               <p className="text-xs text-slate-400">
-                PDF o imágenes · Máx. 5 archivos · 5 MB c/u
+                {t.sendDialog.attachmentsHint}
               </p>
             </div>
 
@@ -143,7 +146,7 @@ export function QuoteSendDialog({
                 }}
                 className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg"
               >
-                Cancelar
+                {t.sendDialog.close}
               </button>
               <button
                 type="button"
@@ -152,7 +155,7 @@ export function QuoteSendDialog({
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium"
               >
                 {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
-                {pending ? "Enviando…" : "Enviar ahora"}
+                {pending ? t.sendDialog.sending : t.sendDialog.sendNow}
               </button>
             </div>
           </div>

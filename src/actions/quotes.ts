@@ -22,7 +22,74 @@ import { getPublicBookingUrl } from "@/lib/shop-slug";
 import { parseEmailAttachments } from "@/lib/email-attachments";
 import { syncSavedLineItems } from "@/actions/line-items";
 import { formatClientName } from "@/lib/client-name";
+import { getAdminLocale, type AdminLocale } from "@/lib/admin-locale";
 import Decimal from "decimal.js";
+
+const QUOTE_NOT_EDITABLE: Record<AdminLocale, string> = {
+  es: "Cotización no encontrada o no disponible para edición",
+  en: "Quote not found or not available for editing",
+  fr: "Soumission introuvable ou non modifiable",
+};
+
+const QUOTE_NOT_FOUND: Record<AdminLocale, string> = {
+  es: "Cotización no encontrada",
+  en: "Quote not found",
+  fr: "Soumission introuvable",
+};
+
+const QUOTE_CANNOT_SEND: Record<AdminLocale, string> = {
+  es: "No se puede enviar esta cotización",
+  en: "This quote cannot be sent",
+  fr: "Impossible d'envoyer cette soumission",
+};
+
+const QUOTE_NOT_EMAILABLE: Record<AdminLocale, string> = {
+  es: "Esta cotización no se puede enviar por email",
+  en: "This quote cannot be sent by email",
+  fr: "Cette soumission ne peut pas être envoyée par courriel",
+};
+
+const CLIENT_MISSING_EMAIL: Record<AdminLocale, string> = {
+  es: "El cliente no tiene email. Agrégalo en su ficha antes de enviar la cotización.",
+  en: "The client has no email on file. Add one to their profile before sending the quote.",
+  fr: "Le client n'a pas de courriel. Ajoutez-en un à sa fiche avant d'envoyer la soumission.",
+};
+
+const UNKNOWN_ERROR: Record<AdminLocale, string> = {
+  es: "Error desconocido",
+  en: "Unknown error",
+  fr: "Erreur inconnue",
+};
+
+const QUOTE_CANNOT_ACCEPT: Record<AdminLocale, string> = {
+  es: "No se puede marcar como aceptada",
+  en: "Cannot mark as accepted",
+  fr: "Impossible de marquer comme acceptée",
+};
+
+const QUOTE_CANNOT_REJECT: Record<AdminLocale, string> = {
+  es: "No se puede marcar como rechazada",
+  en: "Cannot mark as rejected",
+  fr: "Impossible de marquer comme refusée",
+};
+
+const QUOTE_ALREADY_CONVERTED: Record<AdminLocale, string> = {
+  es: "Esta cotización ya fue convertida a factura",
+  en: "This quote has already been converted to an invoice",
+  fr: "Cette soumission a déjà été convertie en facture",
+};
+
+const QUOTE_CANNOT_CONVERT: Record<AdminLocale, string> = {
+  es: "No se puede convertir esta cotización",
+  en: "This quote cannot be converted",
+  fr: "Impossible de convertir cette soumission",
+};
+
+const QUOTE_CANNOT_CANCEL: Record<AdminLocale, string> = {
+  es: "No se puede anular esta cotización",
+  en: "This quote cannot be voided",
+  fr: "Impossible d'annuler cette soumission",
+};
 
 // ── READ ────────────────────────────────────────────────────
 
@@ -131,13 +198,14 @@ export async function createQuote(formData: QuoteFormData) {
 
 export async function updateQuote(id: string, formData: QuoteFormData) {
   const shopId = await getShopId();
+  const locale = await getAdminLocale();
 
   const existing = await db.quote.findFirst({
     where: { id, shopId, status: "DRAFT" },
   });
 
   if (!existing) {
-    return { error: { _form: ["Cotización no encontrada o no disponible para edición"] } };
+    return { error: { _form: [QUOTE_NOT_EDITABLE[locale]] } };
   }
 
   const parsed = quoteSchema.safeParse(formData);
@@ -223,6 +291,7 @@ const EMAILABLE_STATUSES = ["DRAFT", "SENT", "ACCEPTED"] as const;
 
 export async function sendQuoteByEmail(id: string, formData?: FormData) {
   const shopId = await getShopId();
+  const locale = await getAdminLocale();
 
   const quote = await db.quote.findFirst({
     where: { id, shopId },
@@ -237,21 +306,21 @@ export async function sendQuoteByEmail(id: string, formData?: FormData) {
   });
 
   if (!quote) {
-    return { error: "Cotización no encontrada" };
+    return { error: QUOTE_NOT_FOUND[locale] };
   }
 
   if (quote.status === "CANCELLED" || quote.status === "CONVERTED") {
-    return { error: "No se puede enviar esta cotización" };
+    return { error: QUOTE_CANNOT_SEND[locale] };
   }
 
   if (!EMAILABLE_STATUSES.includes(quote.status as (typeof EMAILABLE_STATUSES)[number])) {
-    return { error: "Esta cotización no se puede enviar por email" };
+    return { error: QUOTE_NOT_EMAILABLE[locale] };
   }
 
   const clientEmail = quote.client.email?.trim();
   if (!clientEmail) {
     return {
-      error: "El cliente no tiene email. Agrégalo en su ficha antes de enviar la cotización.",
+      error: CLIENT_MISSING_EMAIL[locale],
     };
   }
 
@@ -288,7 +357,7 @@ export async function sendQuoteByEmail(id: string, formData?: FormData) {
       bookingUrl: quote.shop.slug ? getPublicBookingUrl(quote.shop.slug) : null,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Error desconocido";
+    const message = err instanceof Error ? err.message : UNKNOWN_ERROR[locale];
     console.error(`Error enviando cotización ${quote.quoteNumber}:`, err);
     return { error: message };
   }
@@ -317,11 +386,12 @@ export async function sendQuoteByEmail(id: string, formData?: FormData) {
 
 export async function markQuoteAsAccepted(id: string) {
   const shopId = await getShopId();
+  const locale = await getAdminLocale();
   const result = await db.quote.updateMany({
     where: { id, shopId, status: { in: ["SENT", "DRAFT"] } },
     data: { status: "ACCEPTED" },
   });
-  if (result.count === 0) return { error: "No se puede marcar como aceptada" };
+  if (result.count === 0) return { error: QUOTE_CANNOT_ACCEPT[locale] };
   revalidatePath(`/quotes/${id}`);
   revalidatePath(ADMIN.quotes);
   return { success: true };
@@ -329,11 +399,12 @@ export async function markQuoteAsAccepted(id: string) {
 
 export async function markQuoteAsRejected(id: string) {
   const shopId = await getShopId();
+  const locale = await getAdminLocale();
   const result = await db.quote.updateMany({
     where: { id, shopId, status: { in: ["SENT", "DRAFT"] } },
     data: { status: "REJECTED" },
   });
-  if (result.count === 0) return { error: "No se puede marcar como rechazada" };
+  if (result.count === 0) return { error: QUOTE_CANNOT_REJECT[locale] };
   revalidatePath(`/quotes/${id}`);
   revalidatePath(ADMIN.quotes);
   return { success: true };
@@ -341,6 +412,7 @@ export async function markQuoteAsRejected(id: string) {
 
 export async function convertQuoteToInvoice(id: string) {
   const shopId = await getShopId();
+  const locale = await getAdminLocale();
 
   const quote = await db.quote.findFirst({
     where: { id, shopId },
@@ -353,15 +425,15 @@ export async function convertQuoteToInvoice(id: string) {
   });
 
   if (!quote) {
-    return { error: "Cotización no encontrada" };
+    return { error: QUOTE_NOT_FOUND[locale] };
   }
 
   if (quote.status === "CONVERTED") {
-    return { error: "Esta cotización ya fue convertida a factura" };
+    return { error: QUOTE_ALREADY_CONVERTED[locale] };
   }
 
   if (quote.status === "CANCELLED" || quote.status === "REJECTED") {
-    return { error: "No se puede convertir esta cotización" };
+    return { error: QUOTE_CANNOT_CONVERT[locale] };
   }
 
   const invoice = await db.$transaction(async (tx) => {
@@ -423,6 +495,7 @@ const VOIDABLE_STATUSES = ["DRAFT", "SENT", "ACCEPTED", "REJECTED", "EXPIRED"] a
 
 export async function cancelQuote(id: string) {
   const shopId = await getShopId();
+  const locale = await getAdminLocale();
 
   const result = await db.quote.updateMany({
     where: {
@@ -434,7 +507,7 @@ export async function cancelQuote(id: string) {
   });
 
   if (result.count === 0) {
-    return { error: "No se puede anular esta cotización" };
+    return { error: QUOTE_CANNOT_CANCEL[locale] };
   }
 
   revalidatePath(`/quotes/${id}`);
@@ -444,13 +517,14 @@ export async function cancelQuote(id: string) {
 
 export async function deleteQuote(id: string) {
   const shopId = await getShopId();
+  const locale = await getAdminLocale();
 
   const result = await db.quote.deleteMany({
     where: { id, shopId },
   });
 
   if (result.count === 0) {
-    return { error: "Cotización no encontrada" };
+    return { error: QUOTE_NOT_FOUND[locale] };
   }
 
   revalidatePath(ADMIN.quotes);
