@@ -94,7 +94,9 @@ export default async function QuoteDetailPage({ params }: PageProps) {
             status={quote.status}
             clientId={quote.clientId}
             clientEmail={quote.client.email}
+            clientPhone={quote.client.phone}
             emailSendCount={quote.emailSendCount}
+            smsSendCount={quote.smsSendCount}
             convertedInvoiceId={quote.convertedInvoiceId}
           />
         </div>

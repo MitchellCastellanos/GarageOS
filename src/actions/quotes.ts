@@ -24,6 +24,8 @@ import { syncSavedLineItems } from "@/actions/line-items";
 import { formatClientName } from "@/lib/client-name";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import type { AdminLocale } from "@/lib/admin-locale";
+import { sendQuoteSms } from "@/lib/sms";
+import { buildQuoteApprovalUrl, ensureQuoteApprovalToken } from "@/lib/quote-approval";
 import Decimal from "decimal.js";
 
 const QUOTE_NOT_EDITABLE: Record<AdminLocale, string> = {
@@ -386,6 +388,64 @@ export async function sendQuoteByEmail(id: string, formData?: FormData) {
     isResend,
     sentTo: clientEmail,
   };
+}
+
+export async function sendQuoteBySms(id: string) {
+  const shopId = await getShopId();
+  const locale = await getAdminLocale();
+  const quote = await db.quote.findFirst({
+    where: { id, shopId },
+    include: { client: true, shop: true },
+  });
+  if (!quote) return { error: QUOTE_NOT_FOUND[locale] };
+  if (["CANCELLED", "CONVERTED", "ACCEPTED", "REJECTED", "EXPIRED"].includes(quote.status)) {
+    return { error: QUOTE_CANNOT_SEND[locale] };
+  }
+  const clientPhone = quote.client.phone?.trim();
+  if (!clientPhone) {
+    return { error: "El cliente no tiene teléfono. Agrégalo en su ficha antes de enviar la cotización." };
+  }
+
+  const isResend = quote.smsSendCount > 0;
+  const approval = await ensureQuoteApprovalToken(
+    quote.id,
+    quote.approvalToken,
+    quote.approvalTokenExpiresAt,
+  );
+  try {
+    await sendQuoteSms({
+      to: clientPhone,
+      shopId,
+      clientId: quote.clientId,
+      quoteId: quote.id,
+      sendAttempt: quote.smsSendCount,
+      shopName: quote.shop.name,
+      quoteNumber: quote.quoteNumber,
+      totalFormatted: formatCurrency(Number(quote.total)),
+      approvalUrl: buildQuoteApprovalUrl(approval.token),
+      language: quote.language,
+      isResend,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : UNKNOWN_ERROR[locale];
+    console.error(`Error enviando SMS de cotización ${quote.quoteNumber}:`, err);
+    return { error: message };
+  }
+
+  const now = new Date();
+  await db.quote.update({
+    where: { id },
+    data: {
+      status: quote.status === "DRAFT" ? "SENT" : quote.status,
+      sentAt: quote.sentAt ?? now,
+      smsSentAt: now,
+      smsSendCount: { increment: 1 },
+    },
+  });
+  revalidatePath(`/quotes/${id}`);
+  revalidatePath(ADMIN.quotes);
+  revalidatePath(ADMIN.dashboard);
+  return { success: true, isResend, sentTo: clientPhone, approvalUrl: buildQuoteApprovalUrl(approval.token) };
 }
 
 export async function markQuoteAsAccepted(id: string) {

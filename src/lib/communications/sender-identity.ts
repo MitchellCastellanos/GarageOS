@@ -39,8 +39,8 @@ const IMPLEMENTED_EMAIL_CHANNELS: EmailChannel[] = (
   Object.keys(EMAIL_CHANNEL_META) as EmailChannel[]
 ).filter((c) => EMAIL_CHANNEL_META[c].implemented && EMAIL_CHANNEL_META[c].pipeline === "resend");
 
-/** Purposes SMS actuales — mismo número compartido para ambos hasta que exista aislamiento por taller (Fase 6). */
-const SMS_PURPOSES = ["APPOINTMENT", "INVOICE"] as const;
+/** Purposes SMS actuales — mismo número compartido hasta que exista aislamiento por taller (Fase 6). */
+const SMS_PURPOSES = ["APPOINTMENT", "INVOICE", "QUOTE"] as const;
 
 export type ProvisionableShop = ShopEmailConfig & { id: string };
 
