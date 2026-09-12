@@ -1,30 +1,33 @@
+"use client";
+
 import { getResolvedEmailMatrix, type ShopEmailConfig } from "@/lib/email-config";
+import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
+import { SETTINGS_DICT } from "@/lib/admin-locale/settings";
 
 interface EmailRoutingPreviewProps {
   shop: ShopEmailConfig;
 }
 
 export function EmailRoutingPreview({ shop }: EmailRoutingPreviewProps) {
-  const matrix = getResolvedEmailMatrix(shop);
+  const locale = useAdminLocale();
+  const t = SETTINGS_DICT[locale];
+  const matrix = getResolvedEmailMatrix(shop, locale);
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
       <div>
-        <h2 className="font-semibold text-slate-900">Correos automáticos</h2>
-        <p className="text-sm text-slate-500 mt-1">
-          Todos los correos al cliente salen de info@ — el mismo que aparece en la
-          factura. Configura el buzón en IONOS y Resend enviará en tu nombre.
-        </p>
+        <h2 className="font-semibold text-slate-900">{t.emailRouting.title}</h2>
+        <p className="text-sm text-slate-500 mt-1">{t.emailRouting.subtitle}</p>
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-slate-200">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
-              <th className="px-4 py-3 font-semibold">Canal</th>
-              <th className="px-4 py-3 font-semibold">Remitente (FROM)</th>
-              <th className="px-4 py-3 font-semibold">Respuestas (Reply-To)</th>
-              <th className="px-4 py-3 font-semibold">Estado</th>
+              <th className="px-4 py-3 font-semibold">{t.emailRouting.channel}</th>
+              <th className="px-4 py-3 font-semibold">{t.emailRouting.from}</th>
+              <th className="px-4 py-3 font-semibold">{t.emailRouting.replyTo}</th>
+              <th className="px-4 py-3 font-semibold">{t.emailRouting.status}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -43,18 +46,18 @@ export function EmailRoutingPreview({ shop }: EmailRoutingPreviewProps) {
                 <td className="px-4 py-3">
                   {!row.implemented ? (
                     <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
-                      Próximamente
+                      {t.emailRouting.comingSoon}
                     </span>
                   ) : row.ok ? (
                     <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
-                      Listo
+                      {t.emailRouting.ready}
                     </span>
                   ) : (
                     <span
                       className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800"
                       title={row.error}
                     >
-                      Falta config
+                      {t.emailRouting.missingConfig}
                     </span>
                   )}
                 </td>
@@ -65,8 +68,7 @@ export function EmailRoutingPreview({ shop }: EmailRoutingPreviewProps) {
       </div>
 
       <p className="text-xs text-slate-400">
-        Newsletter usará {shop.newsletterEmail?.trim() || "newsletter@"} con Brevo/Mailchimp
-        cuando esté activo — no pasa por Resend.
+        {t.emailRouting.newsletterHint(shop.newsletterEmail?.trim() || "newsletter@")}
       </p>
     </div>
   );

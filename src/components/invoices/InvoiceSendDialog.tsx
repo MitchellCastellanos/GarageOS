@@ -4,9 +4,10 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { sendInvoiceByEmail, sendInvoiceBySms } from "@/actions/invoices";
-import { EMAIL_PENDING_CONFIRM_MESSAGE } from "@/lib/invoice-status";
+import { emailPendingConfirmMessage } from "@/lib/invoice-status";
 import { Loader2, Mail, MessageSquare, Send, X } from "lucide-react";
 import { FileAttachmentButtons } from "@/components/ui/FileAttachmentButtons";
+import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
 
 type SendChannel = "email" | "sms";
 
@@ -37,6 +38,7 @@ export function InvoiceSendDialog({
   isPaid = false,
 }: InvoiceSendDialogProps) {
   const router = useRouter();
+  const locale = useAdminLocale();
   const [open, setOpen] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
   const [pending, startTransition] = useTransition();
@@ -63,7 +65,7 @@ export function InvoiceSendDialog({
   }
 
   function openDialog() {
-    if (requiresPendingConfirm && !confirm(EMAIL_PENDING_CONFIRM_MESSAGE)) {
+    if (requiresPendingConfirm && !confirm(emailPendingConfirmMessage(locale))) {
       return;
     }
     setChannel(defaultChannel);

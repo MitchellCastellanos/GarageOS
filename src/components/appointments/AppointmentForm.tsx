@@ -11,8 +11,9 @@ import {
   type AppointmentEditFormData,
   type AppointmentFormData,
 } from "@/lib/validations";
-import { APPOINTMENT_STATUSES, APPOINTMENT_STATUS_LABEL } from "@/lib/appointment-status";
+import { APPOINTMENT_STATUSES, appointmentStatusLabel } from "@/lib/appointment-status";
 import { formatClientName } from "@/lib/client-name";
+import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
 
 interface Client {
   id: string;
@@ -52,6 +53,7 @@ export function AppointmentForm({
 }: AppointmentFormProps) {
   const [isPending, startTransition] = useTransition();
   const isEdit = mode === "edit";
+  const locale = useAdminLocale();
 
   const {
     register,
@@ -109,7 +111,7 @@ export function AppointmentForm({
             <select {...register("status")} className={selectClass(!!errors.status)}>
               {APPOINTMENT_STATUSES.map((status) => (
                 <option key={status} value={status}>
-                  {APPOINTMENT_STATUS_LABEL[status]}
+                  {appointmentStatusLabel(status, locale)}
                 </option>
               ))}
             </select>

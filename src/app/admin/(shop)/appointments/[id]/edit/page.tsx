@@ -11,8 +11,9 @@ import {
 } from "@/actions/appointments";
 import { ClientManageLink } from "@/components/appointments/ClientManageLink";
 import { type AppointmentEditFormData } from "@/lib/validations";
-import { APPOINTMENT_STATUS_LABEL } from "@/lib/appointment-status";
+import { appointmentStatusLabel } from "@/lib/appointment-status";
 import { formatShopDate } from "@/lib/shop-timezone";
+import { getAdminLocale } from "@/lib/admin-locale";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -21,10 +22,11 @@ interface PageProps {
 export default async function EditAppointmentPage({ params }: PageProps) {
   const { id } = await params;
 
-  const [appointment, { clients, mechanics }, manageUrl] = await Promise.all([
+  const [appointment, { clients, mechanics }, manageUrl, locale] = await Promise.all([
     getAppointmentById(id),
     getAppointmentFormData(),
     getAppointmentManageUrl(id),
+    getAdminLocale(),
   ]);
 
   const timeZone = appointment.shop.timezone;
@@ -58,8 +60,7 @@ export default async function EditAppointmentPage({ params }: PageProps) {
           <p className="text-slate-500 text-sm mt-1">
             {appointment.title} —{" "}
             <span className="font-medium text-slate-600">
-              {APPOINTMENT_STATUS_LABEL[appointment.status as keyof typeof APPOINTMENT_STATUS_LABEL] ??
-                appointment.status}
+              {appointmentStatusLabel(appointment.status, locale)}
             </span>
           </p>
         </div>

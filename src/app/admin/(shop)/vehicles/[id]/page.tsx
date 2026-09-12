@@ -2,10 +2,11 @@ import { getVehicleById, deleteVehicle } from "@/actions/vehicles";
 import { adminPath } from "@/lib/routes";
 import { formatDate, formatCurrency } from "@/lib/utils";
 import { formatClientName } from "@/lib/client-name";
-import { INVOICE_STATUS_BADGE, INVOICE_STATUS_LABEL } from "@/lib/invoice-status";
+import { INVOICE_STATUS_BADGE, invoiceStatusLabel } from "@/lib/invoice-status";
 import Link from "next/link";
 import { ChevronLeft, Pencil, Car, FileText, Bell, Plus } from "lucide-react";
 import { DeleteVehicleButton } from "@/components/clients/DeleteVehicleButton";
+import { getAdminLocale, type AdminLocale } from "@/lib/admin-locale";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -13,7 +14,7 @@ interface Props {
 
 export default async function VehicleDetailPage({ params }: Props) {
   const { id } = await params;
-  const vehicle = await getVehicleById(id);
+  const [vehicle, locale] = await Promise.all([getVehicleById(id), getAdminLocale()]);
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -94,7 +95,7 @@ export default async function VehicleDetailPage({ params }: Props) {
                   <p className="text-sm font-medium text-slate-900">
                     {formatCurrency(Number(iv.invoice.total))}
                   </p>
-                  <StatusBadge status={iv.invoice.status} />
+                  <StatusBadge status={iv.invoice.status} locale={locale} />
                 </div>
               </Link>
             ))}
@@ -129,12 +130,12 @@ export default async function VehicleDetailPage({ params }: Props) {
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status, locale }: { status: string; locale: AdminLocale }) {
   return (
     <span
       className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${INVOICE_STATUS_BADGE[status] ?? "bg-slate-100 text-slate-500"}`}
     >
-      {INVOICE_STATUS_LABEL[status] ?? status}
+      {invoiceStatusLabel(status, locale)}
     </span>
   );
 }

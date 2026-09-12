@@ -5,10 +5,11 @@ import { getInvoices } from "@/actions/invoices";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { formatClientName } from "@/lib/client-name";
 import {
-  INVOICE_LIST_STATUS_TABS,
+  invoiceListStatusTabs,
   INVOICE_STATUS_BADGE,
-  INVOICE_STATUS_LABEL,
+  invoiceStatusLabel,
 } from "@/lib/invoice-status";
+import { getAdminLocale } from "@/lib/admin-locale";
 
 interface PageProps {
   searchParams: Promise<{ status?: string }>;
@@ -17,7 +18,8 @@ interface PageProps {
 export default async function InvoicesPage({ searchParams }: PageProps) {
   const { status } = await searchParams;
   const activeTab = status ?? "ALL";
-  const invoices = await getInvoices(activeTab);
+  const [invoices, locale] = await Promise.all([getInvoices(activeTab), getAdminLocale()]);
+  const statusTabs = invoiceListStatusTabs(locale);
 
   return (
     <div className="space-y-6">
@@ -28,7 +30,7 @@ export default async function InvoicesPage({ searchParams }: PageProps) {
           <p className="text-slate-500 text-sm mt-1">
             {invoices.length} factura{invoices.length !== 1 ? "s" : ""}
             {activeTab !== "ALL"
-              ? ` · ${INVOICE_STATUS_LABEL[activeTab] ?? INVOICE_LIST_STATUS_TABS.find((t) => t.value === activeTab)?.label ?? activeTab}`
+              ? ` · ${invoiceStatusLabel(activeTab, locale) !== activeTab ? invoiceStatusLabel(activeTab, locale) : (statusTabs.find((t) => t.value === activeTab)?.label ?? activeTab)}`
               : ""}
           </p>
         </div>
@@ -43,7 +45,7 @@ export default async function InvoicesPage({ searchParams }: PageProps) {
 
       {/* Status tabs */}
       <div className="flex gap-1 bg-slate-100 p-1 rounded-lg w-fit">
-        {INVOICE_LIST_STATUS_TABS.map((tab) => (
+        {statusTabs.map((tab) => (
           <Link
             key={tab.value}
             href={tab.value === "ALL" ? "/invoices" : `/invoices?status=${tab.value}`}
@@ -66,7 +68,7 @@ export default async function InvoicesPage({ searchParams }: PageProps) {
           <p className="text-slate-500 font-medium">
             {activeTab === "ALL"
               ? "No hay facturas todavía"
-              : `No hay facturas en estado "${INVOICE_STATUS_LABEL[activeTab] ?? INVOICE_LIST_STATUS_TABS.find((t) => t.value === activeTab)?.label ?? activeTab}"`}
+              : `No hay facturas en estado "${invoiceStatusLabel(activeTab, locale) !== activeTab ? invoiceStatusLabel(activeTab, locale) : (statusTabs.find((t) => t.value === activeTab)?.label ?? activeTab)}"`}
           </p>
           {activeTab === "ALL" && (
             <Link
@@ -128,7 +130,7 @@ export default async function InvoicesPage({ searchParams }: PageProps) {
                   <span
                 className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${INVOICE_STATUS_BADGE[invoice.status] ?? "bg-slate-100 text-slate-500"}`}
               >
-                {INVOICE_STATUS_LABEL[invoice.status] ?? invoice.status}
+                {invoiceStatusLabel(invoice.status, locale)}
                   </span>
                 </div>
 
@@ -139,7 +141,7 @@ export default async function InvoicesPage({ searchParams }: PageProps) {
                   </p>
                   {/* Mobile: status badge */}
                   <span className={`sm:hidden inline-flex px-2 py-0.5 rounded-full text-xs font-medium mt-1 ${INVOICE_STATUS_BADGE[invoice.status] ?? "bg-slate-100 text-slate-500"}`}>
-                    {INVOICE_STATUS_LABEL[invoice.status] ?? invoice.status}
+                    {invoiceStatusLabel(invoice.status, locale)}
                   </span>
                 </div>
               </Link>

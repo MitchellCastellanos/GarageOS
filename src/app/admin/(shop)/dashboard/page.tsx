@@ -20,11 +20,12 @@ import { StatusPie } from "@/components/dashboard/StatusPie";
 import {
   INVOICE_STATUS_BADGE,
   INVOICE_STATUS_CHART_COLOR,
-  INVOICE_STATUS_LABEL,
+  invoiceStatusLabel,
   INVOICE_PENDING_STATUSES,
 } from "@/lib/invoice-status";
 import { getInvoiceRecordedRevenue } from "@/lib/invoice-payments";
 import { computeRevenueBreakdown } from "@/lib/revenue-analytics";
+import { getAdminLocale, type AdminLocale } from "@/lib/admin-locale";
 
 // Nombres cortos de meses en español
 const MONTH_NAMES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
@@ -34,6 +35,7 @@ const PIE_STATUSES = ["PENDING", "PAID", "OVERDUE", "CANCELLED"] as const;
 export default async function DashboardPage() {
   const session = await auth();
   const shopId = session?.user?.shopId;
+  const locale = await getAdminLocale();
 
   if (!shopId) {
     return <div className="text-center py-20 text-slate-500">Configurando tu taller...</div>;
@@ -137,7 +139,7 @@ export default async function DashboardPage() {
         ? pendingCount
         : invoicesByStatus.find((s) => s.status === status)?._count._all ?? 0;
     const label =
-      status === "PENDING" ? "Pendiente" : (INVOICE_STATUS_LABEL[status] ?? status);
+      status === "PENDING" ? invoiceStatusLabel("SENT", locale) : invoiceStatusLabel(status, locale);
     const color =
       status === "PENDING"
         ? INVOICE_STATUS_CHART_COLOR.SENT
@@ -360,7 +362,7 @@ export default async function DashboardPage() {
                     <p className="text-sm font-medium text-slate-900">
                       {formatCurrency(Number(invoice.total))}
                     </p>
-                    <StatusBadge status={invoice.status} />
+                    <StatusBadge status={invoice.status} locale={locale} />
                   </div>
                 </Link>
               ))}
@@ -412,12 +414,12 @@ export default async function DashboardPage() {
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status, locale }: { status: string; locale: AdminLocale }) {
   return (
     <span
       className={`text-xs px-2 py-0.5 rounded-full font-medium ${INVOICE_STATUS_BADGE[status] ?? "bg-slate-100 text-slate-500"}`}
     >
-      {INVOICE_STATUS_LABEL[status] ?? status}
+      {invoiceStatusLabel(status, locale)}
     </span>
   );
 }

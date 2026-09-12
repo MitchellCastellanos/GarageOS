@@ -11,10 +11,11 @@ import {
   InvoicePaymentReceipts,
   type PaymentReceiptView,
 } from "@/components/invoices/InvoicePaymentReceipts";
-import { INVOICE_STATUS_BADGE, INVOICE_STATUS_LABEL, isInvoicePending } from "@/lib/invoice-status";
+import { INVOICE_STATUS_BADGE, invoiceStatusLabel, isInvoicePending } from "@/lib/invoice-status";
 import { labelPaymentEntries } from "@/lib/invoice-payments";
 import { cashDrawerEntryTypeLabel } from "@/lib/cash-drawer";
 import { publicUrlForStoragePath } from "@/lib/storage";
+import { getAdminLocale } from "@/lib/admin-locale";
 import Decimal from "decimal.js";
 
 const ITEM_TYPE_LABEL: Record<string, string> = {
@@ -29,7 +30,7 @@ interface PageProps {
 
 export default async function InvoiceDetailPage({ params }: PageProps) {
   const { id } = await params;
-  const invoice = await getInvoiceById(id);
+  const [invoice, locale] = await Promise.all([getInvoiceById(id), getAdminLocale()]);
 
   const { tpsAmount, tvqAmount } = calculateTaxBreakdown(
     invoice.subtotal.toString(),
@@ -87,7 +88,7 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
               <span
                 className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${INVOICE_STATUS_BADGE[invoice.status] ?? "bg-slate-100 text-slate-500"}`}
               >
-                {INVOICE_STATUS_LABEL[invoice.status] ?? invoice.status}
+                {invoiceStatusLabel(invoice.status, locale)}
               </span>
             </div>
             <p className="text-slate-500 text-sm mt-0.5">

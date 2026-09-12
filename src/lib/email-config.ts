@@ -1,3 +1,5 @@
+import type { AdminLocale } from "@/lib/admin-locale";
+
 /**
  * Matriz de enrutamiento de correo por canal.
  * Ver docs/EMAIL_MATRIX.md para el mapa completo IONOS + Resend.
@@ -107,6 +109,68 @@ export const EMAIL_CHANNEL_META: Record<EmailChannel, ChannelMeta> = {
   },
 };
 
+const CHANNEL_LABELS: Record<EmailChannel, Record<AdminLocale, string>> = {
+  INVOICE: { es: "Facturas", en: "Invoices", fr: "Factures" },
+  QUOTE: { es: "Cotizaciones", en: "Quotes", fr: "Soumissions" },
+  APPOINTMENT: { es: "Citas", en: "Appointments", fr: "Rendez-vous" },
+  REMINDER: { es: "Recordatorios", en: "Reminders", fr: "Rappels" },
+  ACCOUNTING: { es: "Contabilidad", en: "Accounting", fr: "Comptabilité" },
+  WEB_CONTACT: { es: "Formulario web", en: "Web form", fr: "Formulaire web" },
+  PROVIDERS: { es: "Proveedores", en: "Providers", fr: "Fournisseurs" },
+  NEWSLETTER: { es: "Newsletter", en: "Newsletter", fr: "Infolettre" },
+};
+
+const CHANNEL_DESCRIPTIONS: Record<EmailChannel, Record<AdminLocale, string>> = {
+  INVOICE: {
+    es: "Envío y reenvío de facturas PDF al cliente",
+    en: "Sending and resending PDF invoices to the client",
+    fr: "Envoi et renvoi des factures PDF au client",
+  },
+  QUOTE: {
+    es: "Envío y reenvío de cotizaciones PDF al cliente",
+    en: "Sending and resending PDF quotes to the client",
+    fr: "Envoi et renvoi des soumissions PDF au client",
+  },
+  APPOINTMENT: {
+    es: "Confirmaciones, recordatorios y cancelaciones de citas",
+    en: "Appointment confirmations, reminders, and cancellations",
+    fr: "Confirmations, rappels et annulations de rendez-vous",
+  },
+  REMINDER: {
+    es: "Recordatorios de servicio programados",
+    en: "Scheduled service reminders",
+    fr: "Rappels d'entretien programmés",
+  },
+  ACCOUNTING: {
+    es: "Aviso a la contadora al subir documentos",
+    en: "Notice to the accountant when documents are uploaded",
+    fr: "Avis au comptable lors du téléversement de documents",
+  },
+  WEB_CONTACT: {
+    es: "Contacto desde el website (futuro)",
+    en: "Contact from the website (upcoming)",
+    fr: "Contact depuis le site web (à venir)",
+  },
+  PROVIDERS: {
+    es: "Comunicación con proveedores (futuro)",
+    en: "Communication with providers (upcoming)",
+    fr: "Communication avec les fournisseurs (à venir)",
+  },
+  NEWSLETTER: {
+    es: "Campañas masivas — usar Brevo/Mailchimp, no Resend",
+    en: "Mass campaigns — use Brevo/Mailchimp, not Resend",
+    fr: "Campagnes de masse — utiliser Brevo/Mailchimp, pas Resend",
+  },
+};
+
+export function channelLabel(channel: EmailChannel, locale: AdminLocale): string {
+  return CHANNEL_LABELS[channel][locale];
+}
+
+export function channelDescription(channel: EmailChannel, locale: AdminLocale): string {
+  return CHANNEL_DESCRIPTIONS[channel][locale];
+}
+
 export interface EmailRoute {
   channel: EmailChannel;
   from: string;
@@ -199,35 +263,62 @@ export function resolveEmailRoute(shop: ShopEmailConfig, channel: EmailChannel):
   };
 }
 
+const NO_FROM_CONFIGURED: Record<AdminLocale, (label: string) => string> = {
+  es: (label) =>
+    `No hay remitente configurado para ${label}. Configura los correos del taller o las variables EMAIL_FROM_* en el servidor.`,
+  en: (label) =>
+    `No sender configured for ${label}. Set up the shop's email addresses or the EMAIL_FROM_* variables on the server.`,
+  fr: (label) =>
+    `Aucun expéditeur configuré pour ${label}. Configurez les courriels du garage ou les variables EMAIL_FROM_* sur le serveur.`,
+};
+
+const NO_REPLY_CONFIGURED: Record<AdminLocale, (label: string) => string> = {
+  es: (label) => `No hay reply-to configurado para ${label}. Agrega el email principal del taller en Configuración.`,
+  en: (label) => `No reply-to configured for ${label}. Add the shop's main email in Settings.`,
+  fr: (label) => `Aucune adresse de réponse configurée pour ${label}. Ajoutez le courriel principal du garage dans Configuration.`,
+};
+
+const NOT_CONFIGURED: Record<AdminLocale, string> = {
+  es: "Sin configurar",
+  en: "Not configured",
+  fr: "Non configuré",
+};
+
 /** Vista resuelta para mostrar en Configuración (solo canales Resend activos). */
-export function getResolvedEmailMatrix(shop: ShopEmailConfig) {
+export function getResolvedEmailMatrix(shop: ShopEmailConfig, locale: AdminLocale) {
   const channels = (Object.keys(EMAIL_CHANNEL_META) as EmailChannel[]).filter(
     (c) => EMAIL_CHANNEL_META[c].pipeline === "resend"
   );
 
   return channels.map((channel) => {
     const meta = EMAIL_CHANNEL_META[channel];
+    const label = channelLabel(channel, locale);
+    const description = channelDescription(channel, locale);
     try {
-      const route = resolveEmailRoute(shop, channel);
+      const fromAddress = resolveAddress(shop, channel, "from");
+      const replyTo = resolveAddress(shop, channel, "reply");
+      if (!fromAddress) throw new Error(NO_FROM_CONFIGURED[locale](label));
+      if (!replyTo) throw new Error(NO_REPLY_CONFIGURED[locale](label));
+
       return {
         channel,
-        label: meta.label,
-        description: meta.description,
+        label,
+        description,
         implemented: meta.implemented,
-        from: route.fromAddress,
-        replyTo: route.replyTo,
+        from: fromAddress,
+        replyTo,
         ok: true as const,
       };
     } catch (err) {
       return {
         channel,
-        label: meta.label,
-        description: meta.description,
+        label,
+        description,
         implemented: meta.implemented,
         from: null,
         replyTo: null,
         ok: false as const,
-        error: err instanceof Error ? err.message : "Sin configurar",
+        error: err instanceof Error ? err.message : NOT_CONFIGURED[locale],
       };
     }
   });

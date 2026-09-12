@@ -7,12 +7,20 @@ import { db } from "@/lib/db";
 import { requireOwner } from "@/lib/permissions";
 import { DEFAULT_WORKING_HOURS, getShopServiceCatalog } from "@/lib/booking-slots";
 import { getPublicBookingUrl } from "@/lib/shop-slug";
-import { DAY_LABELS, type WorkingHoursRow } from "@/lib/working-hours";
+import { dayLabel, type WorkingHoursRow } from "@/lib/working-hours";
+import { getAdminLocale, type AdminLocale } from "@/lib/admin-locale";
 import { z } from "zod";
+
+const INVALID_SCHEDULE_FOR: Record<AdminLocale, (day: string) => string> = {
+  es: (day) => `Horario inválido para ${day}`,
+  en: (day) => `Invalid schedule for ${day}`,
+  fr: (day) => `Horaire invalide pour ${day}`,
+};
 
 export async function getAppointmentBookingSettings() {
   const session = await requireOwner();
   const shopId = session.user.shopId!;
+  const locale = await getAdminLocale();
 
   const shop = await db.shop.findUnique({
     where: { id: shopId },
@@ -32,13 +40,13 @@ export async function getAppointmentBookingSettings() {
 
   let workingHours: WorkingHoursRow[] = DEFAULT_WORKING_HOURS.map((row) => ({
     ...row,
-    dayLabel: DAY_LABELS[row.dayOfWeek],
+    dayLabel: dayLabel(row.dayOfWeek, locale),
   }));
 
   if (shop.workingHours.length > 0) {
     workingHours = shop.workingHours.map((row) => ({
       dayOfWeek: row.dayOfWeek,
-      dayLabel: DAY_LABELS[row.dayOfWeek],
+      dayLabel: dayLabel(row.dayOfWeek, locale),
       openTime: row.openTime,
       closeTime: row.closeTime,
       isClosed: row.isClosed,
@@ -60,7 +68,7 @@ export async function getAppointmentBookingSettings() {
           return row
             ? {
                 dayOfWeek: row.dayOfWeek,
-                dayLabel: DAY_LABELS[row.dayOfWeek],
+                dayLabel: dayLabel(row.dayOfWeek, locale),
                 openTime: row.openTime,
                 closeTime: row.closeTime,
                 isClosed: row.isClosed,
@@ -129,6 +137,7 @@ const timeRegex = /^\d{2}:\d{2}$/;
 export async function updateShopWorkingHours(formData: FormData) {
   const session = await requireOwner();
   const shopId = session.user.shopId!;
+  const locale = await getAdminLocale();
 
   const rows: {
     dayOfWeek: number;
@@ -143,7 +152,7 @@ export async function updateShopWorkingHours(formData: FormData) {
     const closeTime = (formData.get(`close_${day}`) as string) || "17:00";
 
     if (!timeRegex.test(openTime) || !timeRegex.test(closeTime)) {
-      return { error: { _form: [`Horario inválido para ${DAY_LABELS[day]}`] } };
+      return { error: { _form: [INVALID_SCHEDULE_FOR[locale](dayLabel(day, locale))] } };
     }
 
     rows.push({ dayOfWeek: day, openTime, closeTime, isClosed });
@@ -193,6 +202,7 @@ async function findShopMechanic(userId: string, shopId: string) {
 export async function updateMechanicWorkingHours(formData: FormData) {
   const session = await requireOwner();
   const shopId = session.user.shopId!;
+  const locale = await getAdminLocale();
 
   const userId = formData.get("userId") as string;
   if (!userId) return { error: { _form: ["Mecánico no especificado"] } };
@@ -213,7 +223,7 @@ export async function updateMechanicWorkingHours(formData: FormData) {
     const closeTime = (formData.get(`close_${day}`) as string) || "17:00";
 
     if (!timeRegex.test(openTime) || !timeRegex.test(closeTime)) {
-      return { error: { _form: [`Horario inválido para ${DAY_LABELS[day]}`] } };
+      return { error: { _form: [INVALID_SCHEDULE_FOR[locale](dayLabel(day, locale))] } };
     }
 
     rows.push({ dayOfWeek: day, openTime, closeTime, isClosed });

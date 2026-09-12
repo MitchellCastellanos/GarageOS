@@ -8,8 +8,9 @@ import {
   sendAppointmentConfirmation,
   updateAppointmentStatus,
 } from "@/actions/appointments";
-import { APPOINTMENT_STATUS_BADGE, APPOINTMENT_STATUS_LABEL } from "@/lib/appointment-status";
+import { APPOINTMENT_STATUS_BADGE, appointmentStatusLabel } from "@/lib/appointment-status";
 import { formatClientName } from "@/lib/client-name";
+import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
 import {
   formatShopDate,
   formatShopDayHeader,
@@ -59,6 +60,7 @@ function AppointmentRow({
   timeZone: string;
 }) {
   const router = useRouter();
+  const locale = useAdminLocale();
   const [confirmPending, startConfirm] = useTransition();
   const [cancelPending, startCancel] = useTransition();
   const [statusPending, startStatus] = useTransition();
@@ -124,8 +126,7 @@ function AppointmentRow({
             "bg-slate-100 text-slate-500"
           }`}
         >
-          {APPOINTMENT_STATUS_LABEL[appointment.status as keyof typeof APPOINTMENT_STATUS_LABEL] ??
-            appointment.status}
+          {appointmentStatusLabel(appointment.status, locale)}
         </span>
         {appointment.source === "PUBLIC_WEB" && (
           <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">

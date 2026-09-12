@@ -7,6 +7,8 @@ import { Upload, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { EmailRoutingPreview } from "@/components/settings/EmailRoutingPreview";
 import { shopToEmailConfig } from "@/lib/email-config";
+import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
+import { SETTINGS_DICT } from "@/lib/admin-locale/settings";
 
 interface Shop {
   name: string;
@@ -29,6 +31,8 @@ interface ShopSettingsFormProps {
 }
 
 export function ShopSettingsForm({ shop }: ShopSettingsFormProps) {
+  const locale = useAdminLocale();
+  const t = SETTINGS_DICT[locale];
   const [logoUrl, setLogoUrl] = useState(shop.logoUrl);
   const [emailDraft, setEmailDraft] = useState(shopToEmailConfig(shop));
   const [infopending, startInfoTransition] = useTransition();
@@ -51,10 +55,10 @@ export function ShopSettingsForm({ shop }: ShopSettingsFormProps) {
           providersEmail: (formData.get("providersEmail") as string) || null,
           newsletterEmail: (formData.get("newsletterEmail") as string) || null,
         });
-        toast.success("Configuración guardada");
+        toast.success(t.shopInfo.saved);
       } else if (result?.error) {
         const msg = Object.values(result.error).flat()[0];
-        toast.error(msg ?? "Error al guardar");
+        toast.error(typeof msg === "string" ? msg : t.shopInfo.saved);
       }
     });
   }
@@ -68,9 +72,9 @@ export function ShopSettingsForm({ shop }: ShopSettingsFormProps) {
       const result = await uploadShopLogo(formData);
       if (result?.success && result.logoUrl) {
         setLogoUrl(result.logoUrl);
-        toast.success("Logo actualizado");
+        toast.success(t.logo.uploaded);
       } else {
-        toast.error(result?.error ?? "Error subiendo logo");
+        toast.error(result?.error ?? t.logo.uploaded);
       }
     });
   }
@@ -81,10 +85,10 @@ export function ShopSettingsForm({ shop }: ShopSettingsFormProps) {
     startPwTransition(async () => {
       const result = await changePassword(formData);
       if (result?.success) {
-        toast.success("Contraseña actualizada");
+        toast.success(t.password.saved);
         pwFormRef.current?.reset();
       } else {
-        toast.error(result?.error ?? "Error al cambiar contraseña");
+        toast.error(result?.error ?? t.password.saved);
       }
     });
   }
@@ -94,14 +98,14 @@ export function ShopSettingsForm({ shop }: ShopSettingsFormProps) {
 
       {/* ── Logo ── */}
       <div className="bg-white rounded-xl border border-slate-200 p-5">
-        <h2 className="font-semibold text-slate-900 mb-4">Logo del taller</h2>
+        <h2 className="font-semibold text-slate-900 mb-4">{t.logo.title}</h2>
         <div className="flex items-center gap-5">
           {/* Preview */}
           <div className="w-24 h-24 rounded-xl border-2 border-dashed border-slate-200 flex items-center justify-center bg-slate-50 overflow-hidden flex-shrink-0">
             {logoUrl ? (
               <Image
                 src={logoUrl}
-                alt="Logo del taller"
+                alt={t.logo.title}
                 width={96}
                 height={96}
                 className="object-contain"
@@ -130,26 +134,22 @@ export function ShopSettingsForm({ shop }: ShopSettingsFormProps) {
               ) : (
                 <Upload className="w-4 h-4" />
               )}
-              {logoPending ? "Subiendo..." : "Cambiar logo"}
+              {logoPending ? t.logo.uploading : t.logo.change}
             </button>
-            <p className="text-xs text-slate-400 mt-2">
-              JPG, PNG, WebP o SVG · Máximo 5 MB
-            </p>
-            <p className="text-xs text-slate-400">
-              El logo aparece en todas las facturas PDF
-            </p>
+            <p className="text-xs text-slate-400 mt-2">{t.logo.hint1}</p>
+            <p className="text-xs text-slate-400">{t.logo.hint2}</p>
           </div>
         </div>
       </div>
 
       {/* ── Datos del taller ── */}
       <form onSubmit={handleInfoSubmit} className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
-        <h2 className="font-semibold text-slate-900">Datos del taller</h2>
+        <h2 className="font-semibold text-slate-900">{t.shopInfo.title}</h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="sm:col-span-2">
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              Nombre del taller *
+              {t.shopInfo.name}
             </label>
             <input
               name="name"
@@ -161,49 +161,47 @@ export function ShopSettingsForm({ shop }: ShopSettingsFormProps) {
           </div>
           <div className="sm:col-span-2">
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              Dirección
+              {t.shopInfo.address}
             </label>
             <input
               name="address"
               type="text"
               defaultValue={shop.address ?? ""}
-              placeholder="123 Rue Principale, Montréal, QC"
+              placeholder={t.shopInfo.addressPlaceholder}
               className={inputClass}
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              Teléfono
+              {t.shopInfo.phone}
             </label>
             <input
               name="phone"
               type="tel"
               defaultValue={shop.phone ?? ""}
-              placeholder="(514) 000-0000"
+              placeholder={t.shopInfo.phonePlaceholder}
               className={inputClass}
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              Email principal
+              {t.shopInfo.email}
             </label>
             <input
               name="email"
               type="email"
               defaultValue={shop.email ?? ""}
-              placeholder="info@tutaller.com"
+              placeholder={t.shopInfo.emailPlaceholder}
               className={inputClass}
             />
-            <p className="text-xs text-slate-400 mt-1">
-              Contacto general y fallback si no hay buzón específico
-            </p>
+            <p className="text-xs text-slate-400 mt-1">{t.shopInfo.emailHint}</p>
           </div>
           <div className="sm:col-span-2 border-t border-slate-100 pt-4 mt-2">
-            <h3 className="text-sm font-semibold text-slate-800 mb-3">Buzones del dominio</h3>
+            <h3 className="text-sm font-semibold text-slate-800 mb-3">{t.shopInfo.mailboxesTitle}</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  billing@ — Sin uso
+                  {t.shopInfo.billingLabel}
                 </label>
                 <input
                   name="billingEmail"
@@ -212,13 +210,11 @@ export function ShopSettingsForm({ shop }: ShopSettingsFormProps) {
                   placeholder="billing@tutaller.com"
                   className={inputClass}
                 />
-                <p className="text-xs text-slate-400 mt-1">
-                  Las facturas y contabilidad ahora salen de info@
-                </p>
+                <p className="text-xs text-slate-400 mt-1">{t.shopInfo.billingHint}</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  info@ — Facturas, cotizaciones, recordatorios y web
+                  {t.shopInfo.infoLabel}
                 </label>
                 <input
                   name="infoEmail"
@@ -230,7 +226,7 @@ export function ShopSettingsForm({ shop }: ShopSettingsFormProps) {
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  providers@ — Proveedores
+                  {t.shopInfo.providersLabel}
                 </label>
                 <input
                   name="providersEmail"
@@ -239,11 +235,11 @@ export function ShopSettingsForm({ shop }: ShopSettingsFormProps) {
                   placeholder="providers@tutaller.com"
                   className={inputClass}
                 />
-                <p className="text-xs text-slate-400 mt-1">Reservado para uso futuro</p>
+                <p className="text-xs text-slate-400 mt-1">{t.shopInfo.providersHint}</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  newsletter@ — Marketing
+                  {t.shopInfo.newsletterLabel}
                 </label>
                 <input
                   name="newsletterEmail"
@@ -252,31 +248,31 @@ export function ShopSettingsForm({ shop }: ShopSettingsFormProps) {
                   placeholder="newsletter@tutaller.com"
                   className={inputClass}
                 />
-                <p className="text-xs text-slate-400 mt-1">Para Brevo/Mailchimp más adelante</p>
+                <p className="text-xs text-slate-400 mt-1">{t.shopInfo.newsletterHint}</p>
               </div>
             </div>
           </div>
           <div className="sm:col-span-2">
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              Número de impuestos (NEQ / TPS / TVQ)
+              {t.shopInfo.taxId}
             </label>
             <input
               name="taxId"
               type="text"
               defaultValue={shop.taxId ?? ""}
-              placeholder="TPS: 123456789 RT0001 · TVQ: 1234567890 TQ0001"
+              placeholder={t.shopInfo.taxIdPlaceholder}
               className={inputClass}
             />
-            <p className="text-xs text-slate-400 mt-1">Aparece en el pie de página de las facturas PDF</p>
+            <p className="text-xs text-slate-400 mt-1">{t.shopInfo.taxIdHint}</p>
           </div>
           <div className="sm:col-span-2 border-t border-slate-100 pt-4 mt-2">
             <h3 className="text-sm font-semibold text-slate-800 mb-3">
-              Citas — notificaciones (SMS y email)
+              {t.shopInfo.notificationsTitle}
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Horas antes de la cita
+                  {t.shopInfo.reminderHours}
                 </label>
                 <input
                   name="appointmentReminderHours"
@@ -286,9 +282,7 @@ export function ShopSettingsForm({ shop }: ShopSettingsFormProps) {
                   defaultValue={shop.appointmentReminderHours}
                   className={inputClass}
                 />
-                <p className="text-xs text-slate-400 mt-1">
-                  El cron envía recordatorio cuando falten estas horas (por defecto 24 h)
-                </p>
+                <p className="text-xs text-slate-400 mt-1">{t.shopInfo.reminderHoursHint}</p>
               </div>
               <div className="flex flex-col gap-2 pt-6">
                 <div className="flex items-center gap-3">
@@ -300,7 +294,7 @@ export function ShopSettingsForm({ shop }: ShopSettingsFormProps) {
                     className="w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
                   />
                   <label htmlFor="appointmentSmsEnabled" className="text-sm text-slate-700">
-                    Enviar notificaciones de citas por SMS (canal principal)
+                    {t.shopInfo.smsLabel}
                   </label>
                 </div>
                 <div className="flex items-center gap-3">
@@ -312,15 +306,12 @@ export function ShopSettingsForm({ shop }: ShopSettingsFormProps) {
                     className="w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
                   />
                   <label htmlFor="appointmentEmailsEnabled" className="text-sm text-slate-700">
-                    Enviar también por email (secundario)
+                    {t.shopInfo.emailNotifLabel}
                   </label>
                 </div>
               </div>
             </div>
-            <p className="text-xs text-slate-400 mt-3">
-              El SMS requiere una cuenta de Twilio configurada por el equipo técnico
-              (TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN / TWILIO_FROM_NUMBER).
-            </p>
+            <p className="text-xs text-slate-400 mt-3">{t.shopInfo.smsHint}</p>
           </div>
         </div>
 
@@ -331,7 +322,7 @@ export function ShopSettingsForm({ shop }: ShopSettingsFormProps) {
             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium px-5 py-2 rounded-lg text-sm transition-colors"
           >
             {infopending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-            {infopending ? "Guardando..." : "Guardar cambios"}
+            {infopending ? t.shopInfo.saving : t.shopInfo.save}
           </button>
         </div>
       </form>
@@ -340,24 +331,24 @@ export function ShopSettingsForm({ shop }: ShopSettingsFormProps) {
 
       {/* ── Cambiar contraseña ── */}
       <form ref={pwFormRef} onSubmit={handlePasswordSubmit} className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
-        <h2 className="font-semibold text-slate-900">Cambiar contraseña</h2>
+        <h2 className="font-semibold text-slate-900">{t.password.title}</h2>
         <div className="grid grid-cols-1 gap-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              Contraseña actual
+              {t.password.current}
             </label>
             <input name="currentPassword" type="password" autoComplete="current-password" className={inputClass} />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                Nueva contraseña
+                {t.password.next}
               </label>
               <input name="newPassword" type="password" autoComplete="new-password" className={inputClass} />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                Confirmar contraseña
+                {t.password.confirm}
               </label>
               <input name="confirmPassword" type="password" autoComplete="new-password" className={inputClass} />
             </div>
@@ -370,7 +361,7 @@ export function ShopSettingsForm({ shop }: ShopSettingsFormProps) {
             className="flex items-center gap-2 bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white font-medium px-5 py-2 rounded-lg text-sm transition-colors"
           >
             {pwPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-            {pwPending ? "Cambiando..." : "Cambiar contraseña"}
+            {pwPending ? t.password.submitting : t.password.submit}
           </button>
         </div>
       </form>

@@ -52,16 +52,16 @@ model Shop {
 }
 
 model User {
-
-  id           String   @id @default(cuid())
-  shopId       String?
-  shop         Shop?    @relation(fields: [shopId], references: [id])
-  name         String
-  email        String   @unique
-  passwordHash String?
-  role         Role     @default(MECHANIC)
-  bookable     Boolean  @default(true)
-  createdAt    DateTime @default(now())
+  id              String          @id @default(cuid())
+  shopId          String?
+  shop            Shop?           @relation(fields: [shopId], references: [id])
+  name            String
+  email           String          @unique
+  passwordHash    String?
+  role            Role            @default(MECHANIC)
+  bookable        Boolean         @default(true)
+  preferredLocale InvoiceLanguage @default(ES)
+  createdAt       DateTime        @default(now())
 
   accounts     Account[]
   sessions     Session[]
@@ -72,7 +72,6 @@ model User {
 }
 
 enum Role {
-
   SUPER_ADMIN
   OWNER
   MECHANIC
@@ -82,7 +81,6 @@ enum Role {
 }
 
 model Account {
-
   id                String  @id @default(cuid())
   userId            String
   type              String
@@ -103,7 +101,6 @@ model Account {
 }
 
 model Session {
-
   id           String   @id @default(cuid())
   sessionToken String   @unique
   userId       String
@@ -115,7 +112,6 @@ model Session {
 }
 
 model VerificationToken {
-
   identifier String
   token      String   @unique
   expires    DateTime
@@ -172,7 +168,6 @@ model Vehicle {
 }
 
 enum MileageUnit {
-
   KM
   MILES
 
@@ -221,7 +216,6 @@ model Invoice {
 }
 
 model InvoiceVehicle {
-
   id         String  @id @default(cuid())
   invoiceId  String
   invoice    Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
@@ -237,7 +231,6 @@ model InvoiceVehicle {
 }
 
 enum InvoicePaymentMode {
-
   CARD
   CASH
   MIXED
@@ -246,7 +239,6 @@ enum InvoicePaymentMode {
 }
 
 model InvoicePaymentEntry {
-
   id          String                    @id @default(cuid())
   invoiceId   String
   invoice     Invoice                   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
@@ -260,7 +252,6 @@ model InvoicePaymentEntry {
 }
 
 enum InvoicePaymentEntryMethod {
-
   CARD
   CASH
 
@@ -268,7 +259,6 @@ enum InvoicePaymentEntryMethod {
 }
 
 enum InvoiceStatus {
-
   DRAFT
   SENT
   PAID
@@ -279,7 +269,6 @@ enum InvoiceStatus {
 }
 
 enum InvoiceLanguage {
-
   ES
   EN
   FR
@@ -288,7 +277,6 @@ enum InvoiceLanguage {
 }
 
 model InvoiceLineItem {
-
   id               String         @id @default(cuid())
   invoiceVehicleId String
   invoiceVehicle   InvoiceVehicle @relation(fields: [invoiceVehicleId], references: [id], onDelete: Cascade)
@@ -304,7 +292,6 @@ model InvoiceLineItem {
 }
 
 model SavedLineItem {
-
   id          String       @id @default(cuid())
   shopId      String
   shop        Shop         @relation(fields: [shopId], references: [id], onDelete: Cascade)
@@ -319,7 +306,6 @@ model SavedLineItem {
 }
 
 enum LineItemType {
-
   LABOUR
   PART
   OTHER
@@ -361,7 +347,6 @@ model Quote {
 }
 
 enum QuoteStatus {
-
   DRAFT
   SENT
   ACCEPTED
@@ -374,7 +359,6 @@ enum QuoteStatus {
 }
 
 model QuoteVehicle {
-
   id         String  @id @default(cuid())
   quoteId    String
   quote      Quote   @relation(fields: [quoteId], references: [id], onDelete: Cascade)
@@ -390,7 +374,6 @@ model QuoteVehicle {
 }
 
 model QuoteLineItem {
-
   id             String       @id @default(cuid())
   quoteVehicleId String
   quoteVehicle   QuoteVehicle @relation(fields: [quoteVehicleId], references: [id], onDelete: Cascade)
@@ -406,7 +389,6 @@ model QuoteLineItem {
 }
 
 model Appointment {
-
   id                 String            @id @default(cuid())
   shopId             String
   shop               Shop              @relation(fields: [shopId], references: [id])
@@ -434,7 +416,6 @@ model Appointment {
 }
 
 enum AppointmentSource {
-
   INTERNAL
   PUBLIC_WEB
 
@@ -442,7 +423,6 @@ enum AppointmentSource {
 }
 
 enum AppointmentStatus {
-
   SCHEDULED
   CONFIRMED
   COMPLETED
@@ -453,7 +433,6 @@ enum AppointmentStatus {
 }
 
 model ShopWorkingHours {
-
   id        String  @id @default(cuid())
   shopId    String
   shop      Shop    @relation(fields: [shopId], references: [id], onDelete: Cascade)
@@ -467,7 +446,6 @@ model ShopWorkingHours {
 }
 
 model MechanicWorkingHours {
-
   id        String  @id @default(cuid())
   userId    String
   user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -481,7 +459,6 @@ model MechanicWorkingHours {
 }
 
 model ShopBookingService {
-
   id              String   @id @default(cuid())
   shopId          String
   shop            Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
@@ -498,7 +475,6 @@ model ShopBookingService {
 }
 
 model ServiceReminder {
-
   id          String         @id @default(cuid())
   shopId      String
   shop        Shop           @relation(fields: [shopId], references: [id])
@@ -516,7 +492,6 @@ model ServiceReminder {
 }
 
 enum ReminderStatus {
-
   PENDING
   SENT
   ACKNOWLEDGED
@@ -526,7 +501,6 @@ enum ReminderStatus {
 }
 
 model AccountingDocument {
-
   id            String      @id @default(cuid())
   shopId        String
   shop          Shop        @relation(fields: [shopId], references: [id])
@@ -543,7 +517,6 @@ model AccountingDocument {
 }
 
 enum DocCategory {
-
   INVOICES
   RECEIPTS
   PAYROLL
@@ -555,7 +528,6 @@ enum DocCategory {
 }
 
 model CashDrawerEntry {
-
   id              String                     @id @default(cuid())
   shopId          String
   shop            Shop                       @relation(fields: [shopId], references: [id])
@@ -575,7 +547,6 @@ model CashDrawerEntry {
 }
 
 enum CashDrawerEntryType {
-
   OPENING_BALANCE
   CASH_IN
   CASH_OUT

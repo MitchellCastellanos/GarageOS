@@ -3,7 +3,8 @@ import { getClientById } from "@/actions/clients";
 import { deleteClient } from "@/actions/clients";
 import { formatDate, formatCurrency } from "@/lib/utils";
 import { formatClientName } from "@/lib/client-name";
-import { INVOICE_STATUS_BADGE, INVOICE_STATUS_LABEL } from "@/lib/invoice-status";
+import { INVOICE_STATUS_BADGE, invoiceStatusLabel } from "@/lib/invoice-status";
+import { getAdminLocale, type AdminLocale } from "@/lib/admin-locale";
 import Link from "next/link";
 import {
   ChevronLeft,
@@ -26,7 +27,7 @@ interface Props {
 
 export default async function ClientDetailPage({ params }: Props) {
   const { id } = await params;
-  const client = await getClientById(id);
+  const [client, locale] = await Promise.all([getClientById(id), getAdminLocale()]);
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -197,7 +198,7 @@ export default async function ClientDetailPage({ params }: Props) {
                       <p className="text-sm font-medium text-slate-900">
                         {formatCurrency(Number(invoice.total))}
                       </p>
-                      <StatusBadge status={invoice.status} />
+                      <StatusBadge status={invoice.status} locale={locale} />
                     </div>
                   </Link>
                 ))}
@@ -230,12 +231,12 @@ function StatCard({ label, value, icon }: { label: string; value: number; icon: 
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status, locale }: { status: string; locale: AdminLocale }) {
   return (
     <span
       className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${INVOICE_STATUS_BADGE[status] ?? "bg-slate-100 text-slate-500"}`}
     >
-      {INVOICE_STATUS_LABEL[status] ?? status}
+      {invoiceStatusLabel(status, locale)}
     </span>
   );
 }

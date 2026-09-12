@@ -1,4 +1,8 @@
+"use client";
+
 import { Mail, Globe, MessageCircle, Phone } from "lucide-react";
+import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
+import { SETTINGS_DICT } from "@/lib/admin-locale/settings";
 
 const support = {
   name: process.env.NEXT_PUBLIC_SUPPORT_NAME ?? "GarageOS",
@@ -10,6 +14,8 @@ const support = {
 };
 
 export function SupportCard() {
+  const locale = useAdminLocale();
+  const t = SETTINGS_DICT[locale];
   const whatsappHref = support.whatsapp
     ? `https://wa.me/${support.whatsapp.replace(/\D/g, "")}`
     : null;
@@ -17,7 +23,7 @@ export function SupportCard() {
   return (
     <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl p-5 text-white max-w-2xl">
       <p className="text-slate-400 text-xs uppercase tracking-wide font-medium mb-1">
-        ¿Necesita ayuda?
+        {t.support.needHelp}
       </p>
       <h2 className="font-semibold text-lg">{support.name}</h2>
       <p className="text-slate-300 text-sm mt-1">{support.tagline}</p>
