@@ -7,7 +7,6 @@ import { ShopSettingsForm } from "@/components/settings/ShopSettingsForm";
 import { AppointmentBookingSettings } from "@/components/settings/AppointmentBookingSettings";
 import { AppointmentReminderSettings } from "@/components/settings/AppointmentReminderSettings";
 import { ServiceCatalogSettings } from "@/components/settings/ServiceCatalogSettings";
-import { EmbedSnippetCard } from "@/components/settings/EmbedSnippetCard";
 import { DomainSettings } from "@/components/settings/DomainSettings";
 import { TeamManagement } from "@/components/settings/TeamManagement";
 import { SupportCard } from "@/components/settings/SupportCard";
@@ -52,9 +51,6 @@ export default async function SettingsPage() {
             mechanics={bookingSettings.mechanics}
           />
           <AppointmentReminderSettings shop={shop} />
-          {bookingSettings.shop.bookingUrl && (
-            <EmbedSnippetCard bookingUrl={bookingSettings.shop.bookingUrl} />
-          )}
         </div>
       ),
     });

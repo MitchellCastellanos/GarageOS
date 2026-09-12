@@ -27,6 +27,13 @@ export async function POST(
     return NextResponse.json({ error: "Reservas no disponibles" }, { status: 404 });
   }
 
+  if (!shop.bookingEnabled) {
+    return NextResponse.json(
+      { code: "BOOKING_DISABLED", error: "Este taller no está recibiendo citas por internet" },
+      { status: 403 }
+    );
+  }
+
   let body: unknown;
   try {
     body = await req.json();

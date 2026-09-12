@@ -37,6 +37,9 @@ export interface SiteDictionary {
     photoComingSoon: string;
   };
   booking: {
+    pausedTitle: string;
+    pausedBody: string;
+    callShop: string;
     eyebrow: string;
     heading: string;
     subtitle: string;
@@ -152,6 +155,9 @@ export const SITE_DICTIONARIES: Record<SiteLocale, SiteDictionary> = {
       photoComingSoon: "Photo du garage à venir",
     },
     booking: {
+      pausedTitle: "Réservations en ligne désactivées",
+      pausedBody: "Ce garage n’accepte pas de nouveaux rendez-vous en ligne pour le moment.",
+      callShop: "Appeler le garage",
       eyebrow: "Réservation en ligne",
       heading: "Prenez rendez-vous",
       subtitle: "Choisissez le jour, l'heure, et dites-nous ce qui ne va pas avec votre auto.",
@@ -288,6 +294,9 @@ export const SITE_DICTIONARIES: Record<SiteLocale, SiteDictionary> = {
       photoComingSoon: "Shop photo coming soon",
     },
     booking: {
+      pausedTitle: "Online bookings paused",
+      pausedBody: "This shop is not accepting new online appointments at the moment.",
+      callShop: "Call the shop",
       eyebrow: "Online booking",
       heading: "Book your appointment",
       subtitle: "Choose the day, the time, and tell us what's wrong with your car.",
@@ -423,6 +432,9 @@ export const SITE_DICTIONARIES: Record<SiteLocale, SiteDictionary> = {
       photoComingSoon: "Foto del taller próximamente",
     },
     booking: {
+      pausedTitle: "Reservas por internet desactivadas",
+      pausedBody: "Este taller no está recibiendo citas por internet por el momento.",
+      callShop: "Llamar al taller",
       eyebrow: "Reserva en línea",
       heading: "Agenda tu cita",
       subtitle: "Elige el día, la hora y cuéntanos qué le pasa a tu auto.",

@@ -95,7 +95,6 @@ export async function getAppointmentBookingSettings() {
 }
 
 const bookingSettingsSchema = z.object({
-  bookingEnabled: z.coerce.boolean(),
   bookingSlotMinutes: z.coerce.number().int().min(15).max(240),
   bookingLeadTimeHours: z.coerce.number().int().min(1).max(168),
   bookingAdvanceDays: z.coerce.number().int().min(1).max(90),
@@ -106,7 +105,6 @@ export async function updateAppointmentBookingSettings(formData: FormData) {
   const shopId = session.user.shopId!;
 
   const parsed = bookingSettingsSchema.safeParse({
-    bookingEnabled: formData.get("bookingEnabled") === "on",
     bookingSlotMinutes: formData.get("bookingSlotMinutes"),
     bookingLeadTimeHours: formData.get("bookingLeadTimeHours"),
     bookingAdvanceDays: formData.get("bookingAdvanceDays"),
@@ -116,13 +114,12 @@ export async function updateAppointmentBookingSettings(formData: FormData) {
     return { error: parsed.error.flatten().fieldErrors };
   }
 
-  const { bookingEnabled, bookingSlotMinutes, bookingLeadTimeHours, bookingAdvanceDays } =
+  const { bookingSlotMinutes, bookingLeadTimeHours, bookingAdvanceDays } =
     parsed.data;
 
   await db.shop.update({
     where: { id: shopId },
     data: {
-      bookingEnabled,
       bookingSlotMinutes,
       bookingLeadTimeHours,
       bookingAdvanceDays,
@@ -131,6 +128,22 @@ export async function updateAppointmentBookingSettings(formData: FormData) {
 
   revalidatePath(ADMIN.settings);
   return { success: true };
+}
+
+export async function updateWebBookingEnabled(enabled: boolean) {
+  const session = await requireOwner();
+  const parsed = z.boolean().safeParse(enabled);
+  if (!parsed.success) return { error: "Valor de reservas inválido" };
+
+  const shop = await db.shop.update({
+    where: { id: session.user.shopId! },
+    data: { bookingEnabled: parsed.data },
+    select: { slug: true, bookingEnabled: true },
+  });
+
+  if (shop.slug) revalidatePath(`/book/${shop.slug}`);
+  revalidatePath(ADMIN.settings);
+  return { success: true, bookingEnabled: shop.bookingEnabled };
 }
 
 const timeRegex = /^\d{2}:\d{2}$/;
