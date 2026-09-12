@@ -10,6 +10,7 @@ export interface PlainMessageEmailProps {
   footerText: string;
   poweredByText?: string;
   showPoweredBy?: boolean;
+  unsubscribeUrl?: string | null;
   lang?: string;
 }
 
@@ -27,6 +28,7 @@ export function PlainMessageEmail({
   footerText,
   poweredByText,
   showPoweredBy = true,
+  unsubscribeUrl,
   lang = "es",
 }: PlainMessageEmailProps) {
   return (
@@ -38,6 +40,7 @@ export function PlainMessageEmail({
       footerText={footerText}
       poweredByText={poweredByText}
       showPoweredBy={showPoweredBy}
+      unsubscribeUrl={unsubscribeUrl}
     >
       {bodyText.split("\n").map((line, i) => (
         <Text key={i} style={{ margin: "0 0 8px 0", fontSize: "14px", color: "#334155" }}>

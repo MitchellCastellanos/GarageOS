@@ -8,6 +8,7 @@
 import { db } from "@/lib/db";
 import { Prisma, type CommChannel, type CommDirection, type CommMessageType } from "@prisma/client";
 import { resolveSenderIdentity } from "@/lib/communications/sender-identity";
+import { isSuppressed } from "@/lib/communications/suppression";
 
 export interface RecordAndSendParams {
   shopId: string;
@@ -115,7 +116,37 @@ async function reserveMessageId(params: RecordAndSendParams): Promise<
   }
 }
 
+/** Tope de mensajes por taller+canal por hora (Fase 7, doc §20) — protege la reputación
+ * compartida del remitente GarageOS mientras no exista un plan/entitlement real. */
+const HOURLY_RATE_LIMIT: Record<CommChannel, number> = { EMAIL: 300, SMS: 100 };
+
 export async function recordAndSend(params: RecordAndSendParams): Promise<RecordAndSendResult> {
+  const shop = await db.shop.findUnique({
+    where: { id: params.shopId },
+    select: { communicationsSuspendedAt: true },
+  });
+  if (shop?.communicationsSuspendedAt) {
+    throw new Error("Las comunicaciones de este taller están suspendidas por la plataforma.");
+  }
+
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+  const recentCount = await db.communicationMessage.count({
+    where: { shopId: params.shopId, channel: params.channel, createdAt: { gte: oneHourAgo } },
+  });
+  if (recentCount >= HOURLY_RATE_LIMIT[params.channel]) {
+    throw new Error(`Límite de envíos por hora alcanzado para ${params.channel} — intenta más tarde.`);
+  }
+
+  // Solo campañas se filtran por supresión — lo transaccional nunca se bloquea así
+  // (doc §12.2/§12.3). El cron de campañas ya filtra antes de llamar aquí; esto es la
+  // última barrera por si algo llega igual.
+  if (params.messageType === "CAMPAIGN" && params.to[0]) {
+    const suppressed = await isSuppressed(params.shopId, params.channel, params.to[0]);
+    if (suppressed) {
+      throw new Error(`Dirección suprimida: ${params.to[0]}`);
+    }
+  }
+
   const reserved = await reserveMessageId(params);
   if (reserved.deduped) {
     return { deduped: true, providerMessageId: reserved.providerMessageId, messageId: reserved.messageId };

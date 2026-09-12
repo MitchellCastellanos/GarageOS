@@ -29,6 +29,8 @@ export interface ShopEmailLayoutProps {
   poweredByText?: string;
   bookingUrl?: string | null;
   bookingLabel?: string;
+  /** Solo para campañas (doc §12.1/§12.3) — el layout lo renderiza siempre que se pase, así el cuerpo de una campaña nunca puede quitarlo. */
+  unsubscribeUrl?: string | null;
   children: React.ReactNode;
 }
 
@@ -46,6 +48,7 @@ export function ShopEmailLayout({
   poweredByText = DEFAULT_POWERED_BY,
   bookingUrl,
   bookingLabel,
+  unsubscribeUrl,
   children,
 }: ShopEmailLayoutProps) {
   return (
@@ -71,6 +74,13 @@ export function ShopEmailLayout({
               </Text>
             )}
             <Text style={styles.footerText}>{footerText}</Text>
+            {unsubscribeUrl && (
+              <Text style={styles.footerText}>
+                <Link href={unsubscribeUrl} style={styles.bookingLink}>
+                  Darme de baja de estos correos
+                </Link>
+              </Text>
+            )}
             {showPoweredBy && <Text style={styles.poweredBy}>{poweredByText}</Text>}
           </Section>
         </Container>
