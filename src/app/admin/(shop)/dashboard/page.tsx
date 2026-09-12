@@ -347,7 +347,7 @@ export default async function DashboardPage() {
               {recentInvoices.map((invoice) => (
                 <Link
                   key={invoice.id}
-                  href={`/invoices/${invoice.id}`}
+                  href={adminPath(`/invoices/${invoice.id}`)}
                   className="flex items-center justify-between px-5 py-3 hover:bg-slate-50 transition-colors"
                 >
                   <div>

@@ -1,4 +1,4 @@
-import { ADMIN, PLATFORM, adminPath } from "@/lib/routes";
+import { ADMIN, adminPath } from "@/lib/routes";
 import { getClientById } from "@/actions/clients";
 import { deleteClient } from "@/actions/clients";
 import { formatDate, formatCurrency } from "@/lib/utils";
@@ -49,7 +49,7 @@ export default async function ClientDetailPage({ params }: Props) {
         </div>
         <div className="flex items-center gap-2">
           <Link
-            href={`/clients/${id}/edit`}
+            href={adminPath(`/clients/${id}/edit`)}
             className="flex items-center gap-1.5 border border-slate-300 hover:border-slate-400 text-slate-700 text-sm font-medium px-3 py-2 rounded-lg transition-colors"
           >
             <Pencil className="w-3.5 h-3.5" />
@@ -120,7 +120,7 @@ export default async function ClientDetailPage({ params }: Props) {
                 <h2 className="font-semibold text-slate-900">Vehículos</h2>
               </div>
               <Link
-                href={`/clients/${id}/vehicles/new`}
+                href={adminPath(`/clients/${id}/vehicles/new`)}
                 className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 transition-colors"
               >
                 <Plus className="w-3.5 h-3.5" />
@@ -133,7 +133,7 @@ export default async function ClientDetailPage({ params }: Props) {
                 <Car className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                 <p className="text-sm text-slate-400">Sin vehículos registrados</p>
                 <Link
-                  href={`/clients/${id}/vehicles/new`}
+                  href={adminPath(`/clients/${id}/vehicles/new`)}
                   className="mt-2 inline-block text-sm text-blue-600 hover:underline"
                 >
                   Agregar vehículo →
@@ -144,7 +144,7 @@ export default async function ClientDetailPage({ params }: Props) {
                 {client.vehicles.map((vehicle) => (
                   <Link
                     key={vehicle.id}
-                    href={`/vehicles/${vehicle.id}`}
+                    href={adminPath(`/vehicles/${vehicle.id}`)}
                     className="flex items-center justify-between px-5 py-3.5 hover:bg-slate-50 transition-colors"
                   >
                     <div>
@@ -179,7 +179,7 @@ export default async function ClientDetailPage({ params }: Props) {
                 {client.invoices.map((invoice) => (
                   <Link
                     key={invoice.id}
-                    href={`/invoices/${invoice.id}`}
+                    href={adminPath(`/invoices/${invoice.id}`)}
                     className="flex items-center justify-between px-5 py-3.5 hover:bg-slate-50 transition-colors"
                   >
                     <div>

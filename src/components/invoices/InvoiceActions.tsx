@@ -12,6 +12,7 @@ import {
 import { InvoiceSendDialog } from "@/components/invoices/InvoiceSendDialog";
 import { InvoiceMarkPaidDialog } from "@/components/invoices/InvoiceMarkPaidDialog";
 import { isInvoicePending } from "@/lib/invoice-status";
+import { adminPath } from "@/lib/routes";
 import { Ban, Trash2, RotateCcw, Send, Loader2 } from "lucide-react";
 
 interface InvoiceActionsProps {
@@ -107,7 +108,7 @@ export function InvoiceActions({
             />
           ) : (
             <Link
-              href={`/clients/${clientId}`}
+              href={adminPath(`/clients/${clientId}`)}
               title="Agrega email o teléfono al cliente para enviar la factura"
               className="flex items-center gap-2 px-4 py-2 border border-dashed border-slate-300 text-slate-500 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors"
             >

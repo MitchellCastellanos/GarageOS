@@ -1,4 +1,5 @@
 import { getClientById, updateClient } from "@/actions/clients";
+import { adminPath } from "@/lib/routes";
 import { ClientForm } from "@/components/clients/ClientForm";
 import { formatClientName } from "@/lib/client-name";
 import Link from "next/link";
@@ -26,7 +27,7 @@ export default async function EditClientPage({ params }: Props) {
   return (
     <div className="max-w-2xl">
       <Link
-        href={`/clients/${id}`}
+        href={adminPath(`/clients/${id}`)}
         className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 mb-4 transition-colors"
       >
         <ChevronLeft className="w-4 h-4" />

@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTransition } from "react";
 import { vehicleSchema, type VehicleFormData } from "@/lib/validations";
+import { adminPath } from "@/lib/routes";
 
 interface VehicleFormProps {
   clientId: string;
@@ -135,7 +136,7 @@ export function VehicleForm({
           {isPending ? "Guardando..." : submitLabel}
         </button>
         <a
-          href={`/clients/${clientId}`}
+          href={adminPath(`/clients/${clientId}`)}
           className="text-sm text-slate-500 hover:text-slate-800 transition-colors"
         >
           Cancelar

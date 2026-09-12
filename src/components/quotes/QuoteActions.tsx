@@ -13,6 +13,7 @@ import {
   deleteQuote,
 } from "@/actions/quotes";
 import { QuoteSendDialog } from "@/components/quotes/QuoteSendDialog";
+import { adminPath } from "@/lib/routes";
 import { FileText, Loader2, Ban, Trash2, Mail, Check, X, ArrowRightLeft } from "lucide-react";
 
 interface QuoteActionsProps {
@@ -87,7 +88,7 @@ export function QuoteActions({
   if (status === "CONVERTED" && convertedInvoiceId) {
     return (
       <Link
-        href={`/invoices/${convertedInvoiceId}`}
+        href={adminPath(`/invoices/${convertedInvoiceId}`)}
         className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors"
       >
         <ArrowRightLeft className="w-4 h-4" />
@@ -110,7 +111,7 @@ export function QuoteActions({
             />
           ) : (
             <Link
-              href={`/clients/${clientId}`}
+              href={adminPath(`/clients/${clientId}`)}
               className="flex items-center gap-2 px-4 py-2 border border-dashed border-slate-300 text-slate-500 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors"
             >
               <Mail className="w-4 h-4" />

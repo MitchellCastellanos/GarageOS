@@ -46,7 +46,7 @@ export default async function EditQuotePage({ params }: PageProps) {
     <div className="max-w-4xl">
       <div className="mb-6 flex items-center gap-3">
         <Link
-          href={`/quotes/${id}`}
+          href={adminPath(`/quotes/${id}`)}
           className="flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors"
         >
           <ArrowLeft className="w-4 h-4 text-slate-600" />

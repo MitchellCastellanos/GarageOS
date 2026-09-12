@@ -71,7 +71,7 @@ export default async function ClientsPage({ searchParams }: Props) {
                 >
                   <td className="px-5 py-4">
                     <Link
-                      href={`/clients/${client.id}`}
+                      href={adminPath(`/clients/${client.id}`)}
                       className="group"
                     >
                       <p className="font-medium text-slate-900 group-hover:text-blue-600 transition-colors">
