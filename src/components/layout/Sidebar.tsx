@@ -13,16 +13,20 @@ import {
   FolderOpen,
   Banknote,
   Settings,
+  Inbox,
+  Megaphone,
 } from "lucide-react";
 
 import { ADMIN } from "@/lib/routes";
 
 const navItems = [
   { label: "Dashboard", href: ADMIN.dashboard, icon: LayoutDashboard },
+  { label: "Bandeja", href: ADMIN.inbox, icon: Inbox },
   { label: "Citas", href: ADMIN.appointments, icon: Calendar },
   { label: "Clientes", href: ADMIN.clients, icon: Users },
   { label: "Cotizaciones", href: ADMIN.quotes, icon: FileSpreadsheet },
   { label: "Facturas", href: ADMIN.invoices, icon: FileText },
+  { label: "Campañas", href: ADMIN.campaigns, icon: Megaphone },
   { label: "Caja", href: ADMIN.caja, icon: Banknote },
   { label: "Contabilidad", href: ADMIN.accounting, icon: FolderOpen },
   { label: "Recordatorios", href: ADMIN.reminders, icon: Bell },

@@ -10,6 +10,8 @@ export const ADMIN = {
   reminders: "/admin/reminders",
   accounting: "/admin/accounting",
   caja: "/admin/caja",
+  inbox: "/admin/inbox",
+  campaigns: "/admin/campaigns",
   settings: "/admin/settings",
 } as const;
 

@@ -3,6 +3,7 @@ import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
+import { provisionDefaultSenderIdentities } from "@/lib/communications/sender-identity";
 
 import { ADMIN } from "@/lib/routes";
 
@@ -33,6 +34,10 @@ export const authConfig: NextAuthConfig = {
           email: user.email,
           role: "OWNER",
         },
+      });
+      // Identidad de envío inicial (Communications Platform) — no bloquea el signup si falla.
+      await provisionDefaultSenderIdentities(shop).catch((err) => {
+        console.error("[communications] provisionDefaultSenderIdentities falló en signup:", err);
       });
       return true;
     },

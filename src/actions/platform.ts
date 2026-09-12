@@ -5,6 +5,7 @@ import { ADMIN, PLATFORM, adminPath } from "@/lib/routes";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireSuperAdmin } from "@/lib/permissions";
+import { provisionDefaultSenderIdentities } from "@/lib/communications/sender-identity";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 
@@ -78,8 +79,29 @@ export async function createShop(formData: FormData) {
     },
   });
 
+  // Identidad de envío inicial (Communications Platform) — no bloquea la creación si falla.
+  await provisionDefaultSenderIdentities(shop).catch((err) => {
+    console.error("[communications] provisionDefaultSenderIdentities falló al crear taller:", err);
+  });
+
   revalidatePath(PLATFORM.home);
   return { success: true, shopId: shop.id };
+}
+
+/**
+ * Interruptor de emergencia (Fase 7, doc §20) — pausa envíos sin tocar datos de negocio.
+ * recordAndSend revisa este campo en cada intento de envío.
+ */
+export async function toggleShopCommunicationsSuspension(shopId: string, suspend: boolean) {
+  await requireSuperAdmin();
+
+  await db.shop.update({
+    where: { id: shopId },
+    data: { communicationsSuspendedAt: suspend ? new Date() : null },
+  });
+
+  revalidatePath(PLATFORM.shop(shopId));
+  return { success: true };
 }
 
 // ── USERS (taller) ──────────────────────────────────────────

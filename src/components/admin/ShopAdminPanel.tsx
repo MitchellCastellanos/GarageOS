@@ -8,8 +8,9 @@ import {
   createShopUser,
   resetShopUserPassword,
   deleteShopUser,
+  toggleShopCommunicationsSuspension,
 } from "@/actions/platform";
-import { ArrowLeft, KeyRound, Loader2, Trash2, UserPlus } from "lucide-react";
+import { ArrowLeft, KeyRound, Loader2, Trash2, UserPlus, ShieldAlert } from "lucide-react";
 import { PLATFORM } from "@/lib/routes";
 
 type ShopDetail = {
@@ -17,6 +18,7 @@ type ShopDetail = {
   name: string;
   email: string | null;
   phone: string | null;
+  communicationsSuspendedAt: Date | null;
   _count: { clients: number; invoices: number };
   users: { id: string; name: string; email: string; role: string; createdAt: Date }[];
 };
@@ -48,6 +50,15 @@ export function ShopAdminPanel({ shop }: { shop: ShopDetail }) {
     });
   }
 
+  function handleToggleSuspension() {
+    const suspend = !shop.communicationsSuspendedAt;
+    if (suspend && !confirm("¿Suspender los envíos de comunicaciones de este taller?")) return;
+    startTransition(async () => {
+      await toggleShopCommunicationsSuspension(shop.id, suspend);
+      toast.success(suspend ? "Comunicaciones suspendidas" : "Comunicaciones reactivadas");
+    });
+  }
+
   function handleDelete(userId: string, name: string) {
     if (!confirm(`¿Eliminar a ${name}?`)) return;
     startTransition(async () => {
@@ -64,11 +75,26 @@ export function ShopAdminPanel({ shop }: { shop: ShopDetail }) {
         Todos los talleres
       </Link>
 
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">{shop.name}</h1>
-        <p className="text-slate-500 text-sm mt-1">
-          {shop._count.clients} clientes · {shop._count.invoices} facturas
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">{shop.name}</h1>
+          <p className="text-slate-500 text-sm mt-1">
+            {shop._count.clients} clientes · {shop._count.invoices} facturas
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={handleToggleSuspension}
+          disabled={pending}
+          className={`flex items-center gap-1.5 text-sm font-medium px-3 py-2 rounded-lg border ${
+            shop.communicationsSuspendedAt
+              ? "border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+              : "border-red-300 text-red-700 hover:bg-red-50"
+          }`}
+        >
+          <ShieldAlert className="w-4 h-4" />
+          {shop.communicationsSuspendedAt ? "Reactivar comunicaciones" : "Suspender comunicaciones"}
+        </button>
       </div>
 
       {!hasOwner && (

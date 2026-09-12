@@ -1,0 +1,6 @@
+{
+  "crons": [
+    { "path": "/api/webhooks/cron", "schedule": "0 8 * * *" },
+    { "path": "/api/webhooks/cron/campaigns", "schedule": "*/15 * * * *" }
+  ]
+}

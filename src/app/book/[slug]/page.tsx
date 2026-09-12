@@ -9,6 +9,7 @@ import { QuickServicesStrip } from "@/components/booking/QuickServicesStrip";
 import { ServicesSection } from "@/components/booking/ServicesSection";
 import { OurShopSection } from "@/components/booking/OurShopSection";
 import { BookingSection } from "@/components/booking/BookingSection";
+import { ContactSection } from "@/components/booking/ContactSection";
 import { SiteFooter } from "@/components/booking/SiteFooter";
 import { WhatsAppButton } from "@/components/booking/WhatsAppButton";
 
@@ -108,6 +109,7 @@ export default async function PublicBookingPage({ params, searchParams }: PagePr
         <ServicesSection />
         <OurShopSection shopName={shop.name} address={shop.address} phone={shop.phone} />
         {bookingSection}
+        <ContactSection slug={slug} shopName={shop.name} />
         <SiteFooter
           shopName={shop.name}
           logoUrl={shop.logoUrl}

@@ -1,17 +1,6 @@
-import {
-  Body,
-  Button,
-  Container,
-  Head,
-  Heading,
-  Hr,
-  Html,
-  Link,
-  Preview,
-  Section,
-  Text,
-} from "@react-email/components";
+import { Button, Hr, Section, Text } from "@react-email/components";
 import React from "react";
+import { ShopEmailLayout } from "@/emails/layout/ShopEmailLayout";
 
 export type AppointmentEmailType = "confirmation" | "reminder" | "cancellation";
 export type AppointmentEmailLanguage = "ES" | "EN" | "FR";
@@ -44,6 +33,7 @@ interface LanguageStrings {
   contactPrompt: string;
   bookOnlineLabel: string;
   footer: (shop: string) => string;
+  poweredBy: string;
 }
 
 const STRINGS: Record<AppointmentEmailLanguage, LanguageStrings> = {
@@ -73,6 +63,7 @@ const STRINGS: Record<AppointmentEmailLanguage, LanguageStrings> = {
     contactPrompt: "Para cambios o consultas, contáctanos:",
     bookOnlineLabel: "¿Necesitas otra cita? Resérvala en línea:",
     footer: (shop) => `Este correo fue enviado por ${shop}.`,
+    poweredBy: "Enviado con GarageOS",
   },
   EN: {
     htmlLang: "en",
@@ -100,6 +91,7 @@ const STRINGS: Record<AppointmentEmailLanguage, LanguageStrings> = {
     contactPrompt: "For changes or questions, contact us:",
     bookOnlineLabel: "Need another appointment? Book online:",
     footer: (shop) => `This email was sent by ${shop}.`,
+    poweredBy: "Sent with GarageOS",
   },
   FR: {
     htmlLang: "fr",
@@ -127,6 +119,7 @@ const STRINGS: Record<AppointmentEmailLanguage, LanguageStrings> = {
     contactPrompt: "Pour tout changement ou question, contactez-nous :",
     bookOnlineLabel: "Besoin d'un autre rendez-vous ? Réservez en ligne :",
     footer: (shop) => `Ce courriel a été envoyé par ${shop}.`,
+    poweredBy: "Envoyé avec GarageOS",
   },
 };
 
@@ -151,92 +144,45 @@ export function AppointmentEmail({
   const showManageButton = type !== "cancellation" && Boolean(manageUrl);
 
   return (
-    <Html lang={t.htmlLang}>
-      <Head />
-      <Preview>{copy.preview(title, shopName)}</Preview>
-      <Body style={styles.body}>
-        <Container style={styles.container}>
-          <Section style={styles.header}>
-            <Heading style={styles.shopName}>{shopName}</Heading>
-            <Text style={styles.headerSubtitle}>{copy.heading}</Text>
-          </Section>
+    <ShopEmailLayout
+      lang={t.htmlLang}
+      previewText={copy.preview(title, shopName)}
+      shopName={shopName}
+      headerSubtitle={copy.heading}
+      footerText={t.footer(shopName)}
+      poweredByText={t.poweredBy}
+      bookingUrl={bookingUrl}
+      bookingLabel={t.bookOnlineLabel}
+    >
+      <Text style={styles.greeting}>{t.greeting(clientName)}</Text>
+      <Text style={styles.bodyText}>{copy.body}</Text>
 
-          <Section style={styles.content}>
-            <Text style={styles.greeting}>{t.greeting(clientName)}</Text>
-            <Text style={styles.bodyText}>{copy.body}</Text>
+      <Section style={styles.card}>
+        <Text style={styles.cardLabel}>{t.serviceLabel}</Text>
+        <Text style={styles.cardValue}>{title}</Text>
 
-            <Section style={styles.card}>
-              <Text style={styles.cardLabel}>{t.serviceLabel}</Text>
-              <Text style={styles.cardValue}>{title}</Text>
+        <Hr style={styles.cardDivider} />
 
-              <Hr style={styles.cardDivider} />
+        <Text style={styles.cardLabel}>{t.dateTimeLabel}</Text>
+        <Text style={styles.cardValue}>{startsAtFormatted}</Text>
+      </Section>
 
-              <Text style={styles.cardLabel}>{t.dateTimeLabel}</Text>
-              <Text style={styles.cardValue}>{startsAtFormatted}</Text>
-            </Section>
+      {showManageButton && (
+        <Section style={styles.manageSection}>
+          <Button style={styles.manageButton} href={manageUrl!}>
+            {t.manageButton}
+          </Button>
+        </Section>
+      )}
 
-            {showManageButton && (
-              <Section style={styles.manageSection}>
-                <Button style={styles.manageButton} href={manageUrl!}>
-                  {t.manageButton}
-                </Button>
-              </Section>
-            )}
-
-            <Text style={styles.bodyText}>{t.contactPrompt}</Text>
-            {shopPhone && <Text style={styles.contactDetail}>{shopPhone}</Text>}
-            {shopEmail && <Text style={styles.contactDetail}>{shopEmail}</Text>}
-          </Section>
-
-          <Section style={styles.footer}>
-            {bookingUrl && (
-              <Text style={styles.bookingText}>
-                {t.bookOnlineLabel}{" "}
-                <Link href={bookingUrl} style={styles.bookingLink}>
-                  {bookingUrl}
-                </Link>
-              </Text>
-            )}
-            <Text style={styles.footerText}>{t.footer(shopName)}</Text>
-          </Section>
-        </Container>
-      </Body>
-    </Html>
+      <Text style={styles.bodyText}>{t.contactPrompt}</Text>
+      {shopPhone && <Text style={styles.contactDetail}>{shopPhone}</Text>}
+      {shopEmail && <Text style={styles.contactDetail}>{shopEmail}</Text>}
+    </ShopEmailLayout>
   );
 }
 
 const styles = {
-  body: {
-    backgroundColor: "#f1f5f9",
-    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-    margin: "0",
-    padding: "20px 0",
-  },
-  container: {
-    backgroundColor: "#ffffff",
-    borderRadius: "12px",
-    maxWidth: "560px",
-    margin: "0 auto",
-    overflow: "hidden",
-  },
-  header: {
-    backgroundColor: "#0f766e",
-    padding: "28px 40px",
-  },
-  shopName: {
-    color: "#ffffff",
-    fontSize: "20px",
-    fontWeight: "700",
-    margin: "0 0 4px 0",
-  },
-  headerSubtitle: {
-    color: "#99f6e4",
-    fontSize: "14px",
-    margin: "0",
-  },
-  content: {
-    padding: "32px 40px",
-  },
   greeting: {
     fontSize: "18px",
     fontWeight: "600",
@@ -291,28 +237,5 @@ const styles = {
     color: "#0f766e",
     fontWeight: "600",
     margin: "4px 0",
-  },
-  footer: {
-    backgroundColor: "#f8fafc",
-    borderTop: "1px solid #e2e8f0",
-    padding: "20px 40px",
-  },
-  bookingText: {
-    fontSize: "12px",
-    color: "#64748b",
-    lineHeight: "1.6",
-    margin: "0 0 12px 0",
-    textAlign: "center" as const,
-  },
-  bookingLink: {
-    color: "#0f766e",
-    fontWeight: "600",
-    textDecoration: "underline",
-  },
-  footerText: {
-    fontSize: "11px",
-    color: "#94a3b8",
-    textAlign: "center" as const,
-    margin: "0",
   },
 };

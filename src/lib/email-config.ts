@@ -13,6 +13,7 @@ export type EmailChannel =
   | "NEWSLETTER";
 
 export type ShopEmailConfig = {
+  id: string;
   name: string;
   email?: string | null;
   billingEmail?: string | null;
@@ -80,12 +81,12 @@ export const EMAIL_CHANNEL_META: Record<EmailChannel, ChannelMeta> = {
   },
   WEB_CONTACT: {
     label: "Formulario web",
-    description: "Contacto desde el website (futuro)",
+    description: "Contacto desde el sitio público del taller",
     shopFromField: "infoEmail",
     envFromKey: "EMAIL_FROM_WEB",
     shopReplyField: "infoEmail",
     pipeline: "resend",
-    implemented: false,
+    implemented: true,
   },
   PROVIDERS: {
     label: "Proveedores",
@@ -137,7 +138,7 @@ export function extractEmailAddress(from: string): string | null {
   return null;
 }
 
-function formatFromHeader(shopName: string, address: string): string {
+export function formatFromHeader(shopName: string, address: string): string {
   const safeName = shopName.replace(/"/g, "'");
   return `"${safeName}" <${address}>`;
 }
@@ -199,42 +200,9 @@ export function resolveEmailRoute(shop: ShopEmailConfig, channel: EmailChannel):
   };
 }
 
-/** Vista resuelta para mostrar en Configuración (solo canales Resend activos). */
-export function getResolvedEmailMatrix(shop: ShopEmailConfig) {
-  const channels = (Object.keys(EMAIL_CHANNEL_META) as EmailChannel[]).filter(
-    (c) => EMAIL_CHANNEL_META[c].pipeline === "resend"
-  );
-
-  return channels.map((channel) => {
-    const meta = EMAIL_CHANNEL_META[channel];
-    try {
-      const route = resolveEmailRoute(shop, channel);
-      return {
-        channel,
-        label: meta.label,
-        description: meta.description,
-        implemented: meta.implemented,
-        from: route.fromAddress,
-        replyTo: route.replyTo,
-        ok: true as const,
-      };
-    } catch (err) {
-      return {
-        channel,
-        label: meta.label,
-        description: meta.description,
-        implemented: meta.implemented,
-        from: null,
-        replyTo: null,
-        ok: false as const,
-        error: err instanceof Error ? err.message : "Sin configurar",
-      };
-    }
-  });
-}
-
-export function shopToEmailConfig(shop: ShopEmailConfig & { name: string }): ShopEmailConfig {
+export function shopToEmailConfig(shop: ShopEmailConfig): ShopEmailConfig {
   return {
+    id: shop.id,
     name: shop.name,
     email: shop.email,
     billingEmail: shop.billingEmail,
