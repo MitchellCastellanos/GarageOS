@@ -4,6 +4,8 @@
 // Usa PieChart con innerRadius para el efecto donut.
 
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
+import { DASHBOARD_DICT } from "@/lib/admin-locale/dashboard";
 
 interface StatusCount {
   status: string;
@@ -19,26 +21,30 @@ interface StatusPieProps {
 function CustomTooltip({
   active,
   payload,
+  invoicesCount,
 }: {
   active?: boolean;
   payload?: { name: string; value: number }[];
+  invoicesCount: (count: number) => string;
 }) {
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-white border border-slate-200 rounded-lg px-3 py-2 shadow-md text-sm">
       <p className="font-medium text-slate-700">{payload[0].name}</p>
-      <p className="text-slate-900 font-semibold">{payload[0].value} facturas</p>
+      <p className="text-slate-900 font-semibold">{invoicesCount(payload[0].value)}</p>
     </div>
   );
 }
 
 export function StatusPie({ data }: StatusPieProps) {
+  const locale = useAdminLocale();
+  const t = DASHBOARD_DICT[locale];
   const total = data.reduce((s, d) => s + d.count, 0);
 
   if (total === 0) {
     return (
       <div className="h-48 flex items-center justify-center text-slate-400 text-sm">
-        Sin facturas todavía
+        {t.statusChart.empty}
       </div>
     );
   }
@@ -63,7 +69,7 @@ export function StatusPie({ data }: StatusPieProps) {
               <Cell key={i} fill={entry.color} />
             ))}
           </Pie>
-          <Tooltip content={<CustomTooltip />} />
+          <Tooltip content={<CustomTooltip invoicesCount={t.statusChart.invoicesCount} />} />
           <Legend
             formatter={(value) => (
               <span style={{ fontSize: 11, color: "#64748b" }}>{value}</span>
@@ -75,7 +81,7 @@ export function StatusPie({ data }: StatusPieProps) {
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <div className="text-center" style={{ marginTop: -28 }}>
           <p className="text-2xl font-bold text-slate-900">{total}</p>
-          <p className="text-xs text-slate-400">total</p>
+          <p className="text-xs text-slate-400">{t.statusChart.total}</p>
         </div>
       </div>
     </div>
