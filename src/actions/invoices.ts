@@ -701,6 +701,8 @@ export async function markInvoiceAsPaid(id: string, formData: FormData) {
 
 export async function revertInvoiceToPending(id: string) {
   const shopId = await getShopId();
+  const locale = await getAdminLocale();
+  const msg = INVOICE_ACTION_MESSAGES[locale];
   await db.cashDrawerEntry.deleteMany({
     where: { shopId, linkedInvoiceId: id, type: "CASH_IN" },
   });
@@ -716,7 +718,7 @@ export async function revertInvoiceToPending(id: string) {
       paymentExtraPaths: [],
     },
   });
-  if (result.count === 0) return { error: "La factura no está en estado Pagada" };
+  if (result.count === 0) return { error: msg.notPaidStatus };
   revalidatePath(`/invoices/${id}`);
   revalidatePath(ADMIN.invoices);
   revalidatePath(ADMIN.caja);
@@ -727,6 +729,8 @@ const VOIDABLE_STATUSES = ["DRAFT", "SENT", "PAID", "OVERDUE"] as const;
 
 export async function cancelInvoice(id: string) {
   const shopId = await getShopId();
+  const locale = await getAdminLocale();
+  const msg = INVOICE_ACTION_MESSAGES[locale];
 
   const result = await db.invoice.updateMany({
     where: {
@@ -743,7 +747,7 @@ export async function cancelInvoice(id: string) {
   });
 
   if (result.count === 0) {
-    return { error: "No se puede anular esta factura" };
+    return { error: msg.cannotCancel };
   }
 
   await db.cashDrawerEntry.deleteMany({
@@ -762,13 +766,15 @@ export async function cancelInvoice(id: string) {
 
 export async function deleteInvoice(id: string) {
   const shopId = await getShopId();
+  const locale = await getAdminLocale();
+  const msg = INVOICE_ACTION_MESSAGES[locale];
 
   const result = await db.invoice.deleteMany({
     where: { id, shopId },
   });
 
   if (result.count === 0) {
-    return { error: "Factura no encontrada" };
+    return { error: msg.notFound };
   }
 
   revalidatePath(ADMIN.invoices);
@@ -791,6 +797,8 @@ export async function savePdfUrl(id: string, pdfUrl: string) {
 
 export async function updateInvoice(id: string, formData: InvoiceFormData) {
   const shopId = await getShopId();
+  const locale = await getAdminLocale();
+  const msg = INVOICE_ACTION_MESSAGES[locale];
 
   const existing = await db.invoice.findFirst({
     where: { id, shopId, status: { in: [...INVOICE_PENDING_STATUSES] } },
@@ -799,7 +807,7 @@ export async function updateInvoice(id: string, formData: InvoiceFormData) {
   if (!existing) {
     return {
       error: {
-        _form: ["Factura no encontrada o no disponible para edición (solo pendientes)"],
+        _form: [msg.editOnlyPending],
       },
     };
   }
