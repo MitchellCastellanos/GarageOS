@@ -4,6 +4,7 @@
 
 import twilio from "twilio";
 import { recordAndSend } from "@/lib/communications/outbox";
+import { resolveSenderIdentity } from "@/lib/communications/sender-identity";
 
 function getTwilioClient() {
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
@@ -36,7 +37,11 @@ export interface SendSmsParams {
 }
 
 export async function sendSms(params: SendSmsParams): Promise<void> {
-  const from = process.env.TWILIO_FROM_NUMBER;
+  // Fase 2: la identidad activa de la ruta (hoy siempre el número compartido, salvo que
+  // Fase 6 aprovisione uno dedicado) manda sobre el env var — mismo motor de resolución
+  // que el email, ver resolveActiveEmailRoute.
+  const identity = await resolveSenderIdentity(params.shopId, params.purpose, "SMS");
+  const from = identity?.address ?? process.env.TWILIO_FROM_NUMBER;
   if (!from) {
     throw new Error("TWILIO_FROM_NUMBER no está configurado");
   }

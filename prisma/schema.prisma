@@ -36,27 +36,31 @@ model Shop {
   bookingAdvanceDays       Int      @default(30)
   createdAt                DateTime @default(now())
 
-  users             User[]
-  workingHours      ShopWorkingHours[]
-  bookingServices   ShopBookingService[]
-  clients           Client[]
-  invoices          Invoice[]
-  quotes            Quote[]
-  appointments      Appointment[]
-  reminders         ServiceReminder[]
-  documents         AccountingDocument[]
-  savedLineItems    SavedLineItem[]
-  cashDrawerEntries CashDrawerEntry[]
-  domains           ShopDomain[]
-  senderIdentities  SenderIdentity[]
-  commRoutes        CommunicationRoute[]
-  commMessages      CommunicationMessage[]
+  users                     User[]
+  workingHours              ShopWorkingHours[]
+  bookingServices           ShopBookingService[]
+  clients                   Client[]
+  invoices                  Invoice[]
+  quotes                    Quote[]
+  appointments              Appointment[]
+  reminders                 ServiceReminder[]
+  documents                 AccountingDocument[]
+  savedLineItems            SavedLineItem[]
+  cashDrawerEntries         CashDrawerEntry[]
+  domains                   ShopDomain[]
+  senderIdentities          SenderIdentity[]
+  commRoutes                CommunicationRoute[]
+  commMessages              CommunicationMessage[]
+  commAuditLogs             CommunicationAuditLog[]
+  commThreads               CommunicationThread[]
+  suppressions              CommunicationSuppression[]
+  campaigns                 Campaign[]
+  communicationsSuspendedAt DateTime?
 
   @@schema("garageos")
 }
 
 model User {
-
   id           String   @id @default(cuid())
   shopId       String?
   shop         Shop?    @relation(fields: [shopId], references: [id])
@@ -76,7 +80,6 @@ model User {
 }
 
 enum Role {
-
   SUPER_ADMIN
   OWNER
   MECHANIC
@@ -86,7 +89,6 @@ enum Role {
 }
 
 model Account {
-
   id                String  @id @default(cuid())
   userId            String
   type              String
@@ -107,7 +109,6 @@ model Account {
 }
 
 model Session {
-
   id           String   @id @default(cuid())
   sessionToken String   @unique
   userId       String
@@ -119,7 +120,6 @@ model Session {
 }
 
 model VerificationToken {
-
   identifier String
   token      String   @unique
   expires    DateTime
@@ -144,11 +144,22 @@ model Client {
   createdAt DateTime        @default(now())
   updatedAt DateTime        @updatedAt
 
-  vehicles     Vehicle[]
-  invoices     Invoice[]
-  quotes       Quote[]
-  appointments Appointment[]
-  commMessages CommunicationMessage[]
+  // Consentimiento de marketing (Communications Platform §12) — separado de las
+  // comunicaciones transaccionales, que nunca dependen de estos campos.
+  marketingEmailConsent  Boolean   @default(false)
+  marketingSmsConsent    Boolean   @default(false)
+  consentSource          String?
+  consentAt              DateTime?
+  emailMarketingOptOutAt DateTime?
+  smsMarketingOptOutAt   DateTime?
+
+  vehicles           Vehicle[]
+  invoices           Invoice[]
+  quotes             Quote[]
+  appointments       Appointment[]
+  commMessages       CommunicationMessage[]
+  commThreads        CommunicationThread[]
+  campaignRecipients CampaignRecipient[]
 
   @@schema("garageos")
 }
@@ -177,7 +188,6 @@ model Vehicle {
 }
 
 enum MileageUnit {
-
   KM
   MILES
 
@@ -226,7 +236,6 @@ model Invoice {
 }
 
 model InvoiceVehicle {
-
   id         String  @id @default(cuid())
   invoiceId  String
   invoice    Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
@@ -242,7 +251,6 @@ model InvoiceVehicle {
 }
 
 enum InvoicePaymentMode {
-
   CARD
   CASH
   MIXED
@@ -251,7 +259,6 @@ enum InvoicePaymentMode {
 }
 
 model InvoicePaymentEntry {
-
   id          String                    @id @default(cuid())
   invoiceId   String
   invoice     Invoice                   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
@@ -265,7 +272,6 @@ model InvoicePaymentEntry {
 }
 
 enum InvoicePaymentEntryMethod {
-
   CARD
   CASH
 
@@ -273,7 +279,6 @@ enum InvoicePaymentEntryMethod {
 }
 
 enum InvoiceStatus {
-
   DRAFT
   SENT
   PAID
@@ -284,7 +289,6 @@ enum InvoiceStatus {
 }
 
 enum InvoiceLanguage {
-
   ES
   EN
   FR
@@ -293,7 +297,6 @@ enum InvoiceLanguage {
 }
 
 model InvoiceLineItem {
-
   id               String         @id @default(cuid())
   invoiceVehicleId String
   invoiceVehicle   InvoiceVehicle @relation(fields: [invoiceVehicleId], references: [id], onDelete: Cascade)
@@ -309,7 +312,6 @@ model InvoiceLineItem {
 }
 
 model SavedLineItem {
-
   id          String       @id @default(cuid())
   shopId      String
   shop        Shop         @relation(fields: [shopId], references: [id], onDelete: Cascade)
@@ -324,7 +326,6 @@ model SavedLineItem {
 }
 
 enum LineItemType {
-
   LABOUR
   PART
   OTHER
@@ -366,7 +367,6 @@ model Quote {
 }
 
 enum QuoteStatus {
-
   DRAFT
   SENT
   ACCEPTED
@@ -379,7 +379,6 @@ enum QuoteStatus {
 }
 
 model QuoteVehicle {
-
   id         String  @id @default(cuid())
   quoteId    String
   quote      Quote   @relation(fields: [quoteId], references: [id], onDelete: Cascade)
@@ -395,7 +394,6 @@ model QuoteVehicle {
 }
 
 model QuoteLineItem {
-
   id             String       @id @default(cuid())
   quoteVehicleId String
   quoteVehicle   QuoteVehicle @relation(fields: [quoteVehicleId], references: [id], onDelete: Cascade)
@@ -411,7 +409,6 @@ model QuoteLineItem {
 }
 
 model Appointment {
-
   id                 String            @id @default(cuid())
   shopId             String
   shop               Shop              @relation(fields: [shopId], references: [id])
@@ -439,7 +436,6 @@ model Appointment {
 }
 
 enum AppointmentSource {
-
   INTERNAL
   PUBLIC_WEB
 
@@ -447,7 +443,6 @@ enum AppointmentSource {
 }
 
 enum AppointmentStatus {
-
   SCHEDULED
   CONFIRMED
   COMPLETED
@@ -458,7 +453,6 @@ enum AppointmentStatus {
 }
 
 model ShopWorkingHours {
-
   id        String  @id @default(cuid())
   shopId    String
   shop      Shop    @relation(fields: [shopId], references: [id], onDelete: Cascade)
@@ -472,7 +466,6 @@ model ShopWorkingHours {
 }
 
 model MechanicWorkingHours {
-
   id        String  @id @default(cuid())
   userId    String
   user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -486,7 +479,6 @@ model MechanicWorkingHours {
 }
 
 model ShopBookingService {
-
   id              String   @id @default(cuid())
   shopId          String
   shop            Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
@@ -503,7 +495,6 @@ model ShopBookingService {
 }
 
 model ServiceReminder {
-
   id          String         @id @default(cuid())
   shopId      String
   shop        Shop           @relation(fields: [shopId], references: [id])
@@ -521,7 +512,6 @@ model ServiceReminder {
 }
 
 enum ReminderStatus {
-
   PENDING
   SENT
   ACKNOWLEDGED
@@ -531,7 +521,6 @@ enum ReminderStatus {
 }
 
 model AccountingDocument {
-
   id            String      @id @default(cuid())
   shopId        String
   shop          Shop        @relation(fields: [shopId], references: [id])
@@ -548,7 +537,6 @@ model AccountingDocument {
 }
 
 enum DocCategory {
-
   INVOICES
   RECEIPTS
   PAYROLL
@@ -560,7 +548,6 @@ enum DocCategory {
 }
 
 model CashDrawerEntry {
-
   id              String                     @id @default(cuid())
   shopId          String
   shop            Shop                       @relation(fields: [shopId], references: [id])
@@ -580,7 +567,6 @@ model CashDrawerEntry {
 }
 
 enum CashDrawerEntryType {
-
   OPENING_BALANCE
   CASH_IN
   CASH_OUT
@@ -772,19 +758,24 @@ enum CommStatus {
 }
 
 model SenderIdentity {
-  id          String               @id @default(cuid())
-  shopId      String
-  shop        Shop                 @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  channel     CommChannel
-  type        SenderIdentityType   @default(GARAGEOS_MANAGED)
-  address     String
-  displayName String?
-  domainId    String?
-  domain      ShopDomain?          @relation(fields: [domainId], references: [id])
-  status      SenderIdentityStatus @default(ACTIVE)
-  verifiedAt  DateTime?
-  createdAt   DateTime             @default(now())
-  updatedAt   DateTime             @updatedAt
+  id                     String               @id @default(cuid())
+  shopId                 String
+  shop                   Shop                 @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  channel                CommChannel
+  type                   SenderIdentityType   @default(GARAGEOS_MANAGED)
+  address                String
+  displayName            String?
+  domainId               String?
+  domain                 ShopDomain?          @relation(fields: [domainId], references: [id])
+  status                 SenderIdentityStatus @default(ACTIVE)
+  verifiedAt             DateTime?
+  // Fase 6 (aislamiento SMS por taller) — solo se llenan si se aprovisiona una
+  // subcuenta/número dedicado de Twilio; ver src/lib/communications/sms-provisioning.ts.
+  // No se usan todavía en ningún flujo activo.
+  providerAccountSid     String?
+  providerPhoneNumberSid String?
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
 
   routes   CommunicationRoute[]
   messages CommunicationMessage[]
@@ -809,44 +800,76 @@ model CommunicationRoute {
 }
 
 model CommunicationMessage {
-  id                 String           @id @default(cuid())
+  id                 String               @id @default(cuid())
   shopId             String
-  shop               Shop             @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  shop               Shop                 @relation(fields: [shopId], references: [id], onDelete: Cascade)
   clientId           String?
-  client             Client?          @relation(fields: [clientId], references: [id])
-  direction          CommDirection    @default(OUTBOUND)
+  client             Client?              @relation(fields: [clientId], references: [id])
+  threadId           String?
+  thread             CommunicationThread? @relation(fields: [threadId], references: [id], onDelete: SetNull)
+  direction          CommDirection        @default(OUTBOUND)
   channel            CommChannel
-  messageType        CommMessageType  @default(TRANSACTIONAL)
-  status             CommStatus       @default(QUEUED)
+  messageType        CommMessageType      @default(TRANSACTIONAL)
+  status             CommStatus           @default(QUEUED)
   provider           String?
   providerMessageId  String?
+  internetMessageId  String?
+  inReplyTo          String?
+  references         String[]
   senderIdentityId   String?
-  senderIdentity     SenderIdentity?  @relation(fields: [senderIdentityId], references: [id])
+  senderIdentity     SenderIdentity?      @relation(fields: [senderIdentityId], references: [id])
   purpose            String?
   businessEntityType String?
   businessEntityId   String?
-  idempotencyKey     String?          @unique
+  idempotencyKey     String?              @unique
   from               String
   replyTo            String?
   to                 String[]
   cc                 String[]
   bcc                String[]
   subject            String?
-  textBody           String?          @db.Text
-  htmlBody           String?          @db.Text
+  textBody           String?              @db.Text
+  htmlBody           String?              @db.Text
   errorCode          String?
-  errorMessage       String?          @db.Text
+  errorMessage       String?              @db.Text
   sentAt             DateTime?
   deliveredAt        DateTime?
   failedAt           DateTime?
   createdByUserId    String?
-  createdAt          DateTime         @default(now())
+  createdAt          DateTime             @default(now())
 
   attachments CommunicationAttachment[]
 
   @@index([shopId, businessEntityType, businessEntityId])
   @@index([shopId, createdAt])
   @@index([clientId])
+  @@index([threadId])
+  @@schema("garageos")
+}
+
+model CommunicationThread {
+  id            String           @id @default(cuid())
+  shopId        String
+  shop          Shop             @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  clientId      String?
+  client        Client?          @relation(fields: [clientId], references: [id])
+  subject       String?
+  status        CommThreadStatus @default(OPEN)
+  lastMessageAt DateTime         @default(now())
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  messages CommunicationMessage[]
+
+  @@index([shopId, status, lastMessageAt])
+  @@index([clientId])
+  @@schema("garageos")
+}
+
+enum CommThreadStatus {
+  OPEN
+  ARCHIVED
+
   @@schema("garageos")
 }
 
@@ -862,5 +885,120 @@ model CommunicationAttachment {
   createdAt  DateTime             @default(now())
 
   @@index([shopId])
+  @@schema("garageos")
+}
+
+/**
+ * Auditoría de acciones sensibles de Communications (Fase 2/7) — creación/renombre de
+ * identidades, reasignación de rutas, altas de supresión, envíos de campaña.
+ */
+model CommunicationAuditLog {
+  id          String   @id @default(cuid())
+  shopId      String
+  shop        Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  actorUserId String?
+  action      String
+  targetType  String
+  targetId    String?
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now())
+
+  @@index([shopId, createdAt])
+  @@schema("garageos")
+}
+
+enum SuppressionReason {
+  BOUNCE
+  COMPLAINT
+  UNSUBSCRIBE
+  MANUAL
+
+  @@schema("garageos")
+}
+
+/**
+ * Direcciones a las que no se debe volver a enviar (Fase 5/7, doc §12.3). Se revisa
+ * antes de cada envío de campaña; los envíos transaccionales no se filtran por aquí.
+ */
+model CommunicationSuppression {
+  id        String            @id @default(cuid())
+  shopId    String
+  shop      Shop              @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  channel   CommChannel
+  address   String
+  reason    SuppressionReason
+  createdAt DateTime          @default(now())
+
+  @@unique([shopId, channel, address])
+  @@schema("garageos")
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  SENT
+  CANCELLED
+
+  @@schema("garageos")
+}
+
+/**
+ * Newsletter/outreach (Fase 5, doc §11) — el envío real lo procesa el cron de
+ * campañas en lotes, nunca de forma síncrona desde una request web.
+ */
+model Campaign {
+  id              String         @id @default(cuid())
+  shopId          String
+  shop            Shop           @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  name            String
+  channel         CommChannel    @default(EMAIL)
+  subject         String?
+  bodyHtml        String         @db.Text
+  /**
+   * Definición estructurada del segmento (nunca SQL/filtro arbitrario del tenant) — ver src/lib/communications/segments.ts.
+   */
+  segment         Json           @default("{}")
+  status          CampaignStatus @default(DRAFT)
+  scheduledFor    DateTime?
+  sentAt          DateTime?
+  createdByUserId String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  recipients CampaignRecipient[]
+
+  @@index([shopId, status])
+  @@schema("garageos")
+}
+
+enum CampaignRecipientStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+  BOUNCED
+  SKIPPED_SUPPRESSED
+  SKIPPED_NO_CONSENT
+
+  @@schema("garageos")
+}
+
+/**
+ * Snapshot inmutable de la audiencia al momento de crear la campaña — doc §11.3.
+ */
+model CampaignRecipient {
+  id         String                  @id @default(cuid())
+  campaignId String
+  campaign   Campaign                @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  clientId   String
+  client     Client                  @relation(fields: [clientId], references: [id])
+  address    String
+  status     CampaignRecipientStatus @default(PENDING)
+  messageId  String?
+  createdAt  DateTime                @default(now())
+
+  @@unique([campaignId, clientId])
+  @@index([campaignId, status])
   @@schema("garageos")
 }

@@ -138,7 +138,7 @@ export function extractEmailAddress(from: string): string | null {
   return null;
 }
 
-function formatFromHeader(shopName: string, address: string): string {
+export function formatFromHeader(shopName: string, address: string): string {
   const safeName = shopName.replace(/"/g, "'");
   return `"${safeName}" <${address}>`;
 }
@@ -198,40 +198,6 @@ export function resolveEmailRoute(shop: ShopEmailConfig, channel: EmailChannel):
     fromAddress,
     pipeline: meta.pipeline,
   };
-}
-
-/** Vista resuelta para mostrar en Configuración (solo canales Resend activos). */
-export function getResolvedEmailMatrix(shop: ShopEmailConfig) {
-  const channels = (Object.keys(EMAIL_CHANNEL_META) as EmailChannel[]).filter(
-    (c) => EMAIL_CHANNEL_META[c].pipeline === "resend"
-  );
-
-  return channels.map((channel) => {
-    const meta = EMAIL_CHANNEL_META[channel];
-    try {
-      const route = resolveEmailRoute(shop, channel);
-      return {
-        channel,
-        label: meta.label,
-        description: meta.description,
-        implemented: meta.implemented,
-        from: route.fromAddress,
-        replyTo: route.replyTo,
-        ok: true as const,
-      };
-    } catch (err) {
-      return {
-        channel,
-        label: meta.label,
-        description: meta.description,
-        implemented: meta.implemented,
-        from: null,
-        replyTo: null,
-        ok: false as const,
-        error: err instanceof Error ? err.message : "Sin configurar",
-      };
-    }
-  });
 }
 
 export function shopToEmailConfig(shop: ShopEmailConfig): ShopEmailConfig {

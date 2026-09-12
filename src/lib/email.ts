@@ -11,13 +11,10 @@ import {
   AppointmentEmail,
   type AppointmentEmailType,
 } from "@/emails/AppointmentEmail";
-import {
-  resolveEmailRoute,
-  type ShopEmailConfig,
-  type EmailChannel,
-} from "@/lib/email-config";
+import { type ShopEmailConfig, type EmailChannel } from "@/lib/email-config";
 import { getInvoiceStrings, type InvoiceLanguage } from "@/lib/invoice-i18n";
 import { recordAndSend } from "@/lib/communications/outbox";
+import { resolveActiveEmailRoute } from "@/lib/communications/sender-identity";
 import React from "react";
 
 function getResend() {
@@ -49,7 +46,7 @@ interface TransactionalSendOptions {
 }
 
 async function sendTransactionalEmail(options: TransactionalSendOptions) {
-  const route = resolveEmailRoute(options.shop, options.channel);
+  const route = await resolveActiveEmailRoute(options.shop, options.channel);
 
   if (route.pipeline !== "resend") {
     throw new Error(`El canal ${options.channel} no usa Resend`);
@@ -110,7 +107,7 @@ interface ReminderEmailData {
 }
 
 export async function sendReminderEmail(data: ReminderEmailData) {
-  const route = resolveEmailRoute(data.shop, "REMINDER");
+  const route = await resolveActiveEmailRoute(data.shop, "REMINDER");
 
   const element = React.createElement(ServiceReminderEmail, {
     clientName: data.clientName,
@@ -186,7 +183,7 @@ export async function sendInvoiceEmail(data: InvoiceEmailSendData) {
     ? t.resendSubject(data.invoiceNumber, data.shopName)
     : t.subject(data.invoiceNumber, data.shopName);
 
-  const route = resolveEmailRoute(data.shop, "INVOICE");
+  const route = await resolveActiveEmailRoute(data.shop, "INVOICE");
   const element = React.createElement(InvoiceEmail, {
     ...data,
     shopEmail: route.replyTo,
@@ -255,7 +252,7 @@ export async function sendQuoteEmail(data: QuoteEmailSendData) {
     data.isResend ?? false
   );
 
-  const route = resolveEmailRoute(data.shop, "QUOTE");
+  const route = await resolveActiveEmailRoute(data.shop, "QUOTE");
   const element = React.createElement(QuoteEmail, {
     ...data,
     shopEmail: route.replyTo,
@@ -326,7 +323,7 @@ function resolveAppointmentAdminCc(
 }
 
 export async function sendAppointmentEmail(data: AppointmentEmailSendData) {
-  const route = resolveEmailRoute(data.shop, "APPOINTMENT");
+  const route = await resolveActiveEmailRoute(data.shop, "APPOINTMENT");
   const lang = data.language === "EN" || data.language === "FR" ? data.language : "ES";
   const subject = APPOINTMENT_SUBJECTS[lang][data.type](data.title, data.shop.name);
 
