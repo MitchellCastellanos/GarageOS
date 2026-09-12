@@ -71,6 +71,31 @@ export interface SiteDictionary {
     callForChanges: string;
     saveLink: string;
   };
+  manage: {
+    headerSubtitleManageable: string;
+    headerSubtitleReadonly: string;
+    helloLocked: (name: string) => string;
+    statusPrefix: string;
+    callForQueries: string;
+    hello: (name: string) => string;
+    service: string;
+    dateTime: string;
+    vehicle: string;
+    mechanic: string;
+    confirmError: string;
+    cancelConfirmPrompt: string;
+    cancelError: string;
+    confirmedTitle: string;
+    confirmedBody: string;
+    cancelledTitle: string;
+    rescheduleCall: string;
+    rescheduleNoPhone: string;
+    confirmButton: string;
+    cancelButton: string;
+    alreadyConfirmedNotice: string;
+    alreadyConfirmedAt: string;
+    statuses: Record<"SCHEDULED" | "CONFIRMED" | "COMPLETED" | "CANCELLED" | "NO_SHOW", string>;
+  };
 }
 
 export const SITE_DICTIONARIES: Record<SiteLocale, SiteDictionary> = {
@@ -176,6 +201,39 @@ export const SITE_DICTIONARIES: Record<SiteLocale, SiteDictionary> = {
       callForChanges: "Pour tout changement, appelez au",
       saveLink: "Gardez ce lien pour confirmer ou annuler votre rendez-vous plus tard :",
     },
+    manage: {
+      headerSubtitleManageable: "Confirmez ou annulez votre rendez-vous",
+      headerSubtitleReadonly: "Détails de votre rendez-vous",
+      helloLocked: (name) =>
+        `Bonjour ${name}, ce rendez-vous n'accepte plus de changements en ligne.`,
+      statusPrefix: "Statut : ",
+      callForQueries: "Pour toute question, appelez au",
+      hello: (name) => `Bonjour ${name}, voici les détails de votre rendez-vous.`,
+      service: "Service",
+      dateTime: "Date et heure",
+      vehicle: "Véhicule",
+      mechanic: "Mécanicien",
+      confirmError: "Impossible de confirmer le rendez-vous",
+      cancelConfirmPrompt: "Annuler ce rendez-vous ?",
+      cancelError: "Impossible d'annuler le rendez-vous",
+      confirmedTitle: "Rendez-vous confirmé !",
+      confirmedBody: "On vous attend à la date et l'heure indiquées.",
+      cancelledTitle: "Rendez-vous annulé",
+      rescheduleCall: "Pour reprogrammer, appelez au",
+      rescheduleNoPhone: "Contactez-nous si vous souhaitez reprogrammer.",
+      confirmButton: "Confirmer ma présence",
+      cancelButton: "Annuler le rendez-vous",
+      alreadyConfirmedNotice:
+        "Votre rendez-vous est déjà confirmé. Pour un changement de date ou d'heure, contactez le garage",
+      alreadyConfirmedAt: " au ",
+      statuses: {
+        SCHEDULED: "Planifié",
+        CONFIRMED: "Confirmé",
+        COMPLETED: "Terminé",
+        CANCELLED: "Annulé",
+        NO_SHOW: "Absence",
+      },
+    },
   },
   en: {
     intlLocale: "en-CA",
@@ -279,6 +337,38 @@ export const SITE_DICTIONARIES: Record<SiteLocale, SiteDictionary> = {
       callForChanges: "For changes, call",
       saveLink: "Save this link to confirm or cancel your appointment later:",
     },
+    manage: {
+      headerSubtitleManageable: "Confirm or cancel your appointment",
+      headerSubtitleReadonly: "Your appointment details",
+      helloLocked: (name) => `Hi ${name}, this appointment can no longer be changed online.`,
+      statusPrefix: "Status: ",
+      callForQueries: "For questions, call",
+      hello: (name) => `Hi ${name}, here are your appointment details.`,
+      service: "Service",
+      dateTime: "Date and time",
+      vehicle: "Vehicle",
+      mechanic: "Mechanic",
+      confirmError: "Could not confirm the appointment",
+      cancelConfirmPrompt: "Cancel this appointment?",
+      cancelError: "Could not cancel the appointment",
+      confirmedTitle: "Appointment confirmed!",
+      confirmedBody: "We'll see you at the scheduled date and time.",
+      cancelledTitle: "Appointment cancelled",
+      rescheduleCall: "To reschedule, call",
+      rescheduleNoPhone: "Contact us if you'd like to reschedule.",
+      confirmButton: "Confirm attendance",
+      cancelButton: "Cancel appointment",
+      alreadyConfirmedNotice:
+        "Your appointment is already confirmed. For date or time changes, contact the shop",
+      alreadyConfirmedAt: " at ",
+      statuses: {
+        SCHEDULED: "Scheduled",
+        CONFIRMED: "Confirmed",
+        COMPLETED: "Completed",
+        CANCELLED: "Cancelled",
+        NO_SHOW: "No-show",
+      },
+    },
   },
   es: {
     intlLocale: "es",
@@ -381,6 +471,38 @@ export const SITE_DICTIONARIES: Record<SiteLocale, SiteDictionary> = {
       smsNotice: "Recibirás un SMS de confirmación a tu teléfono.",
       callForChanges: "Para cambios, llama al",
       saveLink: "Guarda este link para confirmar o cancelar tu cita más tarde:",
+    },
+    manage: {
+      headerSubtitleManageable: "Confirma o cancela tu cita",
+      headerSubtitleReadonly: "Detalles de tu cita",
+      helloLocked: (name) => `Hola ${name}, esta cita ya no admite cambios en línea.`,
+      statusPrefix: "Estado: ",
+      callForQueries: "Para consultas, llama al",
+      hello: (name) => `Hola ${name}, revisa los detalles de tu cita.`,
+      service: "Servicio",
+      dateTime: "Fecha y hora",
+      vehicle: "Vehículo",
+      mechanic: "Mecánico",
+      confirmError: "No se pudo confirmar la cita",
+      cancelConfirmPrompt: "¿Cancelar esta cita?",
+      cancelError: "No se pudo cancelar la cita",
+      confirmedTitle: "¡Cita confirmada!",
+      confirmedBody: "Te esperamos en la fecha y hora indicadas.",
+      cancelledTitle: "Cita cancelada",
+      rescheduleCall: "Para reprogramar, llama al",
+      rescheduleNoPhone: "Contáctanos si deseas reprogramar.",
+      confirmButton: "Confirmar asistencia",
+      cancelButton: "Cancelar cita",
+      alreadyConfirmedNotice:
+        "Tu cita ya está confirmada. Para cambios de fecha u horario, contacta al taller",
+      alreadyConfirmedAt: " al ",
+      statuses: {
+        SCHEDULED: "Programada",
+        CONFIRMED: "Confirmada",
+        COMPLETED: "Completada",
+        CANCELLED: "Cancelada",
+        NO_SHOW: "No asistió",
+      },
     },
   },
 };
