@@ -81,12 +81,12 @@ export const EMAIL_CHANNEL_META: Record<EmailChannel, ChannelMeta> = {
   },
   WEB_CONTACT: {
     label: "Formulario web",
-    description: "Contacto desde el website (futuro)",
+    description: "Contacto desde el sitio público del taller",
     shopFromField: "infoEmail",
     envFromKey: "EMAIL_FROM_WEB",
     shopReplyField: "infoEmail",
     pipeline: "resend",
-    implemented: false,
+    implemented: true,
   },
   PROVIDERS: {
     label: "Proveedores",

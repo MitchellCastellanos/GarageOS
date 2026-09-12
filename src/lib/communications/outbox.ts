@@ -12,6 +12,7 @@ import { resolveSenderIdentity } from "@/lib/communications/sender-identity";
 export interface RecordAndSendParams {
   shopId: string;
   clientId?: string | null;
+  threadId?: string | null;
   purpose: string;
   channel: CommChannel;
   provider: string;
@@ -35,6 +36,7 @@ export interface RecordAndSendParams {
 export interface RecordAndSendResult {
   deduped: boolean;
   providerMessageId: string | null;
+  messageId: string | null;
 }
 
 function isUniqueConstraintViolation(err: unknown): boolean {
@@ -45,7 +47,8 @@ function isUniqueConstraintViolation(err: unknown): boolean {
 const TERMINAL_SUCCESS_STATUSES = new Set(["SENT", "DELIVERED"]);
 
 async function reserveMessageId(params: RecordAndSendParams): Promise<
-  { messageId: string; deduped: false } | { deduped: true; providerMessageId: string | null }
+  | { messageId: string; deduped: false }
+  | { deduped: true; providerMessageId: string | null; messageId: string }
 > {
   const senderIdentity = await resolveSenderIdentity(params.shopId, params.purpose, params.channel).catch(
     () => null
@@ -54,6 +57,7 @@ async function reserveMessageId(params: RecordAndSendParams): Promise<
   const createData = {
     shopId: params.shopId,
     clientId: params.clientId ?? null,
+    threadId: params.threadId ?? null,
     direction: params.direction ?? "OUTBOUND",
     channel: params.channel,
     messageType: params.messageType ?? "TRANSACTIONAL",
@@ -81,7 +85,7 @@ async function reserveMessageId(params: RecordAndSendParams): Promise<
     });
     if (existing) {
       if (TERMINAL_SUCCESS_STATUSES.has(existing.status)) {
-        return { deduped: true, providerMessageId: existing.providerMessageId };
+        return { deduped: true, providerMessageId: existing.providerMessageId, messageId: existing.id };
       }
       // Intento anterior quedó FAILED/QUEUED (ej. reintento de cron tras una caída del
       // proveedor) — reintenta reusando la misma fila en vez de duplicarla.
@@ -103,7 +107,7 @@ async function reserveMessageId(params: RecordAndSendParams): Promise<
         where: { idempotencyKey: params.idempotencyKey },
       });
       if (TERMINAL_SUCCESS_STATUSES.has(existing.status)) {
-        return { deduped: true, providerMessageId: existing.providerMessageId };
+        return { deduped: true, providerMessageId: existing.providerMessageId, messageId: existing.id };
       }
       return { messageId: existing.id, deduped: false };
     }
@@ -114,7 +118,7 @@ async function reserveMessageId(params: RecordAndSendParams): Promise<
 export async function recordAndSend(params: RecordAndSendParams): Promise<RecordAndSendResult> {
   const reserved = await reserveMessageId(params);
   if (reserved.deduped) {
-    return { deduped: true, providerMessageId: reserved.providerMessageId };
+    return { deduped: true, providerMessageId: reserved.providerMessageId, messageId: reserved.messageId };
   }
   const { messageId } = reserved;
 
@@ -128,7 +132,7 @@ export async function recordAndSend(params: RecordAndSendParams): Promise<Record
         providerMessageId: result.providerMessageId ?? null,
       },
     });
-    return { deduped: false, providerMessageId: result.providerMessageId ?? null };
+    return { deduped: false, providerMessageId: result.providerMessageId ?? null, messageId };
   } catch (err) {
     await db.communicationMessage.update({
       where: { id: messageId },

@@ -12,30 +12,8 @@ import {
   SenderIdentityError,
   type SenderIdentitySummary,
 } from "@/lib/communications/sender-identity";
-import { EMAIL_CHANNEL_META, type EmailChannel } from "@/lib/email-config";
+import { ROUTE_PURPOSES, type RoutePurpose } from "@/lib/communications/route-purposes";
 import type { CommChannel } from "@prisma/client";
-
-export interface RoutePurpose {
-  purpose: string;
-  channel: CommChannel;
-  label: string;
-}
-
-/** Purposes visibles en Configuración — canales de email implementados + los dos de SMS actuales. */
-const EMAIL_ROUTE_PURPOSES: RoutePurpose[] = (
-  Object.keys(EMAIL_CHANNEL_META) as EmailChannel[]
-)
-  .filter((c) => EMAIL_CHANNEL_META[c].implemented && EMAIL_CHANNEL_META[c].pipeline === "resend")
-  .map((c) => ({ purpose: c, channel: "EMAIL" as const, label: EMAIL_CHANNEL_META[c].label }));
-
-const EXTRA_ROUTE_PURPOSES: RoutePurpose[] = [
-  { purpose: "INBOX", channel: "EMAIL", label: "Bandeja de entrada" },
-  { purpose: "CAMPAIGN", channel: "EMAIL", label: "Campañas" },
-  { purpose: "APPOINTMENT", channel: "SMS", label: "Citas (SMS)" },
-  { purpose: "INVOICE", channel: "SMS", label: "Facturas (SMS)" },
-];
-
-export const ROUTE_PURPOSES: RoutePurpose[] = [...EMAIL_ROUTE_PURPOSES, ...EXTRA_ROUTE_PURPOSES];
 
 export interface CommunicationSettingsData {
   identities: SenderIdentitySummary[];

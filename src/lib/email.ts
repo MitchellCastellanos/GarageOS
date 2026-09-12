@@ -11,6 +11,7 @@ import {
   AppointmentEmail,
   type AppointmentEmailType,
 } from "@/emails/AppointmentEmail";
+import { PlainMessageEmail } from "@/emails/PlainMessageEmail";
 import { type ShopEmailConfig, type EmailChannel } from "@/lib/email-config";
 import { getInvoiceStrings, type InvoiceLanguage } from "@/lib/invoice-i18n";
 import { recordAndSend } from "@/lib/communications/outbox";
@@ -358,5 +359,66 @@ export async function sendAppointmentEmail(data: AppointmentEmailSendData) {
     idempotencyKey: data.appointmentId
       ? `appointment-email:${data.type}:${data.appointmentId}`
       : undefined,
+  });
+}
+
+interface ContactStaffNotifyData {
+  shop: ShopEmailConfig;
+  customerName: string;
+  customerEmail: string | null;
+  customerPhone: string | null;
+  message: string;
+  threadId: string;
+}
+
+/** Aviso interno al taller de un mensaje nuevo del formulario de contacto (doc §6.3). */
+export async function sendContactStaffNotification(data: ContactStaffNotifyData) {
+  const notifyTo = (data.shop.infoEmail || data.shop.email)?.trim();
+  if (!notifyTo) return;
+
+  const contactLine = [data.customerEmail, data.customerPhone].filter(Boolean).join(" · ");
+  const element = React.createElement(PlainMessageEmail, {
+    shopName: data.shop.name,
+    headerSubtitle: "Nuevo mensaje de contacto",
+    bodyText: `De: ${data.customerName}${contactLine ? ` (${contactLine})` : ""}\n\n${data.message}`,
+    footerText: `Mensaje recibido desde el formulario de contacto de ${data.shop.name}.`,
+    showPoweredBy: false,
+  });
+
+  await sendTransactionalEmail({
+    shop: data.shop,
+    channel: "WEB_CONTACT",
+    to: notifyTo,
+    subject: `Nuevo mensaje de contacto — ${data.customerName}`,
+    react: element,
+    businessEntityType: "COMMUNICATION_THREAD",
+    businessEntityId: data.threadId,
+  });
+}
+
+interface ContactAckData {
+  shop: ShopEmailConfig;
+  customerName: string;
+  customerEmail: string;
+  threadId: string;
+}
+
+/** Acuse de recibo branded al cliente que escribió por el formulario de contacto. */
+export async function sendContactAcknowledgment(data: ContactAckData) {
+  const element = React.createElement(PlainMessageEmail, {
+    shopName: data.shop.name,
+    headerSubtitle: "Recibimos tu mensaje",
+    bodyText: `Hola ${data.customerName},\n\nRecibimos tu mensaje y te responderemos pronto.\n\nGracias por contactarnos.`,
+    footerText: `Este correo fue enviado por ${data.shop.name}.`,
+  });
+
+  await sendTransactionalEmail({
+    shop: data.shop,
+    channel: "WEB_CONTACT",
+    to: data.customerEmail,
+    subject: `Recibimos tu mensaje — ${data.shop.name}`,
+    react: element,
+    businessEntityType: "COMMUNICATION_THREAD",
+    businessEntityId: data.threadId,
   });
 }
