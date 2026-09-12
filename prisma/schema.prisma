@@ -47,6 +47,7 @@ model Shop {
   documents         AccountingDocument[]
   savedLineItems    SavedLineItem[]
   cashDrawerEntries CashDrawerEntry[]
+  domains           ShopDomain[]
 
   @@schema("garageos")
 }
@@ -658,6 +659,46 @@ enum WorkOrderStatus {
   COMPLETED
   INVOICED
   CANCELLED
+
+  @@schema("garageos")
+}
+
+/**
+ * Dominio propio de un taller, para dos usos independientes: enviar sus
+ * correos transaccionales desde su dominio (vía Resend) o exponer su
+ * landing/booking en su propio dominio en vez de /book/[slug]. Un taller
+ * puede tener a lo más un dominio por propósito. Ver docs/domain-model.md.
+ */
+model ShopDomain {
+  id            String            @id @default(cuid())
+  shopId        String
+  shop          Shop              @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  purpose       ShopDomainPurpose
+  domain        String
+  status        ShopDomainStatus  @default(PENDING)
+  dnsRecords    Json              @default("[]")
+  providerId    String?
+  lastCheckedAt DateTime?
+  verifiedAt    DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@unique([shopId, purpose])
+  @@unique([domain, purpose])
+  @@schema("garageos")
+}
+
+enum ShopDomainPurpose {
+  EMAIL
+  LANDING
+
+  @@schema("garageos")
+}
+
+enum ShopDomainStatus {
+  PENDING
+  VERIFIED
+  FAILED
 
   @@schema("garageos")
 }

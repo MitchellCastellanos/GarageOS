@@ -14,6 +14,7 @@ import { WhatsAppButton } from "@/components/booking/WhatsAppButton";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ embed?: string }>;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -53,8 +54,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-export default async function PublicBookingPage({ params }: PageProps) {
+export default async function PublicBookingPage({ params, searchParams }: PageProps) {
   const { slug } = await params;
+  const { embed } = await searchParams;
+  const isEmbed = embed === "1";
   const shop = await getShopBySlug(slug);
 
   if (!shop) {
@@ -72,6 +75,30 @@ export default async function PublicBookingPage({ params }: PageProps) {
       durationMinutes,
     }));
 
+  const bookingSection = (
+    <BookingSection
+      slug={slug}
+      shop={{
+        name: shop.name,
+        phone: shop.phone,
+        address: shop.address,
+        logoUrl: shop.logoUrl,
+        bookingSlotMinutes: shop.bookingSlotMinutes,
+      }}
+      services={activeServices}
+    />
+  );
+
+  // Modo embed: pensado para un <iframe> en el sitio del taller — solo el
+  // formulario/calendario, sin header/hero/footer propios de esta landing.
+  if (isEmbed) {
+    return (
+      <LocaleProvider>
+        <div className="min-h-full bg-white">{bookingSection}</div>
+      </LocaleProvider>
+    );
+  }
+
   return (
     <LocaleProvider>
       <div className="min-h-full">
@@ -80,17 +107,7 @@ export default async function PublicBookingPage({ params }: PageProps) {
         <QuickServicesStrip />
         <ServicesSection />
         <OurShopSection shopName={shop.name} address={shop.address} phone={shop.phone} />
-        <BookingSection
-          slug={slug}
-          shop={{
-            name: shop.name,
-            phone: shop.phone,
-            address: shop.address,
-            logoUrl: shop.logoUrl,
-            bookingSlotMinutes: shop.bookingSlotMinutes,
-          }}
-          services={activeServices}
-        />
+        {bookingSection}
         <SiteFooter
           shopName={shop.name}
           logoUrl={shop.logoUrl}
