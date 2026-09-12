@@ -1,4 +1,5 @@
 import Decimal from "decimal.js";
+import type { AdminLocale } from "@/lib/admin-locale";
 
 export type CashDrawerEntryType =
   | "OPENING_BALANCE"
@@ -18,8 +19,39 @@ export const CASH_DRAWER_ENTRY_TYPES: {
   { value: "CLOSING_BALANCE", label: "Cierre de caja" },
 ];
 
-export function cashDrawerEntryTypeLabel(type: CashDrawerEntryType): string {
-  return CASH_DRAWER_ENTRY_TYPES.find((t) => t.value === type)?.label ?? type;
+const CASH_DRAWER_ENTRY_TYPE_LABELS: Record<AdminLocale, Record<CashDrawerEntryType, string>> = {
+  es: {
+    OPENING_BALANCE: "Saldo de apertura",
+    CASH_IN: "Entrada de efectivo",
+    CASH_OUT: "Salida de efectivo",
+    ADJUSTMENT: "Ajuste",
+    CLOSING_BALANCE: "Cierre de caja",
+  },
+  en: {
+    OPENING_BALANCE: "Opening balance",
+    CASH_IN: "Cash in",
+    CASH_OUT: "Cash out",
+    ADJUSTMENT: "Adjustment",
+    CLOSING_BALANCE: "Closing balance",
+  },
+  fr: {
+    OPENING_BALANCE: "Solde d'ouverture",
+    CASH_IN: "Entrée de fonds",
+    CASH_OUT: "Sortie de fonds",
+    ADJUSTMENT: "Ajustement",
+    CLOSING_BALANCE: "Solde de fermeture",
+  },
+};
+
+/**
+ * `locale` defaults to "es" so call sites that haven't been converted to a
+ * locale-aware admin section yet keep their current (Spanish) behaviour.
+ */
+export function cashDrawerEntryTypeLabel(
+  type: CashDrawerEntryType | string,
+  locale: AdminLocale = "es"
+): string {
+  return CASH_DRAWER_ENTRY_TYPE_LABELS[locale][type as CashDrawerEntryType] ?? type;
 }
 
 type EntryForBalance = {

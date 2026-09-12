@@ -61,15 +61,16 @@ model Shop {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  shopId       String?
-  shop         Shop?    @relation(fields: [shopId], references: [id])
-  name         String
-  email        String   @unique
-  passwordHash String?
-  role         Role     @default(MECHANIC)
-  bookable     Boolean  @default(true)
-  createdAt    DateTime @default(now())
+  id              String          @id @default(cuid())
+  shopId          String?
+  shop            Shop?           @relation(fields: [shopId], references: [id])
+  name            String
+  email           String          @unique
+  passwordHash    String?
+  role            Role            @default(MECHANIC)
+  bookable        Boolean         @default(true)
+  preferredLocale InvoiceLanguage @default(ES)
+  createdAt       DateTime        @default(now())
 
   accounts     Account[]
   sessions     Session[]

@@ -5,6 +5,8 @@ import { createVehicle } from "@/actions/vehicles";
 import { VehicleForm } from "@/components/clients/VehicleForm";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
+import { getAdminLocale } from "@/lib/get-admin-locale";
+import { CLIENTS_DICT } from "@/lib/admin-locale/clients";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -12,7 +14,8 @@ interface Props {
 
 export default async function NewVehiclePage({ params }: Props) {
   const { id } = await params;
-  const client = await getClientById(id);
+  const [client, locale] = await Promise.all([getClientById(id), getAdminLocale()]);
+  const t = CLIENTS_DICT[locale];
 
   return (
     <div className="max-w-2xl">
@@ -24,9 +27,9 @@ export default async function NewVehiclePage({ params }: Props) {
         {formatClientName(client)}
       </Link>
 
-      <h1 className="text-2xl font-bold text-slate-900 mb-1">Nuevo vehículo</h1>
+      <h1 className="text-2xl font-bold text-slate-900 mb-1">{t.vehicleNew.title}</h1>
       <p className="text-slate-500 text-sm mb-6">
-        Registra un vehículo para {formatClientName(client)}.
+        {t.vehicleNew.subtitle(formatClientName(client))}
       </p>
 
       <div className="bg-white rounded-xl border border-slate-200 p-6">

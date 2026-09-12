@@ -15,6 +15,8 @@ import { useState, useCallback, useTransition } from "react";
 import { UploadCloud, CheckCircle, AlertCircle, X } from "lucide-react";
 import { toast } from "sonner";
 import type { DocCategory } from "@/lib/validations";
+import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
+import { CAJA_DICT } from "@/lib/admin-locale/caja";
 
 interface UploadZoneProps {
   category: DocCategory;
@@ -30,6 +32,8 @@ interface UploadStatus {
 }
 
 export function UploadZone({ category, onUpload, onSuccess }: UploadZoneProps) {
+  const locale = useAdminLocale();
+  const t = CAJA_DICT[locale].uploadZone;
   const [isPending, startTransition] = useTransition();
   const [statuses, setStatuses] = useState<UploadStatus[]>([]);
 
@@ -70,15 +74,15 @@ export function UploadZone({ category, onUpload, onSuccess }: UploadZoneProps) {
           );
 
           if (result.success) {
-            toast.success(`${file.name} subido a Drive`);
+            toast.success(t.toastSuccess(file.name));
             onSuccess();
           } else {
-            toast.error(result.error ?? "Error al subir el archivo");
+            toast.error(result.error ?? t.toastError);
           }
         }
       });
     },
-    [category, onUpload, onSuccess]
+    [category, onUpload, onSuccess, t]
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -118,16 +122,14 @@ export function UploadZone({ category, onUpload, onSuccess }: UploadZoneProps) {
           className={`w-10 h-10 mx-auto mb-3 ${isDragActive ? "text-blue-500" : "text-slate-300"}`}
         />
         {isDragActive ? (
-          <p className="text-blue-600 font-medium">Suelta los archivos aquí</p>
+          <p className="text-blue-600 font-medium">{t.dropHere}</p>
         ) : (
           <>
             <p className="text-slate-600 font-medium text-sm">
-              Arrastra archivos aquí o{" "}
-              <span className="text-blue-600">haz clic para seleccionar</span>
+              {t.dragInstructionsPrefix}
+              <span className="text-blue-600">{t.dragInstructionsCta}</span>
             </p>
-            <p className="text-slate-400 text-xs mt-1">
-              PDF, imágenes, Word, Excel · Máximo 20 MB por archivo
-            </p>
+            <p className="text-slate-400 text-xs mt-1">{t.fileTypeHint}</p>
           </>
         )}
       </div>
@@ -160,13 +162,13 @@ export function UploadZone({ category, onUpload, onSuccess }: UploadZoneProps) {
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-slate-900 truncate">{s.name}</p>
                 {s.state === "uploading" && (
-                  <p className="text-xs text-blue-600">Subiendo a Drive...</p>
+                  <p className="text-xs text-blue-600">{t.uploading}</p>
                 )}
                 {s.state === "done" && (
-                  <p className="text-xs text-emerald-600">Subido y enviado a la contadora ✓</p>
+                  <p className="text-xs text-emerald-600">{t.done}</p>
                 )}
                 {s.state === "error" && (
-                  <p className="text-xs text-red-600">{s.message ?? "Error al subir"}</p>
+                  <p className="text-xs text-red-600">{s.message ?? t.genericError}</p>
                 )}
               </div>
 

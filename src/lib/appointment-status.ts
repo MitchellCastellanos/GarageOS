@@ -1,3 +1,5 @@
+import type { AdminLocale } from "@/lib/admin-locale";
+
 export const APPOINTMENT_STATUSES = [
   "SCHEDULED",
   "CONFIRMED",
@@ -8,13 +10,33 @@ export const APPOINTMENT_STATUSES = [
 
 export type AppointmentStatus = (typeof APPOINTMENT_STATUSES)[number];
 
-export const APPOINTMENT_STATUS_LABEL: Record<AppointmentStatus, string> = {
-  SCHEDULED: "Programada",
-  CONFIRMED: "Confirmada",
-  COMPLETED: "Completada",
-  CANCELLED: "Cancelada",
-  NO_SHOW: "No asistió",
+const APPOINTMENT_STATUS_LABELS: Record<AdminLocale, Record<AppointmentStatus, string>> = {
+  es: {
+    SCHEDULED: "Programada",
+    CONFIRMED: "Confirmada",
+    COMPLETED: "Completada",
+    CANCELLED: "Cancelada",
+    NO_SHOW: "No asistió",
+  },
+  en: {
+    SCHEDULED: "Scheduled",
+    CONFIRMED: "Confirmed",
+    COMPLETED: "Completed",
+    CANCELLED: "Cancelled",
+    NO_SHOW: "No-show",
+  },
+  fr: {
+    SCHEDULED: "Planifiée",
+    CONFIRMED: "Confirmée",
+    COMPLETED: "Terminée",
+    CANCELLED: "Annulée",
+    NO_SHOW: "Absence",
+  },
 };
+
+export function appointmentStatusLabel(status: string, locale: AdminLocale): string {
+  return APPOINTMENT_STATUS_LABELS[locale][status as AppointmentStatus] ?? status;
+}
 
 export const APPOINTMENT_STATUS_BADGE: Record<AppointmentStatus, string> = {
   SCHEDULED: "bg-slate-100 text-slate-600",

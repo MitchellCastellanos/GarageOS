@@ -9,6 +9,26 @@ import { getShopId } from "@/lib/shop-context";
 import { reminderSchema, type ReminderFormData } from "@/lib/validations";
 import { sendReminderEmail } from "@/lib/email";
 import { shopToEmailConfig } from "@/lib/email-config";
+import { getAdminLocale } from "@/lib/get-admin-locale";
+import type { AdminLocale } from "@/lib/admin-locale";
+
+const REMINDER_NOT_FOUND: Record<AdminLocale, string> = {
+  es: "Recordatorio no encontrado",
+  en: "Reminder not found",
+  fr: "Rappel introuvable",
+};
+
+const ALREADY_SENT: Record<AdminLocale, string> = {
+  es: "Este recordatorio ya fue enviado",
+  en: "This reminder has already been sent",
+  fr: "Ce rappel a déjà été envoyé",
+};
+
+const NO_EMAIL_ON_FILE: Record<AdminLocale, string> = {
+  es: "El cliente no tiene email registrado",
+  en: "The client has no email on file",
+  fr: "Le client n'a pas de courriel enregistré",
+};
 
 // ── READ ────────────────────────────────────────────────────
 
@@ -61,6 +81,7 @@ export async function createReminder(formData: ReminderFormData) {
 
 export async function sendReminderNow(reminderId: string) {
   const shopId = await getShopId();
+  const locale = await getAdminLocale();
 
   const reminder = await db.serviceReminder.findFirst({
     where: { id: reminderId, shopId },
@@ -70,13 +91,13 @@ export async function sendReminderNow(reminderId: string) {
     },
   });
 
-  if (!reminder) return { error: "Recordatorio no encontrado" };
+  if (!reminder) return { error: REMINDER_NOT_FOUND[locale] };
 
   // No reenviar si ya fue enviado
-  if (reminder.sentAt) return { error: "Este recordatorio ya fue enviado" };
+  if (reminder.sentAt) return { error: ALREADY_SENT[locale] };
 
   const client = reminder.vehicle.client;
-  if (!client.email) return { error: "El cliente no tiene email registrado" };
+  if (!client.email) return { error: NO_EMAIL_ON_FILE[locale] };
 
   await sendReminderEmail({
     shop: shopToEmailConfig(reminder.shop),

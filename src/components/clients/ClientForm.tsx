@@ -16,6 +16,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useTransition } from "react";
 import { clientSchema, type ClientFormData } from "@/lib/validations";
 import { INVOICE_LANGUAGES } from "@/lib/invoice-i18n";
+import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
+import { CLIENTS_DICT } from "@/lib/admin-locale/clients";
 
 interface ClientFormProps {
   defaultValues?: Partial<ClientFormData>;
@@ -26,8 +28,10 @@ interface ClientFormProps {
 export function ClientForm({
   defaultValues,
   onSubmit,
-  submitLabel = "Guardar cliente",
+  submitLabel,
 }: ClientFormProps) {
+  const locale = useAdminLocale();
+  const t = CLIENTS_DICT[locale];
   // useTransition permite mostrar estado de carga mientras la Server Action corre
   const [isPending, startTransition] = useTransition();
 
@@ -67,19 +71,19 @@ export function ClientForm({
     <form onSubmit={handleSubmit(onValid)} className="space-y-6">
       {/* Nombre y Apellido */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Field label="Nombre / Empresa *" error={errors.firstName?.message}>
+        <Field label={t.clientForm.nameLabel} error={errors.firstName?.message}>
           <input
             {...register("firstName")}
             type="text"
-            placeholder="Juan Pérez o Acme Inc."
+            placeholder={t.clientForm.namePlaceholder}
             className={inputClass(!!errors.firstName)}
           />
         </Field>
-        <Field label="Apellido (opcional)" error={errors.lastName?.message}>
+        <Field label={t.clientForm.lastNameLabel} error={errors.lastName?.message}>
           <input
             {...register("lastName")}
             type="text"
-            placeholder="Rodríguez — dejar vacío para empresas"
+            placeholder={t.clientForm.lastNamePlaceholder}
             className={inputClass(!!errors.lastName)}
           />
         </Field>
@@ -87,26 +91,26 @@ export function ClientForm({
 
       {/* Teléfono y Email */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Field label="Teléfono *" error={errors.phone?.message}>
+        <Field label={t.clientForm.phoneLabel} error={errors.phone?.message}>
           <input
             {...register("phone")}
             type="tel"
-            placeholder="514-555-0100"
+            placeholder={t.clientForm.phonePlaceholder}
             className={inputClass(!!errors.phone)}
           />
         </Field>
-        <Field label="Email (opcional)" error={errors.email?.message}>
+        <Field label={t.clientForm.emailLabel} error={errors.email?.message}>
           <input
             {...register("email")}
             type="email"
-            placeholder="cliente@email.com"
+            placeholder={t.clientForm.emailPlaceholder}
             className={inputClass(!!errors.email)}
           />
         </Field>
       </div>
 
       {/* Idioma preferido — determina el idioma de SMS y emails de citas */}
-      <Field label="Idioma preferido" error={errors.language?.message}>
+      <Field label={t.clientForm.languageLabel} error={errors.language?.message}>
         <select {...register("language")} className={inputClass(!!errors.language)}>
           {INVOICE_LANGUAGES.map((lang) => (
             <option key={lang.value} value={lang.value}>
@@ -117,21 +121,21 @@ export function ClientForm({
       </Field>
 
       {/* Dirección */}
-      <Field label="Dirección" error={errors.address?.message}>
+      <Field label={t.clientForm.addressLabel} error={errors.address?.message}>
         <input
           {...register("address")}
           type="text"
-          placeholder="123 Rue Principale, Montréal, QC"
+          placeholder={t.clientForm.addressPlaceholder}
           className={inputClass(!!errors.address)}
         />
       </Field>
 
       {/* Notas */}
-      <Field label="Notas internas" error={errors.notes?.message}>
+      <Field label={t.clientForm.notesLabel} error={errors.notes?.message}>
         <textarea
           {...register("notes")}
           rows={3}
-          placeholder="Observaciones sobre el cliente (solo visibles en el sistema)..."
+          placeholder={t.clientForm.notesPlaceholder}
           className={inputClass(!!errors.notes)}
         />
       </Field>
@@ -143,13 +147,13 @@ export function ClientForm({
           disabled={isPending}
           className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium px-5 py-2.5 rounded-lg text-sm transition-colors"
         >
-          {isPending ? "Guardando..." : submitLabel}
+          {isPending ? t.common.saving : (submitLabel ?? t.clientForm.saveDefault)}
         </button>
         <a
           href={ADMIN.clients}
           className="text-sm text-slate-500 hover:text-slate-800 transition-colors"
         >
-          Cancelar
+          {t.common.cancel}
         </a>
       </div>
     </form>

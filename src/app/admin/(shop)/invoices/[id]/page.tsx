@@ -11,17 +11,13 @@ import {
   InvoicePaymentReceipts,
   type PaymentReceiptView,
 } from "@/components/invoices/InvoicePaymentReceipts";
-import { INVOICE_STATUS_BADGE, INVOICE_STATUS_LABEL, isInvoicePending } from "@/lib/invoice-status";
+import { INVOICE_STATUS_BADGE, invoiceStatusLabel, isInvoicePending } from "@/lib/invoice-status";
 import { labelPaymentEntries } from "@/lib/invoice-payments";
 import { cashDrawerEntryTypeLabel } from "@/lib/cash-drawer";
 import { publicUrlForStoragePath } from "@/lib/storage";
+import { getAdminLocale } from "@/lib/get-admin-locale";
+import { INVOICES_DICT } from "@/lib/admin-locale/invoices";
 import Decimal from "decimal.js";
-
-const ITEM_TYPE_LABEL: Record<string, string> = {
-  LABOUR: "Mano de obra",
-  PART: "Repuesto",
-  OTHER: "Otro",
-};
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -29,7 +25,9 @@ interface PageProps {
 
 export default async function InvoiceDetailPage({ params }: PageProps) {
   const { id } = await params;
-  const invoice = await getInvoiceById(id);
+  const [invoice, locale] = await Promise.all([getInvoiceById(id), getAdminLocale()]);
+  const t = INVOICES_DICT[locale];
+  const ITEM_TYPE_LABEL = t.itemTypes;
 
   const { tpsAmount, tvqAmount } = calculateTaxBreakdown(
     invoice.subtotal.toString(),
@@ -44,20 +42,15 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
   const paymentLabels = labelPaymentEntries(invoice.paymentEntries);
   const linkedCashEntry = invoice.cashDrawerEntries[0] ?? null;
 
-  const paymentModeLabel =
-    invoice.paymentMode === "CARD"
-      ? "Tarjeta"
-      : invoice.paymentMode === "CASH"
-        ? "Efectivo"
-        : invoice.paymentMode === "MIXED"
-          ? "Tarjeta + efectivo"
-          : null;
+  const paymentModeLabel = invoice.paymentMode
+    ? (t.detail.paymentModeLabels[invoice.paymentMode as "CARD" | "CASH" | "MIXED"] ?? null)
+    : null;
 
   const paymentReceipts: PaymentReceiptView[] = invoice.paymentEntries
     .map((entry, i) => ({ entry, i }))
     .filter(({ entry }) => entry.method === "CARD" && entry.receiptPath)
     .map(({ entry, i }) => {
-      const fileName = entry.receiptPath!.split("/").pop() ?? "comprobante";
+      const fileName = entry.receiptPath!.split("/").pop() ?? t.detail.receiptFallbackName;
       const isImage = /\.(jpe?g|png|webp)$/i.test(fileName);
       return {
         id: entry.id,
@@ -87,17 +80,17 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
               <span
                 className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${INVOICE_STATUS_BADGE[invoice.status] ?? "bg-slate-100 text-slate-500"}`}
               >
-                {INVOICE_STATUS_LABEL[invoice.status] ?? invoice.status}
+                {invoiceStatusLabel(invoice.status, locale)}
               </span>
             </div>
             <p className="text-slate-500 text-sm mt-0.5">
-              Emitida el {formatDate(invoice.issuedAt)}
-              {invoice.dueAt && ` · Vence el ${formatDate(invoice.dueAt)}`}
-              {` · Idioma: ${langLabel}`}
+              {t.detail.issuedOn(formatDate(invoice.issuedAt))}
+              {invoice.dueAt && ` · ${t.detail.dueOn(formatDate(invoice.dueAt))}`}
+              {` · ${t.detail.languageLabel(langLabel)}`}
               {invoice.emailSentAt &&
-                ` · Email: ${formatDate(invoice.emailSentAt)}${invoice.emailSendCount > 1 ? ` (${invoice.emailSendCount}×)` : ""}`}
+                ` · ${t.detail.emailSentLabel(formatDate(invoice.emailSentAt), invoice.emailSendCount)}`}
               {invoice.smsSentAt &&
-                ` · SMS: ${formatDate(invoice.smsSentAt)}${invoice.smsSendCount > 1 ? ` (${invoice.smsSendCount}×)` : ""}`}
+                ` · ${t.detail.smsSentLabel(formatDate(invoice.smsSentAt), invoice.smsSendCount)}`}
             </p>
           </div>
         </div>
@@ -111,7 +104,7 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
               className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition-colors"
             >
               <Pencil className="w-4 h-4" />
-              <span className="hidden sm:inline">Editar</span>
+              <span className="hidden sm:inline">{t.detail.editLabel}</span>
             </Link>
           )}
           {/* PDF download */}
@@ -119,13 +112,13 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
             href={`/api/invoices/${invoice.id}/pdf`}
             download={
               invoice.status === "PAID"
-                ? `${invoice.invoiceNumber}-completo.pdf`
+                ? `${invoice.invoiceNumber}${t.detail.downloadFileSuffix}.pdf`
                 : `${invoice.invoiceNumber}.pdf`
             }
             className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition-colors"
           >
             <Download className="w-4 h-4" />
-            <span className="hidden sm:inline">Descargar PDF</span>
+            <span className="hidden sm:inline">{t.detail.downloadPdf}</span>
           </a>
           {/* Status transitions con toast */}
           <InvoiceActions
@@ -146,26 +139,26 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
       {/* Accounting visibility + payment info */}
       <div className="bg-white rounded-xl border border-slate-200 p-5">
         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">
-          Registro y contabilidad
+          {t.detail.accounting.title}
         </p>
         <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
           <div>
-            <dt className="text-slate-500">Exportación a contabilidad</dt>
+            <dt className="text-slate-500">{t.detail.accounting.exportLabel}</dt>
             <dd className="mt-0.5">
               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700">
-                Incluida al marcar como pagada
+                {t.detail.accounting.exportIncluded}
               </span>
             </dd>
           </div>
           {paymentModeLabel && (
             <div>
-              <dt className="text-slate-500">Método de pago</dt>
+              <dt className="text-slate-500">{t.detail.accounting.paymentMethodLabel}</dt>
               <dd className="font-medium text-slate-900 mt-0.5">{paymentModeLabel}</dd>
             </div>
           )}
           {linkedCashEntry && (
             <div>
-              <dt className="text-slate-500">Movimiento en caja</dt>
+              <dt className="text-slate-500">{t.detail.accounting.cashMovementLabel}</dt>
               <dd className="mt-0.5">
                 <Link
                   href={ADMIN.caja}
@@ -183,7 +176,7 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
       {/* Client info */}
       <div className="bg-white rounded-xl border border-slate-200 p-5">
         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">
-          Cliente
+          {t.detail.clientTitle}
         </p>
         <p className="font-semibold text-slate-900">{formatClientName(invoice.client)}</p>
         {invoice.client.email && (
@@ -203,24 +196,24 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
           {/* Vehicle */}
           <div className="bg-white rounded-xl border border-slate-200 p-5">
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">
-              {invoice.vehicles.length > 1 ? `Vehículo ${vIndex + 1}` : "Vehículo"}
+              {invoice.vehicles.length > 1 ? t.detail.vehicleNumbered(vIndex + 1) : t.detail.vehicleTitle}
             </p>
             <p className="font-semibold text-slate-900">
               {iv.vehicle.year} {iv.vehicle.make} {iv.vehicle.model}
             </p>
             <p className="text-sm text-slate-600 mt-1">
-              Placa: {iv.vehicle.licensePlate}
+              {t.detail.plateLabel}{iv.vehicle.licensePlate}
             </p>
             {(iv.mileageIn || iv.mileageOut) && (
               <div className="flex gap-4 mt-2">
                 {iv.mileageIn && (
                   <p className="text-xs text-slate-500">
-                    Entrada: {iv.mileageIn.toLocaleString()} {iv.vehicle.mileageUnit}
+                    {t.detail.mileageIn(iv.mileageIn.toLocaleString(), iv.vehicle.mileageUnit)}
                   </p>
                 )}
                 {iv.mileageOut && (
                   <p className="text-xs text-slate-500">
-                    Salida: {iv.mileageOut.toLocaleString()} {iv.vehicle.mileageUnit}
+                    {t.detail.mileageOut(iv.mileageOut.toLocaleString(), iv.vehicle.mileageUnit)}
                   </p>
                 )}
               </div>
@@ -230,16 +223,16 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
           {/* Line items */}
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
             <div className="px-5 py-4 border-b border-slate-100">
-              <h2 className="font-semibold text-slate-900">Servicios y repuestos</h2>
+              <h2 className="font-semibold text-slate-900">{t.detail.servicesTitle}</h2>
             </div>
 
             {/* Table header */}
             <div className="hidden sm:grid grid-cols-[1fr_120px_80px_110px_110px] gap-3 px-5 py-2 bg-slate-50 border-b border-slate-100 text-xs font-medium text-slate-500 uppercase">
-              <span>Descripción</span>
-              <span>Tipo</span>
-              <span className="text-right">Cant.</span>
-              <span className="text-right">P. Unit.</span>
-              <span className="text-right">Total</span>
+              <span>{t.detail.tableHeaders.description}</span>
+              <span>{t.detail.tableHeaders.type}</span>
+              <span className="text-right">{t.detail.tableHeaders.qty}</span>
+              <span className="text-right">{t.detail.tableHeaders.unitPrice}</span>
+              <span className="text-right">{t.detail.tableHeaders.total}</span>
             </div>
 
             <div className="divide-y divide-slate-100">
@@ -250,7 +243,7 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
                 >
                   <p className="text-sm text-slate-900 font-medium">{item.description}</p>
                   {item.warrantyTerm && (
-                    <p className="text-xs text-slate-500 mt-0.5">Garantía: {item.warrantyTerm}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{t.detail.warrantyLabel}{item.warrantyTerm}</p>
                   )}
                   <p className="hidden sm:block text-sm text-slate-500">
                     {ITEM_TYPE_LABEL[item.itemType] ?? item.itemType}
@@ -279,7 +272,7 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
         {invoice.notes && (
           <div className="bg-white rounded-xl border border-slate-200 p-5">
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
-              Notas
+              {t.detail.notesTitle}
             </p>
             <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
               {invoice.notes}
@@ -289,26 +282,26 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
 
         {/* Totals */}
         <div className={`bg-white rounded-xl border border-slate-200 p-5 ${!invoice.notes ? "lg:col-start-2" : ""}`}>
-          <h2 className="font-semibold text-slate-900 mb-4">Resumen</h2>
+          <h2 className="font-semibold text-slate-900 mb-4">{t.detail.summary.title}</h2>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <span className="text-slate-600">Subtotal</span>
+              <span className="text-slate-600">{t.detail.summary.subtotal}</span>
               <span className="text-slate-900">{formatCurrency(Number(invoice.subtotal))}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-600">TPS ({tpsPct}%)</span>
+              <span className="text-slate-600">{t.detail.summary.tps(tpsPct)}</span>
               <span className="text-slate-900">{formatCurrency(Number(tpsAmount))}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-600">TVQ ({tvqPct}%)</span>
+              <span className="text-slate-600">{t.detail.summary.tvq(tvqPct)}</span>
               <span className="text-slate-900">{formatCurrency(Number(tvqAmount))}</span>
             </div>
             <div className="flex justify-between text-slate-500">
-              <span className="text-xs">Total impuestos</span>
+              <span className="text-xs">{t.detail.summary.totalTaxes}</span>
               <span className="text-xs">{formatCurrency(Number(invoice.taxAmount))}</span>
             </div>
             <div className="flex justify-between items-center border-t border-slate-200 pt-3 mt-3">
-              <span className="font-semibold text-slate-900">Total CAD</span>
+              <span className="font-semibold text-slate-900">{t.detail.summary.totalCad}</span>
               <span className="text-xl font-bold text-blue-600">
                 {formatCurrency(Number(invoice.total))}
               </span>
@@ -316,16 +309,12 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
             {invoice.paidAt && (
               <div className="mt-2 space-y-1">
                 <p className="text-xs text-emerald-600">
-                  Pagada el {formatDate(invoice.paidAt)}
+                  {t.detail.paidOn(formatDate(invoice.paidAt))}
                   {invoice.paymentMode && (
                     <>
                       {" "}
                       ·{" "}
-                      {invoice.paymentMode === "CARD"
-                        ? "Tarjeta"
-                        : invoice.paymentMode === "CASH"
-                          ? "Efectivo"
-                          : "Tarjeta + efectivo"}
+                      {t.detail.paymentModeLabels[invoice.paymentMode as "CARD" | "CASH" | "MIXED"]}
                     </>
                   )}
                 </p>
@@ -339,7 +328,7 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
         <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-5">
           <div>
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">
-              Desglose de pago
+              {t.detail.paymentBreakdownTitle}
             </p>
             <ul className="space-y-2">
               {invoice.paymentEntries.map((entry, i) => (
@@ -357,7 +346,7 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
           {paymentReceipts.length > 0 && (
             <div>
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">
-                Comprobantes de terminal
+                {t.detail.terminalReceiptsTitle}
               </p>
               <InvoicePaymentReceipts receipts={paymentReceipts} />
             </div>

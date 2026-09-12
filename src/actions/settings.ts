@@ -12,6 +12,7 @@ import { uploadShopLogoToStorage } from "@/lib/storage";
 import { provisionDefaultSenderIdentities } from "@/lib/communications/sender-identity";
 import bcrypt from "bcryptjs";
 import sharp from "sharp";
+import { adminLocaleToDb, type AdminLocale } from "@/lib/admin-locale";
 
 // Recorta el borde uniforme/transparente del logo para que el dibujo llene
 // su espacio (de lo contrario un PNG con mucho aire transparente se ve chico,
@@ -181,4 +182,18 @@ export async function changePassword(formData: FormData) {
   const hash = await bcrypt.hash(next, 12);
   await db.user.update({ where: { id: session.user.id }, data: { passwordHash: hash } });
   return { success: true };
+}
+
+// ── PREFERRED LOCALE ─────────────────────────────────────────
+
+export async function updatePreferredLocale(locale: AdminLocale) {
+  const session = await auth();
+  if (!session?.user?.id) redirect(ADMIN.login);
+
+  await db.user.update({
+    where: { id: session.user.id },
+    data: { preferredLocale: adminLocaleToDb(locale) },
+  });
+
+  revalidatePath(ADMIN.dashboard, "layout");
 }

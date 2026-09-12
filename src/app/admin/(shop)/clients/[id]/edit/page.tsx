@@ -4,6 +4,8 @@ import { ClientForm } from "@/components/clients/ClientForm";
 import { formatClientName } from "@/lib/client-name";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
+import { getAdminLocale } from "@/lib/get-admin-locale";
+import { CLIENTS_DICT } from "@/lib/admin-locale/clients";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -11,7 +13,8 @@ interface Props {
 
 export default async function EditClientPage({ params }: Props) {
   const { id } = await params;
-  const client = await getClientById(id);
+  const [client, locale] = await Promise.all([getClientById(id), getAdminLocale()]);
+  const t = CLIENTS_DICT[locale];
 
   // Preparamos los valores iniciales del formulario desde la DB
   const defaultValues = {
@@ -34,9 +37,9 @@ export default async function EditClientPage({ params }: Props) {
         {formatClientName(client)}
       </Link>
 
-      <h1 className="text-2xl font-bold text-slate-900 mb-1">Editar cliente</h1>
+      <h1 className="text-2xl font-bold text-slate-900 mb-1">{t.edit.title}</h1>
       <p className="text-slate-500 text-sm mb-6">
-        Actualiza los datos de {formatClientName(client)}.
+        {t.edit.subtitle(formatClientName(client))}
       </p>
 
       <div className="bg-white rounded-xl border border-slate-200 p-6">
@@ -44,7 +47,7 @@ export default async function EditClientPage({ params }: Props) {
         <ClientForm
           defaultValues={defaultValues}
           onSubmit={updateClient.bind(null, id)}
-          submitLabel="Guardar cambios"
+          submitLabel={t.common.saveChanges}
         />
       </div>
     </div>

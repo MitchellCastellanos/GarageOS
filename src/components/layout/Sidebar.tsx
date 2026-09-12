@@ -18,19 +18,8 @@ import {
 } from "lucide-react";
 
 import { ADMIN } from "@/lib/routes";
-
-const navItems = [
-  { label: "Dashboard", href: ADMIN.dashboard, icon: LayoutDashboard },
-  { label: "Bandeja", href: ADMIN.inbox, icon: Inbox },
-  { label: "Citas", href: ADMIN.appointments, icon: Calendar },
-  { label: "Clientes", href: ADMIN.clients, icon: Users },
-  { label: "Cotizaciones", href: ADMIN.quotes, icon: FileSpreadsheet },
-  { label: "Facturas", href: ADMIN.invoices, icon: FileText },
-  { label: "Campañas", href: ADMIN.campaigns, icon: Megaphone },
-  { label: "Caja", href: ADMIN.caja, icon: Banknote },
-  { label: "Contabilidad", href: ADMIN.accounting, icon: FolderOpen },
-  { label: "Recordatorios", href: ADMIN.reminders, icon: Bell },
-];
+import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
+import { LAYOUT_DICT } from "@/lib/admin-locale/layout";
 
 function RailLink({
   href,
@@ -66,6 +55,21 @@ function RailLink({
 
 export function Sidebar() {
   const pathname = usePathname();
+  const locale = useAdminLocale();
+  const t = LAYOUT_DICT[locale];
+
+  const navItems = [
+    { label: t.nav.dashboard, href: ADMIN.dashboard, icon: LayoutDashboard },
+    { label: t.nav.inbox, href: ADMIN.inbox, icon: Inbox },
+    { label: t.nav.appointments, href: ADMIN.appointments, icon: Calendar },
+    { label: t.nav.clients, href: ADMIN.clients, icon: Users },
+    { label: t.nav.quotes, href: ADMIN.quotes, icon: FileSpreadsheet },
+    { label: t.nav.invoices, href: ADMIN.invoices, icon: FileText },
+    { label: t.nav.campaigns, href: ADMIN.campaigns, icon: Megaphone },
+    { label: t.nav.caja, href: ADMIN.caja, icon: Banknote },
+    { label: t.nav.accounting, href: ADMIN.accounting, icon: FolderOpen },
+    { label: t.nav.reminders, href: ADMIN.reminders, icon: Bell },
+  ];
 
   return (
     <aside className="no-print w-[72px] flex-shrink-0 min-h-full bg-slate-900 flex flex-col items-center py-4">
@@ -90,7 +94,7 @@ export function Sidebar() {
       <div className="pt-3 mt-3 border-t border-slate-800 w-full flex flex-col items-center">
         <RailLink
           href={ADMIN.settings}
-          label="Configuración"
+          label={t.nav.settings}
           icon={Settings}
           active={pathname.startsWith(ADMIN.settings)}
         />

@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Image from "next/image";
 import { ExternalLink, FileText, X } from "lucide-react";
+import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
+import { INVOICES_DICT } from "@/lib/admin-locale/invoices";
 
 export type PaymentReceiptView = {
   id: string;
@@ -13,6 +15,8 @@ export type PaymentReceiptView = {
 };
 
 export function InvoicePaymentReceipts({ receipts }: { receipts: PaymentReceiptView[] }) {
+  const locale = useAdminLocale();
+  const t = INVOICES_DICT[locale].paymentReceipts;
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   if (receipts.length === 0) return null;
@@ -52,7 +56,7 @@ export function InvoicePaymentReceipts({ receipts }: { receipts: PaymentReceiptV
                 className="flex items-center justify-center gap-2 py-8 text-sm text-blue-600 hover:text-blue-800"
               >
                 <FileText className="w-5 h-5" />
-                Ver comprobante PDF
+                {t.viewPdfReceipt}
                 <ExternalLink className="w-3.5 h-3.5" />
               </a>
             )}
@@ -63,7 +67,7 @@ export function InvoicePaymentReceipts({ receipts }: { receipts: PaymentReceiptV
                 rel="noopener noreferrer"
                 className="text-xs text-blue-600 hover:underline inline-flex items-center gap-1"
               >
-                Abrir en pestaña nueva
+                {t.openNewTab}
                 <ExternalLink className="w-3 h-3" />
               </a>
             </div>
@@ -92,7 +96,7 @@ export function InvoicePaymentReceipts({ receipts }: { receipts: PaymentReceiptV
           >
             <Image
               src={previewUrl}
-              alt="Comprobante"
+              alt={t.previewAlt}
               fill
               className="object-contain"
               sizes="100vw"

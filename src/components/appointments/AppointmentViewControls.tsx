@@ -8,26 +8,29 @@ import {
   parseShopDateTime,
   shiftMonth,
 } from "@/lib/shop-timezone";
+import type { AdminLocale } from "@/lib/admin-locale";
+import { APPOINTMENTS_DICT } from "@/lib/admin-locale/appointments";
 
 interface AppointmentViewControlsProps {
   view: AppointmentView;
   anchor: string;
   timeZone: string;
+  locale: AdminLocale;
 }
 
 function appointmentsUrl(view: AppointmentView, date: string) {
   return `${ADMIN.appointments}?view=${view}&date=${date}`;
 }
 
-function formatMonthLabel(month: string) {
+function formatMonthLabel(month: string, intlLocale: string) {
   const [y, m] = month.split("-").map(Number);
   const d = new Date(y, m - 1, 1);
-  return new Intl.DateTimeFormat("fr-CA", { month: "long", year: "numeric" }).format(d);
+  return new Intl.DateTimeFormat(intlLocale, { month: "long", year: "numeric" }).format(d);
 }
 
-function formatWeekLabel(weekStart: string, timeZone: string) {
+function formatWeekLabel(weekStart: string, timeZone: string, intlLocale: string) {
   const end = addShopDays(weekStart, 6, timeZone);
-  const fmt = new Intl.DateTimeFormat("fr-CA", {
+  const fmt = new Intl.DateTimeFormat(intlLocale, {
     timeZone,
     day: "numeric",
     month: "short",
@@ -37,8 +40,8 @@ function formatWeekLabel(weekStart: string, timeZone: string) {
   return `${fmt.format(startAt)} — ${fmt.format(endAt)}`;
 }
 
-function formatDayLabel(day: string, timeZone: string) {
-  return new Intl.DateTimeFormat("fr-CA", {
+function formatDayLabel(day: string, timeZone: string, intlLocale: string) {
+  return new Intl.DateTimeFormat(intlLocale, {
     timeZone,
     weekday: "long",
     day: "numeric",
@@ -47,13 +50,13 @@ function formatDayLabel(day: string, timeZone: string) {
   }).format(parseShopDateTime(day, "12:00", timeZone));
 }
 
-function prevNextDates(view: AppointmentView, anchor: string, timeZone: string) {
+function prevNextDates(view: AppointmentView, anchor: string, timeZone: string, intlLocale: string) {
   if (view === "month") {
     const month = anchor.length === 7 ? anchor : anchor.slice(0, 7);
     return {
       prev: shiftMonth(month, -1) + "-01",
       next: shiftMonth(month, 1) + "-01",
-      label: formatMonthLabel(month),
+      label: formatMonthLabel(month, intlLocale),
     };
   }
   if (view === "week") {
@@ -61,24 +64,24 @@ function prevNextDates(view: AppointmentView, anchor: string, timeZone: string) 
     return {
       prev: addShopDays(weekStart, -7, timeZone),
       next: addShopDays(weekStart, 7, timeZone),
-      label: formatWeekLabel(weekStart, timeZone),
+      label: formatWeekLabel(weekStart, timeZone, intlLocale),
     };
   }
   return {
     prev: addShopDays(anchor, -1, timeZone),
     next: addShopDays(anchor, 1, timeZone),
-    label: formatDayLabel(anchor, timeZone),
+    label: formatDayLabel(anchor, timeZone, intlLocale),
   };
 }
 
-const VIEW_OPTIONS: { id: AppointmentView; label: string }[] = [
-  { id: "month", label: "Mes" },
-  { id: "week", label: "Semana" },
-  { id: "day", label: "Día" },
-];
-
-export function AppointmentViewControls({ view, anchor, timeZone }: AppointmentViewControlsProps) {
-  const { prev, next, label } = prevNextDates(view, anchor, timeZone);
+export function AppointmentViewControls({ view, anchor, timeZone, locale }: AppointmentViewControlsProps) {
+  const t = APPOINTMENTS_DICT[locale].viewControls;
+  const VIEW_OPTIONS: { id: AppointmentView; label: string }[] = [
+    { id: "month", label: t.viewOptions.month },
+    { id: "week", label: t.viewOptions.week },
+    { id: "day", label: t.viewOptions.day },
+  ];
+  const { prev, next, label } = prevNextDates(view, anchor, timeZone, t.intlLocale);
   const dateForView =
     view === "month"
       ? (anchor.length === 7 ? anchor : anchor.slice(0, 7)) + "-01"
@@ -110,14 +113,14 @@ export function AppointmentViewControls({ view, anchor, timeZone }: AppointmentV
           className="flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900 px-2 py-1 rounded-lg hover:bg-slate-50"
         >
           <ChevronLeft className="w-4 h-4" />
-          Anterior
+          {t.previous}
         </Link>
         <span className="text-sm font-semibold text-slate-900 capitalize">{label}</span>
         <Link
           href={appointmentsUrl(view, next)}
           className="flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900 px-2 py-1 rounded-lg hover:bg-slate-50"
         >
-          Siguiente
+          {t.next}
           <ChevronRight className="w-4 h-4" />
         </Link>
       </div>

@@ -12,6 +12,8 @@ import {
 import type { WorkingHoursRow } from "@/lib/working-hours";
 import { Switch } from "@/components/ui/Switch";
 import { Calendar, ChevronDown, Copy, ExternalLink, Loader2 } from "lucide-react";
+import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
+import { SETTINGS_DICT, type SettingsDictionary } from "@/lib/admin-locale/settings";
 
 interface MechanicRow {
   id: string;
@@ -40,6 +42,8 @@ export function AppointmentBookingSettings({
   workingHours,
   mechanics,
 }: AppointmentBookingSettingsProps) {
+  const locale = useAdminLocale();
+  const t = SETTINGS_DICT[locale];
   const [bookingPending, startBookingTransition] = useTransition();
   const [hoursPending, startHoursTransition] = useTransition();
   const [mechanicPending, startMechanicTransition] = useTransition();
@@ -50,10 +54,10 @@ export function AppointmentBookingSettings({
     startBookingTransition(async () => {
       const result = await updateAppointmentBookingSettings(formData);
       if (result?.success) {
-        toast.success("Configuración de reservas guardada");
+        toast.success(t.booking.saved);
       } else if (result?.error) {
         const msg = Object.values(result.error).flat()[0];
-        toast.error(typeof msg === "string" ? msg : "Error al guardar");
+        toast.error(typeof msg === "string" ? msg : t.booking.saved);
       }
     });
   }
@@ -63,15 +67,15 @@ export function AppointmentBookingSettings({
     const formData = new FormData(e.currentTarget);
     startHoursTransition(async () => {
       const result = await updateShopWorkingHours(formData);
-      if (result?.success) toast.success("Horario del taller guardado");
-      else toast.error("Error al guardar horario");
+      if (result?.success) toast.success(t.booking.hoursSaved);
+      else toast.error(t.booking.hoursSaved);
     });
   }
 
   function toggleMechanicBookable(userId: string, bookable: boolean) {
     startMechanicTransition(async () => {
       const result = await updateMechanicBookable(userId, bookable);
-      if (result?.success) toast.success(bookable ? "Mecánico visible en reservas" : "Mecánico oculto en reservas");
+      if (result?.success) toast.success(bookable ? t.booking.mechanicVisible : t.booking.mechanicHidden);
       else toast.error(result?.error ?? "Error");
     });
   }
@@ -80,11 +84,8 @@ export function AppointmentBookingSettings({
     <div className="space-y-6 max-w-2xl">
       <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
         <div>
-          <h2 className="font-semibold text-slate-900">Citas — reservas desde el website</h2>
-          <p className="text-sm text-slate-500 mt-1">
-            Cuando entregues el sitio web del taller, enlaza a esta página pública para que los
-            clientes agenden citas en línea. También puedes compartir el enlace directo.
-          </p>
+          <h2 className="font-semibold text-slate-900">{t.booking.title}</h2>
+          <p className="text-sm text-slate-500 mt-1">{t.booking.subtitle}</p>
         </div>
 
         <form onSubmit={handleBookingSubmit} className="space-y-4">
@@ -92,13 +93,13 @@ export function AppointmentBookingSettings({
             <div className="flex items-center gap-3 sm:col-span-2">
               <Switch id="bookingEnabled" name="bookingEnabled" defaultChecked={shop.bookingEnabled} />
               <label htmlFor="bookingEnabled" className="text-sm text-slate-700">
-                Activar reservas en línea (visible en /book/…)
+                {t.booking.enableLabel}
               </label>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                Duración de cada cita (min)
+                {t.booking.slotMinutes}
               </label>
               <input
                 name="bookingSlotMinutes"
@@ -111,7 +112,7 @@ export function AppointmentBookingSettings({
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                Anticipación mínima (horas)
+                {t.booking.leadTime}
               </label>
               <input
                 name="bookingLeadTimeHours"
@@ -124,7 +125,7 @@ export function AppointmentBookingSettings({
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                Reservar hasta (días adelante)
+                {t.booking.advanceDays}
               </label>
               <input
                 name="bookingAdvanceDays"
@@ -136,7 +137,7 @@ export function AppointmentBookingSettings({
               />
             </div>
             <div className="text-xs text-slate-400 flex items-end pb-2">
-              Zona horaria: {shop.timezone}
+              {t.booking.timezone}: {shop.timezone}
             </div>
           </div>
 
@@ -147,10 +148,10 @@ export function AppointmentBookingSettings({
                 type="button"
                 onClick={() => {
                   navigator.clipboard.writeText(shop.bookingUrl!);
-                  toast.success("Enlace copiado");
+                  toast.success(t.booking.linkCopied);
                 }}
                 className="p-2 text-teal-700 hover:bg-teal-100 rounded-lg"
-                title="Copiar enlace"
+                title={t.booking.copyLink}
               >
                 <Copy className="w-4 h-4" />
               </button>
@@ -159,7 +160,7 @@ export function AppointmentBookingSettings({
                 target="_blank"
                 rel="noopener noreferrer"
                 className="p-2 text-teal-700 hover:bg-teal-100 rounded-lg"
-                title="Abrir página de reservas"
+                title={t.booking.openPage}
               >
                 <ExternalLink className="w-4 h-4" />
               </a>
@@ -173,7 +174,7 @@ export function AppointmentBookingSettings({
               className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-sm font-medium px-5 py-2 rounded-lg"
             >
               {bookingPending && <Loader2 className="w-4 h-4 animate-spin" />}
-              Guardar reservas web
+              {t.booking.saveBooking}
             </button>
           </div>
         </form>
@@ -184,10 +185,8 @@ export function AppointmentBookingSettings({
         className="bg-white rounded-xl border border-slate-200 p-5 space-y-4"
       >
         <div>
-          <h2 className="font-semibold text-slate-900">Horario de apertura</h2>
-          <p className="text-sm text-slate-500 mt-1">
-            Define cuándo el taller acepta citas. Los slots se generan dentro de este horario.
-          </p>
+          <h2 className="font-semibold text-slate-900">{t.booking.hoursTitle}</h2>
+          <p className="text-sm text-slate-500 mt-1">{t.booking.hoursSubtitle}</p>
         </div>
 
         <div className="divide-y divide-slate-100 border border-slate-100 rounded-lg overflow-hidden">
@@ -204,7 +203,7 @@ export function AppointmentBookingSettings({
                   defaultChecked={row.isClosed}
                   className="rounded border-slate-300"
                 />
-                Cerrado
+                {t.booking.closed}
               </label>
               <input
                 type="time"
@@ -230,23 +229,20 @@ export function AppointmentBookingSettings({
             className="flex items-center gap-2 bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white text-sm font-medium px-5 py-2 rounded-lg"
           >
             {hoursPending && <Loader2 className="w-4 h-4 animate-spin" />}
-            Guardar horario
+            {t.booking.saveHours}
           </button>
         </div>
       </form>
 
       <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
         <div>
-          <h2 className="font-semibold text-slate-900">Mecánicos disponibles para citas</h2>
-          <p className="text-sm text-slate-500 mt-1">
-            Crea cuentas de mecánico en <strong>Equipo del taller</strong> (abajo). Aquí eliges quién
-            aparece en el calendario de reservas y recibe citas automáticamente.
-          </p>
+          <h2 className="font-semibold text-slate-900">{t.booking.mechanicsTitle}</h2>
+          <p className="text-sm text-slate-500 mt-1">{t.booking.mechanicsSubtitle}</p>
         </div>
 
         {mechanics.length === 0 ? (
           <p className="text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-lg p-3">
-            No hay mecánicos. Ve a Equipo del taller y crea al menos un usuario con rol Mecánico.
+            {t.booking.noMechanics}
           </p>
         ) : (
           <div className="divide-y divide-slate-100 border border-slate-100 rounded-lg">
@@ -257,14 +253,14 @@ export function AppointmentBookingSettings({
                     <div>
                       <p className="font-medium text-slate-900">{m.name}</p>
                       <p className="text-xs text-slate-500">
-                        {m.role === "OWNER" ? "Dueño" : "Mecánico"}
-                        {m.usesShopHours ? " · sigue el horario del taller" : " · horario propio"}
+                        {m.role === "OWNER" ? t.booking.owner : t.booking.mechanic}
+                        {m.usesShopHours ? ` · ${t.booking.followsShopHours}` : ` · ${t.booking.ownHours}`}
                       </p>
                     </div>
                   </label>
                   <div className="flex items-center gap-3 shrink-0">
-                    <MechanicScheduleToggle mechanicId={m.id} />
-                    <span className="text-xs text-slate-500">Recibe citas web</span>
+                    <MechanicScheduleToggle mechanicId={m.id} label={t.booking.scheduleButton} />
+                    <span className="text-xs text-slate-500">{t.booking.receivesWebBookings}</span>
                     <input
                       type="checkbox"
                       defaultChecked={m.bookable}
@@ -274,7 +270,7 @@ export function AppointmentBookingSettings({
                     />
                   </div>
                 </div>
-                <MechanicSchedulePanel mechanic={m} />
+                <MechanicSchedulePanel mechanic={m} t={t} />
               </div>
             ))}
           </div>
@@ -288,7 +284,7 @@ export function AppointmentBookingSettings({
  * El botón vive fuera del panel para no depender de un context: usa el mismo id de
  * elemento <details> renderizado por MechanicSchedulePanel para expandir/contraer.
  */
-function MechanicScheduleToggle({ mechanicId }: { mechanicId: string }) {
+function MechanicScheduleToggle({ mechanicId, label }: { mechanicId: string; label: string }) {
   return (
     <button
       type="button"
@@ -297,16 +293,22 @@ function MechanicScheduleToggle({ mechanicId }: { mechanicId: string }) {
         el?.toggleAttribute("open");
       }}
       className="flex items-center gap-1 text-xs font-medium text-slate-600 hover:text-teal-700 px-2 py-1.5 rounded-lg hover:bg-teal-50"
-      title="Horario del mecánico"
+      title={label}
     >
       <Calendar className="w-3.5 h-3.5" />
-      Horario
+      {label}
       <ChevronDown className="w-3.5 h-3.5" />
     </button>
   );
 }
 
-function MechanicSchedulePanel({ mechanic }: { mechanic: MechanicRow }) {
+function MechanicSchedulePanel({
+  mechanic,
+  t,
+}: {
+  mechanic: MechanicRow;
+  t: SettingsDictionary;
+}) {
   const [custom, setCustom] = useState(!mechanic.usesShopHours);
   const [pending, startTransition] = useTransition();
 
@@ -315,18 +317,18 @@ function MechanicSchedulePanel({ mechanic }: { mechanic: MechanicRow }) {
     startTransition(async () => {
       if (!custom) {
         const result = await resetMechanicWorkingHours(mechanic.id);
-        if (result?.success) toast.success(`${mechanic.name} sigue el horario del taller`);
-        else toast.error(result?.error ?? "Error al guardar");
+        if (result?.success) toast.success(t.booking.mechanicFollowsShop(mechanic.name));
+        else toast.error(result?.error ?? t.booking.saved);
         return;
       }
 
       const formData = new FormData(e.currentTarget);
       formData.set("userId", mechanic.id);
       const result = await updateMechanicWorkingHours(formData);
-      if (result?.success) toast.success(`Horario de ${mechanic.name} guardado`);
+      if (result?.success) toast.success(t.booking.mechanicScheduleSaved(mechanic.name));
       else if (result?.error) {
         const msg = Object.values(result.error).flat()[0];
-        toast.error(typeof msg === "string" ? msg : "Error al guardar");
+        toast.error(typeof msg === "string" ? msg : t.booking.saved);
       }
     });
   }
@@ -342,7 +344,7 @@ function MechanicSchedulePanel({ mechanic }: { mechanic: MechanicRow }) {
             onChange={(e) => setCustom(e.target.checked)}
             className="rounded border-slate-300 text-teal-600"
           />
-          Horario propio (si no, sigue el horario del taller)
+          {t.booking.ownHoursCheckbox}
         </label>
 
         {custom && (
@@ -357,7 +359,7 @@ function MechanicSchedulePanel({ mechanic }: { mechanic: MechanicRow }) {
                     defaultChecked={row.isClosed}
                     className="rounded border-slate-300"
                   />
-                  No trabaja
+                  {t.booking.notWorking}
                 </label>
                 <input
                   type="time"
@@ -384,7 +386,7 @@ function MechanicSchedulePanel({ mechanic }: { mechanic: MechanicRow }) {
             className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg"
           >
             {pending && <Loader2 className="w-4 h-4 animate-spin" />}
-            Guardar horario de {mechanic.name}
+            {t.booking.saveMechanicSchedule(mechanic.name)}
           </button>
         </div>
       </form>

@@ -7,6 +7,8 @@ import { signOut } from "next-auth/react";
 import { ADMIN } from "@/lib/routes";
 import { APP_NAME } from "@/config/app";
 import { Search, LogOut, Settings, ChevronDown } from "lucide-react";
+import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
+import { LAYOUT_DICT } from "@/lib/admin-locale/layout";
 
 interface TopbarProps {
   shopName?: string | null;
@@ -23,6 +25,8 @@ function initials(name?: string | null): string {
 }
 
 export function Topbar({ shopName, shopLogoUrl, userName }: TopbarProps) {
+  const locale = useAdminLocale();
+  const t = LAYOUT_DICT[locale];
   const displayName = shopName ?? APP_NAME;
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -68,7 +72,7 @@ export function Topbar({ shopName, shopLogoUrl, userName }: TopbarProps) {
           <input
             type="text"
             name="q"
-            placeholder="Buscar clientes, vehículos..."
+            placeholder={t.topbar.searchPlaceholder}
             className="w-full bg-slate-800 text-white placeholder:text-slate-500 text-sm rounded-lg pl-9 pr-3 py-2 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
         </div>
@@ -85,7 +89,7 @@ export function Topbar({ shopName, shopLogoUrl, userName }: TopbarProps) {
             <span className="text-white text-xs font-semibold">{initials(userName)}</span>
           </div>
           <span className="hidden md:block text-sm text-slate-200 max-w-[140px] truncate">
-            {userName ?? "Usuario"}
+            {userName ?? t.topbar.defaultUserName}
           </span>
           <ChevronDown className="hidden md:block w-3.5 h-3.5 text-slate-500" />
         </button>
@@ -98,7 +102,7 @@ export function Topbar({ shopName, shopLogoUrl, userName }: TopbarProps) {
               className="flex items-center gap-2 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
             >
               <Settings className="w-4 h-4" />
-              Configuración
+              {t.topbar.settings}
             </Link>
             <button
               type="button"
@@ -106,7 +110,7 @@ export function Topbar({ shopName, shopLogoUrl, userName }: TopbarProps) {
               className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
             >
               <LogOut className="w-4 h-4" />
-              Salir
+              {t.topbar.signOut}
             </button>
           </div>
         )}

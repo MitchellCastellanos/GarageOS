@@ -3,7 +3,9 @@ import { getClientById } from "@/actions/clients";
 import { deleteClient } from "@/actions/clients";
 import { formatDate, formatCurrency } from "@/lib/utils";
 import { formatClientName } from "@/lib/client-name";
-import { INVOICE_STATUS_BADGE, INVOICE_STATUS_LABEL } from "@/lib/invoice-status";
+import { INVOICE_STATUS_BADGE, invoiceStatusLabel } from "@/lib/invoice-status";
+import { getAdminLocale } from "@/lib/get-admin-locale";
+import type { AdminLocale } from "@/lib/admin-locale";
 import Link from "next/link";
 import {
   ChevronLeft,
@@ -19,6 +21,7 @@ import {
 } from "lucide-react";
 import { INVOICE_LANGUAGES } from "@/lib/invoice-i18n";
 import { DeleteButton } from "@/components/clients/DeleteButton";
+import { CLIENTS_DICT } from "@/lib/admin-locale/clients";
 import { MarketingConsentToggle } from "@/components/clients/MarketingConsentToggle";
 
 interface Props {
@@ -27,7 +30,8 @@ interface Props {
 
 export default async function ClientDetailPage({ params }: Props) {
   const { id } = await params;
-  const client = await getClientById(id);
+  const [client, locale] = await Promise.all([getClientById(id), getAdminLocale()]);
+  const t = CLIENTS_DICT[locale];
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -39,13 +43,13 @@ export default async function ClientDetailPage({ params }: Props) {
             className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 mb-2 transition-colors"
           >
             <ChevronLeft className="w-4 h-4" />
-            Clientes
+            {t.list.title}
           </Link>
           <h1 className="text-2xl font-bold text-slate-900">
             {formatClientName(client)}
           </h1>
           <p className="text-slate-500 text-sm mt-1">
-            Cliente desde {formatDate(client.createdAt)}
+            {t.detail.clientSince(formatDate(client.createdAt))}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -54,7 +58,7 @@ export default async function ClientDetailPage({ params }: Props) {
             className="flex items-center gap-1.5 border border-slate-300 hover:border-slate-400 text-slate-700 text-sm font-medium px-3 py-2 rounded-lg transition-colors"
           >
             <Pencil className="w-3.5 h-3.5" />
-            Editar
+            {t.detail.edit}
           </Link>
           <DeleteButton clientId={id} clientName={formatClientName(client)} />
         </div>
@@ -64,7 +68,7 @@ export default async function ClientDetailPage({ params }: Props) {
         {/* Información del cliente */}
         <div className="lg:col-span-1 space-y-4">
           <div className="bg-white rounded-xl border border-slate-200 p-5">
-            <h2 className="font-semibold text-slate-900 mb-4">Información</h2>
+            <h2 className="font-semibold text-slate-900 mb-4">{t.detail.infoTitle}</h2>
             <div className="space-y-3">
               {client.phone && (
                 <ContactRow icon={<Phone className="w-4 h-4 text-slate-400" />}>
@@ -89,16 +93,16 @@ export default async function ClientDetailPage({ params }: Props) {
                 <p className="text-sm text-slate-700">
                   {INVOICE_LANGUAGES.find((l) => l.value === client.language)?.label ??
                     client.language}{" "}
-                  <span className="text-slate-400">— SMS y email</span>
+                  <span className="text-slate-400">{t.detail.languageSuffix}</span>
                 </p>
               </ContactRow>
               {!client.email && !client.phone && !client.address && (
-                <p className="text-sm text-slate-400">Sin información de contacto</p>
+                <p className="text-sm text-slate-400">{t.detail.noContactInfo}</p>
               )}
             </div>
             {client.notes && (
               <div className="mt-4 pt-4 border-t border-slate-100">
-                <p className="text-xs font-medium text-slate-500 uppercase mb-1.5">Notas</p>
+                <p className="text-xs font-medium text-slate-500 uppercase mb-1.5">{t.detail.notesTitle}</p>
                 <p className="text-sm text-slate-600 whitespace-pre-wrap">{client.notes}</p>
               </div>
             )}
@@ -114,8 +118,8 @@ export default async function ClientDetailPage({ params }: Props) {
 
           {/* Stats rápidos */}
           <div className="grid grid-cols-2 gap-3">
-            <StatCard label="Vehículos" value={client._count.vehicles} icon={<Car className="w-4 h-4 text-blue-600" />} />
-            <StatCard label="Facturas" value={client._count.invoices} icon={<FileText className="w-4 h-4 text-violet-600" />} />
+            <StatCard label={t.list.tableVehicles} value={client._count.vehicles} icon={<Car className="w-4 h-4 text-blue-600" />} />
+            <StatCard label={t.list.tableInvoices} value={client._count.invoices} icon={<FileText className="w-4 h-4 text-violet-600" />} />
           </div>
         </div>
 
@@ -126,26 +130,26 @@ export default async function ClientDetailPage({ params }: Props) {
             <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Car className="w-4 h-4 text-slate-400" />
-                <h2 className="font-semibold text-slate-900">Vehículos</h2>
+                <h2 className="font-semibold text-slate-900">{t.list.tableVehicles}</h2>
               </div>
               <Link
                 href={adminPath(`/clients/${id}/vehicles/new`)}
                 className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 transition-colors"
               >
                 <Plus className="w-3.5 h-3.5" />
-                Agregar
+                {t.detail.add}
               </Link>
             </div>
 
             {client.vehicles.length === 0 ? (
               <div className="p-6 text-center">
                 <Car className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                <p className="text-sm text-slate-400">Sin vehículos registrados</p>
+                <p className="text-sm text-slate-400">{t.detail.noVehiclesRegistered}</p>
                 <Link
                   href={adminPath(`/clients/${id}/vehicles/new`)}
                   className="mt-2 inline-block text-sm text-blue-600 hover:underline"
                 >
-                  Agregar vehículo →
+                  {t.detail.addVehicleArrow}
                 </Link>
               </div>
             ) : (
@@ -161,7 +165,7 @@ export default async function ClientDetailPage({ params }: Props) {
                         {vehicle.year} {vehicle.make} {vehicle.model}
                       </p>
                       <p className="text-xs text-slate-500 mt-0.5">
-                        Placa: {vehicle.licensePlate}
+                        {t.common.plateLabel} {vehicle.licensePlate}
                         {vehicle.color ? ` · ${vehicle.color}` : ""}
                       </p>
                     </div>
@@ -178,10 +182,10 @@ export default async function ClientDetailPage({ params }: Props) {
               <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <FileText className="w-4 h-4 text-slate-400" />
-                  <h2 className="font-semibold text-slate-900">Últimas facturas</h2>
+                  <h2 className="font-semibold text-slate-900">{t.detail.recentInvoicesTitle}</h2>
                 </div>
                 <Link href={ADMIN.invoices} className="text-xs text-blue-600 hover:underline">
-                  Ver todas →
+                  {t.detail.viewAllArrow}
                 </Link>
               </div>
               <div className="divide-y divide-slate-100">
@@ -206,7 +210,7 @@ export default async function ClientDetailPage({ params }: Props) {
                       <p className="text-sm font-medium text-slate-900">
                         {formatCurrency(Number(invoice.total))}
                       </p>
-                      <StatusBadge status={invoice.status} />
+                      <StatusBadge status={invoice.status} locale={locale} />
                     </div>
                   </Link>
                 ))}
@@ -239,12 +243,12 @@ function StatCard({ label, value, icon }: { label: string; value: number; icon: 
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status, locale }: { status: string; locale: AdminLocale }) {
   return (
     <span
       className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${INVOICE_STATUS_BADGE[status] ?? "bg-slate-100 text-slate-500"}`}
     >
-      {INVOICE_STATUS_LABEL[status] ?? status}
+      {invoiceStatusLabel(status, locale)}
     </span>
   );
 }
