@@ -1,9 +1,8 @@
 "use server";
 
-import { ADMIN, PLATFORM, adminPath } from "@/lib/routes";
+import { ADMIN } from "@/lib/routes";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireShopSession } from "@/lib/permissions";
 import { uploadToStorage } from "@/lib/storage";
@@ -19,8 +18,6 @@ import {
 async function getSession() {
   return requireShopSession();
 }
-
-// ── READ ────────────────────────────────────────────────────
 
 export async function getDocuments(category?: DocCategory) {
   const session = await getSession();
@@ -89,43 +86,35 @@ export async function getAccountingPageData() {
   return { documents };
 }
 
-// ── UPLOAD ──────────────────────────────────────────────────
-// Recibe FormData desde el cliente (UploadZone)
-// Flujo: archivo → Supabase Storage (backup) → Google Drive → DB → email contadora
-
 export async function uploadDocument(formData: FormData) {
   const session = await getSession();
   const shopId = session.user.shopId!;
-  const uploaderName = session.user.name ?? "Equipo del taller";
+  const uploaderName = session.user.name ?? "Shop team";
 
   const file = formData.get("file") as File | null;
   const category = formData.get("category") as DocCategory | null;
 
   if (!file || !category) {
-    return { error: "Falta el archivo o la categoría" };
+    return { error: "File and category are required" };
   }
 
-  // Validar categoría
   const validCategories = DOC_CATEGORIES.map((c) => c.value);
   if (!validCategories.includes(category)) {
-    return { error: "Categoría inválida" };
+    return { error: "Invalid category" };
   }
 
-  // Validar tipo y tamaño (max 20 MB)
   const MAX_SIZE = 20 * 1024 * 1024;
   if (file.size > MAX_SIZE) {
-    return { error: "El archivo supera el límite de 20 MB" };
+    return { error: "File exceeds the 20 MB limit" };
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const categoryLabel =
     DOC_CATEGORIES.find((c) => c.value === category)?.label ?? category;
 
-  // Obtener nombre del shop para el email
   const shop = await db.shop.findUnique({ where: { id: shopId } });
-  if (!shop) return { error: "Shop no encontrado" };
+  if (!shop) return { error: "Shop not found" };
 
-  // 1. Backup en Supabase Storage
   let storagePath = "";
   try {
     const result = await uploadToStorage(
@@ -138,10 +127,8 @@ export async function uploadDocument(formData: FormData) {
     storagePath = result.storagePath;
   } catch (err) {
     console.error("Supabase upload error:", err);
-    // Continuar aunque falle Supabase — Drive es el destino principal
   }
 
-  // 2. Subir a Google Drive
   let driveFileId: string | null = null;
   let driveFolderId: string | null = null;
   let driveUrl: string | undefined;
@@ -158,13 +145,11 @@ export async function uploadDocument(formData: FormData) {
     driveUrl = driveFileUrl(driveFileId);
   } catch (err) {
     console.error("Google Drive upload error:", err);
-    // Si Drive falla y tampoco hay Supabase, error total
     if (!storagePath) {
-      return { error: "Error subiendo el archivo. Intenta de nuevo." };
+      return { error: "Error uploading the file. Please try again." };
     }
   }
 
-  // 3. Guardar registro en DB
   await db.accountingDocument.create({
     data: {
       shopId,
@@ -178,7 +163,6 @@ export async function uploadDocument(formData: FormData) {
     },
   });
 
-  // 4. Enviar email a la contadora (no bloquear si falla)
   try {
     const rootFolderId = process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID;
     const driveFolderUrl = rootFolderId
@@ -192,7 +176,7 @@ export async function uploadDocument(formData: FormData) {
       driveFolderUrl,
     });
   } catch (err) {
-    console.error("Error enviando email a contadora:", err);
+    console.error("Error sending accountant email:", err);
   }
 
   revalidatePath(ADMIN.accounting);
