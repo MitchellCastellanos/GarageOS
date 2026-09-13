@@ -7,6 +7,7 @@ import { getShopId } from "@/lib/shop-context";
 import { requireShopSession } from "@/lib/permissions";
 import { sendInboxMessage } from "@/lib/communications/inbox";
 import { parseEmailAttachments } from "@/lib/email-attachments";
+import { emailRichTextToPlainText, parseEmailRichText } from "@/lib/email-rich-text";
 
 export async function listThreads(status: "OPEN" | "ARCHIVED" = "OPEN") {
   const shopId = await getShopId();
@@ -31,8 +32,6 @@ export async function getThreadDetail(threadId: string) {
   });
   if (!thread) return null;
 
-  // Timeline de mensajes automatizados del mismo cliente, fuera de este thread — solo
-  // lectura (doc §6.5). No incluye otros threads humanos del cliente.
   const clientHistory = thread.clientId
     ? await db.communicationMessage.findMany({
         where: { shopId, clientId: thread.clientId, threadId: null },
@@ -68,10 +67,14 @@ export async function reopenThreadAction(threadId: string) {
 
 function splitAddresses(value: FormDataEntryValue | null): string[] {
   if (typeof value !== "string" || !value.trim()) return [];
-  return value
-    .split(",")
-    .map((v) => v.trim())
-    .filter(Boolean);
+  return value.split(",").map((v) => v.trim()).filter(Boolean);
+}
+
+function getMessageBody(formData: FormData) {
+  const bodyRich = parseEmailRichText(formData.get("bodyRich"));
+  const richText = bodyRich ? emailRichTextToPlainText(bodyRich) : "";
+  const fallbackText = (formData.get("body") as string | null)?.trim() ?? "";
+  return { bodyRich, bodyText: richText || fallbackText };
 }
 
 export async function replyToThreadAction(threadId: string, formData: FormData) {
@@ -84,14 +87,12 @@ export async function replyToThreadAction(threadId: string, formData: FormData) 
   const to = splitAddresses(formData.get("to"));
   if (to.length === 0) return { error: "Agrega al menos un destinatario" };
 
-  const body = (formData.get("body") as string)?.trim();
-  if (!body) return { error: "El mensaje no puede estar vacío" };
+  const { bodyRich, bodyText } = getMessageBody(formData);
+  if (!bodyText) return { error: "El mensaje no puede estar vacío" };
 
   const subject = (formData.get("subject") as string)?.trim() || thread.subject || "Mensaje";
-
   const attachmentResult = await parseEmailAttachments(formData);
   if ("error" in attachmentResult) return { error: attachmentResult.error };
-
   const shop = await db.shop.findUniqueOrThrow({ where: { id: shopId } });
 
   try {
@@ -104,7 +105,8 @@ export async function replyToThreadAction(threadId: string, formData: FormData) 
       cc: splitAddresses(formData.get("cc")),
       bcc: splitAddresses(formData.get("bcc")),
       subject,
-      bodyText: body,
+      bodyText,
+      bodyRich,
       shopName: shop.name,
       attachments: attachmentResult.attachments,
     });
@@ -126,17 +128,14 @@ export async function composeMessageAction(formData: FormData) {
   const to = splitAddresses(formData.get("to"));
   if (to.length === 0) return { error: "Agrega al menos un destinatario" };
 
-  const body = (formData.get("body") as string)?.trim();
-  if (!body) return { error: "El mensaje no puede estar vacío" };
+  const { bodyRich, bodyText } = getMessageBody(formData);
+  if (!bodyText) return { error: "El mensaje no puede estar vacío" };
 
   const subject = (formData.get("subject") as string)?.trim();
   if (!subject) return { error: "El asunto es requerido" };
-
   const clientId = (formData.get("clientId") as string) || null;
-
   const attachmentResult = await parseEmailAttachments(formData);
   if ("error" in attachmentResult) return { error: attachmentResult.error };
-
   const shop = await db.shop.findUniqueOrThrow({ where: { id: shopId } });
 
   let threadId: string | null = null;
@@ -149,7 +148,8 @@ export async function composeMessageAction(formData: FormData) {
       cc: splitAddresses(formData.get("cc")),
       bcc: splitAddresses(formData.get("bcc")),
       subject,
-      bodyText: body,
+      bodyText,
+      bodyRich,
       shopName: shop.name,
       attachments: attachmentResult.attachments,
     });
