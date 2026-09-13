@@ -16,6 +16,8 @@ import {
 } from "@/lib/accounting-documents";
 import { ADMIN } from "@/lib/routes";
 import { formatDate } from "@/lib/utils";
+import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
+import { CAJA_DICT } from "@/lib/admin-locale/caja";
 
 interface AccountingClientProps {
   initialDocs: EnrichedAccountingDocument[];
@@ -46,6 +48,8 @@ function filterDocs(
 }
 
 export function AccountingClient({ initialDocs, categories }: AccountingClientProps) {
+  const locale = useAdminLocale();
+  const t = CAJA_DICT[locale].accounting;
   const [activeCategory, setActiveCategory] = useState<DocCategory>(
     categories[0].value as DocCategory
   );
@@ -71,12 +75,8 @@ export function AccountingClient({ initialDocs, categories }: AccountingClientPr
       <div className="bg-slate-900 rounded-xl p-5 flex items-start gap-4">
         <FolderOpen className="w-5 h-5 text-slate-400 flex-shrink-0 mt-0.5" />
         <div>
-          <p className="text-white text-sm font-medium">
-            Carpeta de Drive compartida con tu contadora
-          </p>
-          <p className="text-slate-400 text-xs mt-0.5">
-            Las facturas se exportan automáticamente a esta carpeta al marcarlas como pagadas.
-          </p>
+          <p className="text-white text-sm font-medium">{t.driveFolderTitle}</p>
+          <p className="text-slate-400 text-xs mt-0.5">{t.driveFolderSubtitle}</p>
         </div>
       </div>
 
@@ -119,7 +119,7 @@ export function AccountingClient({ initialDocs, categories }: AccountingClientPr
       {showDocFilters && (
         <div className="space-y-2">
           <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-            Filtro de documentos
+            {t.docFilterLabel}
           </p>
           <div className="flex gap-1 flex-wrap">
             {ACCOUNTING_DOC_FILTERS.map((filter) => {
@@ -161,10 +161,12 @@ export function AccountingClient({ initialDocs, categories }: AccountingClientPr
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl border border-slate-200 p-5">
           <h2 className="font-semibold text-slate-900 mb-1">
-            {CATEGORY_ICONS[activeCategory]} Subir a {activeLabel}
+            {CATEGORY_ICONS[activeCategory]} {t.uploadHeading(activeLabel)}
           </h2>
           <p className="text-xs text-slate-400 mb-4">
-            Se subirá a la carpeta <strong>{activeLabel}</strong> en Google Drive
+            {t.uploadHintPrefix}
+            <strong>{activeLabel}</strong>
+            {t.uploadHintSuffix}
           </p>
           <UploadZone
             category={activeCategory}
@@ -186,7 +188,7 @@ export function AccountingClient({ initialDocs, categories }: AccountingClientPr
           {filteredDocs.length === 0 ? (
             <div className="px-5 py-10 text-center">
               <FileText className="w-8 h-8 text-slate-200 mx-auto mb-2" />
-              <p className="text-sm text-slate-400">No hay documentos con este filtro</p>
+              <p className="text-sm text-slate-400">{t.noDocuments}</p>
             </div>
           ) : (
             <div className="divide-y divide-slate-100">
@@ -217,10 +219,10 @@ export function AccountingClient({ initialDocs, categories }: AccountingClientPr
                         )}
                       </p>
                       {doc.source === "auto_paid_invoice" && (
-                        <p className="text-xs text-emerald-700 mt-0.5">Exportado automáticamente</p>
+                        <p className="text-xs text-emerald-700 mt-0.5">{t.autoExported}</p>
                       )}
                       {doc.source === "manual" && (
-                        <p className="text-xs text-slate-500 mt-0.5">Subida manual</p>
+                        <p className="text-xs text-slate-500 mt-0.5">{t.manualUpload}</p>
                       )}
                     </div>
                   </div>
@@ -232,7 +234,7 @@ export function AccountingClient({ initialDocs, categories }: AccountingClientPr
                       rel="noopener noreferrer"
                       className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 flex-shrink-0"
                     >
-                      Drive
+                      {t.driveLink}
                       <ExternalLink className="w-3 h-3" />
                     </a>
                   )}

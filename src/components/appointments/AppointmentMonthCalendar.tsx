@@ -4,6 +4,8 @@ import Link from "next/link";
 import { ADMIN } from "@/lib/routes";
 import { formatClientName } from "@/lib/client-name";
 import { formatShopDate, formatShopTime, getShopDayOfWeek } from "@/lib/shop-timezone";
+import type { AdminLocale } from "@/lib/admin-locale";
+import { APPOINTMENTS_DICT } from "@/lib/admin-locale/appointments";
 
 interface Appointment {
   id: string;
@@ -17,9 +19,8 @@ interface AppointmentMonthCalendarProps {
   month: string;
   appointments: Appointment[];
   timeZone: string;
+  locale: AdminLocale;
 }
-
-const WEEKDAYS = ["lun.", "mar.", "mer.", "jeu.", "ven.", "sam.", "dim."];
 
 function buildCalendarCells(month: string, timeZone: string) {
   const [y, m] = month.split("-").map(Number);
@@ -50,7 +51,9 @@ export function AppointmentMonthCalendar({
   month,
   appointments,
   timeZone,
+  locale,
 }: AppointmentMonthCalendarProps) {
+  const t = APPOINTMENTS_DICT[locale].monthCalendar;
   const cells = buildCalendarCells(month, timeZone);
   const today = formatShopDate(new Date(), timeZone);
 
@@ -65,7 +68,7 @@ export function AppointmentMonthCalendar({
   return (
     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
       <div className="grid grid-cols-7 border-b border-slate-100 bg-slate-50">
-        {WEEKDAYS.map((label) => (
+        {t.weekdays.map((label) => (
           <div
             key={label}
             className="px-2 py-2 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide"
@@ -119,7 +122,7 @@ export function AppointmentMonthCalendar({
                     href={`${ADMIN.appointments}?view=day&date=${cell.date}`}
                     className="text-[10px] text-teal-700 font-medium px-1 hover:underline"
                   >
-                    +{dayAppointments.length - 3} más
+                    {t.more(dayAppointments.length - 3)}
                   </Link>
                 )}
               </div>

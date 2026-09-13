@@ -142,3 +142,27 @@ export async function deleteClient(id: string) {
   revalidatePath(ADMIN.clients);
   redirect(ADMIN.clients);
 }
+
+// ── CONSENTIMIENTO DE MARKETING (Communications Platform §12) ─
+
+export async function setClientMarketingConsent(id: string, consent: boolean) {
+  const shopId = await getShopId();
+
+  await db.client.updateMany({
+    where: { id, shopId },
+    data: consent
+      ? {
+          marketingEmailConsent: true,
+          consentSource: "manual",
+          consentAt: new Date(),
+          emailMarketingOptOutAt: null,
+        }
+      : {
+          marketingEmailConsent: false,
+          emailMarketingOptOutAt: new Date(),
+        },
+  });
+
+  revalidatePath(adminPath(`/clients/${id}`));
+  return { success: true };
+}

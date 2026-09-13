@@ -15,6 +15,8 @@ import type { CashDrawerEntryFormData } from "@/lib/validations";
 import { ADMIN } from "@/lib/routes";
 import { Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
+import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
+import { CAJA_DICT } from "@/lib/admin-locale/caja";
 
 type SerializedEntry = {
   id: string;
@@ -49,6 +51,8 @@ export function CashDrawerClient({
   date,
 }: CashDrawerClientProps) {
   const router = useRouter();
+  const locale = useAdminLocale();
+  const t = CAJA_DICT[locale].cashDrawer;
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<CashDrawerEntryFormData>({
@@ -60,11 +64,11 @@ export function CashDrawerClient({
   });
 
   const summaryCards = [
-    { label: "Apertura hoy", value: summary.openingBalance },
-    { label: "Efectivo recibido", value: summary.cashIn },
-    { label: "Efectivo pagado", value: summary.cashOut },
-    { label: "Ajustes", value: summary.adjustments },
-    { label: "Saldo esperado en caja", value: summary.expectedBalance, highlight: true },
+    { label: t.summary.openingToday, value: summary.openingBalance },
+    { label: t.summary.cashReceived, value: summary.cashIn },
+    { label: t.summary.cashPaidOut, value: summary.cashOut },
+    { label: t.summary.adjustments, value: summary.adjustments },
+    { label: t.summary.expectedBalance, value: summary.expectedBalance, highlight: true },
   ];
 
   function updateForm<K extends keyof CashDrawerEntryFormData>(
@@ -81,7 +85,7 @@ export function CashDrawerClient({
       const result = await createCashDrawerEntry(form);
       if (result.error) {
         const first = Object.values(result.error).flat()[0];
-        setError(first ?? "No se pudo guardar el movimiento");
+        setError(first ?? t.form.genericError);
         return;
       }
       setForm({
@@ -96,7 +100,7 @@ export function CashDrawerClient({
   }
 
   function handleDelete(id: string) {
-    if (!confirm("¿Eliminar este movimiento manual?")) return;
+    if (!confirm(t.table.deleteConfirm)) return;
     startTransition(async () => {
       const result = await deleteCashDrawerEntry(id);
       if (result.error) {
@@ -112,7 +116,7 @@ export function CashDrawerClient({
       <div className="flex flex-col sm:flex-row sm:items-end gap-3">
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1.5">
-            Fecha
+            {t.dateLabel}
           </label>
           <input
             type="date"
@@ -152,12 +156,12 @@ export function CashDrawerClient({
         >
           <h2 className="font-semibold text-slate-900 flex items-center gap-2">
             <Plus className="w-4 h-4" />
-            Nuevo movimiento
+            {t.form.heading}
           </h2>
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              Tipo
+              {t.form.typeLabel}
             </label>
             <select
               value={form.type}
@@ -166,9 +170,9 @@ export function CashDrawerClient({
               }
               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
             >
-              {MANUAL_TYPES.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
+              {MANUAL_TYPES.map((manualType) => (
+                <option key={manualType.value} value={manualType.value}>
+                  {cashDrawerEntryTypeLabel(manualType.value, locale)}
                 </option>
               ))}
             </select>
@@ -176,7 +180,7 @@ export function CashDrawerClient({
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              Monto
+              {t.form.amountLabel}
             </label>
             <input
               type="number"
@@ -184,18 +188,16 @@ export function CashDrawerClient({
               value={form.amount || ""}
               onChange={(e) => updateForm("amount", Number(e.target.value))}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-              placeholder="0.00"
+              placeholder={t.form.amountPlaceholder}
             />
             {form.type === "ADJUSTMENT" && (
-              <p className="text-xs text-slate-500 mt-1">
-                Usa valores negativos para reducir el saldo.
-              </p>
+              <p className="text-xs text-slate-500 mt-1">{t.form.adjustmentHint}</p>
             )}
           </div>
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              Fecha y hora
+              {t.form.dateTimeLabel}
             </label>
             <input
               type="datetime-local"
@@ -207,14 +209,14 @@ export function CashDrawerClient({
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              Nota (opcional)
+              {t.form.noteLabel}
             </label>
             <textarea
               value={form.description}
               onChange={(e) => updateForm("description", e.target.value)}
               rows={2}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-              placeholder="Ej. compra de repuestos en efectivo"
+              placeholder={t.form.notePlaceholder}
             />
           </div>
 
@@ -229,31 +231,29 @@ export function CashDrawerClient({
             disabled={isPending}
             className="w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
           >
-            {isPending ? "Guardando..." : "Registrar movimiento"}
+            {isPending ? t.form.submitting : t.form.submit}
           </button>
         </form>
 
         <div className="bg-white rounded-xl border border-slate-200 lg:col-span-2 overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-100">
-            <h2 className="font-semibold text-slate-900">Movimientos del día</h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Las entradas por cobros en efectivo se crean al marcar facturas como pagadas.
-            </p>
+            <h2 className="font-semibold text-slate-900">{t.table.heading}</h2>
+            <p className="text-xs text-slate-400 mt-0.5">{t.table.hint}</p>
           </div>
 
           {initialEntries.length === 0 ? (
             <div className="px-5 py-10 text-center text-sm text-slate-400">
-              Sin movimientos para esta fecha
+              {t.table.empty}
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-slate-50 text-left text-xs uppercase text-slate-500">
-                    <th className="px-5 py-2 font-medium">Hora</th>
-                    <th className="px-5 py-2 font-medium">Tipo</th>
-                    <th className="px-5 py-2 font-medium text-right">Monto</th>
-                    <th className="px-5 py-2 font-medium">Nota / Factura</th>
+                    <th className="px-5 py-2 font-medium">{t.table.colTime}</th>
+                    <th className="px-5 py-2 font-medium">{t.table.colType}</th>
+                    <th className="px-5 py-2 font-medium text-right">{t.table.colAmount}</th>
+                    <th className="px-5 py-2 font-medium">{t.table.colNoteInvoice}</th>
                     <th className="px-5 py-2 font-medium w-10" />
                   </tr>
                 </thead>
@@ -265,7 +265,8 @@ export function CashDrawerClient({
                       </td>
                       <td className="px-5 py-3 text-slate-900">
                         {cashDrawerEntryTypeLabel(
-                          entry.type as (typeof CASH_DRAWER_ENTRY_TYPES)[number]["value"]
+                          entry.type as (typeof CASH_DRAWER_ENTRY_TYPES)[number]["value"],
+                          locale
                         )}
                       </td>
                       <td className="px-5 py-3 text-right font-medium text-slate-900">
@@ -280,7 +281,7 @@ export function CashDrawerClient({
                             {entry.linkedInvoice.invoiceNumber}
                           </Link>
                         ) : (
-                          entry.description ?? "—"
+                          entry.description ?? t.table.dash
                         )}
                       </td>
                       <td className="px-5 py-3">
@@ -290,7 +291,7 @@ export function CashDrawerClient({
                             onClick={() => handleDelete(entry.id)}
                             disabled={isPending}
                             className="text-slate-400 hover:text-red-500"
-                            title="Eliminar"
+                            title={t.table.deleteTitle}
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>

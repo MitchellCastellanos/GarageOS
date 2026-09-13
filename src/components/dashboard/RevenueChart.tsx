@@ -13,6 +13,8 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
+import { DASHBOARD_DICT } from "@/lib/admin-locale/dashboard";
 
 interface MonthlyRevenue {
   month: string; // "Ene", "Feb", etc.
@@ -27,29 +29,33 @@ function CustomTooltip({
   active,
   payload,
   label,
+  intlLocale,
 }: {
   active?: boolean;
   payload?: { value: number }[];
   label?: string;
+  intlLocale: string;
 }) {
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-white border border-slate-200 rounded-lg px-3 py-2 shadow-md text-sm">
       <p className="font-medium text-slate-700">{label}</p>
       <p className="text-blue-600 font-semibold">
-        ${payload[0].value.toLocaleString("es-CA", { minimumFractionDigits: 2 })} CAD
+        ${payload[0].value.toLocaleString(intlLocale, { minimumFractionDigits: 2 })} CAD
       </p>
     </div>
   );
 }
 
 export function RevenueChart({ data }: RevenueChartProps) {
+  const locale = useAdminLocale();
+  const t = DASHBOARD_DICT[locale];
   const hasData = data.some((d) => d.revenue > 0);
 
   if (!hasData) {
     return (
       <div className="h-48 flex items-center justify-center text-slate-400 text-sm">
-        Sin ingresos registrados aún
+        {t.revenueChart.empty}
       </div>
     );
   }
@@ -70,7 +76,7 @@ export function RevenueChart({ data }: RevenueChartProps) {
           tickLine={false}
           tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
         />
-        <Tooltip content={<CustomTooltip />} cursor={{ fill: "#f8fafc" }} />
+        <Tooltip content={<CustomTooltip intlLocale={t.intlLocale} />} cursor={{ fill: "#f8fafc" }} />
         <Bar dataKey="revenue" fill="#1d4ed8" radius={[4, 4, 0, 0]} maxBarSize={48} />
       </BarChart>
     </ResponsiveContainer>

@@ -5,6 +5,8 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 export const ACCOUNTING_BUCKET = "accounting";
+/** Bucket privado — adjuntos de Inbox/email entrante. Nunca se sirve por URL pública. */
+export const COMMUNICATIONS_BUCKET = "communications";
 
 function getClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -124,4 +126,64 @@ export async function downloadFromStorage(storagePath: string): Promise<Buffer> 
     throw new Error(`Supabase download error: ${error?.message ?? "empty"}`);
   }
   return Buffer.from(await data.arrayBuffer());
+}
+
+/** Crea el bucket privado `communications` si no existe — nunca marcado público. */
+export async function ensureCommunicationsBucket(supabase?: SupabaseClient) {
+  const client = supabase ?? getClient();
+  const { data: buckets, error: listError } = await client.storage.listBuckets();
+  if (listError) {
+    throw new Error(`No se pudo listar buckets de Supabase: ${listError.message}`);
+  }
+  if (buckets?.some((b) => b.name === COMMUNICATIONS_BUCKET)) return;
+
+  const { error: createError } = await client.storage.createBucket(COMMUNICATIONS_BUCKET, {
+    public: false,
+  });
+  if (createError) {
+    const manual =
+      " En Supabase → Storage → New bucket, nombre «communications», SIN marcar «Public bucket».";
+    throw new Error(
+      `No se pudo crear el bucket «${COMMUNICATIONS_BUCKET}»: ${createError.message}.${manual}`
+    );
+  }
+}
+
+/** Sube un adjunto de Inbox (mensaje entrante/saliente) al bucket privado. */
+export async function uploadCommunicationAttachment(
+  shopId: string,
+  messageId: string,
+  fileName: string,
+  buffer: Buffer,
+  mimeType: string
+): Promise<{ storagePath: string }> {
+  const supabase = getClient();
+  await ensureCommunicationsBucket(supabase);
+
+  const timestamp = Date.now();
+  const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const storagePath = `${shopId}/${messageId}/${timestamp}-${safeName}`;
+
+  const { error } = await supabase.storage
+    .from(COMMUNICATIONS_BUCKET)
+    .upload(storagePath, buffer, { contentType: mimeType, upsert: false });
+
+  if (error) throw new Error(`Supabase upload error: ${error.message}`);
+
+  return { storagePath };
+}
+
+/** Link temporal (expira) para descargar un adjunto privado — nunca URL pública permanente. */
+export async function signedUrlForCommunicationAttachment(
+  storagePath: string,
+  expiresInSeconds = 3600
+): Promise<string> {
+  const supabase = getClient();
+  const { data, error } = await supabase.storage
+    .from(COMMUNICATIONS_BUCKET)
+    .createSignedUrl(storagePath, expiresInSeconds);
+  if (error || !data) {
+    throw new Error(`Supabase signed URL error: ${error?.message ?? "empty"}`);
+  }
+  return data.signedUrl;
 }

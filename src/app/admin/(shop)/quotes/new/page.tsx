@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { InvoiceForm } from "@/components/invoices/InvoiceForm";
 import { createQuote, getQuoteFormData } from "@/actions/quotes";
 import { type QuoteFormData } from "@/lib/validations";
+import { getAdminLocale } from "@/lib/get-admin-locale";
+import { QUOTES_DICT } from "@/lib/admin-locale/quotes";
 
 export default async function NewQuotePage() {
   const { clients } = await getQuoteFormData();
@@ -11,12 +13,15 @@ export default async function NewQuotePage() {
     redirect(`${ADMIN.clients}/new?hint=quote`);
   }
 
+  const locale = await getAdminLocale();
+  const t = QUOTES_DICT[locale];
+
   return (
     <div className="max-w-4xl">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Nueva cotización</h1>
+        <h1 className="text-2xl font-bold text-slate-900">{t.new.title}</h1>
         <p className="text-slate-500 text-sm mt-1">
-          Completa los datos para crear una cotización
+          {t.new.subtitle}
         </p>
       </div>
 

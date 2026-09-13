@@ -7,7 +7,7 @@ const ALLOWED_ATTACHMENT_TYPES = new Set([
   "image/webp",
 ]);
 
-export type EmailAttachment = { filename: string; content: Buffer };
+export type EmailAttachment = { filename: string; content: Buffer; mimeType?: string };
 
 export function maxUserEmailAttachments(reservedCount: number): number {
   return Math.max(0, MAX_EMAIL_EXTRA_ATTACHMENTS - reservedCount);
@@ -47,6 +47,7 @@ export async function parseEmailAttachments(
     attachments.push({
       filename: file.name,
       content: Buffer.from(await file.arrayBuffer()),
+      mimeType: type,
     });
   }
 

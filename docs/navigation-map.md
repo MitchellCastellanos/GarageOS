@@ -14,25 +14,34 @@ que apunten a una sección vacía — eso fue exactamente el problema que
 `feature-gap.md` encontró en el mockup del homepage ("Messages" sin nada
 detrás, "Work Orders" como si ya existiera).
 
-## Navegación actual (lo que se construye en este paso)
+## Navegación actual (`src/components/layout/Sidebar.tsx`, corte post-Communications Platform)
 
-Riel de íconos, de arriba a abajo:
+El riel creció desde el mapeo original — la Communications Platform (Fases
+1–3/5/7, ver `docs/feature-gap.md`) agregó Inbox y Campañas como pantallas
+reales, no como promesas:
 
 | # | Ítem | Ruta | Ícono | Estado |
 | - | --- | --- | --- | --- |
-| 1 | Dashboard | `/admin/dashboard` | `LayoutDashboard` | ✅ Construido |
-| 2 | Citas | `/admin/appointments` | `Calendar` | ✅ Construido |
-| 3 | Clientes | `/admin/clients` | `Users` | ✅ Construido (vehículos viven anidados en `clients/[id]/vehicles`) |
-| 4 | Cotizaciones | `/admin/quotes` | `FileSpreadsheet` | ✅ Construido (aprobación de cliente: pendiente, ver abajo) |
-| 5 | Facturas | `/admin/invoices` | `FileText` | ✅ Construido |
-| 6 | Caja | `/admin/caja` | `Banknote` | ✅ Construido |
-| 7 | Contabilidad | `/admin/accounting` | `FolderOpen` | ✅ Construido |
-| 8 | Recordatorios | `/admin/reminders` | `Bell` | ✅ Construido |
-| — | Configuración (pie del riel) | `/admin/settings` | `Settings` | ✅ Construido (incluye equipo/roles vía `TeamManagement`) |
+| 1 | Dashboard | `/admin/dashboard` | `LayoutDashboard` | ✅ Construido (incluye bloque "hoy" de citas) |
+| 2 | Inbox | `/admin/inbox` | `Inbox` | ✅ Construido — reemplaza lo que iba a ser el "Mensajes" fantasma del homepage |
+| 3 | Citas | `/admin/appointments` | `Calendar` | ✅ Construido (doble-booking aún no blindado en transacción, ver `feature-gap.md`) |
+| 4 | Clientes | `/admin/clients` | `Users` | ✅ Construido (vehículos siguen anidados en `clients/[id]/vehicles`) |
+| 5 | Cotizaciones | `/admin/quotes` | `FileSpreadsheet` | ✅ Construido — aprobación de cliente por token/SMS ya conectada (`quote-approvals.ts`, `/quote/[token]`) |
+| 6 | Facturas | `/admin/invoices` | `FileText` | ✅ Construido (folios aún no atómicos) |
+| 7 | Campañas | `/admin/campaigns` | `Megaphone` | ✅ Construido |
+| 8 | Notificaciones | `/admin/notifications` | `Mail` | ✅ Construido — solo visible para `OWNER` |
+| 9 | Caja | `/admin/caja` | `Banknote` | ✅ Construido |
+| 10 | Contabilidad | `/admin/accounting` | `FolderOpen` | ✅ Construido |
+| 11 | Recordatorios | `/admin/reminders` | `Bell` | ✅ Construido |
+| — | Configuración (pie del riel) | `/admin/settings` | `Settings` | ✅ Construido (equipo/roles vía `TeamManagement`, dominios de email, idioma) |
 
-El orden sigue el flujo de trabajo real del taller (agenda → cliente/vehículo
-→ cotizar → facturar → cobrar/contabilizar → dar seguimiento), no orden
-alfabético.
+El riel ahora también tiene versión móvil (drawer con foco atrapado,
+`Sidebar.tsx`) y el topbar colapsa el buscador a un ícono en pantallas
+chicas — el mapeo original solo cubría desktop.
+
+El orden sigue el flujo de trabajo real del taller (bandeja/agenda →
+cliente/vehículo → cotizar → facturar/cobrar → comunicación saliente →
+contabilidad → seguimiento), no orden alfabético.
 
 ## Lo que se integra según se vaya construyendo (orden de `feature-gap.md`)
 
@@ -40,17 +49,20 @@ alfabético.
 | --- | --- | --- |
 | 0. Aislamiento multi-taller | Ninguno — es infraestructura, no pantalla | Nunca aparece en el menú |
 | 1. Work Orders de punta a punta | **Nuevo ítem "Órdenes de trabajo"** (`/admin/work-orders`, ícono `Wrench`), entre Citas y Clientes — es el paso que conecta ambos | Cuando exista `src/actions/work-orders.ts` + pantallas reales, no antes |
-| 2. Aprobación de cotización | Ninguno — es un estado/flujo dentro de "Cotizaciones" (token del cliente, no una sección nueva) | No aplica |
-| 3. Folios atómicos + impuestos | Ninguno — cambio de backend en Facturas | No aplica |
-| 4. Agenda y comunicaciones (invariantes de citas, outbox email/SMS) | Ninguno nuevo — sigue viviendo en "Citas" | No aplica |
+| 2. Folios atómicos + impuestos | Ninguno — cambio de backend en Facturas | No aplica |
+| 3. Transacción/lock en reservas | Ninguno — cambio de backend en Citas | No aplica |
+| 4. Activar piezas dormidas de Communications (email entrante, SMS por taller) | Ninguno nuevo — sigue viviendo en Inbox/Configuración | No aplica |
 | 5. Inventario/partes | **Decisión de producto pendiente** (ver `feature-gap.md`, sección de choques). Si se construye: nuevo ítem "Inventario" (`Package`), después de Clientes. Si se decide no construirlo, se quita la promesa del homepage en vez de fingir el ícono | Solo tras decidir, y solo si hay `actions` + pantalla reales |
 | 6. Sección de Reportes | **Nuevo ítem "Reportes"** (`/admin/reports`, ícono `BarChart3`), después de Contabilidad — separa el análisis a fondo (filtros, exportación) de las métricas resumidas que ya trae el Dashboard | Cuando exista como pantalla propia, no solo gráficas embebidas |
-| 7. Alta pública + cobro por suscripción | Ninguno en el riel del taller — vive en `/admin/login` → futuro `/admin/signup`, y la facturación del propio taller (a diferencia de Caja, que es el taller cobrándole a *su* cliente) iría dentro de Configuración, no como ítem de primer nivel | Tras resolver el punto 0 |
 
-Deliberadamente **no** se agrega un ítem "Mensajes" aunque el mockup del
-homepage lo mostraba — `feature-gap.md` ya lo marcó como promesa sin nada
-detrás. Se agrega el día que haya mensajería/chat real conectado a una
-`action`, no antes.
+Resuelto desde el mapeo original: **Aprobación de cotización** no necesitó
+ítem de menú propio — quedó, como se previó, dentro del flujo de
+"Cotizaciones" (token del cliente en `/quote/[token]`, sin pantalla nueva
+en el admin). Y **"Mensajes"** ya no es una promesa vacía: es el Inbox real
+(ítem #2 de la tabla de arriba).
+
+Cobro por suscripción del propio GarageOS queda fuera de este documento —
+se está decidiendo en paralelo en otra sesión.
 
 `Vehículos` como ítem de primer nivel (con ícono `Car` propio, en vez de
 vivir anidado bajo Clientes) queda como candidato de UX una vez que exista
@@ -58,12 +70,10 @@ una pantalla `/admin/vehicles` con listado propio — hoy esa pantalla no
 existe, solo el detalle por vehículo, así que no se eleva todavía para no
 repetir el mismo error que "Work Orders" en el homepage.
 
-## Dashboard: qué cambia y qué no
+## Dashboard: qué cambió
 
-El dashboard actual (`src/app/admin/(shop)/dashboard/page.tsx`) ya está
-orientado a métricas del negocio (ingresos, facturas, top clientes), no a
-la agenda del día — al revés del mockup de referencia, que pone el
-calendario como protagonista. Se mantiene así: el dashboard sigue siendo
-principalmente financiero/operativo, y se le agrega un bloque compacto
-"Agenda de hoy" (próximas citas del día, 3–4 filas) como un widget más
-entre las tarjetas existentes — no como la sección principal.
+Resuelto. El dashboard se rediseñó como "command center"
+(`src/app/admin/(shop)/dashboard/page.tsx`): sigue siendo principalmente
+financiero/operativo (ingresos, facturas, top clientes) y ahora incluye el
+bloque compacto de "hoy" (`todayAppointments`) que este documento pedía —
+sin volverse el centro del dashboard, tal como se planeó.

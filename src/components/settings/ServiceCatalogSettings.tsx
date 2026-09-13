@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { updateServiceCatalog } from "@/actions/booking-settings";
+import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
+import { SETTINGS_DICT } from "@/lib/admin-locale/settings";
 
 /** "150" (min) → "2.5 h". Solo para el ojo — el valor real que se guarda siempre son minutos. */
 function formatHours(minutes: number): string {
@@ -47,6 +49,8 @@ function blankRow(): EditableRow {
 }
 
 export function ServiceCatalogSettings({ services }: ServiceCatalogSettingsProps) {
+  const locale = useAdminLocale();
+  const t = SETTINGS_DICT[locale];
   const [rows, setRows] = useState<EditableRow[]>(() =>
     services.map((s) => ({ ...s, rowKey: s.id }))
   );
@@ -68,12 +72,12 @@ export function ServiceCatalogSettings({ services }: ServiceCatalogSettingsProps
     e.preventDefault();
 
     if (rows.length === 0) {
-      toast.error("Agrega al menos un servicio");
+      toast.error(t.services.needOneService);
       return;
     }
     for (const row of rows) {
       if (!row.labelFr.trim() || !row.labelEn.trim() || !row.labelEs.trim()) {
-        toast.error("Completa el nombre del servicio en los 3 idiomas");
+        toast.error(t.services.needAllLanguages);
         return;
       }
     }
@@ -91,10 +95,10 @@ export function ServiceCatalogSettings({ services }: ServiceCatalogSettingsProps
 
     startTransition(async () => {
       const result = await updateServiceCatalog(formData);
-      if (result?.success) toast.success("Servicios guardados");
+      if (result?.success) toast.success(t.services.saved);
       else {
-        const msg = result?.error ? Object.values(result.error).flat()[0] : "Error al guardar";
-        toast.error(typeof msg === "string" ? msg : "Error al guardar");
+        const msg = result?.error ? Object.values(result.error).flat()[0] : t.services.saved;
+        toast.error(typeof msg === "string" ? msg : t.services.saved);
       }
     });
   }
@@ -105,13 +109,8 @@ export function ServiceCatalogSettings({ services }: ServiceCatalogSettingsProps
       className="bg-white rounded-xl border border-slate-200 p-5 space-y-4"
     >
       <div>
-        <h2 className="font-semibold text-slate-900">Servicios del calendario público</h2>
-        <p className="text-sm text-slate-500 mt-1">
-          Estos son los servicios que el cliente elige en <strong>/book/…</strong> — cada uno con
-          su nombre en francés, inglés y español (el sitio se lo muestra en el idioma que el
-          visitante tenga elegido) y su duración, que es la que bloquea el horario del mecánico.
-          Agrega, edita o quita servicios; desmarca &ldquo;activo&rdquo; para ocultar uno sin borrarlo.
-        </p>
+        <h2 className="font-semibold text-slate-900">{t.services.title}</h2>
+        <p className="text-sm text-slate-500 mt-1">{t.services.subtitle}</p>
       </div>
 
       <div className="space-y-3">
@@ -125,13 +124,13 @@ export function ServiceCatalogSettings({ services }: ServiceCatalogSettingsProps
                   onChange={(e) => updateRow(row.rowKey, { isActive: e.target.checked })}
                   className="w-4 h-4 rounded border-slate-300 text-teal-600"
                 />
-                Activo
+                {t.services.active}
               </label>
               <button
                 type="button"
                 onClick={() => removeRow(row.rowKey)}
                 className="text-red-600 hover:bg-red-50 p-1.5 rounded-lg"
-                title="Quitar servicio"
+                title={t.services.remove}
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -139,7 +138,7 @@ export function ServiceCatalogSettings({ services }: ServiceCatalogSettingsProps
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <div>
-                <label className="block text-xs text-slate-500 mb-1">Francés (FR)</label>
+                <label className="block text-xs text-slate-500 mb-1">{t.services.french}</label>
                 <input
                   value={row.labelFr}
                   onChange={(e) => updateRow(row.rowKey, { labelFr: e.target.value })}
@@ -149,7 +148,7 @@ export function ServiceCatalogSettings({ services }: ServiceCatalogSettingsProps
                 />
               </div>
               <div>
-                <label className="block text-xs text-slate-500 mb-1">Inglés (EN)</label>
+                <label className="block text-xs text-slate-500 mb-1">{t.services.english}</label>
                 <input
                   value={row.labelEn}
                   onChange={(e) => updateRow(row.rowKey, { labelEn: e.target.value })}
@@ -159,7 +158,7 @@ export function ServiceCatalogSettings({ services }: ServiceCatalogSettingsProps
                 />
               </div>
               <div>
-                <label className="block text-xs text-slate-500 mb-1">Español (ES)</label>
+                <label className="block text-xs text-slate-500 mb-1">{t.services.spanish}</label>
                 <input
                   value={row.labelEs}
                   onChange={(e) => updateRow(row.rowKey, { labelEs: e.target.value })}
@@ -181,7 +180,9 @@ export function ServiceCatalogSettings({ services }: ServiceCatalogSettingsProps
                 required
                 className="w-24 px-2 py-1.5 border border-slate-200 rounded-lg text-sm text-right"
               />
-              <span className="text-xs text-slate-400">min · {formatHours(row.durationMinutes)}</span>
+              <span className="text-xs text-slate-400">
+                {t.services.duration} · {formatHours(row.durationMinutes)}
+              </span>
             </div>
           </div>
         ))}
@@ -193,7 +194,7 @@ export function ServiceCatalogSettings({ services }: ServiceCatalogSettingsProps
         className="flex items-center gap-2 text-sm text-teal-700 hover:bg-teal-50 px-3 py-2 rounded-lg border border-dashed border-teal-300"
       >
         <Plus className="w-4 h-4" />
-        Agregar servicio
+        {t.services.addService}
       </button>
 
       <div className="flex justify-end">
@@ -203,7 +204,7 @@ export function ServiceCatalogSettings({ services }: ServiceCatalogSettingsProps
           className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white text-sm font-medium px-5 py-2 rounded-lg"
         >
           {pending && <Loader2 className="w-4 h-4 animate-spin" />}
-          Guardar servicios
+          {t.services.saveServices}
         </button>
       </div>
     </form>

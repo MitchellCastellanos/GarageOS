@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { searchLineItemSuggestions } from "@/actions/line-items";
+import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
+import { INVOICES_DICT } from "@/lib/admin-locale/invoices";
 
 interface Suggestion {
   description: string;
@@ -29,6 +31,8 @@ export function LineItemDescriptionInput({
   hasError,
   inputClass,
 }: LineItemDescriptionInputProps) {
+  const locale = useAdminLocale();
+  const t = INVOICES_DICT[locale].lineItemInput;
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -82,7 +86,7 @@ export function LineItemDescriptionInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onFocus={() => suggestions.length > 0 && setOpen(true)}
-        placeholder="Ej: Ball joint, Cambio de aceite…"
+        placeholder={t.placeholder}
         className={inputClass}
         autoComplete="off"
       />
@@ -104,7 +108,7 @@ export function LineItemDescriptionInput({
                   {s.description}
                 </span>
                 <span className="block text-xs text-slate-500 mt-0.5">
-                  ${Number(s.unitPrice).toFixed(2)} · usado {s.useCount}×
+                  ${Number(s.unitPrice).toFixed(2)}{t.usedCount(s.useCount)}
                 </span>
               </button>
             </li>

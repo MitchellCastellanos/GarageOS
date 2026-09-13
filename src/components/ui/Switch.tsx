@@ -4,12 +4,13 @@ interface SwitchProps {
   name?: string;
   id?: string;
   defaultChecked?: boolean;
+  checked?: boolean;
   onChange?: (checked: boolean) => void;
   disabled?: boolean;
 }
 
 /** Checkbox real (para que funcione dentro de <form>) con apariencia de switch. */
-export function Switch({ name, id, defaultChecked, onChange, disabled }: SwitchProps) {
+export function Switch({ name, id, defaultChecked, checked, onChange, disabled }: SwitchProps) {
   return (
     <label htmlFor={id} className="relative inline-flex shrink-0 cursor-pointer">
       <input
@@ -17,6 +18,7 @@ export function Switch({ name, id, defaultChecked, onChange, disabled }: SwitchP
         name={name}
         type="checkbox"
         defaultChecked={defaultChecked}
+        checked={checked}
         disabled={disabled}
         onChange={(e) => onChange?.(e.target.checked)}
         className="peer sr-only"

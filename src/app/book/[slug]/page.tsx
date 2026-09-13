@@ -9,8 +9,11 @@ import { QuickServicesStrip } from "@/components/booking/QuickServicesStrip";
 import { ServicesSection } from "@/components/booking/ServicesSection";
 import { OurShopSection } from "@/components/booking/OurShopSection";
 import { BookingSection } from "@/components/booking/BookingSection";
+import { ContactSection } from "@/components/booking/ContactSection";
 import { SiteFooter } from "@/components/booking/SiteFooter";
 import { WhatsAppButton } from "@/components/booking/WhatsAppButton";
+import { BookingUnavailable } from "@/components/booking/BookingUnavailable";
+import { LanguageSwitcher } from "@/components/booking/LanguageSwitcher";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -64,6 +67,21 @@ export default async function PublicBookingPage({ params, searchParams }: PagePr
     notFound();
   }
 
+  if (!shop.bookingEnabled) {
+    return (
+      <LocaleProvider>
+        <main className="min-h-screen bg-slate-50 px-4 py-6 sm:py-10">
+          <div className="max-w-2xl mx-auto space-y-4">
+            <div className="flex justify-end">
+              <LanguageSwitcher variant="light" />
+            </div>
+            <BookingUnavailable shopName={shop.name} phone={shop.phone} />
+          </div>
+        </main>
+      </LocaleProvider>
+    );
+  }
+
   const catalog = await getShopServiceCatalog(shop.id);
   const activeServices = catalog
     .filter((row) => row.isActive)
@@ -108,6 +126,7 @@ export default async function PublicBookingPage({ params, searchParams }: PagePr
         <ServicesSection />
         <OurShopSection shopName={shop.name} address={shop.address} phone={shop.phone} />
         {bookingSection}
+        <ContactSection slug={slug} shopName={shop.name} />
         <SiteFooter
           shopName={shop.name}
           logoUrl={shop.logoUrl}

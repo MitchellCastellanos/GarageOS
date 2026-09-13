@@ -1,18 +1,27 @@
 "use server";
 
-import { ADMIN, PLATFORM, adminPath } from "@/lib/routes";
+import { ADMIN } from "@/lib/routes";
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireOwner } from "@/lib/permissions";
 import { DEFAULT_WORKING_HOURS, getShopServiceCatalog } from "@/lib/booking-slots";
 import { getPublicBookingUrl } from "@/lib/shop-slug";
-import { DAY_LABELS, type WorkingHoursRow } from "@/lib/working-hours";
+import { dayLabel, type WorkingHoursRow } from "@/lib/working-hours";
+import { getAdminLocale } from "@/lib/get-admin-locale";
+import type { AdminLocale } from "@/lib/admin-locale";
 import { z } from "zod";
+
+const INVALID_SCHEDULE_FOR: Record<AdminLocale, (day: string) => string> = {
+  es: (day) => `Horario inválido para ${day}`,
+  en: (day) => `Invalid schedule for ${day}`,
+  fr: (day) => `Horaire invalide pour ${day}`,
+};
 
 export async function getAppointmentBookingSettings() {
   const session = await requireOwner();
   const shopId = session.user.shopId!;
+  const locale = await getAdminLocale();
 
   const shop = await db.shop.findUnique({
     where: { id: shopId },
@@ -32,13 +41,13 @@ export async function getAppointmentBookingSettings() {
 
   let workingHours: WorkingHoursRow[] = DEFAULT_WORKING_HOURS.map((row) => ({
     ...row,
-    dayLabel: DAY_LABELS[row.dayOfWeek],
+    dayLabel: dayLabel(row.dayOfWeek, locale),
   }));
 
   if (shop.workingHours.length > 0) {
     workingHours = shop.workingHours.map((row) => ({
       dayOfWeek: row.dayOfWeek,
-      dayLabel: DAY_LABELS[row.dayOfWeek],
+      dayLabel: dayLabel(row.dayOfWeek, locale),
       openTime: row.openTime,
       closeTime: row.closeTime,
       isClosed: row.isClosed,
@@ -60,7 +69,7 @@ export async function getAppointmentBookingSettings() {
           return row
             ? {
                 dayOfWeek: row.dayOfWeek,
-                dayLabel: DAY_LABELS[row.dayOfWeek],
+                dayLabel: dayLabel(row.dayOfWeek, locale),
                 openTime: row.openTime,
                 closeTime: row.closeTime,
                 isClosed: row.isClosed,
@@ -73,6 +82,7 @@ export async function getAppointmentBookingSettings() {
 
   return {
     shop: {
+      name: shop.name,
       bookingEnabled: shop.bookingEnabled,
       timezone: shop.timezone,
       bookingSlotMinutes: shop.bookingSlotMinutes,
@@ -86,7 +96,6 @@ export async function getAppointmentBookingSettings() {
 }
 
 const bookingSettingsSchema = z.object({
-  bookingEnabled: z.coerce.boolean(),
   bookingSlotMinutes: z.coerce.number().int().min(15).max(240),
   bookingLeadTimeHours: z.coerce.number().int().min(1).max(168),
   bookingAdvanceDays: z.coerce.number().int().min(1).max(90),
@@ -97,7 +106,6 @@ export async function updateAppointmentBookingSettings(formData: FormData) {
   const shopId = session.user.shopId!;
 
   const parsed = bookingSettingsSchema.safeParse({
-    bookingEnabled: formData.get("bookingEnabled") === "on",
     bookingSlotMinutes: formData.get("bookingSlotMinutes"),
     bookingLeadTimeHours: formData.get("bookingLeadTimeHours"),
     bookingAdvanceDays: formData.get("bookingAdvanceDays"),
@@ -107,13 +115,12 @@ export async function updateAppointmentBookingSettings(formData: FormData) {
     return { error: parsed.error.flatten().fieldErrors };
   }
 
-  const { bookingEnabled, bookingSlotMinutes, bookingLeadTimeHours, bookingAdvanceDays } =
+  const { bookingSlotMinutes, bookingLeadTimeHours, bookingAdvanceDays } =
     parsed.data;
 
   await db.shop.update({
     where: { id: shopId },
     data: {
-      bookingEnabled,
       bookingSlotMinutes,
       bookingLeadTimeHours,
       bookingAdvanceDays,
@@ -124,11 +131,28 @@ export async function updateAppointmentBookingSettings(formData: FormData) {
   return { success: true };
 }
 
+export async function updateWebBookingEnabled(enabled: boolean) {
+  const session = await requireOwner();
+  const parsed = z.boolean().safeParse(enabled);
+  if (!parsed.success) return { error: "Valor de reservas inválido" };
+
+  const shop = await db.shop.update({
+    where: { id: session.user.shopId! },
+    data: { bookingEnabled: parsed.data },
+    select: { slug: true, bookingEnabled: true },
+  });
+
+  if (shop.slug) revalidatePath(`/book/${shop.slug}`);
+  revalidatePath(ADMIN.settings);
+  return { success: true, bookingEnabled: shop.bookingEnabled };
+}
+
 const timeRegex = /^\d{2}:\d{2}$/;
 
 export async function updateShopWorkingHours(formData: FormData) {
   const session = await requireOwner();
   const shopId = session.user.shopId!;
+  const locale = await getAdminLocale();
 
   const rows: {
     dayOfWeek: number;
@@ -143,7 +167,7 @@ export async function updateShopWorkingHours(formData: FormData) {
     const closeTime = (formData.get(`close_${day}`) as string) || "17:00";
 
     if (!timeRegex.test(openTime) || !timeRegex.test(closeTime)) {
-      return { error: { _form: [`Horario inválido para ${DAY_LABELS[day]}`] } };
+      return { error: { _form: [INVALID_SCHEDULE_FOR[locale](dayLabel(day, locale))] } };
     }
 
     rows.push({ dayOfWeek: day, openTime, closeTime, isClosed });
@@ -193,6 +217,7 @@ async function findShopMechanic(userId: string, shopId: string) {
 export async function updateMechanicWorkingHours(formData: FormData) {
   const session = await requireOwner();
   const shopId = session.user.shopId!;
+  const locale = await getAdminLocale();
 
   const userId = formData.get("userId") as string;
   if (!userId) return { error: { _form: ["Mecánico no especificado"] } };
@@ -213,7 +238,7 @@ export async function updateMechanicWorkingHours(formData: FormData) {
     const closeTime = (formData.get(`close_${day}`) as string) || "17:00";
 
     if (!timeRegex.test(openTime) || !timeRegex.test(closeTime)) {
-      return { error: { _form: [`Horario inválido para ${DAY_LABELS[day]}`] } };
+      return { error: { _form: [INVALID_SCHEDULE_FOR[locale](dayLabel(day, locale))] } };
     }
 
     rows.push({ dayOfWeek: day, openTime, closeTime, isClosed });
@@ -305,6 +330,30 @@ export async function updateServiceCatalog(formData: FormData) {
     }),
   ]);
 
+  revalidatePath(ADMIN.settings);
+  return { success: true };
+}
+
+const reminderSchema = z.object({
+  appointmentReminderHours: z.coerce.number().int().min(1).max(168),
+  appointmentSmsEnabled: z.coerce.boolean(),
+  appointmentEmailsEnabled: z.coerce.boolean(),
+});
+
+export async function updateAppointmentReminderSettings(formData: FormData) {
+  const session = await requireOwner();
+  const shopId = session.user.shopId!;
+
+  const parsed = reminderSchema.safeParse({
+    appointmentReminderHours: formData.get("appointmentReminderHours"),
+    appointmentSmsEnabled: formData.get("appointmentSmsEnabled") === "on",
+    appointmentEmailsEnabled: formData.get("appointmentEmailsEnabled") === "on",
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.flatten().fieldErrors };
+  }
+
+  await db.shop.update({ where: { id: shopId }, data: parsed.data });
   revalidatePath(ADMIN.settings);
   return { success: true };
 }

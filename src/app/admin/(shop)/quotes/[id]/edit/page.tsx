@@ -5,6 +5,8 @@ import { ArrowLeft } from "lucide-react";
 import { InvoiceForm } from "@/components/invoices/InvoiceForm";
 import { getQuoteById, getQuoteFormData, updateQuote } from "@/actions/quotes";
 import { type QuoteFormData } from "@/lib/validations";
+import { getAdminLocale } from "@/lib/get-admin-locale";
+import { QUOTES_DICT } from "@/lib/admin-locale/quotes";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -21,6 +23,9 @@ export default async function EditQuotePage({ params }: PageProps) {
   if (quote.status !== "DRAFT") {
     redirect(`${ADMIN.quotes}/${id}`);
   }
+
+  const locale = await getAdminLocale();
+  const t = QUOTES_DICT[locale];
 
   const initialValues: Partial<QuoteFormData> = {
     clientId: quote.clientId,
@@ -52,9 +57,9 @@ export default async function EditQuotePage({ params }: PageProps) {
           <ArrowLeft className="w-4 h-4 text-slate-600" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Editar {quote.quoteNumber}</h1>
+          <h1 className="text-2xl font-bold text-slate-900">{t.edit.title(quote.quoteNumber)}</h1>
           <p className="text-slate-500 text-sm mt-1">
-            Modifica los datos del borrador antes de enviarlo
+            {t.edit.subtitle}
           </p>
         </div>
       </div>

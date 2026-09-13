@@ -11,12 +11,11 @@ import {
   AppointmentEmail,
   type AppointmentEmailType,
 } from "@/emails/AppointmentEmail";
-import {
-  resolveEmailRoute,
-  type ShopEmailConfig,
-  type EmailChannel,
-} from "@/lib/email-config";
+import { PlainMessageEmail } from "@/emails/PlainMessageEmail";
+import { type ShopEmailConfig, type EmailChannel } from "@/lib/email-config";
 import { getInvoiceStrings, type InvoiceLanguage } from "@/lib/invoice-i18n";
+import { recordAndSend } from "@/lib/communications/outbox";
+import { resolveActiveEmailRoute } from "@/lib/communications/sender-identity";
 import React from "react";
 
 function getResend() {
@@ -27,6 +26,11 @@ function getResend() {
   return new Resend(key);
 }
 
+function toArray(value?: string | string[]): string[] {
+  if (!value) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
 interface TransactionalSendOptions {
   shop: ShopEmailConfig;
   channel: EmailChannel;
@@ -35,10 +39,15 @@ interface TransactionalSendOptions {
   react: React.ReactElement;
   attachments?: { filename: string; content: Buffer }[];
   cc?: string | string[];
+  bcc?: string | string[];
+  clientId?: string;
+  businessEntityType?: string;
+  businessEntityId?: string;
+  idempotencyKey?: string;
 }
 
 async function sendTransactionalEmail(options: TransactionalSendOptions) {
-  const route = resolveEmailRoute(options.shop, options.channel);
+  const route = await resolveActiveEmailRoute(options.shop, options.channel);
 
   if (route.pipeline !== "resend") {
     throw new Error(`El canal ${options.channel} no usa Resend`);
@@ -46,23 +55,47 @@ async function sendTransactionalEmail(options: TransactionalSendOptions) {
 
   const html = await render(options.react);
 
-  const { error } = await getResend().emails.send({
+  await recordAndSend({
+    shopId: options.shop.id,
+    clientId: options.clientId,
+    purpose: options.channel,
+    channel: "EMAIL",
+    provider: "resend",
     from: route.from,
     replyTo: route.replyTo,
-    to: options.to,
-    cc: options.cc,
+    to: toArray(options.to),
+    cc: toArray(options.cc),
+    bcc: toArray(options.bcc),
     subject: options.subject,
-    html,
-    attachments: options.attachments,
-  });
+    htmlBody: html,
+    businessEntityType: options.businessEntityType,
+    businessEntityId: options.businessEntityId,
+    idempotencyKey: options.idempotencyKey,
+    send: async () => {
+      const { data, error } = await getResend().emails.send({
+        from: route.from,
+        replyTo: route.replyTo,
+        to: options.to,
+        cc: options.cc,
+        bcc: options.bcc,
+        subject: options.subject,
+        html,
+        attachments: options.attachments,
+      });
 
-  if (error) {
-    throw new Error(`Error enviando email (${options.channel}): ${error.message}`);
-  }
+      if (error) {
+        throw new Error(`Error enviando email (${options.channel}): ${error.message}`);
+      }
+
+      return { providerMessageId: data?.id };
+    },
+  });
 }
 
 interface ReminderEmailData {
   shop: ShopEmailConfig;
+  clientId?: string;
+  reminderId?: string;
   clientName: string;
   clientEmail: string;
   vehicleDescription: string;
@@ -75,7 +108,7 @@ interface ReminderEmailData {
 }
 
 export async function sendReminderEmail(data: ReminderEmailData) {
-  const route = resolveEmailRoute(data.shop, "REMINDER");
+  const route = await resolveActiveEmailRoute(data.shop, "REMINDER");
 
   const element = React.createElement(ServiceReminderEmail, {
     clientName: data.clientName,
@@ -97,6 +130,10 @@ export async function sendReminderEmail(data: ReminderEmailData) {
     to: data.clientEmail,
     subject: `Recordatorio de servicio: ${data.serviceType} — ${data.vehicleDescription}`,
     react: element,
+    clientId: data.clientId,
+    businessEntityType: data.reminderId ? "SERVICE_REMINDER" : undefined,
+    businessEntityId: data.reminderId,
+    idempotencyKey: data.reminderId ? `service-reminder:${data.reminderId}` : undefined,
   });
 }
 
@@ -135,6 +172,10 @@ interface InvoiceEmailSendData extends InvoiceEmailProps {
   pdfBuffer: Buffer;
   pdfFilename: string;
   extraAttachments?: { filename: string; content: Buffer }[];
+  clientId?: string;
+  invoiceId?: string;
+  /** emailSendCount actual (antes de incrementar) — usado para deduplicar reenvíos accidentales. */
+  sendAttempt?: number;
 }
 
 export async function sendInvoiceEmail(data: InvoiceEmailSendData) {
@@ -143,7 +184,7 @@ export async function sendInvoiceEmail(data: InvoiceEmailSendData) {
     ? t.resendSubject(data.invoiceNumber, data.shopName)
     : t.subject(data.invoiceNumber, data.shopName);
 
-  const route = resolveEmailRoute(data.shop, "INVOICE");
+  const route = await resolveActiveEmailRoute(data.shop, "INVOICE");
   const element = React.createElement(InvoiceEmail, {
     ...data,
     shopEmail: route.replyTo,
@@ -162,6 +203,13 @@ export async function sendInvoiceEmail(data: InvoiceEmailSendData) {
       },
       ...(data.extraAttachments ?? []),
     ],
+    clientId: data.clientId,
+    businessEntityType: data.invoiceId ? "INVOICE" : undefined,
+    businessEntityId: data.invoiceId,
+    idempotencyKey:
+      data.invoiceId && data.sendAttempt !== undefined
+        ? `invoice-email:${data.invoiceId}:${data.sendAttempt}`
+        : undefined,
   });
 }
 
@@ -191,6 +239,10 @@ interface QuoteEmailSendData extends QuoteEmailProps {
   pdfBuffer: Buffer;
   pdfFilename: string;
   extraAttachments?: { filename: string; content: Buffer }[];
+  clientId?: string;
+  quoteId?: string;
+  /** emailSendCount actual (antes de incrementar) — usado para deduplicar reenvíos accidentales. */
+  sendAttempt?: number;
 }
 
 export async function sendQuoteEmail(data: QuoteEmailSendData) {
@@ -201,7 +253,7 @@ export async function sendQuoteEmail(data: QuoteEmailSendData) {
     data.isResend ?? false
   );
 
-  const route = resolveEmailRoute(data.shop, "QUOTE");
+  const route = await resolveActiveEmailRoute(data.shop, "QUOTE");
   const element = React.createElement(QuoteEmail, {
     ...data,
     shopEmail: route.replyTo,
@@ -217,6 +269,13 @@ export async function sendQuoteEmail(data: QuoteEmailSendData) {
       { filename: data.pdfFilename, content: data.pdfBuffer },
       ...(data.extraAttachments ?? []),
     ],
+    clientId: data.clientId,
+    businessEntityType: data.quoteId ? "QUOTE" : undefined,
+    businessEntityId: data.quoteId,
+    idempotencyKey:
+      data.quoteId && data.sendAttempt !== undefined
+        ? `quote-email:${data.quoteId}:${data.sendAttempt}`
+        : undefined,
   });
 }
 
@@ -224,6 +283,8 @@ interface AppointmentEmailSendData {
   shop: ShopEmailConfig;
   to: string;
   type: AppointmentEmailType;
+  clientId?: string;
+  appointmentId?: string;
   clientName: string;
   title: string;
   startsAtFormatted: string;
@@ -263,7 +324,7 @@ function resolveAppointmentAdminCc(
 }
 
 export async function sendAppointmentEmail(data: AppointmentEmailSendData) {
-  const route = resolveEmailRoute(data.shop, "APPOINTMENT");
+  const route = await resolveActiveEmailRoute(data.shop, "APPOINTMENT");
   const lang = data.language === "EN" || data.language === "FR" ? data.language : "ES";
   const subject = APPOINTMENT_SUBJECTS[lang][data.type](data.title, data.shop.name);
 
@@ -292,5 +353,72 @@ export async function sendAppointmentEmail(data: AppointmentEmailSendData) {
     cc,
     subject,
     react: element,
+    clientId: data.clientId,
+    businessEntityType: data.appointmentId ? "APPOINTMENT" : undefined,
+    businessEntityId: data.appointmentId,
+    idempotencyKey: data.appointmentId
+      ? `appointment-email:${data.type}:${data.appointmentId}`
+      : undefined,
+  });
+}
+
+interface ContactStaffNotifyData {
+  shop: ShopEmailConfig;
+  customerName: string;
+  customerEmail: string | null;
+  customerPhone: string | null;
+  message: string;
+  threadId: string;
+}
+
+/** Aviso interno al taller de un mensaje nuevo del formulario de contacto (doc §6.3). */
+export async function sendContactStaffNotification(data: ContactStaffNotifyData) {
+  const notifyTo = (data.shop.infoEmail || data.shop.email)?.trim();
+  if (!notifyTo) return;
+
+  const contactLine = [data.customerEmail, data.customerPhone].filter(Boolean).join(" · ");
+  const element = React.createElement(PlainMessageEmail, {
+    shopName: data.shop.name,
+    headerSubtitle: "Nuevo mensaje de contacto",
+    bodyText: `De: ${data.customerName}${contactLine ? ` (${contactLine})` : ""}\n\n${data.message}`,
+    footerText: `Mensaje recibido desde el formulario de contacto de ${data.shop.name}.`,
+    showPoweredBy: false,
+  });
+
+  await sendTransactionalEmail({
+    shop: data.shop,
+    channel: "WEB_CONTACT",
+    to: notifyTo,
+    subject: `Nuevo mensaje de contacto — ${data.customerName}`,
+    react: element,
+    businessEntityType: "COMMUNICATION_THREAD",
+    businessEntityId: data.threadId,
+  });
+}
+
+interface ContactAckData {
+  shop: ShopEmailConfig;
+  customerName: string;
+  customerEmail: string;
+  threadId: string;
+}
+
+/** Acuse de recibo branded al cliente que escribió por el formulario de contacto. */
+export async function sendContactAcknowledgment(data: ContactAckData) {
+  const element = React.createElement(PlainMessageEmail, {
+    shopName: data.shop.name,
+    headerSubtitle: "Recibimos tu mensaje",
+    bodyText: `Hola ${data.customerName},\n\nRecibimos tu mensaje y te responderemos pronto.\n\nGracias por contactarnos.`,
+    footerText: `Este correo fue enviado por ${data.shop.name}.`,
+  });
+
+  await sendTransactionalEmail({
+    shop: data.shop,
+    channel: "WEB_CONTACT",
+    to: data.customerEmail,
+    subject: `Recibimos tu mensaje — ${data.shop.name}`,
+    react: element,
+    businessEntityType: "COMMUNICATION_THREAD",
+    businessEntityId: data.threadId,
   });
 }

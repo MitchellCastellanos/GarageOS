@@ -110,7 +110,7 @@ export function MarketingHeader() {
               {t.nav.login}
             </Link>
             <Link
-              href="/admin/login"
+              href="/get-started"
               className="bg-brand-blue hover:bg-brand-blue-dark text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors shadow-sm shadow-blue-600/20"
             >
               {t.nav.getStarted}
@@ -132,7 +132,7 @@ export function MarketingHeader() {
       </div>
 
       {menuOpen && (
-        <nav id="marketing-mobile-menu" className="md:hidden bg-white border-t border-slate-100 px-4 py-4 space-y-3">
+        <nav id="marketing-mobile-menu" className="md:hidden bg-white border-t border-slate-100 px-4 py-4 space-y-1">
           {navLinks.map((link) => (
             <Link
               key={link.href}
@@ -143,20 +143,31 @@ export function MarketingHeader() {
               {link.label}
             </Link>
           ))}
-          <div className="pt-1">
-            <span className="block text-slate-700 font-medium py-2">{t.nav.resources}</span>
-            <div className="pl-3 space-y-1">
-              {t.resourcesMenu.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setMenuOpen(false)}
-                  className="block text-slate-600 text-sm py-1.5"
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </div>
+          <div className="pt-1 pb-2">
+            <button
+              type="button"
+              aria-expanded={resourcesOpen}
+              aria-controls="marketing-mobile-resources"
+              onClick={() => setResourcesOpen((open) => !open)}
+              className="flex w-full items-center justify-between text-slate-700 font-medium py-2"
+            >
+              {t.nav.resources}
+              <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${resourcesOpen ? "rotate-180" : ""}`} />
+            </button>
+            {resourcesOpen && (
+              <div id="marketing-mobile-resources" className="pl-3 space-y-1">
+                {t.resourcesMenu.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={closeMenus}
+                    className="block text-slate-600 text-sm py-1.5"
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
           <div className="flex items-center justify-between pt-2">
             <LanguageToggle />
@@ -165,8 +176,9 @@ export function MarketingHeader() {
             </Link>
           </div>
           <Link
-            href="/admin/login"
-            className="block text-center w-full bg-brand-blue text-white text-sm font-semibold px-5 py-3 rounded-lg"
+            href="/get-started"
+            onClick={closeMenus}
+            className="block text-center w-full bg-brand-blue text-white text-sm font-semibold px-5 py-3 rounded-lg mt-2"
           >
             {t.nav.getStarted}
           </Link>

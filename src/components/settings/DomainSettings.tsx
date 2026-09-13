@@ -3,78 +3,15 @@
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Loader2, RefreshCw, Trash2 } from "lucide-react";
-import {
-  setEmailDomain,
-  verifyEmailDomainAction,
-  removeEmailDomainAction,
-  setLandingDomain,
-  verifyLandingDomainAction,
-  removeLandingDomainAction,
-} from "@/actions/domains";
-import type { DnsRecordRow } from "@/lib/domains/types";
-
-interface DomainInfo {
-  domain: string;
-  status: "PENDING" | "VERIFIED" | "FAILED";
-  dnsRecords: DnsRecordRow[];
-  verifiedAt: Date | string | null;
-}
+import { StatusBadge, DnsRecordsTable, type DomainInfo } from "./domain-shared";
+import { setLandingDomain, verifyLandingDomainAction, removeLandingDomainAction } from "@/actions/domains";
 
 interface DomainSettingsProps {
   slug: string | null;
   bookingUrl: string | null;
   subdomainUrl: string | null;
   rootDomainConfigured: boolean;
-  email: DomainInfo | null;
   landing: DomainInfo | null;
-}
-
-const STATUS_STYLES: Record<DomainInfo["status"], string> = {
-  VERIFIED: "bg-emerald-100 text-emerald-700",
-  PENDING: "bg-amber-100 text-amber-800",
-  FAILED: "bg-red-100 text-red-700",
-};
-
-const STATUS_LABELS: Record<DomainInfo["status"], string> = {
-  VERIFIED: "Verificado",
-  PENDING: "Pendiente",
-  FAILED: "Falló",
-};
-
-function StatusBadge({ status }: { status: DomainInfo["status"] }) {
-  return (
-    <span
-      className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_STYLES[status]}`}
-    >
-      {STATUS_LABELS[status]}
-    </span>
-  );
-}
-
-function DnsRecordsTable({ records }: { records: DnsRecordRow[] }) {
-  if (records.length === 0) return null;
-  return (
-    <div className="overflow-x-auto rounded-lg border border-slate-200">
-      <table className="w-full text-xs">
-        <thead>
-          <tr className="bg-slate-50 text-left uppercase tracking-wide text-slate-500">
-            <th className="px-3 py-2 font-semibold">Tipo</th>
-            <th className="px-3 py-2 font-semibold">Nombre</th>
-            <th className="px-3 py-2 font-semibold">Valor</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
-          {records.map((r, i) => (
-            <tr key={i}>
-              <td className="px-3 py-2 font-mono text-slate-700">{r.type}</td>
-              <td className="px-3 py-2 font-mono text-slate-700 break-all">{r.name}</td>
-              <td className="px-3 py-2 font-mono text-slate-700 break-all">{r.value}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
 }
 
 export function DomainSettings({
@@ -82,12 +19,10 @@ export function DomainSettings({
   bookingUrl,
   subdomainUrl,
   rootDomainConfigured,
-  email,
   landing,
 }: DomainSettingsProps) {
   return (
     <div className="space-y-6 max-w-2xl">
-      <EmailDomainCard email={email} />
       <LandingDomainCard
         slug={slug}
         bookingUrl={bookingUrl}
@@ -95,112 +30,6 @@ export function DomainSettings({
         rootDomainConfigured={rootDomainConfigured}
         landing={landing}
       />
-    </div>
-  );
-}
-
-function EmailDomainCard({ email }: { email: DomainInfo | null }) {
-  const [pending, startTransition] = useTransition();
-  const [domain, setDomain] = useState(email?.domain ?? "");
-
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    startTransition(async () => {
-      const result = await setEmailDomain(formData);
-      if (result?.success) toast.success("Dominio registrado — agrega los registros DNS");
-      else toast.error(result?.error ?? "Error al registrar el dominio");
-    });
-  }
-
-  function handleVerify() {
-    startTransition(async () => {
-      const result = await verifyEmailDomainAction();
-      if (result?.success) {
-        if (result.status === "VERIFIED") toast.success("Dominio verificado");
-        else toast.error("Todavía no verifica — revisa los registros DNS");
-      } else toast.error(result?.error ?? "Error al verificar");
-    });
-  }
-
-  function handleRemove() {
-    startTransition(async () => {
-      const result = await removeEmailDomainAction();
-      if (result?.success) {
-        toast.success("Dominio eliminado");
-        setDomain("");
-      } else toast.error("Error al eliminar");
-    });
-  }
-
-  return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
-      <div>
-        <h2 className="font-semibold text-slate-900">Dominio propio para tus correos</h2>
-        <p className="text-sm text-slate-500 mt-1">
-          Verifica tu dominio para que las confirmaciones de citas, facturas y cotizaciones
-          salgan desde tu propia dirección (ej. citas@tudominio.com) en vez de la de GarageOS.
-          Si no lo configuras, seguimos usando el remitente compartido de GarageOS con tu
-          nombre de taller.
-        </p>
-      </div>
-
-      <form onSubmit={handleSubmit} className="flex flex-wrap gap-2">
-        <input
-          name="domain"
-          placeholder="tudominio.com"
-          value={domain}
-          onChange={(e) => setDomain(e.target.value)}
-          className="flex-1 min-w-[200px] px-3 py-2 border border-slate-300 rounded-lg text-sm"
-        />
-        <button
-          type="submit"
-          disabled={pending || !domain.trim()}
-          className="flex items-center gap-2 bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg"
-        >
-          {pending && <Loader2 className="w-4 h-4 animate-spin" />}
-          {email ? "Actualizar" : "Registrar dominio"}
-        </button>
-      </form>
-
-      {email && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-slate-700">{email.domain}</span>
-            <StatusBadge status={email.status} />
-          </div>
-
-          {email.status !== "VERIFIED" && (
-            <>
-              <p className="text-xs text-slate-500">
-                Agrega estos registros en el DNS de tu dominio, luego verifica:
-              </p>
-              <DnsRecordsTable records={email.dnsRecords} />
-            </>
-          )}
-
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={handleVerify}
-              disabled={pending}
-              className="flex items-center gap-1.5 text-sm font-medium text-teal-700 hover:bg-teal-50 px-3 py-1.5 rounded-lg"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              Verificar
-            </button>
-            <button
-              type="button"
-              onClick={handleRemove}
-              disabled={pending}
-              className="flex items-center gap-1.5 text-sm font-medium text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              Quitar
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

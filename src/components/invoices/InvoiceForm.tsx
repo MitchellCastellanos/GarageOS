@@ -26,6 +26,8 @@ import { INVOICE_LANGUAGES } from "@/lib/invoice-i18n";
 import { Plus, Trash2 } from "lucide-react";
 import { LineItemDescriptionInput } from "@/components/invoices/LineItemDescriptionInput";
 import { ClientCombobox } from "@/components/invoices/ClientCombobox";
+import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
+import { INVOICES_DICT, type InvoicesDictionary } from "@/lib/admin-locale/invoices";
 import Decimal from "decimal.js";
 
 // Tipos de los datos que necesita el form (vienen del servidor)
@@ -56,12 +58,6 @@ interface InvoiceFormProps {
 
 const TAX_RATE = DEFAULT_COMBINED_TAX_RATE;
 
-const ITEM_TYPES = [
-  { value: "LABOUR", label: "Mano de obra" },
-  { value: "PART", label: "Repuesto" },
-  { value: "OTHER", label: "Otro" },
-];
-
 const EMPTY_LINE_ITEM = {
   description: "",
   quantity: 1,
@@ -87,6 +83,14 @@ export function InvoiceForm({
   const isQuote = variant === "quote";
   const cancelHref = isQuote ? "/quotes" : "/invoices";
   const [isPending, startTransition] = useTransition();
+  const locale = useAdminLocale();
+  const t = INVOICES_DICT[locale].form;
+  const itemTypeLabels = INVOICES_DICT[locale].itemTypes;
+  const ITEM_TYPES = [
+    { value: "LABOUR", label: itemTypeLabels.LABOUR },
+    { value: "PART", label: itemTypeLabels.PART },
+    { value: "OTHER", label: itemTypeLabels.OTHER },
+  ];
 
   const {
     register,
@@ -177,12 +181,12 @@ export function InvoiceForm({
 
       {/* ── Cliente y datos generales ── */}
       <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
-        <h2 className="font-semibold text-slate-900">Cliente y vigencia</h2>
+        <h2 className="font-semibold text-slate-900">{t.clientSectionTitle}</h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {/* Cliente */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              Cliente *
+              {t.clientLabel}
             </label>
             <Controller
               control={control}
@@ -203,7 +207,7 @@ export function InvoiceForm({
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              {isQuote ? "Válida hasta" : "Fecha de vencimiento"}
+              {isQuote ? t.validUntilLabel : t.dueDateLabel}
             </label>
             <input
               {...register("dueAt")}
@@ -213,7 +217,7 @@ export function InvoiceForm({
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              {isQuote ? "Idioma de la cotización *" : "Idioma de la factura *"}
+              {isQuote ? t.quoteLanguageLabel : t.invoiceLanguageLabel}
             </label>
             <select {...register("language")} className={selectClass(!!errors.language)}>
               {INVOICE_LANGUAGES.map((lang) => (
@@ -260,6 +264,8 @@ export function InvoiceForm({
               availableVehicles={availableVehicles}
               canRemove={vehicleFields.length > 1}
               onRemove={() => removeVehicle(vehicleIndex)}
+              t={t}
+              itemTypes={ITEM_TYPES}
             />
           );
         })}
@@ -270,7 +276,7 @@ export function InvoiceForm({
           className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 transition-colors"
         >
           <Plus className="w-4 h-4" />
-          Agregar otro vehículo
+          {t.addVehicle}
         </button>
       </div>
 
@@ -279,24 +285,24 @@ export function InvoiceForm({
         {/* Notas */}
         <div className="bg-white rounded-xl border border-slate-200 p-5">
           <label className="block text-sm font-semibold text-slate-900 mb-3">
-            Notas (opcionales)
+            {t.notesLabel}
           </label>
           <textarea
             {...register("notes")}
             rows={4}
-            placeholder="Observaciones, garantía, instrucciones de pago..."
+            placeholder={t.notesPlaceholder}
             className={inputClass(false)}
           />
         </div>
 
         {/* Totales */}
         <div className="bg-white rounded-xl border border-slate-200 p-5">
-          <h2 className="font-semibold text-slate-900 mb-4">Resumen</h2>
+          <h2 className="font-semibold text-slate-900 mb-4">{t.summaryTitle}</h2>
 
           {/* Tasa de impuesto */}
           <div className="flex items-center justify-between text-sm mb-4">
             <label className="text-slate-600">
-              Tasa de impuestos (TPS+TVQ)
+              {t.taxRateLabel}
             </label>
             <div className="flex items-center gap-1">
               <input
@@ -313,23 +319,23 @@ export function InvoiceForm({
 
           <div className="space-y-2 text-sm border-t border-slate-100 pt-3">
             <div className="flex justify-between">
-              <span className="text-slate-600">Subtotal</span>
+              <span className="text-slate-600">{t.subtotal}</span>
               <span className="text-slate-900">${subtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-600">TPS ({tpsPct}%)</span>
+              <span className="text-slate-600">{t.tps(tpsPct)}</span>
               <span className="text-slate-900">${tpsAmount.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-600">TVQ ({tvqPct}%)</span>
+              <span className="text-slate-600">{t.tvq(tvqPct)}</span>
               <span className="text-slate-900">${tvqAmount.toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-slate-500">
-              <span className="text-xs">Total impuestos ({combinedPct}%)</span>
+              <span className="text-xs">{t.totalTaxes(combinedPct)}</span>
               <span className="text-xs">${taxAmount.toFixed(2)}</span>
             </div>
             <div className="flex justify-between items-center border-t border-slate-200 pt-3 mt-3">
-              <span className="font-semibold text-slate-900">Total CAD</span>
+              <span className="font-semibold text-slate-900">{t.totalCad}</span>
               <span className="text-xl font-bold text-blue-600">
                 ${total.toFixed(2)}
               </span>
@@ -346,18 +352,18 @@ export function InvoiceForm({
           className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium px-6 py-2.5 rounded-lg text-sm transition-colors"
         >
           {isPending
-            ? "Guardando..."
+            ? t.saving
             : mode === "edit"
-            ? "Guardar cambios"
+            ? t.saveChanges
             : isQuote
-            ? "Crear cotización borrador"
-            : "Crear factura borrador"}
+            ? t.createQuoteDraft
+            : t.createInvoiceDraft}
         </button>
         <a
           href={cancelHref}
           className="text-sm text-slate-500 hover:text-slate-800 transition-colors"
         >
-          Cancelar
+          {t.cancel}
         </a>
       </div>
     </form>
@@ -378,6 +384,8 @@ function VehicleSection({
   availableVehicles,
   canRemove,
   onRemove,
+  t,
+  itemTypes,
 }: {
   vehicleIndex: number;
   control: Control<InvoiceFormData>;
@@ -389,6 +397,8 @@ function VehicleSection({
   availableVehicles: VehicleOption[];
   canRemove: boolean;
   onRemove: () => void;
+  t: InvoicesDictionary["form"];
+  itemTypes: { value: string; label: string }[];
 }) {
   const lineItemsName = `vehicles.${vehicleIndex}.lineItems` as const;
   const { fields, append, remove } = useFieldArray({ control, name: lineItemsName });
@@ -402,17 +412,17 @@ function VehicleSection({
       <div className="p-5 space-y-4 border-b border-slate-100">
         <div className="flex items-start justify-between gap-3">
           <h2 className="font-semibold text-slate-900">
-            Vehículo {vehicleIndex + 1}
+            {t.vehicle.numbered(vehicleIndex + 1)}
           </h2>
           {canRemove && (
             <button
               type="button"
               onClick={onRemove}
               className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-red-500 transition-colors"
-              title="Quitar vehículo"
+              title={t.vehicle.removeTitle}
             >
               <Trash2 className="w-3.5 h-3.5" />
-              Quitar
+              {t.vehicle.remove}
             </button>
           )}
         </div>
@@ -420,7 +430,7 @@ function VehicleSection({
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              Vehículo *
+              {t.vehicle.vehicleLabel}
             </label>
             <select
               {...register(`vehicles.${vehicleIndex}.vehicleId` as const)}
@@ -429,10 +439,10 @@ function VehicleSection({
             >
               <option value="">
                 {!selectedClientId
-                  ? "Selecciona un cliente primero"
+                  ? t.vehicle.selectClientFirst
                   : availableVehicles.length === 0
-                  ? "Sin vehículos disponibles"
-                  : "Seleccionar vehículo..."}
+                  ? t.vehicle.noVehiclesAvailable
+                  : t.vehicle.selectPlaceholder}
               </option>
               {availableVehicles.map((v) => (
                 <option key={v.id} value={v.id}>
@@ -446,7 +456,7 @@ function VehicleSection({
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              Km entrada (opcional)
+              {t.vehicle.mileageInLabel}
             </label>
             <input
               {...register(`vehicles.${vehicleIndex}.mileageIn` as const, { setValueAs: emptyToNull })}
@@ -458,7 +468,7 @@ function VehicleSection({
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              Km salida (opcional)
+              {t.vehicle.mileageOutLabel}
             </label>
             <input
               {...register(`vehicles.${vehicleIndex}.mileageOut` as const, { setValueAs: emptyToNull })}
@@ -473,7 +483,7 @@ function VehicleSection({
 
       {/* Líneas de servicio de este vehículo */}
       <div className="px-5 py-4 border-b border-slate-100">
-        <h3 className="text-sm font-semibold text-slate-900">Servicios y repuestos</h3>
+        <h3 className="text-sm font-semibold text-slate-900">{t.vehicle.servicesTitle}</h3>
         {vehicleErrors?.lineItems?.root && (
           <p className="text-red-600 text-xs mt-1">{vehicleErrors.lineItems.root.message}</p>
         )}
@@ -484,12 +494,12 @@ function VehicleSection({
 
       {/* Header de la tabla */}
       <div className="hidden sm:grid grid-cols-[1fr_120px_90px_100px_110px_80px_36px] gap-3 px-5 py-2 bg-slate-50 border-b border-slate-100">
-        <span className="text-xs font-medium text-slate-500 uppercase">Descripción</span>
-        <span className="text-xs font-medium text-slate-500 uppercase">Tipo</span>
-        <span className="text-xs font-medium text-slate-500 uppercase">Garantía</span>
-        <span className="text-xs font-medium text-slate-500 uppercase text-right">Cantidad</span>
-        <span className="text-xs font-medium text-slate-500 uppercase text-right">P. unitario</span>
-        <span className="text-xs font-medium text-slate-500 uppercase text-right">Total</span>
+        <span className="text-xs font-medium text-slate-500 uppercase">{t.vehicle.tableHeaders.description}</span>
+        <span className="text-xs font-medium text-slate-500 uppercase">{t.vehicle.tableHeaders.type}</span>
+        <span className="text-xs font-medium text-slate-500 uppercase">{t.vehicle.tableHeaders.warranty}</span>
+        <span className="text-xs font-medium text-slate-500 uppercase text-right">{t.vehicle.tableHeaders.quantity}</span>
+        <span className="text-xs font-medium text-slate-500 uppercase text-right">{t.vehicle.tableHeaders.unitPrice}</span>
+        <span className="text-xs font-medium text-slate-500 uppercase text-right">{t.vehicle.tableHeaders.total}</span>
         <span />
       </div>
 
@@ -533,7 +543,7 @@ function VehicleSection({
                 <input
                   {...register(`${lineItemsName}.${index}.warrantyTerm` as const)}
                   type="text"
-                  placeholder="Garantía ej: 12 meses"
+                  placeholder={t.vehicle.warrantyPlaceholderMobile}
                   className={`${inputClass(false)} text-xs mt-2 sm:hidden`}
                 />
                 {/* Mobile: Tipo, Cantidad, Precio en columna */}
@@ -542,8 +552,8 @@ function VehicleSection({
                     {...register(`${lineItemsName}.${index}.itemType` as const)}
                     className={`${selectClass(false)} text-xs py-1.5`}
                   >
-                    {ITEM_TYPES.map((t) => (
-                      <option key={t.value} value={t.value}>{t.label}</option>
+                    {itemTypes.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
                   </select>
                   <input
@@ -570,8 +580,8 @@ function VehicleSection({
                 {...register(`${lineItemsName}.${index}.itemType` as const)}
                 className={`${selectClass(false)} hidden sm:block`}
               >
-                {ITEM_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
+                {itemTypes.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
               </select>
 
@@ -579,7 +589,7 @@ function VehicleSection({
               <input
                 {...register(`${lineItemsName}.${index}.warrantyTerm` as const)}
                 type="text"
-                placeholder="12 meses"
+                placeholder={t.vehicle.warrantyPlaceholderDesktop}
                 className={`${inputClass(false)} hidden sm:block text-xs`}
               />
 
@@ -619,7 +629,7 @@ function VehicleSection({
                 onClick={() => remove(index)}
                 disabled={fields.length === 1}
                 className="flex items-center justify-center w-8 h-8 mt-0.5 text-slate-400 hover:text-red-500 disabled:opacity-30 transition-colors rounded"
-                title="Eliminar línea"
+                title={t.vehicle.removeLineTitle}
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -636,7 +646,7 @@ function VehicleSection({
           className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 transition-colors"
         >
           <Plus className="w-4 h-4" />
-          Agregar línea
+          {t.vehicle.addLine}
         </button>
       </div>
     </div>

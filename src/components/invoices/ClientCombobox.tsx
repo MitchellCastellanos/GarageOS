@@ -7,6 +7,8 @@
 import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { formatClientName } from "@/lib/client-name";
+import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
+import { INVOICES_DICT } from "@/lib/admin-locale/invoices";
 
 interface ClientOption {
   id: string;
@@ -31,6 +33,8 @@ function normalize(value?: string | null): string {
 }
 
 export function ClientCombobox({ clients, value, onChange, hasError }: ClientComboboxProps) {
+  const locale = useAdminLocale();
+  const t = INVOICES_DICT[locale].clientCombobox;
   const selected = clients.find((c) => c.id === value) ?? null;
   const [query, setQuery] = useState(() => (selected ? formatClientName(selected) : ""));
   const [open, setOpen] = useState(false);
@@ -101,7 +105,7 @@ export function ClientCombobox({ clients, value, onChange, hasError }: ClientCom
         }}
         onFocus={() => setOpen(true)}
         onKeyDown={handleKeyDown}
-        placeholder="Buscar por nombre, teléfono o email..."
+        placeholder={t.searchPlaceholder}
         autoComplete="off"
         className={[
           "w-full px-3 py-2 pr-8 border rounded-lg text-sm",
@@ -114,7 +118,7 @@ export function ClientCombobox({ clients, value, onChange, hasError }: ClientCom
           type="button"
           onClick={clear}
           className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-          title="Quitar selección"
+          title={t.clearSelectionTitle}
         >
           <X className="w-4 h-4" />
         </button>
@@ -122,7 +126,7 @@ export function ClientCombobox({ clients, value, onChange, hasError }: ClientCom
       {open && (
         <ul className="absolute z-20 mt-1 w-full max-h-64 overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg py-1">
           {filtered.length === 0 && (
-            <li className="px-3 py-2 text-sm text-slate-400">Sin resultados</li>
+            <li className="px-3 py-2 text-sm text-slate-400">{t.noResults}</li>
           )}
           {filtered.map((client, index) => (
             <li key={client.id}>

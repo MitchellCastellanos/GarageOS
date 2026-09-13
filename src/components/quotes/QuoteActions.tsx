@@ -13,8 +13,11 @@ import {
   deleteQuote,
 } from "@/actions/quotes";
 import { QuoteSendDialog } from "@/components/quotes/QuoteSendDialog";
+import { QuoteSmsButton } from "@/components/quotes/QuoteSmsButton";
 import { adminPath } from "@/lib/routes";
 import { FileText, Loader2, Ban, Trash2, Mail, Check, X, ArrowRightLeft } from "lucide-react";
+import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
+import { QUOTES_DICT } from "@/lib/admin-locale/quotes";
 
 interface QuoteActionsProps {
   quoteId: string;
@@ -22,7 +25,9 @@ interface QuoteActionsProps {
   status: string;
   clientId: string;
   clientEmail?: string | null;
+  clientPhone?: string | null;
   emailSendCount?: number;
+  smsSendCount?: number;
   convertedInvoiceId?: string | null;
 }
 
@@ -36,10 +41,14 @@ export function QuoteActions({
   status,
   clientId,
   clientEmail,
+  clientPhone,
   emailSendCount = 0,
+  smsSendCount = 0,
   convertedInvoiceId,
 }: QuoteActionsProps) {
   const router = useRouter();
+  const locale = useAdminLocale();
+  const t = QUOTES_DICT[locale];
   const [sentPending, startSent] = useTransition();
   const [acceptPending, startAccept] = useTransition();
   const [rejectPending, startReject] = useTransition();
@@ -51,24 +60,25 @@ export function QuoteActions({
     sentPending || acceptPending || rejectPending || convertPending || cancelPending || deletePending;
 
   const hasClientEmail = Boolean(clientEmail?.trim());
+  const hasClientPhone = Boolean(clientPhone?.trim());
   const canEmail = EMAILABLE.has(status) && hasClientEmail;
   const isResend = emailSendCount > 0;
 
   function handleCancel() {
-    if (!confirm(`¿Anular la cotización ${quoteNumber}?`)) return;
+    if (!confirm(t.actions.confirmCancel(quoteNumber))) return;
     startCancel(async () => {
       const result = await cancelQuote(quoteId);
       if (result?.error) {
         toast.error(result.error);
         return;
       }
-      toast.info("Cotización anulada");
+      toast.info(t.actions.cancelled);
       router.refresh();
     });
   }
 
   function handleDelete() {
-    if (!confirm(`¿Eliminar definitivamente ${quoteNumber}?`)) return;
+    if (!confirm(t.actions.confirmDelete(quoteNumber))) return;
     startDelete(async () => {
       const result = await deleteQuote(quoteId);
       if (result?.error) toast.error(result.error);
@@ -76,7 +86,7 @@ export function QuoteActions({
   }
 
   function handleConvert() {
-    if (!confirm(`¿Convertir ${quoteNumber} a factura borrador?`)) return;
+    if (!confirm(t.actions.confirmConvert(quoteNumber))) return;
     startConvert(async () => {
       const result = await convertQuoteToInvoice(quoteId);
       if (result?.error) {
@@ -92,7 +102,7 @@ export function QuoteActions({
         className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors"
       >
         <ArrowRightLeft className="w-4 h-4" />
-        Ver factura
+        {t.actions.viewInvoice}
       </Link>
     );
   }
@@ -115,10 +125,19 @@ export function QuoteActions({
               className="flex items-center gap-2 px-4 py-2 border border-dashed border-slate-300 text-slate-500 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors"
             >
               <Mail className="w-4 h-4" />
-              <span className="hidden sm:inline">Sin email del cliente</span>
+              <span className="hidden sm:inline">{t.actions.noClientEmail}</span>
             </Link>
           )}
         </>
+      )}
+
+      {EMAILABLE.has(status) && hasClientPhone && (
+        <QuoteSmsButton
+          quoteId={quoteId}
+          phone={clientPhone!.trim()}
+          isResend={smsSendCount > 0}
+          disabled={isAnyPending}
+        />
       )}
 
       {status === "DRAFT" && (
@@ -128,14 +147,14 @@ export function QuoteActions({
           onClick={() =>
             startSent(async () => {
               await markQuoteAsSent(quoteId);
-              toast.success("Cotización marcada como enviada");
+              toast.success(t.actions.markedSent);
               router.refresh();
             })
           }
           className="flex items-center gap-2 px-3 py-2 border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-50 rounded-lg text-sm font-medium transition-colors"
         >
           {sentPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
-          Marcar enviada (sin email)
+          {t.actions.markSentNoEmail}
         </button>
       )}
 
@@ -151,14 +170,14 @@ export function QuoteActions({
                   toast.error(result.error);
                   return;
                 }
-                toast.success("Cotización aceptada");
+                toast.success(t.actions.accepted);
                 router.refresh();
               })
             }
             className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
           >
             {acceptPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-            Aceptada
+            {t.status.ACCEPTED}
           </button>
           <button
             type="button"
@@ -170,14 +189,14 @@ export function QuoteActions({
                   toast.error(result.error);
                   return;
                 }
-                toast.info("Cotización rechazada");
+                toast.info(t.actions.rejected);
                 router.refresh();
               })
             }
             className="flex items-center gap-1.5 px-3 py-2 border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 rounded-lg text-sm font-medium transition-colors"
           >
             {rejectPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />}
-            Rechazada
+            {t.status.REJECTED}
           </button>
         </>
       )}
@@ -190,7 +209,7 @@ export function QuoteActions({
           className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
         >
           {convertPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRightLeft className="w-4 h-4" />}
-          Convertir a factura
+          {t.actions.convertToInvoice}
         </button>
       )}
 
@@ -202,7 +221,7 @@ export function QuoteActions({
           className="flex items-center gap-1.5 px-3 py-2 border border-amber-200 text-amber-800 hover:bg-amber-50 disabled:opacity-50 rounded-lg text-sm font-medium transition-colors"
         >
           {cancelPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Ban className="w-3.5 h-3.5" />}
-          Anular
+          {t.actions.cancel}
         </button>
       )}
 
@@ -213,7 +232,7 @@ export function QuoteActions({
         className="flex items-center gap-1.5 px-3 py-2 border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50 rounded-lg text-sm font-medium transition-colors"
       >
         {deletePending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-        Eliminar
+        {t.actions.delete}
       </button>
     </div>
   );
