@@ -24,6 +24,7 @@ import {
 import { ADMIN } from "@/lib/routes";
 import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
 import { LAYOUT_DICT } from "@/lib/admin-locale/layout";
+import { GarageOSAppIcon } from "@/components/marketing/GarageOSLogo";
 
 function RailLink({
   href,
@@ -130,6 +131,13 @@ export function Sidebar({
   return (
     <>
       <aside className="no-print hidden md:flex w-[72px] flex-shrink-0 min-h-full bg-slate-900 flex-col items-center py-4">
+        <Link
+          href={ADMIN.dashboard}
+          aria-label="GarageOS"
+          className="flex-shrink-0 mb-3 pb-3 border-b border-slate-800 w-full flex justify-center"
+        >
+          <GarageOSAppIcon className="w-9 h-9" />
+        </Link>
         <nav className="flex-1 flex flex-col items-center gap-1.5">
           {navItems.map((item) => {
             const isActive =
@@ -183,14 +191,20 @@ export function Sidebar({
               transition={{ type: "tween", duration: reducedMotion ? 0 : 0.2, ease: "easeOut" }}
               className="no-print md:hidden fixed inset-y-0 left-0 w-64 max-w-[85vw] bg-slate-900 z-50 flex flex-col py-4 px-2 overflow-y-auto"
             >
-              <button
-                type="button"
-                onClick={onMobileClose}
-                aria-label={t.topbar.closeMenu}
-                className="self-end p-2 mb-2 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center justify-between px-2 mb-2">
+                <Link href={ADMIN.dashboard} onClick={onMobileClose} aria-label="GarageOS" className="flex items-center gap-2">
+                  <GarageOSAppIcon className="w-8 h-8" />
+                  <span className="text-white font-semibold text-sm">GarageOS</span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={onMobileClose}
+                  aria-label={t.topbar.closeMenu}
+                  className="p-2 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
               <nav className="space-y-1">
                 {navItems.map((item) => (
                   <Link

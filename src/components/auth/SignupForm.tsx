@@ -119,11 +119,11 @@ export function SignupForm({ error }: SignupFormProps) {
 
       <p className="text-center text-xs text-slate-400 mt-2.5">
         {signup.termsPrefix}{" "}
-        <Link href="#" className="text-slate-500 hover:underline">
+        <Link href="/terms" className="text-slate-500 hover:underline">
           {login.termsLink}
         </Link>{" "}
         {login.and}{" "}
-        <Link href="#" className="text-slate-500 hover:underline">
+        <Link href="/privacy" className="text-slate-500 hover:underline">
           {login.privacyLink}
         </Link>
         .

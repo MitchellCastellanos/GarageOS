@@ -85,11 +85,11 @@ export function LoginForm({ error, destination }: LoginFormProps) {
 
       <p className="text-center text-xs text-slate-400 mt-4">
         {login.termsPrefix}{" "}
-        <Link href="#" className="text-slate-500 hover:underline">
+        <Link href="/terms" className="text-slate-500 hover:underline">
           {login.termsLink}
         </Link>{" "}
         {login.and}{" "}
-        <Link href="#" className="text-slate-500 hover:underline">
+        <Link href="/privacy" className="text-slate-500 hover:underline">
           {login.privacyLink}
         </Link>
         .

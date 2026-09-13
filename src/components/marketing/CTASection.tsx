@@ -19,7 +19,7 @@ export function CTASection() {
           <p className="mt-2 text-blue-100 text-sm">{t.ctaBanner.description}</p>
         </div>
         <Link
-          href="/admin/login"
+          href="/get-started"
           className="shrink-0 bg-white hover:bg-blue-50 text-brand-blue font-semibold text-sm px-7 py-3.5 rounded-xl transition-colors"
         >
           {t.ctaBanner.cta}

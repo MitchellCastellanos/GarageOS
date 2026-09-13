@@ -25,7 +25,7 @@ export function Hero() {
 
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <Link
-                href="/admin/login"
+                href="/get-started"
                 className="inline-flex items-center gap-2 bg-brand-blue hover:bg-brand-blue-dark text-white font-semibold text-sm px-6 py-3.5 rounded-xl transition-colors shadow-md shadow-blue-600/20"
               >
                 {t.hero.ctaPrimary}

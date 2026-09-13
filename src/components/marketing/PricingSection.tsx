@@ -82,7 +82,7 @@ export function PricingSection() {
                 </ul>
 
                 <Link
-                  href="/admin/login"
+                  href="/get-started"
                   className={`mt-7 text-center font-semibold text-sm px-5 py-3 rounded-xl transition-colors ${
                     popular
                       ? "bg-brand-blue hover:bg-brand-blue-dark text-white"
