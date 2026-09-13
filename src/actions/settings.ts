@@ -13,6 +13,7 @@ import { uploadShopLogoToStorage } from "@/lib/storage";
 import { provisionDefaultSenderIdentities } from "@/lib/communications/sender-identity";
 import bcrypt from "bcryptjs";
 import sharp from "sharp";
+import { validateLogo } from "@/lib/logo-upload";
 import { adminLocaleToDb, type AdminLocale } from "@/lib/admin-locale";
 
 // Recorta el borde uniforme/transparente del logo para que el dibujo llene
@@ -214,16 +215,12 @@ export async function uploadShopLogo(formData: FormData) {
     };
   }
 
-  const file = formData.get("logo") as File | null;
-  if (!file || file.size === 0) return { error: "No se seleccionó ningún archivo" };
-
-  const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
-  if (file.size > MAX_SIZE) return { error: "El logo no puede superar 5 MB" };
-
-  const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/svg+xml"];
-  if (!allowedTypes.includes(file.type)) {
-    return { error: "Solo se aceptan JPG, PNG, WebP o SVG" };
-  }
+  const file = formData.get("logo");
+  if (!(file instanceof File)) return { error: "No se seleccionó ningún archivo" };
+  const validation = validateLogo(file);
+  if (validation === "empty") return { error: "No se seleccionó ningún archivo" };
+  if (validation === "tooLarge") return { error: "El logo no puede superar 4 MB" };
+  if (validation === "invalidType") return { error: "Solo se aceptan JPG, PNG, WebP o SVG" };
 
   try {
     const rawBuffer = Buffer.from(await file.arrayBuffer());

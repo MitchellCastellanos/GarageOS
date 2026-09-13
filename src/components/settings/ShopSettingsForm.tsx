@@ -3,6 +3,7 @@
 import { useTransition, useRef, useState } from "react";
 import { toast } from "sonner";
 import { updateShopSettings, updateShopSlug, updateShopBrandColor, uploadShopLogo, changePassword } from "@/actions/settings";
+import { validateLogo } from "@/lib/logo-upload";
 import { Upload, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
@@ -95,15 +96,26 @@ export function ShopSettingsForm({ shop, slugUrlPrefix }: ShopSettingsFormProps)
   function handleLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    // Reset even after rejection so selecting the same file can retry.
+    e.target.value = "";
+    const validation = validateLogo(file);
+    if (validation) {
+      toast.error(validation === "tooLarge" ? t.logo.tooLarge : t.logo.invalidFile);
+      return;
+    }
     const formData = new FormData();
     formData.append("logo", file);
     startLogoTransition(async () => {
-      const result = await uploadShopLogo(formData);
-      if (result?.success && result.logoUrl) {
-        setLogoUrl(result.logoUrl);
-        toast.success(t.logo.uploaded);
-      } else {
-        toast.error(result?.error ?? t.logo.uploaded);
+      try {
+        const result = await uploadShopLogo(formData);
+        if (result?.success && result.logoUrl) {
+          setLogoUrl(result.logoUrl);
+          toast.success(t.logo.uploaded);
+        } else {
+          toast.error(result?.error ?? t.logo.failed);
+        }
+      } catch {
+        toast.error(t.logo.failed);
       }
     });
   }
