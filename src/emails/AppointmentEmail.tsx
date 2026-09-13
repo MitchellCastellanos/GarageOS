@@ -3,7 +3,7 @@ import React from "react";
 import { ShopEmailLayout } from "@/emails/layout/ShopEmailLayout";
 
 export type AppointmentEmailType = "confirmation" | "reminder" | "cancellation";
-export type AppointmentEmailLanguage = "ES" | "EN" | "FR";
+export type AppointmentEmailLanguage = "EN" | "FR";
 
 export interface AppointmentEmailProps {
   type: AppointmentEmailType;
@@ -13,11 +13,9 @@ export interface AppointmentEmailProps {
   startsAtFormatted: string;
   shopPhone?: string | null;
   shopEmail?: string | null;
-  /** Idioma preferido del cliente — por defecto español. */
+  /** Preferred customer language. English is the fallback. */
   language?: AppointmentEmailLanguage | string | null;
-  /** Link público para que el cliente confirme o cancele esta cita (sin login). */
   manageUrl?: string | null;
-  /** Link público de reservas del taller — se omite si el taller no tiene sitio de reservas. */
   bookingUrl?: string | null;
 }
 
@@ -37,34 +35,6 @@ interface LanguageStrings {
 }
 
 const STRINGS: Record<AppointmentEmailLanguage, LanguageStrings> = {
-  ES: {
-    htmlLang: "es",
-    copy: {
-      confirmation: {
-        preview: (title, shop) => `Cita confirmada: ${title} — ${shop}`,
-        heading: "Cita confirmada",
-        body: "Tu cita ha sido registrada. Te esperamos en la fecha y hora indicadas.",
-      },
-      reminder: {
-        preview: (title, shop) => `Recordatorio de cita: ${title} — ${shop}`,
-        heading: "Recordatorio de cita",
-        body: "Te recordamos que tienes una cita próxima en nuestro taller.",
-      },
-      cancellation: {
-        preview: (title, shop) => `Cita cancelada: ${title} — ${shop}`,
-        heading: "Cita cancelada",
-        body: "Tu cita ha sido cancelada. Si deseas reprogramar, contáctanos.",
-      },
-    },
-    greeting: (name) => `Hola, ${name}`,
-    serviceLabel: "SERVICIO",
-    dateTimeLabel: "FECHA Y HORA",
-    manageButton: "Confirmar o cancelar mi cita",
-    contactPrompt: "Para cambios o consultas, contáctanos:",
-    bookOnlineLabel: "¿Necesitas otra cita? Resérvala en línea:",
-    footer: (shop) => `Este correo fue enviado por ${shop}.`,
-    poweredBy: "Enviado con GarageOS",
-  },
   EN: {
     htmlLang: "en",
     copy: {
@@ -124,7 +94,7 @@ const STRINGS: Record<AppointmentEmailLanguage, LanguageStrings> = {
 };
 
 function resolveLanguage(language?: string | null): AppointmentEmailLanguage {
-  return language === "EN" || language === "FR" ? language : "ES";
+  return language === "FR" ? "FR" : "EN";
 }
 
 export function AppointmentEmail({
@@ -183,59 +153,13 @@ export function AppointmentEmail({
 }
 
 const styles = {
-  greeting: {
-    fontSize: "18px",
-    fontWeight: "600",
-    color: "#0f172a",
-    margin: "0 0 12px 0",
-  },
-  bodyText: {
-    fontSize: "14px",
-    color: "#475569",
-    lineHeight: "1.6",
-    margin: "0 0 16px 0",
-  },
-  card: {
-    backgroundColor: "#f0fdfa",
-    borderRadius: "8px",
-    border: "1px solid #99f6e4",
-    padding: "20px 24px",
-    margin: "0 0 24px 0",
-  },
-  cardLabel: {
-    fontSize: "10px",
-    fontWeight: "700",
-    color: "#0d9488",
-    letterSpacing: "0.8px",
-    margin: "0 0 4px 0",
-  },
-  cardValue: {
-    fontSize: "15px",
-    fontWeight: "600",
-    color: "#0f172a",
-    margin: "0",
-  },
-  cardDivider: {
-    borderColor: "#ccfbf1",
-    margin: "16px 0",
-  },
-  manageSection: {
-    textAlign: "center" as const,
-    margin: "0 0 24px 0",
-  },
-  manageButton: {
-    backgroundColor: "#0f766e",
-    borderRadius: "8px",
-    color: "#ffffff",
-    fontSize: "14px",
-    fontWeight: "600",
-    textDecoration: "none",
-    padding: "12px 24px",
-  },
-  contactDetail: {
-    fontSize: "14px",
-    color: "#0f766e",
-    fontWeight: "600",
-    margin: "4px 0",
-  },
+  greeting: { fontSize: "18px", fontWeight: "600", color: "#0f172a", margin: "0 0 12px 0" },
+  bodyText: { fontSize: "14px", color: "#475569", lineHeight: "1.6", margin: "0 0 16px 0" },
+  card: { backgroundColor: "#f0fdfa", borderRadius: "8px", border: "1px solid #99f6e4", padding: "20px 24px", margin: "0 0 24px 0" },
+  cardLabel: { fontSize: "10px", fontWeight: "700", color: "#0d9488", letterSpacing: "0.8px", margin: "0 0 4px 0" },
+  cardValue: { fontSize: "15px", fontWeight: "600", color: "#0f172a", margin: "0" },
+  cardDivider: { borderColor: "#ccfbf1", margin: "16px 0" },
+  manageSection: { textAlign: "center" as const, margin: "0 0 24px 0" },
+  manageButton: { backgroundColor: "#0f766e", borderRadius: "8px", color: "#ffffff", fontSize: "14px", fontWeight: "600", textDecoration: "none", padding: "12px 24px" },
+  contactDetail: { fontSize: "14px", color: "#0f766e", fontWeight: "600", margin: "4px 0" },
 };
