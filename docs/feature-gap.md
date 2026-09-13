@@ -1,104 +1,101 @@
-# Brecha: lo que promete el homepage vs. lo que existe en el repo
+# Brecha de producto — GarageOS
 
-Compara cada función que el landing page de marketing (`src/app/page.tsx` y
-`src/lib/marketing-locale.ts`) le promete a un taller, contra lo que
-realmente hay implementado hoy en el producto (`src/actions`, `src/app/admin`,
-`prisma/schema.prisma`). Cruza el resultado con `docs/roadmap.md` (el plan
-que ya existía) para terminar en una sola lista de construcción, priorizada.
+Este documento complementa `docs/roadmap.md`: separa lo que ya existe, lo que ya estaba identificado como pendiente y el nuevo alcance decidido para una V1 funcionalmente completa.
 
-Metodología: lectura directa del código — sin asumir nada del propio
-homepage ni de los docs previos como verdad. "Implementado" significa que
-hay una `action` y una pantalla que la ejecutan de punta a punta, no solo un
-modelo en el schema.
+La regla sigue siendo la misma: una función no cuenta como implementada solo porque exista un modelo o aparezca en marketing. Debe existir un flujo usable de punta a punta y mantener aislamiento por taller.
 
-**Corte anterior de este documento:** commit `4798dee`. Desde entonces se
-cerraron los dos huecos de producto que quedaban pendientes de decisión
-(Inventario y Multi-sucursal — se construyeron en vez de suavizar el
-homepage) más tres arreglos de concurrencia (folios atómicos,
-doble-booking de citas) y se confirmó que el arreglo de los botones "Get
-Started" ya estaba resuelto. **Este corte deja una sola tarea grande
-pendiente: Work Orders.**
+## Estado confirmado del producto
 
-**Fuera de alcance de este documento:** cobro por suscripción del propio
-GarageOS y sus *gates* (qué se bloquea sin pagar). Se está revisando en
-paralelo en otra sesión — no se lista aquí para no pisarlo.
-
-## Tabla: promesa del homepage → estado real
-
-| Promesa (homepage) | Estado | Evidencia |
+| Área | Estado | Nota |
 | --- | --- | --- |
-| Appointments & Scheduling | ✅ Implementado | `src/actions/appointments.ts`, `/book/[slug]`. **Invariante 8 resuelto para doble-booking**: el chequeo de conflicto de mecánico y la creación de la cita ahora corren dentro de una sola transacción `Serializable` (`createAppointment`, `updateAppointment` y la ruta pública `/api/book/[slug]`) — verificado con 10 intentos concurrentes reales contra Postgres: exactamente uno sobrevive. DST sigue sin probarse. |
-| Work Orders & Estimates | ⚠️ Engañoso — **única brecha grande que queda** | El modelo `WorkOrder`/`WorkOrderLine` y `canTransitionWorkOrder` (`src/domain/work-order.ts`) existen, pero **cero** `actions` y **cero** pantalla. No se puede crear, ver ni editar una orden de trabajo desde la UI. Es la única función prometida en el homepage que sigue sin nada real detrás. |
-| Invoicing & Payments | ✅ Implementado — folios ya atómicos | `src/actions/invoices.ts` (pagos CARD/CASH/MIXED), PDF. **Folios ahora son atómicos**: `DocumentSequence` (modelo nuevo) + upsert atómico en `src/lib/invoice-number.ts`, verificado con 25 asignaciones concurrentes reales sin duplicados; incluye backfill para talleres con facturas/cotizaciones previas. `taxRate` sigue combinado por documento sin normalizar (invariante 5 de `domain-model.md` — riesgo menor, no de concurrencia). |
-| Customer Communication | ✅ Implementado | Inbox real (`src/app/admin/(shop)/inbox/**`), Campañas, dominios de email propios, outbox con idempotencia. Dos piezas siguen dormidas a propósito (`docs/communications-activation-todo.md`): email entrante y aprovisionamiento de SMS por taller — requieren credenciales/infra reales, no es trabajo de código pendiente. |
-| Vehicle History & Records | ✅ Implementado | `Client` → `Vehicle`, `clients/[id]/vehicles/**`. |
-| Inventory & Parts | ✅ Implementado — nuevo desde el corte anterior | `InventoryPart`/`InventoryMovement` (schema), `src/actions/inventory.ts`, `/admin/inventory` (lista, alta, detalle, edición, ajuste de stock con historial). Cantidad en existencia (`quantityOnHand`) es un total denormalizado que solo cambia dentro de una transacción junto con el movimiento que lo explica — nunca se edita directo. Ítem propio en el nav (`Package`). Verificado en navegador real: alta de refacción, consumo de stock, historial de movimientos. **No implementado a propósito**: descuento automático de stock al facturar una línea tipo "PART" — el módulo es autónomo por ahora, sin integración con Facturas/Cotizaciones. |
-| Reports & Insights / Reports & analytics | ⚠️ Parcial | El dashboard "command center" (`src/app/admin/(shop)/dashboard/page.tsx`) incluye gráficas y un bloque de agenda de hoy. Sigue sin existir una sección "Reportes" separada con filtros/exportación propios. |
-| Your Brand Everywhere / Branded emails & documents | ✅ Implementado | `Shop.logoUrl`/`name` en emails/PDFs/booking; dominio de email propio por taller. |
-| Online & in-person booking | ✅ Implementado | `/book/[slug]` + `appointments/new`. |
-| Estimates with approval flow | ✅ Implementado | `src/actions/quote-approvals.ts` + `/quote/[token]`. Token de un solo uso consumido en transacción, snapshot+hash del documento exacto, vencimiento verificado, envío por SMS. |
-| Multi-techs and roles | ✅ Implementado, con un pendiente conocido | Roles `OWNER`/`MECHANIC`/`VIEWER`. **MECHANIC/VIEWER siguen sin diferenciarse en permisos** — cualquier usuario del taller puede leer/responder Inbox y ver Campañas hoy. Asignar técnico a una orden de trabajo puntual sigue dependiendo de que Work Orders exista. |
-| Mobile friendly (shop floor ready) | ⚪ Parcialmente verificado | Nav con drawer móvil real (foco atrapado, cierre por Escape), topbar responsive. No se auditó el resto de las pantallas (formularios largos, tablas). |
-| Multi-location support (plan Business) | ✅ Implementado — nuevo desde el corte anterior | `Organization` agrupa varios `Shop` (ubicaciones); `UserShopAccess` da acceso adicional a un usuario más allá de su taller de casa. `src/actions/locations.ts`: crear ubicación (crea la `Organization` automáticamente en la primera ubicación adicional), otorgar/revocar acceso, cambiar ubicación activa. El cambio de ubicación re-firma la sesión JWT (`unstable_update` en `src/lib/auth.ts`) sin cerrar sesión — verificado en navegador real de punta a punta: alta de ubicación, selector en el topbar, cambio reflejado en el siguiente render. Pestaña "Ubicaciones" en Configuración. **Límite a propósito**: es aislamiento a nivel de aplicación (mismo criterio que el resto del producto), no multi-organización con RLS; y no hay permisos distintos por ubicación — el acceso es binario según el `Role` global del usuario. |
-| "Get Started" / "Set up your shop in minutes. No credit card required." | ✅ Implementado | Signup self-serve real (`/admin/signup`) y los botones "Get Started" del homepage ya apuntan a `/get-started` → `/admin/signup`, no a `/admin/login`. Cabo suelto del corte anterior, ya resuelto. |
-| API access (pricing, ya etiquetado "coming soon") | ❌ No implementado | Consistente con su propia etiqueta. |
+| Appointments & Scheduling | ✅ Implementado | Booking público y administrativo; protección de doble-booking ya validada. DST sigue pendiente de prueba específica. |
+| Work Orders | ⚠️ Pendiente principal | Modelos/state machine existen, pero el corte auditado todavía no tenía actions/UI usable de punta a punta. Es la siguiente pieza estructural del flujo. |
+| Invoicing & Payments | ✅ Implementado | Pagos, PDF y folios atómicos. Queda normalización fiscal como residual. |
+| Customer Communication | ✅ Base implementada | Inbox, Campaigns, dominios propios y outbox idempotente. Algunas piezas de producción dependen de infraestructura/credenciales reales. |
+| Clients / Vehicles / History | ✅ Implementado | Base para las nuevas funciones de mantenimiento e inspección. |
+| Inventory & Parts | ✅ Implementado | Módulo autónomo y ledger de movimientos. Integración automática con uso/facturación de piezas sigue pendiente. |
+| Reports & Analytics | ⚠️ Parcial | Dashboard tiene insights; falta sección de Reports completa. |
+| Branding | ✅ Implementado | Branding en emails/PDFs/booking y dominio propio por taller. |
+| Estimates + customer approval | ✅ Implementado | Token, snapshot/hash, expiración y aprobación. Debe reutilizarse para DVI en vez de crear otro approval flow. |
+| Roles | ⚠️ Parcial | OWNER/MECHANIC/VIEWER existen; MECHANIC y VIEWER necesitan diferenciación adicional. |
+| Multi-location | ✅ Implementado | Organization, accesos y cambio de ubicación. Aislamiento sigue siendo principalmente application-level. |
+| Signup | ✅ Implementado | Self-service signup funcional. |
+| Public API | ⏳ Futuro | Mantener como `coming soon`. |
 
-## Lo que falta, sin rodeos
+## Actualmente en implementación
 
-**La tarea grande — la única que queda:**
+Un agente está construyendo estas tres funciones. Se mantienen como **EN IMPLEMENTACIÓN**, no como completadas, hasta revisar el PR y validar el comportamiento real:
 
-1. **Work Orders no existe como función usable.** `src/actions/work-orders.ts`
-   + pantallas en `src/app/admin/(shop)/work-orders/**`, usando
-   `canTransitionWorkOrder` (`src/domain/work-order.ts`) como ya existe.
-   Vincular con cita y con técnico asignado. Es la última función
-   prometida en el homepage sin nada real detrás, y la que más se
-   beneficiaría de aislamiento multi-taller sólido antes de un piloto con
-   datos reales de más de un taller (ver punto siguiente).
+### Vehicle / Job Status + customer notifications
 
-**Residuales — no bloquean, no son "la próxima tarea grande", pero quedan anotados:**
+Objetivo: que el front desk/admin pueda representar de forma simple el estado operacional de un trabajo/vehículo y, cuando corresponda, avisar al cliente. Debe integrarse con Work Orders y Communications existentes en vez de crear un sistema paralelo. Ready for Pickup es el caso de notificación principal; el taller controla si la automatización está habilitada y el envío debe ser idempotente.
 
-- **Aislamiento multi-taller a nivel de aplicación, no DB.** Sigue sin
-  claves compuestas ni RLS (invariante 1 de `domain-model.md`). No creció
-  con multi-sucursal: `Organization`/`UserShopAccess` usan el mismo
-  patrón de verificación por `shopId` que ya existía en cada acción.
-- **Sección de Reportes propia** — separarla del dashboard si se mantiene
-  la promesa como diferenciador.
-- **Piezas dormidas de Communications** — email entrante y SMS por taller,
-  bloqueadas por credenciales/infra real, no por código
-  (`docs/communications-activation-todo.md`).
-- **Roles MECHANIC/VIEWER sin diferenciar permisos** — para Inbox,
-  Campañas, y ahora también para gestión de ubicaciones (hoy solo OWNER
-  puede administrar ubicaciones, pero cualquiera con acceso puede operar
-  en ellas sin distinción de rol).
-- **Impuestos sin normalizar por documento** (`taxRate` combinado) — riesgo
-  de cumplimiento fiscal, no de concurrencia (esa parte ya se resolvió).
-- **DST sin probar** en la validación de reservas.
-- **Descuento automático de inventario al facturar** — decisión de producto
-  aparte: ¿una línea tipo "PART" en una factura debe descontar stock
-  automáticamente? Hoy Inventario es un módulo autónomo.
+No se quiere un Work Board/kanban como requisito. El producto está pensado para que el dueño/front desk pueda operar el flujo aunque el mecánico casi no toque el software.
 
-Ya **no** están en esta lista (resueltos en este corte): Inventario y
-refacciones, Multi-sucursal, folios atómicos, doble-booking de citas, y el
-enlace de "Get Started" al signup real.
+### Service / Maintenance Reminders
 
-## Plan de construcción unificado (actualizado)
+Objetivo: recordatorios futuros asociados a cliente/vehículo para aceite, frenos, mantenimiento estacional, inspecciones y servicios personalizados. Deben aprovechar Communications, integrarse con historial cuando aporte valor y evitar envíos duplicados. Una V1 basada en fechas es suficiente salvo que el modelo existente permita algo mejor sin complejidad innecesaria.
 
-0. **Work Orders de punta a punta** — la única tarea grande restante. Ver
-   arriba.
-1. Sección de Reportes propia.
-2. Diferenciar permisos MECHANIC/VIEWER (Inbox, Campañas, ubicaciones).
-3. Normalizar impuestos por documento; probar DST en reservas.
-4. Activar piezas dormidas de Communications cuando haya
-   credenciales/infra real (no bloqueante).
-5. Decidir si Inventario debe integrarse con Facturas/Cotizaciones
-   (descuento automático de stock) — opcional, el módulo ya es usable de
-   forma autónoma.
+### Digital Vehicle Inspections (DVI)
 
-Cobro por suscripción y sus *gates* quedan fuera de este documento — se
-sigue en paralelo en otra sesión.
+Objetivo: inspecciones digitales utilizables en móvil/tablet con estados equivalentes a good / attention / service required, notas, recomendaciones y fotos/media. Deben vivir en el historial del vehículo y reutilizar Estimates/Quotes + approval para convertir hallazgos en trabajo autorizable sin reescribir la información.
 
-Nada de esto reemplaza `docs/roadmap.md`, `docs/domain-model.md`,
-`docs/reuse-audit.md`, `docs/communications-platform.md` ni
-`docs/navigation-map.md` — los complementa con la vista específica de qué
-promete el homepage que el producto todavía no cumple, a la fecha de este
-corte.
+La implementación debe reutilizar media/storage, public-token flows, Work Orders y aislamiento existentes donde corresponda.
+
+## Pendientes que YA estaban identificados
+
+Estos no son descubrimientos nuevos y no deben duplicarse como nuevas features:
+
+- Work Orders de punta a punta.
+- Reports completos.
+- Diferenciación de permisos MECHANIC/VIEWER.
+- Normalización fiscal/impuestos por documento.
+- Pruebas DST en booking.
+- Activación de piezas de Communications dependientes de infraestructura real.
+- Decisión/implementación de integración Inventory → piezas utilizadas/facturadas.
+- Aislamiento multi-taller más fuerte y validación antes del piloto.
+- Subscription billing y feature gates, mantenidos como track paralelo.
+
+## Nuevas funciones pendientes después del bloque actual
+
+Orden aproximado por esfuerzo de implementación, excepto Customer Portal que queda deliberadamente al final:
+
+1. **Data Import / Migration** — CSV/Excel para clientes, vehículos e inventario, con mapping, validación y preview.
+2. **Tire Storage** — juegos summer/winter, medidas, condición, ubicación, check-in/out, notas y etiquetas/QR cuando sea útil.
+3. **Accounting Light + QuickBooks Online** — sincronizar/exportar invoices, payments, taxes/refunds y estados necesarios. GarageOS no debe convertirse en un sistema contable completo.
+4. **Customer Portal — último** — vehículos, historial, citas, DVI, estimates/approvals, invoices y payments. Construir cuando los dominios internos estén estables para que sea principalmente una superficie sobre sistemas existentes.
+
+## Decisiones de producto — NO construir ahora
+
+- **VIN lookup/scanning: eliminado del alcance.** No es una función que queramos perseguir actualmente.
+- **Work Board/kanban: eliminado de V1.** Preferimos status simple administrado por front desk/admin.
+- **Two-way SMS: futuro.** No es requisito de lanzamiento.
+- **Purchase Orders/Suppliers: fuera.** No priorizar.
+- **Full accounting: fuera.** Integración ligera con QuickBooks en su lugar.
+- **Public API: futuro.**
+- **Technician time clock/payroll: post-lanzamiento si aparece demanda real.**
+
+## Flujo objetivo de GarageOS V1
+
+Customer/booking → vehicle → appointment → estimate → approval → Work Order → DVI/work → status → invoice → payment → vehicle history → maintenance reminder.
+
+El producto debe permitir que un taller independiente opere ese flujo principalmente desde recepción/administración. La interacción del técnico puede mantenerse deliberadamente simple.
+
+### Qué significa “V1 completa”
+
+- **Adquisición:** landing/website, online booking, appointment communications.
+- **Recepción:** clients, vehicles, appointments, estimates.
+- **Autorización:** DVI, evidencia, estimate, approval.
+- **Trabajo:** Work Orders, parts/labour, operational status.
+- **Cliente:** notificaciones, especialmente Ready for Pickup.
+- **Dinero:** invoice, payment, receipt, accounting-light/QuickBooks.
+- **Retención:** vehicle history, maintenance reminders, campaigns.
+- **Gestión:** inventory, tire storage, reports, multi-location.
+
+Customer Portal queda deliberadamente después de este núcleo.
+
+## Validaciones de lanzamiento que no son features
+
+Antes de exponer GarageOS a datos reales de varios talleres todavía deben tratarse como launch-critical: aislamiento tenant/shop, ownership de relaciones y media, concurrencia e idempotencia, fiscalidad Quebec/Canadá aplicable, backups/restauración, communications reales, responsive/mobile, importación/migración y subscription gates.
+
+Este documento debe actualizarse otra vez cuando el PR de Status + Reminders + DVI se revise: solo entonces esas tres funciones pasan de **EN IMPLEMENTACIÓN** a **IMPLEMENTADAS**.
