@@ -1,7 +1,6 @@
-export type InvoiceLanguage = "ES" | "EN" | "FR";
+export type InvoiceLanguage = "EN" | "FR";
 
 export const INVOICE_LANGUAGES: { value: InvoiceLanguage; label: string }[] = [
-  { value: "ES", label: "Español" },
   { value: "EN", label: "English" },
   { value: "FR", label: "Français" },
 ];
@@ -67,81 +66,6 @@ type Strings = {
     footer: (shop: string) => string;
     poweredBy: string;
   };
-};
-
-const ES: Strings = {
-  documentTitle: (num) => `Factura ${num}`,
-  invoiceTitle: "FACTURA",
-  quoteTitle: "COTIZACIÓN",
-  invoiceNo: "No. de factura",
-  quoteNo: "No. de cotización",
-  date: "Fecha de emisión",
-  due: "Fecha de vencimiento",
-  validUntil: "Válida hasta",
-  status: "Estado",
-  billTo: "Facturar a",
-  vehicle: "Vehículo",
-  serviceDetails: "Detalles del servicio",
-  phone: "Teléfono",
-  email: "Correo",
-  address: "Dirección",
-  taxRegistration: "Registro fiscal",
-  plate: "Placa",
-  vin: "VIN",
-  color: "Color",
-  mileageIn: "Km entrada",
-  mileageOut: "Km salida",
-  mileageTraveled: "Recorrido",
-  colDescription: "Descripción",
-  colType: "Tipo",
-  colQty: "Cant.",
-  colUnitPrice: "P. unitario",
-  colTotal: "Importe",
-  subtotal: "Subtotal",
-  tps: (pct) => `TPS (${pct}%)`,
-  tvq: (pct) => `TVQ (${pct}%)`,
-  taxesTotal: "Total impuestos",
-  grandTotal: "TOTAL A PAGAR",
-  etransfer: "Correo para transferencias electrónicas (Interac)",
-  notes: "Notas y condiciones",
-  thankYou: "Gracias por confiar en nosotros.",
-  warrantyDisclosureTitle: "Garantía de piezas",
-  warrantyDisclosureIntro:
-    "Las piezas siguientes incluyen garantía según se indica. Esta garantía cubre defectos de material bajo uso normal.",
-  itemTypes: { LABOUR: "Mano de obra", PART: "Repuesto", OTHER: "Otro" },
-  statuses: {
-    DRAFT: "PENDIENTE",
-    SENT: "PENDIENTE",
-    PAID: "PAGADA",
-    OVERDUE: "VENCIDA",
-    CANCELLED: "CANCELADA",
-    ACCEPTED: "ACEPTADA",
-    REJECTED: "RECHAZADA",
-    EXPIRED: "VENCIDA",
-    CONVERTED: "CONVERTIDA",
-  },
-  paidWatermark: "PAGADO",
-  months: ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"],
-  mail: {
-    preview: (num, shop) => `Factura ${num} de ${shop}`,
-    resendPreview: (num, shop) => `Reenvío: factura ${num} de ${shop}`,
-    subject: (num, shop) => `Factura ${num} — ${shop}`,
-    resendSubject: (num, shop) => `Reenvío: Factura ${num} — ${shop}`,
-    greeting: (name) => `Hola, ${name}`,
-    body: "Adjuntamos la factura por los servicios realizados en tu vehículo. Si tienes alguna pregunta, contáctanos directamente.",
-    resendBody: "Te reenviamos la factura adjunta por si no la recibiste o necesitas una copia.",
-    attachmentNote: "La factura en PDF va adjunta a este correo.",
-    etransferNotice: (email) =>
-      `Para pagos por transferencia Interac, envíalos a ${email}.`,
-    invoiceNumber: "Número de factura",
-    total: "Total",
-    vehicle: "Vehículo",
-    dueDate: "Vencimiento",
-    contactPrompt: "Para consultas sobre esta factura:",
-    bookOnlineLabel: "¿Necesitas otra cita? Resérvala en línea:",
-    footer: (shop) => `Este correo fue enviado por ${shop}.`,
-    poweredBy: "Enviado con GarageOS",
-  },
 };
 
 const EN: Strings = {
@@ -294,9 +218,9 @@ const FR: Strings = {
   },
 };
 
-const MAP: Record<InvoiceLanguage, Strings> = { ES, EN, FR };
+const MAP: Record<InvoiceLanguage, Strings> = { EN, FR };
 
 export function getInvoiceStrings(language: InvoiceLanguage | string | null | undefined): Strings {
-  const key = (language ?? "ES") as InvoiceLanguage;
-  return MAP[key] ?? ES;
+  const key = language === "FR" ? "FR" : "EN";
+  return MAP[key];
 }

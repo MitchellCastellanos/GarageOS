@@ -1,7 +1,10 @@
-/** Extrae el ID de factura de las notas de un documento auto-archivado. */
+/** Extracts the invoice ID from notes on an auto-archived document. */
 export function parseInvoiceIdFromNotes(notes: string | null | undefined): string | null {
   if (!notes) return null;
-  const match = notes.match(/Factura pagada .+ \(([^)]+)\)/);
+  // Support both the legacy Spanish note format and the current English format.
+  const match =
+    notes.match(/Paid invoice .+ \(([^)]+)\)/) ??
+    notes.match(/Factura pagada .+ \(([^)]+)\)/);
   return match?.[1] ?? null;
 }
 
@@ -20,17 +23,17 @@ export const ACCOUNTING_DOC_FILTERS: {
 }[] = [
   {
     value: "ALL",
-    label: "Todos",
-    description: "Documentos exportados y subidas manuales",
+    label: "All",
+    description: "Automatically exported documents and manual uploads",
   },
   {
     value: "AUTO_EXPORTED",
-    label: "Exportado automáticamente",
-    description: "Facturas pagadas exportadas automáticamente a contabilidad",
+    label: "Automatically exported",
+    description: "Paid invoices automatically exported to accounting",
   },
   {
     value: "MANUAL",
-    label: "Subidas manuales",
-    description: "Archivos subidos directamente desde esta página",
+    label: "Manual uploads",
+    description: "Files uploaded directly from this page",
   },
 ];
