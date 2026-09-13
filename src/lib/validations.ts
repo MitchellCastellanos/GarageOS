@@ -166,3 +166,33 @@ export const cashDrawerEntrySchema = z.object({
 });
 
 export type CashDrawerEntryFormData = z.infer<typeof cashDrawerEntrySchema>;
+
+// ── Inventario / refacciones ───────────────────────────────────
+
+export const inventoryPartSchema = z.object({
+  name: z.string().min(1, "El nombre es requerido").max(150),
+  sku: z.string().max(60).optional().or(z.literal("")),
+  description: z.string().max(500).optional().or(z.literal("")),
+  unitCost: z.number().min(0).optional().nullable(),
+  unitPrice: z.number().min(0, "El precio no puede ser negativo"),
+  quantityOnHand: z.number().int().min(0).optional(),
+  reorderThreshold: z.number().int().min(0).optional(),
+});
+
+export type InventoryPartFormData = z.infer<typeof inventoryPartSchema>;
+
+export const inventoryMovementSchema = z.object({
+  type: z.enum(["RECEIVE", "ADJUSTMENT", "CONSUMED", "RETURN"]),
+  quantity: z.number().int().refine((n) => n !== 0, "La cantidad no puede ser cero"),
+  note: z.string().max(300).optional().or(z.literal("")),
+});
+
+export type InventoryMovementFormData = z.infer<typeof inventoryMovementSchema>;
+
+// ── Multi-sucursal ──────────────────────────────────────────────
+
+export const shopLocationSchema = z.object({
+  name: z.string().min(1, "El nombre de la ubicación es requerido").max(120),
+});
+
+export type ShopLocationFormData = z.infer<typeof shopLocationSchema>;

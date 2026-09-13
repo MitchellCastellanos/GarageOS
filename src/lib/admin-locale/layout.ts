@@ -10,6 +10,7 @@ export interface LayoutDictionary {
     invoices: string;
     campaigns: string;
     notifications: string;
+    inventory: string;
     caja: string;
     accounting: string;
     reminders: string;
@@ -37,6 +38,7 @@ export const LAYOUT_DICT: Record<AdminLocale, LayoutDictionary> = {
       invoices: "Facturas",
       campaigns: "Campañas",
       notifications: "Notificaciones",
+      inventory: "Inventario",
       caja: "Caja",
       accounting: "Contabilidad",
       reminders: "Recordatorios",
@@ -62,6 +64,7 @@ export const LAYOUT_DICT: Record<AdminLocale, LayoutDictionary> = {
       invoices: "Invoices",
       campaigns: "Campaigns",
       notifications: "Notifications",
+      inventory: "Inventory",
       caja: "Cash drawer",
       accounting: "Accounting",
       reminders: "Reminders",
@@ -87,6 +90,7 @@ export const LAYOUT_DICT: Record<AdminLocale, LayoutDictionary> = {
       invoices: "Factures",
       campaigns: "Campagnes",
       notifications: "Notifications",
+      inventory: "Inventaire",
       caja: "Caisse",
       accounting: "Comptabilité",
       reminders: "Rappels",

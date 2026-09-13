@@ -4,50 +4,37 @@ import { formatDocumentNumber } from "@/lib/utils";
 const INVOICE_PREFIX = "INV";
 const QUOTE_PREFIX = "COT";
 
-function sequencePattern(prefix: string): RegExp {
-  return new RegExp(`^${prefix}-(\\d+)$`, "i");
+// Secuencia atómica por taller y tipo de documento (docs/domain-model.md
+// invariante 6) — ver el modelo DocumentSequence en schema.prisma. El
+// upsert compila a un INSERT ... ON CONFLICT ... DO UPDATE en Postgres: dos
+// facturas creadas en el mismo instante para el mismo taller serializan
+// sobre la fila del contador en vez de competir por leer el mismo máximo.
+async function allocateNextDocumentNumber(
+  tx: Prisma.TransactionClient,
+  shopId: string,
+  docType: string,
+  prefix: string
+): Promise<string> {
+  const sequence = await tx.documentSequence.upsert({
+    where: { shopId_docType: { shopId, docType } },
+    create: { shopId, docType, lastNumber: 1 },
+    update: { lastNumber: { increment: 1 } },
+  });
+  return formatDocumentNumber(sequence.lastNumber, prefix);
 }
 
-function maxSequence(numbers: string[], pattern: RegExp): number {
-  let max = 0;
-  for (const n of numbers) {
-    const m = n.trim().match(pattern);
-    if (m) max = Math.max(max, parseInt(m[1], 10));
-  }
-  return max;
-}
-
-// TODO(garageos): asignador por búsqueda de máximo, no atómico — ver
-// docs/domain-model.md invariante 6. Reemplazar por secuencia atómica por
-// taller antes de servir usuarios reales concurrentes.
 export async function allocateNextInvoiceNumber(
   tx: Prisma.TransactionClient,
   shopId: string
 ): Promise<string> {
-  const rows = await tx.invoice.findMany({
-    where: { shopId, invoiceNumber: { startsWith: `${INVOICE_PREFIX}-` } },
-    select: { invoiceNumber: true },
-  });
-  const next = maxSequence(
-    rows.map((r) => r.invoiceNumber),
-    sequencePattern(INVOICE_PREFIX)
-  );
-  return formatDocumentNumber(next + 1, INVOICE_PREFIX);
+  return allocateNextDocumentNumber(tx, shopId, "INVOICE", INVOICE_PREFIX);
 }
 
 export async function allocateNextQuoteNumber(
   tx: Prisma.TransactionClient,
   shopId: string
 ): Promise<string> {
-  const rows = await tx.quote.findMany({
-    where: { shopId, quoteNumber: { startsWith: `${QUOTE_PREFIX}-` } },
-    select: { quoteNumber: true },
-  });
-  const next = maxSequence(
-    rows.map((r) => r.quoteNumber),
-    sequencePattern(QUOTE_PREFIX)
-  );
-  return formatDocumentNumber(next + 1, QUOTE_PREFIX);
+  return allocateNextDocumentNumber(tx, shopId, "QUOTE", QUOTE_PREFIX);
 }
 
 export function isUniqueConstraintError(err: unknown): boolean {

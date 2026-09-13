@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
+import { isTransactionConflictError } from "@/lib/db-errors";
 import { findAvailableMechanic, getShopBySlug, getShopServiceDurations } from "@/lib/booking-slots";
 import { resolveServiceDuration } from "@/lib/service-catalog";
 import { parseShopDateTime } from "@/lib/shop-timezone";
@@ -132,23 +134,53 @@ export async function POST(
 
   const manageToken = generateAppointmentManageToken();
 
-  const appointment = await db.appointment.create({
-    data: {
-      shopId: shop.id,
-      clientId: client.id,
-      vehicleId: vehicle.id,
-      mechanicId: mechanic.id,
-      title: data.title,
-      startsAt,
-      endsAt,
-      durationMinutes,
-      notes: data.notes || null,
-      status: "CONFIRMED",
-      source: "PUBLIC_WEB",
-      manageToken,
-    },
-    include: { client: true, shop: true },
-  });
+  let appointment;
+  try {
+    appointment = await db.$transaction(
+      async (tx) => {
+        // Re-verifica el conflicto justo antes de escribir — findAvailableMechanic
+        // (arriba) es solo una lectura previa, no protege contra dos reservas
+        // simultáneas para el mismo horario (docs/domain-model.md invariante 8).
+        const conflict = await tx.appointment.findFirst({
+          where: {
+            shopId: shop.id,
+            mechanicId: mechanic.id,
+            status: { notIn: ["CANCELLED", "NO_SHOW"] },
+            startsAt: { lt: endsAt },
+            endsAt: { gt: startsAt },
+          },
+        });
+        if (conflict) throw new Error("SLOT_TAKEN");
+
+        return tx.appointment.create({
+          data: {
+            shopId: shop.id,
+            clientId: client.id,
+            vehicleId: vehicle.id,
+            mechanicId: mechanic.id,
+            title: data.title,
+            startsAt,
+            endsAt,
+            durationMinutes,
+            notes: data.notes || null,
+            status: "CONFIRMED",
+            source: "PUBLIC_WEB",
+            manageToken,
+          },
+          include: { client: true, shop: true },
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    );
+  } catch (err) {
+    if ((err instanceof Error && err.message === "SLOT_TAKEN") || isTransactionConflictError(err)) {
+      return NextResponse.json(
+        { error: { time: ["Ese horario ya no está disponible. Elige otro."] } },
+        { status: 409 }
+      );
+    }
+    throw err;
+  }
 
   const manageUrl = buildAppointmentManageUrl(shop, manageToken);
 

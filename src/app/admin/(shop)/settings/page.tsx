@@ -9,6 +9,8 @@ import { AppointmentReminderSettings } from "@/components/settings/AppointmentRe
 import { ServiceCatalogSettings } from "@/components/settings/ServiceCatalogSettings";
 import { DomainSettings } from "@/components/settings/DomainSettings";
 import { TeamManagement } from "@/components/settings/TeamManagement";
+import { LocationsSettings } from "@/components/settings/LocationsSettings";
+import { getOrganizationLocations, getOrganizationUsers } from "@/actions/locations";
 import { SupportCard } from "@/components/settings/SupportCard";
 import { Tabs, type TabItem } from "@/components/ui/Tabs";
 import { auth } from "@/lib/auth";
@@ -69,6 +71,23 @@ export default async function SettingsPage() {
       id: "team",
       label: t.tabs.team,
       content: <TeamManagement members={team} currentUserId={session.user.id} />,
+    });
+
+    const [locations, orgUsers] = await Promise.all([
+      getOrganizationLocations(),
+      getOrganizationUsers(),
+    ]);
+    tabs.push({
+      id: "locations",
+      label: t.tabs.locations,
+      content: (
+        <LocationsSettings
+          organizationId={locations.organizationId}
+          shops={locations.shops}
+          currentShopId={session.user.shopId!}
+          orgUsers={orgUsers}
+        />
+      ),
     });
   }
 

@@ -9,10 +9,20 @@ interface AdminChromeProps {
   shopLogoUrl?: string | null;
   userName?: string | null;
   isOwner: boolean;
+  accessibleShops: { id: string; name: string }[];
+  currentShopId: string;
   children: React.ReactNode;
 }
 
-export function AdminChrome({ shopName, shopLogoUrl, userName, isOwner, children }: AdminChromeProps) {
+export function AdminChrome({
+  shopName,
+  shopLogoUrl,
+  userName,
+  isOwner,
+  accessibleShops,
+  currentShopId,
+  children,
+}: AdminChromeProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const closeMobileNav = useCallback(() => setMobileNavOpen(false), []);
 
@@ -24,6 +34,8 @@ export function AdminChrome({ shopName, shopLogoUrl, userName, isOwner, children
         userName={userName}
         mobileNavOpen={mobileNavOpen}
         onMenuClick={() => setMobileNavOpen(true)}
+        accessibleShops={accessibleShops}
+        currentShopId={currentShopId}
       />
       <div className="flex flex-1 min-h-0">
         <Sidebar

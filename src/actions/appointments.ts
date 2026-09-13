@@ -5,6 +5,8 @@ import { ADMIN } from "@/lib/routes";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
+import { Prisma } from "@prisma/client";
+import { isTransactionConflictError } from "@/lib/db-errors";
 import { getShopId } from "@/lib/shop-context";
 import { appointmentSchema, appointmentEditSchema, type AppointmentEditFormData, type AppointmentFormData } from "@/lib/validations";
 import { generateAppointmentManageToken, ensureAppointmentManageToken } from "@/lib/appointment-token";
@@ -247,28 +249,46 @@ export async function createAppointment(formData: AppointmentFormData) {
   const startsAt = parseStartsAt(date, time, timeZone);
   const endsAt = new Date(startsAt.getTime() + durationMinutes * 60_000);
 
-  if (mechanicId) {
-    const hasConflict = await checkMechanicConflict(mechanicId, startsAt, endsAt);
-    if (hasConflict) {
+  try {
+    await db.$transaction(
+      async (tx) => {
+        if (mechanicId) {
+          const conflict = await tx.appointment.findFirst({
+            where: {
+              shopId,
+              mechanicId,
+              status: { notIn: ["CANCELLED", "NO_SHOW"] },
+              startsAt: { lt: endsAt },
+              endsAt: { gt: startsAt },
+            },
+          });
+          if (conflict) throw new Error("MECHANIC_CONFLICT");
+        }
+
+        await tx.appointment.create({
+          data: {
+            shopId,
+            clientId,
+            vehicleId: vehicleId || null,
+            mechanicId: mechanicId || null,
+            title,
+            startsAt,
+            endsAt,
+            durationMinutes,
+            notes: notes || null,
+            status: "SCHEDULED",
+            manageToken: generateAppointmentManageToken(),
+          },
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    );
+  } catch (err) {
+    if ((err instanceof Error && err.message === "MECHANIC_CONFLICT") || isTransactionConflictError(err)) {
       return { error: { mechanicId: [MECHANIC_CONFLICT[locale]] } };
     }
+    throw err;
   }
-
-  await db.appointment.create({
-    data: {
-      shopId,
-      clientId,
-      vehicleId: vehicleId || null,
-      mechanicId: mechanicId || null,
-      title,
-      startsAt,
-      endsAt,
-      durationMinutes,
-      notes: notes || null,
-      status: "SCHEDULED",
-      manageToken: generateAppointmentManageToken(),
-    },
-  });
 
   revalidatePath(ADMIN.appointments);
   redirect(`${ADMIN.appointments}?view=day&date=${date}`);
@@ -298,27 +318,46 @@ export async function updateAppointment(id: string, formData: AppointmentEditFor
   const startsAt = parseStartsAt(date, time, timeZone);
   const endsAt = new Date(startsAt.getTime() + durationMinutes * 60_000);
 
-  if (mechanicId && status !== "CANCELLED" && status !== "NO_SHOW") {
-    const hasConflict = await checkMechanicConflict(mechanicId, startsAt, endsAt, id);
-    if (hasConflict) {
+  try {
+    await db.$transaction(
+      async (tx) => {
+        if (mechanicId && status !== "CANCELLED" && status !== "NO_SHOW") {
+          const conflict = await tx.appointment.findFirst({
+            where: {
+              shopId,
+              mechanicId,
+              id: { not: id },
+              status: { notIn: ["CANCELLED", "NO_SHOW"] },
+              startsAt: { lt: endsAt },
+              endsAt: { gt: startsAt },
+            },
+          });
+          if (conflict) throw new Error("MECHANIC_CONFLICT");
+        }
+
+        await tx.appointment.update({
+          where: { id },
+          data: {
+            clientId,
+            vehicleId: vehicleId || null,
+            mechanicId: mechanicId || null,
+            title,
+            startsAt,
+            endsAt,
+            durationMinutes,
+            notes: notes || null,
+            status,
+          },
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    );
+  } catch (err) {
+    if ((err instanceof Error && err.message === "MECHANIC_CONFLICT") || isTransactionConflictError(err)) {
       return { error: { mechanicId: [MECHANIC_CONFLICT[locale]] } };
     }
+    throw err;
   }
-
-  await db.appointment.update({
-    where: { id },
-    data: {
-      clientId,
-      vehicleId: vehicleId || null,
-      mechanicId: mechanicId || null,
-      title,
-      startsAt,
-      endsAt,
-      durationMinutes,
-      notes: notes || null,
-      status,
-    },
-  });
 
   revalidatePath(ADMIN.appointments);
   redirect(`${ADMIN.appointments}?view=day&date=${date}`);

@@ -7,6 +7,7 @@ export interface SettingsDictionary {
     calendar: string;
     services: string;
     team: string;
+    locations: string;
     domain: string;
     support: string;
   };
@@ -170,6 +171,30 @@ export interface SettingsDictionary {
     userDeleted: string;
     confirmDelete: (name: string) => string;
   };
+  locations: {
+    title: string;
+    subtitle: string;
+    addFirstTitle: string;
+    addFirstSubtitle: string;
+    namePlaceholder: string;
+    createButton: string;
+    creating: string;
+    currentBadge: string;
+    userCountLabel: (n: number) => string;
+    switchButton: string;
+    switching: string;
+    accessHeading: string;
+    addAccessLabel: string;
+    addAccessButton: string;
+    revokeButton: string;
+    noOtherUsers: string;
+    errors: {
+      noAccess: string;
+      shopNotFound: string;
+      crossOrganization: string;
+      genericError: string;
+    };
+  };
   support: {
     needHelp: string;
   };
@@ -186,6 +211,7 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       calendar: "Calendario y Horarios",
       services: "Servicios",
       team: "Equipo",
+      locations: "Ubicaciones",
       domain: "Dominio",
       support: "Soporte",
     },
@@ -354,6 +380,30 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       userDeleted: "Usuario eliminado",
       confirmDelete: (name) => `¿Eliminar la cuenta de ${name}? Esta acción no se puede deshacer.`,
     },
+    locations: {
+      title: "Ubicaciones",
+      subtitle: "Administra las sucursales de tu taller y quién tiene acceso a cada una",
+      addFirstTitle: "¿Tienes más de una sucursal?",
+      addFirstSubtitle: "Agrega tu primera ubicación adicional — tu taller actual queda como la principal",
+      namePlaceholder: "Nombre de la ubicación (ej. Taller Centro)",
+      createButton: "Agregar ubicación",
+      creating: "Agregando...",
+      currentBadge: "Activa ahora",
+      userCountLabel: (n) => `${n} persona${n !== 1 ? "s" : ""} con acceso`,
+      switchButton: "Cambiar a esta ubicación",
+      switching: "Cambiando...",
+      accessHeading: "Acceso del equipo",
+      addAccessLabel: "Dar acceso a",
+      addAccessButton: "Agregar",
+      revokeButton: "Quitar",
+      noOtherUsers: "No hay otros miembros del equipo en tu organización todavía",
+      errors: {
+        noAccess: "No tienes acceso a esa ubicación",
+        shopNotFound: "Taller no encontrado",
+        crossOrganization: "Esa persona o ubicación no pertenece a tu organización",
+        genericError: "No pudimos completar la acción. Intenta de nuevo.",
+      },
+    },
     support: { needHelp: "¿Necesita ayuda?" },
   },
   en: {
@@ -366,6 +416,7 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       calendar: "Calendar & Hours",
       services: "Services",
       team: "Team",
+      locations: "Locations",
       domain: "Domain",
       support: "Support",
     },
@@ -534,6 +585,30 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       userDeleted: "User deleted",
       confirmDelete: (name) => `Delete ${name}'s account? This cannot be undone.`,
     },
+    locations: {
+      title: "Locations",
+      subtitle: "Manage your shop's locations and who has access to each one",
+      addFirstTitle: "Have more than one location?",
+      addFirstSubtitle: "Add your first additional location — your current shop stays as the main one",
+      namePlaceholder: "Location name (e.g. Downtown Shop)",
+      createButton: "Add location",
+      creating: "Adding...",
+      currentBadge: "Active now",
+      userCountLabel: (n) => `${n} ${n !== 1 ? "people" : "person"} with access`,
+      switchButton: "Switch to this location",
+      switching: "Switching...",
+      accessHeading: "Team access",
+      addAccessLabel: "Give access to",
+      addAccessButton: "Add",
+      revokeButton: "Remove",
+      noOtherUsers: "No other team members in your organization yet",
+      errors: {
+        noAccess: "You don't have access to that location",
+        shopNotFound: "Shop not found",
+        crossOrganization: "That person or location isn't part of your organization",
+        genericError: "We couldn't complete that action. Please try again.",
+      },
+    },
     support: { needHelp: "Need help?" },
   },
   fr: {
@@ -546,6 +621,7 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       calendar: "Calendrier et horaires",
       services: "Services",
       team: "Équipe",
+      locations: "Emplacements",
       domain: "Domaine",
       support: "Assistance",
     },
@@ -713,6 +789,30 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       roleUpdated: "Rôle mis à jour",
       userDeleted: "Utilisateur supprimé",
       confirmDelete: (name) => `Supprimer le compte de ${name}? Cette action est irréversible.`,
+    },
+    locations: {
+      title: "Emplacements",
+      subtitle: "Gérez les succursales de votre atelier et qui a accès à chacune",
+      addFirstTitle: "Plus d'une succursale?",
+      addFirstSubtitle: "Ajoutez votre premier emplacement supplémentaire — votre atelier actuel reste le principal",
+      namePlaceholder: "Nom de l'emplacement (ex. Atelier Centre-ville)",
+      createButton: "Ajouter un emplacement",
+      creating: "Ajout en cours...",
+      currentBadge: "Actif maintenant",
+      userCountLabel: (n) => `${n} personne${n !== 1 ? "s" : ""} avec accès`,
+      switchButton: "Passer à cet emplacement",
+      switching: "Changement...",
+      accessHeading: "Accès de l'équipe",
+      addAccessLabel: "Donner accès à",
+      addAccessButton: "Ajouter",
+      revokeButton: "Retirer",
+      noOtherUsers: "Aucun autre membre de l'équipe dans votre organisation pour l'instant",
+      errors: {
+        noAccess: "Vous n'avez pas accès à cet emplacement",
+        shopNotFound: "Atelier introuvable",
+        crossOrganization: "Cette personne ou cet emplacement ne fait pas partie de votre organisation",
+        genericError: "Impossible de terminer cette action. Réessayez.",
+      },
     },
     support: { needHelp: "Besoin d'aide?" },
   },

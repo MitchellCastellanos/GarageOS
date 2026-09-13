@@ -1,15 +1,19 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
+import { toast } from "sonner";
 import { ADMIN } from "@/lib/routes";
 import { APP_NAME } from "@/config/app";
-import { Search, LogOut, Settings, ChevronDown, Menu, X } from "lucide-react";
+import { Search, LogOut, Settings, ChevronDown, Menu, X, MapPin } from "lucide-react";
 import { LanguageQuickSwitch } from "@/components/settings/LanguageQuickSwitch";
 import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
 import { LAYOUT_DICT } from "@/lib/admin-locale/layout";
+import { switchActiveShop } from "@/actions/locations";
+import { SETTINGS_DICT } from "@/lib/admin-locale/settings";
 
 interface TopbarProps {
   shopName?: string | null;
@@ -17,6 +21,8 @@ interface TopbarProps {
   userName?: string | null;
   onMenuClick: () => void;
   mobileNavOpen: boolean;
+  accessibleShops: { id: string; name: string }[];
+  currentShopId: string;
 }
 
 function initials(name?: string | null): string {
@@ -27,12 +33,36 @@ function initials(name?: string | null): string {
   return (first + last).toUpperCase();
 }
 
-export function Topbar({ shopName, shopLogoUrl, userName, onMenuClick, mobileNavOpen }: TopbarProps) {
+export function Topbar({
+  shopName,
+  shopLogoUrl,
+  userName,
+  onMenuClick,
+  mobileNavOpen,
+  accessibleShops,
+  currentShopId,
+}: TopbarProps) {
   const locale = useAdminLocale();
   const t = LAYOUT_DICT[locale];
+  const st = SETTINGS_DICT[locale];
+  const router = useRouter();
+  const [isSwitching, startSwitch] = useTransition();
   const displayName = shopName ?? APP_NAME;
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  function handleSwitchShop(shopId: string) {
+    if (shopId === currentShopId) return;
+    startSwitch(async () => {
+      const result = await switchActiveShop(shopId);
+      if (result?.success) {
+        setMenuOpen(false);
+        router.refresh();
+      } else {
+        toast.error(result?.error ?? st.locations.errors.genericError);
+      }
+    });
+  }
   const [searchOpen, setSearchOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const searchButtonRef = useRef<HTMLButtonElement>(null);
@@ -173,6 +203,29 @@ export function Topbar({ shopName, shopLogoUrl, userName, onMenuClick, mobileNav
 
         {menuOpen && (
           <div id="admin-user-menu" className="absolute right-0 mt-2 w-56 max-w-[calc(100vw-2rem)] bg-white rounded-lg border border-slate-200 shadow-lg py-1 z-30">
+            {accessibleShops.length > 1 && (
+              <>
+                <p className="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                  {st.tabs.locations}
+                </p>
+                {accessibleShops.map((shop) => (
+                  <button
+                    key={shop.id}
+                    type="button"
+                    disabled={isSwitching}
+                    onClick={() => handleSwitchShop(shop.id)}
+                    className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    <MapPin className="w-4 h-4 flex-shrink-0" />
+                    <span className="truncate flex-1">{shop.name}</span>
+                    {shop.id === currentShopId && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-600 flex-shrink-0" />
+                    )}
+                  </button>
+                ))}
+                <div className="border-t border-slate-100 my-1" />
+              </>
+            )}
             <LanguageQuickSwitch />
             <div className="border-t border-slate-100 my-1" />
             <Link

@@ -10,10 +10,16 @@ datasource db {
 }
 
 model Shop {
-  defaultLanguage InvoiceLanguage @default(FR)
-  workOrders      WorkOrder[]
+  defaultLanguage    InvoiceLanguage     @default(FR)
+  workOrders         WorkOrder[]
+  inventoryParts     InventoryPart[]
+  inventoryMovements InventoryMovement[]
+  userAccess         UserShopAccess[]
+  documentSequences  DocumentSequence[]
 
-  id                       String   @id @default(cuid())
+  id                       String        @id @default(cuid())
+  organizationId           String?
+  organization             Organization? @relation(fields: [organizationId], references: [id])
   name                     String
   logoUrl                  String?
   address                  String?
@@ -24,17 +30,17 @@ model Shop {
   providersEmail           String?
   newsletterEmail          String?
   taxId                    String?
-  currency                 String   @default("CAD")
-  appointmentReminderHours Int      @default(24)
-  appointmentEmailsEnabled Boolean  @default(true)
-  appointmentSmsEnabled    Boolean  @default(true)
-  slug                     String?  @unique
-  bookingEnabled           Boolean  @default(false)
-  timezone                 String   @default("America/Montreal")
-  bookingSlotMinutes       Int      @default(60)
-  bookingLeadTimeHours     Int      @default(24)
-  bookingAdvanceDays       Int      @default(30)
-  createdAt                DateTime @default(now())
+  currency                 String        @default("CAD")
+  appointmentReminderHours Int           @default(24)
+  appointmentEmailsEnabled Boolean       @default(true)
+  appointmentSmsEnabled    Boolean       @default(true)
+  slug                     String?       @unique
+  bookingEnabled           Boolean       @default(false)
+  timezone                 String        @default("America/Montreal")
+  bookingSlotMinutes       Int           @default(60)
+  bookingLeadTimeHours     Int           @default(24)
+  bookingAdvanceDays       Int           @default(30)
+  createdAt                DateTime      @default(now())
 
   users                     User[]
   workingHours              ShopWorkingHours[]
@@ -76,6 +82,7 @@ model User {
   sessions     Session[]
   appointments Appointment[]          @relation("AppointmentMechanic")
   workingHours MechanicWorkingHours[]
+  shopAccess   UserShopAccess[]
 
   @@schema("garageos")
 }
@@ -338,37 +345,38 @@ model Quote {
   approvals  QuoteApproval[]
   workOrders WorkOrder[]
 
-  id                 String          @id @default(cuid())
-  shopId             String
-  shop               Shop            @relation(fields: [shopId], references: [id])
-  clientId           String
-  client             Client          @relation(fields: [clientId], references: [id])
-  quoteNumber        String
-  status             QuoteStatus     @default(DRAFT)
-  issuedAt           DateTime        @default(now())
-  validUntil         DateTime?
-  sentAt             DateTime?
-  emailSentAt        DateTime?
-  emailSendCount     Int             @default(0)
-  smsSentAt          DateTime?
-  smsSendCount       Int             @default(0)
-  approvalToken      String?         @unique
-  approvalTokenExpiresAt DateTime?
+  id                      String          @id @default(cuid())
+  shopId                  String
+  shop                    Shop            @relation(fields: [shopId], references: [id])
+  clientId                String
+  client                  Client          @relation(fields: [clientId], references: [id])
+  quoteNumber             String
+  status                  QuoteStatus     @default(DRAFT)
+  issuedAt                DateTime        @default(now())
+  validUntil              DateTime?
+  sentAt                  DateTime?
+  emailSentAt             DateTime?
+  emailSendCount          Int             @default(0)
+  smsSentAt               DateTime?
+  smsSendCount            Int             @default(0)
+  approvalToken           String?         @unique
+  approvalTokenExpiresAt  DateTime?
   approvalTokenConsumedAt DateTime?
-  convertedInvoiceId String?         @unique
-  convertedInvoice   Invoice?        @relation("QuoteConversion", fields: [convertedInvoiceId], references: [id])
-  subtotal           Decimal         @db.Decimal(10, 2)
-  taxRate            Decimal         @db.Decimal(6, 5)
-  taxAmount          Decimal         @db.Decimal(10, 2)
-  total              Decimal         @db.Decimal(10, 2)
-  language           InvoiceLanguage @default(FR)
-  notes              String?         @db.Text
-  createdAt          DateTime        @default(now())
-  updatedAt          DateTime        @updatedAt
+  convertedInvoiceId      String?         @unique
+  convertedInvoice        Invoice?        @relation("QuoteConversion", fields: [convertedInvoiceId], references: [id])
+  subtotal                Decimal         @db.Decimal(10, 2)
+  taxRate                 Decimal         @db.Decimal(6, 5)
+  taxAmount               Decimal         @db.Decimal(10, 2)
+  total                   Decimal         @db.Decimal(10, 2)
+  language                InvoiceLanguage @default(FR)
+  notes                   String?         @db.Text
+  createdAt               DateTime        @default(now())
+  updatedAt               DateTime        @updatedAt
 
   vehicles QuoteVehicle[]
 
   @@unique([shopId, quoteNumber])
+  @@index([approvalTokenExpiresAt])
   @@schema("garageos")
 }
 
@@ -1006,5 +1014,106 @@ model CampaignRecipient {
 
   @@unique([campaignId, clientId])
   @@index([campaignId, status])
+  @@schema("garageos")
+}
+
+/**
+ * Inventario/refacciones (docs/feature-gap.md). `quantityOnHand` es un total
+ * denormalizado — la única fuente de verdad del historial es InventoryMovement;
+ * todo cambio de cantidad pasa por recordInventoryMovement() en una transacción,
+ * nunca se edita quantityOnHand directo.
+ */
+model InventoryPart {
+  id               String   @id @default(cuid())
+  shopId           String
+  shop             Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  sku              String?
+  name             String
+  description      String?  @db.Text
+  unitCost         Decimal? @db.Decimal(10, 2)
+  unitPrice        Decimal  @db.Decimal(10, 2)
+  quantityOnHand   Int      @default(0)
+  reorderThreshold Int      @default(0)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  movements InventoryMovement[]
+
+  @@unique([shopId, sku])
+  @@index([shopId, name])
+  @@schema("garageos")
+}
+
+model InventoryMovement {
+  id        String                @id @default(cuid())
+  shopId    String
+  shop      Shop                  @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  partId    String
+  part      InventoryPart         @relation(fields: [partId], references: [id], onDelete: Cascade)
+  type      InventoryMovementType
+  quantity  Int
+  note      String?
+  createdAt DateTime              @default(now())
+
+  @@index([shopId, partId, createdAt])
+  @@schema("garageos")
+}
+
+enum InventoryMovementType {
+  RECEIVE
+  ADJUSTMENT
+  CONSUMED
+  RETURN
+
+  @@schema("garageos")
+}
+
+/**
+ * Multi-sucursal (docs/feature-gap.md). Un Shop sin organizationId sigue
+ * siendo un taller de una sola ubicación, sin cambios. "Ubicación accesible"
+ * para un usuario es su User.shopId (siempre implícito) más lo que aparezca
+ * en UserShopAccess — no requiere backfill de usuarios existentes.
+ */
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  shops Shop[]
+
+  @@schema("garageos")
+}
+
+/**
+ * Contador atómico de folios por taller y tipo de documento (docs/domain-model.md
+ * invariante 6). El upsert en allocateNextInvoiceNumber/allocateNextQuoteNumber
+ * (src/lib/invoice-number.ts) usa el índice único de abajo como INSERT ... ON
+ * CONFLICT — Postgres serializa transacciones concurrentes sobre la misma fila,
+ * así que dos facturas creadas al mismo tiempo nunca pueden competir por el
+ * mismo número. Reemplaza el asignador anterior por búsqueda de máximo.
+ */
+model DocumentSequence {
+  id         String   @id @default(cuid())
+  shopId     String
+  shop       Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  docType    String
+  lastNumber Int      @default(0)
+  updatedAt  DateTime @updatedAt
+
+  @@unique([shopId, docType])
+  @@schema("garageos")
+}
+
+model UserShopAccess {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shopId    String
+  shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, shopId])
+  @@index([shopId])
   @@schema("garageos")
 }

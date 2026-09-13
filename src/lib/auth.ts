@@ -42,20 +42,27 @@ export const authConfig: NextAuthConfig = {
       return true;
     },
     async jwt({ token, user }) {
-      // `user` solo viene en el sign-in inicial. Credentials ya trae
-      // shopId/role, pero para Google (perfil sin esos campos) resolvemos
-      // siempre por email — así el signIn() de arriba (que puede crear el
-      // taller recién) queda reflejado de una.
-      if (user?.email) {
-        const dbUser = await db.user.findUnique({
-          where: { email: user.email },
-          select: { id: true, shopId: true, role: true },
-        });
-        if (dbUser) {
-          token.userId = dbUser.id;
-          token.shopId = dbUser.shopId ?? undefined;
-          token.role = dbUser.role;
-        }
+      // Se re-resuelve shopId/role desde la DB en cada request (no solo en
+      // el sign-in inicial) para que cambiar de ubicación activa
+      // (switchActiveShop, multi-sucursal) tome efecto sin tener que cerrar
+      // sesión. `user` solo viene en el sign-in inicial — ahí se busca por
+      // email (Google no trae shopId/role en su perfil); después se busca
+      // por token.userId, ya resuelto.
+      const dbUser = user?.email
+        ? await db.user.findUnique({
+            where: { email: user.email },
+            select: { id: true, shopId: true, role: true },
+          })
+        : token.userId
+          ? await db.user.findUnique({
+              where: { id: token.userId as string },
+              select: { id: true, shopId: true, role: true },
+            })
+          : null;
+      if (dbUser) {
+        token.userId = dbUser.id;
+        token.shopId = dbUser.shopId ?? undefined;
+        token.role = dbUser.role;
       }
       return token;
     },
@@ -118,7 +125,7 @@ export const authConfig: NextAuthConfig = {
   ],
 };
 
-export const { handlers, signIn, signOut, auth } = NextAuth(authConfig);
+export const { handlers, signIn, signOut, auth, unstable_update } = NextAuth(authConfig);
 
 // Helper para obtener la sesión y el shopId en Server Components y Actions
 export async function getSession() {
