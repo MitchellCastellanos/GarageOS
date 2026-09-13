@@ -106,7 +106,7 @@ export function Topbar({
             alt={displayName}
             width={32}
             height={32}
-            className="h-8 w-8 rounded-lg object-contain flex-shrink-0 bg-white"
+            className="h-8 w-8 rounded-lg object-contain flex-shrink-0 bg-transparent"
           />
         ) : (
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
