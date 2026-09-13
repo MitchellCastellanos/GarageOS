@@ -6,7 +6,7 @@ import { getTeamMembers } from "@/actions/users";
 import { ShopSettingsForm } from "@/components/settings/ShopSettingsForm";
 import { AppointmentBookingSettings } from "@/components/settings/AppointmentBookingSettings";
 import { ServiceCatalogSettings } from "@/components/settings/ServiceCatalogSettings";
-import { EmbedSnippetCard } from "@/components/settings/EmbedSnippetCard";
+import { ShareBookingCard } from "@/components/settings/ShareBookingCard";
 import { DomainSettings } from "@/components/settings/DomainSettings";
 import { TeamManagement } from "@/components/settings/TeamManagement";
 import { SupportCard } from "@/components/settings/SupportCard";
@@ -48,7 +48,7 @@ export default async function SettingsPage() {
       {isOwner && serviceCatalog && <ServiceCatalogSettings services={serviceCatalog} />}
 
       {isOwner && bookingSettings?.shop.bookingUrl && (
-        <EmbedSnippetCard bookingUrl={bookingSettings.shop.bookingUrl} />
+        <ShareBookingCard shopName={shop.name} bookingUrl={bookingSettings.shop.bookingUrl} />
       )}
 
       {isOwner && domains && (
