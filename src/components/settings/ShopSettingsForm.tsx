@@ -2,12 +2,13 @@
 
 import { useTransition, useRef, useState } from "react";
 import { toast } from "sonner";
-import { updateShopSettings, updateShopSlug, uploadShopLogo, changePassword } from "@/actions/settings";
+import { updateShopSettings, updateShopSlug, updateShopBrandColor, uploadShopLogo, changePassword } from "@/actions/settings";
 import { validateLogo } from "@/lib/logo-upload";
 import { Upload, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
 import { SETTINGS_DICT } from "@/lib/admin-locale/settings";
+import { DEFAULT_BRAND_COLOR, toSafeDarkBrandColor } from "@/lib/brand-color";
 
 interface Shop {
   id: string;
@@ -18,6 +19,7 @@ interface Shop {
   taxId: string | null;
   logoUrl: string | null;
   slug: string | null;
+  brandColor: string | null;
 }
 
 interface ShopSettingsFormProps {
@@ -30,9 +32,11 @@ export function ShopSettingsForm({ shop, slugUrlPrefix }: ShopSettingsFormProps)
   const t = SETTINGS_DICT[locale];
   const [logoUrl, setLogoUrl] = useState(shop.logoUrl);
   const [slug, setSlug] = useState(shop.slug ?? "");
+  const [brandColor, setBrandColor] = useState(shop.brandColor ?? DEFAULT_BRAND_COLOR);
   const [infopending, startInfoTransition] = useTransition();
   const [logoPending, startLogoTransition] = useTransition();
   const [slugPending, startSlugTransition] = useTransition();
+  const [colorPending, startColorTransition] = useTransition();
   const [pwPending, startPwTransition] = useTransition();
   const logoInputRef = useRef<HTMLInputElement>(null);
   const pwFormRef = useRef<HTMLFormElement>(null);
@@ -48,6 +52,30 @@ export function ShopSettingsForm({ shop, slugUrlPrefix }: ShopSettingsFormProps)
       } else {
         toast.error(result?.error ?? t.shopSlug.saved);
       }
+    });
+  }
+
+  function handleColorSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    startColorTransition(async () => {
+      const result = await updateShopBrandColor(formData);
+      if (result?.success) {
+        toast.success(t.brandColor.saved);
+      } else {
+        toast.error(result?.error ?? t.brandColor.saved);
+      }
+    });
+  }
+
+  function resetColor() {
+    setBrandColor(DEFAULT_BRAND_COLOR);
+    startColorTransition(async () => {
+      const formData = new FormData();
+      formData.set("brandColor", "");
+      const result = await updateShopBrandColor(formData);
+      if (result?.success) toast.success(t.brandColor.saved);
+      else toast.error(result?.error ?? t.brandColor.saved);
     });
   }
 
@@ -264,6 +292,57 @@ export function ShopSettingsForm({ shop, slugUrlPrefix }: ShopSettingsFormProps)
           >
             {slugPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
             {t.shopSlug.save}
+          </button>
+        </div>
+      </form>
+
+      {/* ── Color de marca (fondo de la página de citas) ── */}
+      <form onSubmit={handleColorSubmit} className="bg-white rounded-xl border border-slate-200 p-5 space-y-3">
+        <div>
+          <h2 className="font-semibold text-slate-900">{t.brandColor.title}</h2>
+          <p className="text-sm text-slate-500 mt-1">{t.brandColor.subtitle}</p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-4">
+          <input
+            type="color"
+            name="brandColor"
+            value={brandColor}
+            onChange={(e) => setBrandColor(e.target.value)}
+            className="w-12 h-12 rounded-lg border border-slate-300 cursor-pointer bg-transparent p-0"
+          />
+          <input
+            type="text"
+            value={brandColor}
+            onChange={(e) => setBrandColor(e.target.value)}
+            placeholder={DEFAULT_BRAND_COLOR}
+            className="w-32 px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono"
+          />
+          <div
+            className="flex-1 min-w-[160px] rounded-lg px-4 py-3 text-sm font-semibold uppercase tracking-wide"
+            style={{ backgroundColor: toSafeDarkBrandColor(brandColor), color: "#fff" }}
+          >
+            {shop.name || t.brandColor.previewLabel}
+          </div>
+        </div>
+        <p className="text-xs text-slate-400">{t.brandColor.hint}</p>
+
+        <div className="flex justify-end gap-2 pt-1">
+          <button
+            type="button"
+            onClick={resetColor}
+            disabled={colorPending}
+            className="text-sm font-medium text-slate-500 hover:text-slate-700 px-4 py-2 rounded-lg disabled:opacity-50"
+          >
+            {t.brandColor.reset}
+          </button>
+          <button
+            type="submit"
+            disabled={colorPending}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium px-5 py-2 rounded-lg text-sm transition-colors"
+          >
+            {colorPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+            {t.brandColor.save}
           </button>
         </div>
       </form>

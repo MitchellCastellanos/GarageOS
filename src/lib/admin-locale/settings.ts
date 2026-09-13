@@ -64,6 +64,15 @@ export interface SettingsDictionary {
     save: string;
     saved: string;
   };
+  brandColor: {
+    title: string;
+    subtitle: string;
+    hint: string;
+    previewLabel: string;
+    reset: string;
+    save: string;
+    saved: string;
+  };
   password: {
     title: string;
     current: string;
@@ -93,6 +102,11 @@ export interface SettingsDictionary {
     copy: string;
     copied: string;
     copyError: string;
+  };
+  qr: {
+    title: string;
+    subtitle: string;
+    download: string;
   };
   booking: {
     toggling: string;
@@ -276,6 +290,15 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       save: "Guardar identificador",
       saved: "Identificador guardado",
     },
+    brandColor: {
+      title: "Color de tu página de citas",
+      subtitle: "Personaliza el fondo del encabezado, portada, sección \"El taller\" y pie de página de tu enlace público — el acento rojo de GarageOS se mantiene.",
+      hint: "Si el color es muy claro lo oscurecemos automáticamente para que el texto blanco se siga leyendo bien.",
+      previewLabel: "Tu taller",
+      reset: "Usar el de GarageOS",
+      save: "Guardar color",
+      saved: "Color guardado",
+    },
     appointmentReminders: {
       title: "Citas — notificaciones (SMS y email)",
       reminderHours: "Horas antes de la cita",
@@ -319,6 +342,11 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       copy: "Copiar código",
       copied: "Código copiado",
       copyError: "No se pudo copiar el código",
+    },
+    qr: {
+      title: "Código QR para imprimir",
+      subtitle: "Con el logo de tu taller en el centro, para volantes, la puerta del taller o tarjetas de presentación.",
+      download: "Descargar PNG",
     },
     booking: {
       toggling: "Guardando...",
@@ -500,6 +528,15 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       save: "Save identifier",
       saved: "Identifier saved",
     },
+    brandColor: {
+      title: "Your booking page color",
+      subtitle: "Customize the header, hero, \"Our shop\" section and footer background on your public link — GarageOS's red accent stays as-is.",
+      hint: "If the color is too light we darken it automatically so white text stays readable.",
+      previewLabel: "Your shop",
+      reset: "Use GarageOS's default",
+      save: "Save color",
+      saved: "Color saved",
+    },
     appointmentReminders: {
       title: "Appointments — notifications (SMS and email)",
       reminderHours: "Hours before the appointment",
@@ -543,6 +580,11 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       copy: "Copy code",
       copied: "Code copied",
       copyError: "Could not copy the code",
+    },
+    qr: {
+      title: "Printable QR code",
+      subtitle: "With your shop's logo in the center, for flyers, your storefront, or business cards.",
+      download: "Download PNG",
     },
     booking: {
       toggling: "Saving...",
@@ -724,6 +766,15 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       save: "Enregistrer l'identifiant",
       saved: "Identifiant enregistré",
     },
+    brandColor: {
+      title: "Couleur de votre page de rendez-vous",
+      subtitle: "Personnalisez le fond de l'en-tête, de la page d'accueil, de la section « Notre garage » et du pied de page de votre lien public — l'accent rouge de GarageOS reste inchangé.",
+      hint: "Si la couleur est trop claire, nous l'assombrissons automatiquement pour que le texte blanc reste lisible.",
+      previewLabel: "Votre garage",
+      reset: "Utiliser celle de GarageOS",
+      save: "Enregistrer la couleur",
+      saved: "Couleur enregistrée",
+    },
     appointmentReminders: {
       title: "Rendez-vous — notifications (SMS et courriel)",
       reminderHours: "Heures avant le rendez-vous",
@@ -767,6 +818,11 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       copy: "Copier le code",
       copied: "Code copié",
       copyError: "Impossible de copier le code",
+    },
+    qr: {
+      title: "Code QR à imprimer",
+      subtitle: "Avec le logo de votre garage au centre, pour vos dépliants, la porte du garage ou vos cartes professionnelles.",
+      download: "Télécharger en PNG",
     },
     booking: {
       toggling: "Enregistrement...",

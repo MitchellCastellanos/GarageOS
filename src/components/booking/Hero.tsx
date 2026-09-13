@@ -9,6 +9,7 @@ interface HeroProps {
   shopName: string;
   address: string | null;
   phone: string | null;
+  brandColor: string;
 }
 
 function scrollTo(id: string) {
@@ -17,15 +18,20 @@ function scrollTo(id: string) {
 
 /**
  * Foto real del taller — usa la misma imagen que la sección "El taller"
- * (public/garage-exterior.png). Si aún no existe, cae a un fondo oscuro
- * con textura en vez de romper el layout.
+ * (public/garage-exterior.png). Si aún no existe, cae al color de marca del
+ * taller (brandColor, personalizable en Configuración) con textura en vez de
+ * romper el layout.
  */
-export function Hero({ shopName, address, phone }: HeroProps) {
+export function Hero({ shopName, address, phone, brandColor }: HeroProps) {
   const { t } = useSiteLocale();
   const [photoFailed, setPhotoFailed] = useState(false);
 
   return (
-    <section id="top" className="relative overflow-hidden bg-brand-black min-h-[640px] flex items-end">
+    <section
+      id="top"
+      style={{ backgroundColor: brandColor }}
+      className="relative overflow-hidden min-h-[640px] flex items-end"
+    >
       <div className="absolute inset-0">
         {!photoFailed ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -36,7 +42,7 @@ export function Hero({ shopName, address, phone }: HeroProps) {
             className="absolute inset-0 w-full h-full object-cover"
           />
         ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-brand-charcoal via-brand-black to-black garage-diagonal-stripes" />
+          <div className="absolute inset-0 garage-diagonal-stripes" />
         )}
         {/* Velo oscuro para que el texto se lea sobre la foto, más denso a la izquierda */}
         <div className="absolute inset-0 bg-gradient-to-r from-black via-black/70 to-black/20" />
