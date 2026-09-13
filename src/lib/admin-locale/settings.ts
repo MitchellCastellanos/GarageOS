@@ -104,6 +104,7 @@ export interface SettingsDictionary {
     title: string;
     subtitle: string;
     download: string;
+    downloadError: string;
   };
   booking: {
     toggling: string;
@@ -341,6 +342,7 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       title: "Código QR para imprimir",
       subtitle: "Con el logo de tu taller en el centro, para volantes, la puerta del taller o tarjetas de presentación.",
       download: "Descargar PNG",
+      downloadError: "No se pudo descargar — el logo bloqueó la exportación del PNG",
     },
     booking: {
       toggling: "Guardando...",
@@ -576,6 +578,7 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       title: "Printable QR code",
       subtitle: "With your shop's logo in the center, for flyers, your storefront, or business cards.",
       download: "Download PNG",
+      downloadError: "Couldn't download — the logo blocked exporting the PNG",
     },
     booking: {
       toggling: "Saving...",
@@ -811,6 +814,7 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       title: "Code QR à imprimer",
       subtitle: "Avec le logo de votre garage au centre, pour vos dépliants, la porte du garage ou vos cartes professionnelles.",
       download: "Télécharger en PNG",
+      downloadError: "Téléchargement impossible — le logo a bloqué l'export du PNG",
     },
     booking: {
       toggling: "Enregistrement...",

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
+import { toast } from "sonner";
 import { Download, Loader2 } from "lucide-react";
 import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
 import { SETTINGS_DICT } from "@/lib/admin-locale/settings";
@@ -19,14 +20,28 @@ const QR_SIZE = 640;
 const LOGO_RATIO = 0.22;
 const LOGO_PADDING_RATIO = 0.035;
 
-function loadImage(src: string): Promise<HTMLImageElement> {
+function loadImage(src: string, crossOrigin: boolean): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.crossOrigin = "anonymous";
+    if (crossOrigin) img.crossOrigin = "anonymous";
     img.onload = () => resolve(img);
     img.onerror = () => reject(new Error("logo load failed"));
     img.src = src;
   });
+}
+
+/**
+ * Intenta cargar el logo con CORS (necesario para poder exportar el canvas
+ * luego con toDataURL); si el host del logo no manda los headers de CORS,
+ * reintenta sin — el logo se sigue dibujando bien en pantalla, solo que la
+ * descarga fallará más adelante si el canvas queda "tainted".
+ */
+async function loadLogoWithFallback(src: string): Promise<HTMLImageElement> {
+  try {
+    return await loadImage(src, true);
+  } catch {
+    return loadImage(src, false);
+  }
 }
 
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
@@ -61,9 +76,20 @@ export function BookingQrCode({ bookingUrl, logoUrl, shopName }: BookingQrCodePr
         color: { dark: "#131417", light: "#ffffff" },
       });
 
+      // La librería fija canvas.style.width/height en px (ver
+      // node_modules/qrcode/lib/renderer/canvas.js) — eso le gana a nuestras
+      // clases de Tailwind y hace que el QR se salga de su contenedor.
+      // Lo limpiamos para que el tamaño lo controle el CSS de afuera.
+      canvas.style.removeProperty("width");
+      canvas.style.removeProperty("height");
+
       if (logoUrl && !cancelled) {
         try {
-          const img = await loadImage(logoUrl);
+          const img = await loadLogoWithFallback(logoUrl);
+          const naturalW = img.naturalWidth || img.width;
+          const naturalH = img.naturalHeight || img.height;
+          if (!naturalW || !naturalH) throw new Error("logo has no intrinsic size");
+
           const ctx = canvas.getContext("2d");
           if (!ctx) throw new Error("no 2d context");
 
@@ -79,9 +105,9 @@ export function BookingQrCode({ bookingUrl, logoUrl, shopName }: BookingQrCodePr
           roundRect(ctx, boxX, boxY, boxSize, boxSize, boxSize * 0.18);
           ctx.fill();
 
-          const scale = Math.min(logoSize / img.width, logoSize / img.height);
-          const drawW = img.width * scale;
-          const drawH = img.height * scale;
+          const scale = Math.min(logoSize / naturalW, logoSize / naturalH);
+          const drawW = naturalW * scale;
+          const drawH = naturalH * scale;
           ctx.drawImage(
             img,
             boxX + (boxSize - drawW) / 2,
@@ -89,9 +115,10 @@ export function BookingQrCode({ bookingUrl, logoUrl, shopName }: BookingQrCodePr
             drawW,
             drawH
           );
-        } catch {
+        } catch (err) {
           // Si el logo no carga (CORS, red, formato), el QR queda sin logo —
           // sigue siendo un QR válido y escaneable.
+          console.warn("[BookingQrCode] no se pudo dibujar el logo:", err);
         }
       }
 
@@ -107,11 +134,17 @@ export function BookingQrCode({ bookingUrl, logoUrl, shopName }: BookingQrCodePr
   function download() {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const link = document.createElement("a");
-    const safeName = shopName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-") || "taller";
-    link.download = `qr-${safeName}.png`;
-    link.href = canvas.toDataURL("image/png");
-    link.click();
+    try {
+      const link = document.createElement("a");
+      const safeName = shopName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-") || "taller";
+      link.download = `qr-${safeName}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    } catch {
+      // Canvas "tainted" — el logo se cargó sin CORS y el navegador bloquea
+      // leer los píxeles de vuelta para exportar el PNG.
+      toast.error(t.downloadError);
+    }
   }
 
   if (!bookingUrl) return null;
@@ -123,10 +156,10 @@ export function BookingQrCode({ bookingUrl, logoUrl, shopName }: BookingQrCodePr
         <p className="text-sm text-slate-500 mt-1">{t.subtitle}</p>
       </div>
       <div className="flex flex-col items-center gap-4">
-        <div className="relative w-56 h-56 sm:w-64 sm:h-64">
-          <canvas ref={canvasRef} width={QR_SIZE} height={QR_SIZE} className="w-full h-full rounded-lg border border-slate-100" />
+        <div className="relative w-56 h-56 sm:w-64 sm:h-64 overflow-hidden rounded-lg border border-slate-100">
+          <canvas ref={canvasRef} width={QR_SIZE} height={QR_SIZE} className="block w-full h-full" />
           {!ready && (
-            <div className="absolute inset-0 flex items-center justify-center bg-white/70 rounded-lg">
+            <div className="absolute inset-0 flex items-center justify-center bg-white/70">
               <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
             </div>
           )}
