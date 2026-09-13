@@ -9,18 +9,23 @@ interface OurShopSectionProps {
   shopName: string;
   address: string | null;
   phone: string | null;
+  brandColor: string;
 }
 
 /**
  * Intenta mostrar una foto real del taller (public/garage-exterior.png).
  * Si el archivo no existe todavía, cae a un panel ilustrado en vez de un ícono roto.
  */
-export function OurShopSection({ shopName, address, phone }: OurShopSectionProps) {
+export function OurShopSection({ shopName, address, phone, brandColor }: OurShopSectionProps) {
   const { t } = useSiteLocale();
   const [photoFailed, setPhotoFailed] = useState(false);
 
   return (
-    <section id="taller" className="bg-brand-black py-20 sm:py-28 relative overflow-hidden">
+    <section
+      id="taller"
+      style={{ backgroundColor: brandColor }}
+      className="py-20 sm:py-28 relative overflow-hidden"
+    >
       <div className="pointer-events-none absolute inset-0 garage-grid-texture opacity-30" />
       <div className="relative max-w-6xl mx-auto px-4 sm:px-6 grid lg:grid-cols-2 gap-12 items-center">
         <motion.div

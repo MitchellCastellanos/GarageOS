@@ -83,6 +83,7 @@ export async function getAppointmentBookingSettings() {
   return {
     shop: {
       name: shop.name,
+      logoUrl: shop.logoUrl,
       bookingEnabled: shop.bookingEnabled,
       timezone: shop.timezone,
       bookingSlotMinutes: shop.bookingSlotMinutes,

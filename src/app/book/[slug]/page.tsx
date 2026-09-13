@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getShopBySlug, getShopServiceCatalog } from "@/lib/booking-slots";
 import { bookingPublicUrl } from "@/config/app";
+import { toSafeDarkBrandColor } from "@/lib/brand-color";
 import { LocaleProvider } from "@/components/booking/LocaleProvider";
 import { SiteHeader } from "@/components/booking/SiteHeader";
 import { Hero } from "@/components/booking/Hero";
@@ -93,6 +94,8 @@ export default async function PublicBookingPage({ params, searchParams }: PagePr
       durationMinutes,
     }));
 
+  const brandColor = toSafeDarkBrandColor(shop.brandColor ?? "");
+
   const bookingSection = (
     <BookingSection
       slug={slug}
@@ -112,7 +115,19 @@ export default async function PublicBookingPage({ params, searchParams }: PagePr
   if (isEmbed) {
     return (
       <LocaleProvider>
-        <div className="min-h-full bg-white">{bookingSection}</div>
+        <div className="min-h-full bg-white">
+          {bookingSection}
+          <p className="text-center text-[11px] text-slate-400 pb-3">
+            <a
+              href="https://garageos.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-slate-600 transition-colors"
+            >
+              Powered by GarageOS
+            </a>
+          </p>
+        </div>
       </LocaleProvider>
     );
   }
@@ -120,11 +135,11 @@ export default async function PublicBookingPage({ params, searchParams }: PagePr
   return (
     <LocaleProvider>
       <div className="min-h-full">
-        <SiteHeader shopName={shop.name} logoUrl={shop.logoUrl} phone={shop.phone} />
-        <Hero shopName={shop.name} address={shop.address} phone={shop.phone} />
+        <SiteHeader shopName={shop.name} logoUrl={shop.logoUrl} phone={shop.phone} brandColor={brandColor} />
+        <Hero shopName={shop.name} address={shop.address} phone={shop.phone} brandColor={brandColor} />
         <QuickServicesStrip />
         <ServicesSection />
-        <OurShopSection shopName={shop.name} address={shop.address} phone={shop.phone} />
+        <OurShopSection shopName={shop.name} address={shop.address} phone={shop.phone} brandColor={brandColor} />
         {bookingSection}
         <ContactSection slug={slug} shopName={shop.name} />
         <SiteFooter
@@ -132,6 +147,7 @@ export default async function PublicBookingPage({ params, searchParams }: PagePr
           logoUrl={shop.logoUrl}
           address={shop.address}
           phone={shop.phone}
+          brandColor={brandColor}
         />
         <WhatsAppButton phone={shop.phone} />
       </div>

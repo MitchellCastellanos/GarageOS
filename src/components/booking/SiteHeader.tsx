@@ -10,9 +10,10 @@ interface SiteHeaderProps {
   shopName: string;
   logoUrl: string | null;
   phone: string | null;
+  brandColor: string;
 }
 
-export function SiteHeader({ shopName, logoUrl, phone }: SiteHeaderProps) {
+export function SiteHeader({ shopName, logoUrl, phone, brandColor }: SiteHeaderProps) {
   const { t } = useSiteLocale();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -37,8 +38,9 @@ export function SiteHeader({ shopName, logoUrl, phone }: SiteHeaderProps) {
 
   return (
     <header
+      style={{ backgroundColor: brandColor }}
       className={[
-        "sticky top-0 z-50 bg-brand-black transition-shadow duration-300",
+        "sticky top-0 z-50 transition-shadow duration-300",
         scrolled ? "backdrop-blur shadow-lg shadow-black/30" : "",
       ].join(" ")}
     >
@@ -106,7 +108,7 @@ export function SiteHeader({ shopName, logoUrl, phone }: SiteHeaderProps) {
       </div>
 
       {menuOpen && (
-        <div className="md:hidden bg-brand-black border-t border-white/10 px-4 py-4 space-y-3">
+        <div style={{ backgroundColor: brandColor }} className="md:hidden border-t border-white/10 px-4 py-4 space-y-3">
           {navLinks.map((link) => (
             <button
               key={link.href}

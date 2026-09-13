@@ -122,6 +122,33 @@ export async function updateShopSlug(formData: FormData) {
   return { success: true, slug: parsed.data };
 }
 
+// ── COLOR DE MARCA (fondo de /book/[slug]) ────────
+
+const brandColorSchema = z
+  .string()
+  .trim()
+  .regex(/^#[0-9a-fA-F]{6}$/, "Color inválido (formato #RRGGBB)");
+
+export async function updateShopBrandColor(formData: FormData) {
+  const shopId = await getShopId();
+
+  const raw = (formData.get("brandColor") as string) ?? "";
+  if (!raw.trim()) {
+    await db.shop.update({ where: { id: shopId }, data: { brandColor: null } });
+    revalidatePath(ADMIN.settings);
+    return { success: true, brandColor: null };
+  }
+
+  const parsed = brandColorSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Color inválido" };
+  }
+
+  await db.shop.update({ where: { id: shopId }, data: { brandColor: parsed.data } });
+  revalidatePath(ADMIN.settings);
+  return { success: true, brandColor: parsed.data };
+}
+
 // ── MAILBOXES ───────────────────────────────────────────────
 
 const mailboxSchema = z.object({
