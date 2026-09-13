@@ -14,6 +14,18 @@ export function ResourceCards({ articles, basePath }: { articles: ResourceArticl
   </div>;
 }
 
+export function GroupedResourceCards({ articles, basePath }: { articles: ResourceArticle[]; basePath: string }) {
+  const categories = Array.from(new Set(articles.map((article) => article.category)));
+  return <div className="space-y-12">
+    {categories.map((category) => (
+      <div key={category}>
+        <h2 className="mb-5 text-lg font-bold text-slate-900">{category}</h2>
+        <ResourceCards articles={articles.filter((article) => article.category === category)} basePath={basePath} />
+      </div>
+    ))}
+  </div>;
+}
+
 export function ResourceArticleBody({ article, basePath, label }: { article: ResourceArticle; basePath: string; label: string }) {
   const related = GUIDES.find((guide) => guide.slug === article.relatedGuide);
   return <div lang="en">

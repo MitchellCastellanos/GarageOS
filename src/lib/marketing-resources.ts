@@ -49,6 +49,51 @@ export const GUIDES: ResourceArticle[] = [
       { title: "Record a received payment", body: "After payment is received, use the invoice payment action to record the applicable method and amounts. Recording a card payment in GarageOS is a record of a payment collected through your shop's payment process; it does not charge a card. Review the payment record and any receipt before closing out the job." },
     ],
   },
+  {
+    slug: "approval-history", title: "Understand estimate approval history", category: "Estimates & invoices",
+    summary: "Every recorded decision keeps a traceable record you can review later.",
+    sections: [
+      { title: "Why the record matters", body: "When you record a customer's decision on an estimate, GarageOS keeps a timestamped entry of the decision, the channel it came through and a snapshot of what was approved. This gives you a reference if a customer later asks what they agreed to." },
+      { title: "Review a past approval", body: "Open the estimate and review its recorded decisions.", steps: ["Confirm the decision (accepted or rejected) and when it was recorded.", "Compare the approved snapshot with the current estimate if it was edited afterward.", "Use the record to resolve any disagreement about what was approved."] },
+      { title: "Keep the trail clean", body: "Record a new decision rather than editing an old one if the scope changes after approval — this keeps each decision tied to what the customer actually saw at the time." },
+    ],
+  },
+  {
+    slug: "maintenance-reminders", title: "Set up and manage maintenance reminders", category: "Communicate & retain",
+    summary: "Attach a future service need to a vehicle so the next visit doesn't get forgotten.",
+    sections: [
+      { title: "Create a reminder", body: "Open Reminders and create one for the relevant vehicle.", steps: ["Choose the service type the vehicle will need.", "Set a due date, a due mileage, or both.", "Add any notes the team should see when the reminder comes due."] },
+      { title: "Send a reminder", body: "Reminders can be sent to the customer when it's time to follow up. Check the delivery result the same way you would for an estimate or invoice — a saved reminder does not guarantee a delivered message." },
+      { title: "Track reminder status", body: "Reminders move from pending to sent, and can be marked acknowledged once the customer responds or dismissed if no longer needed. Review pending reminders regularly so follow-ups don't pile up." },
+    ],
+  },
+  {
+    slug: "manage-inventory", title: "Manage inventory and stock adjustments", category: "Run the shop",
+    summary: "Keep part quantities accurate as they're used on jobs and restocked.",
+    sections: [
+      { title: "Add a part", body: "Open Inventory and create a part record with the details your team needs to identify it, along with its current quantity." },
+      { title: "Record stock movements", body: "Adjust quantities as parts come in or get used.", steps: ["Record incoming stock when a shipment arrives.", "Record usage when a part is consumed on a job.", "Review the movement history if a quantity looks wrong."] },
+      { title: "Keep counts trustworthy", body: "Reconcile quantities periodically against a physical count. Accurate stock makes it easier to know what to reorder before a job is held up waiting on a part." },
+    ],
+  },
+  {
+    slug: "multi-location", title: "Use multiple GarageOS locations", category: "Run the shop",
+    summary: "Operate more than one shop location with shared access where configured.",
+    sections: [
+      { title: "Before you begin", body: "Multi-location access is configured at the organization level. Ask an administrator to confirm your account has access to more than one location before you rely on it." },
+      { title: "Switch between locations", body: "Use the location settings to review which shops your account can access and switch between them." },
+      { title: "Keep records separated", body: "Each location's clients, vehicles, appointments and invoices are scoped to that location. Confirm you're working in the correct location before creating a new record." },
+    ],
+  },
+  {
+    slug: "branded-communications", title: "Configure branded customer communications", category: "Communicate & retain",
+    summary: "Set up mailboxes, a sending domain and routing so messages go out under your shop's identity.",
+    sections: [
+      { title: "Before you begin", body: "You need access to the communications settings, and administrator rights to change domain and routing configuration." },
+      { title: "Set up delivery", body: "Open Notifications in settings.", steps: ["Review or add the mailboxes your shop sends from.", "Configure your sending domain if you want messages to come from your own address.", "Review communication routing so messages go to the right place."] },
+      { title: "Confirm it's working", body: "Send a test message through a real workflow, such as an appointment confirmation or estimate, and check the delivery result before relying on it for customers." },
+    ],
+  },
 ];
 
 export const BLOG_POSTS: ResourceArticle[] = [

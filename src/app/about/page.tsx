@@ -16,7 +16,7 @@ export default function AboutPage() {
       <section className="bg-white">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 py-16 sm:py-24 space-y-6 text-slate-600 leading-relaxed">
           <p>
-            Running an independent auto shop means juggling appointments, work orders, invoices and customer
+            Running an independent auto shop means juggling appointments, estimates, invoices and customer
             follow-ups — usually across a mess of spreadsheets, sticky notes and phone calls. GarageOS exists to put
             all of that in one place.
           </p>

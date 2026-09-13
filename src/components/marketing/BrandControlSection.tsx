@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, CalendarPlus } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { useMarketingLocale } from "@/components/marketing/MarketingLocaleProvider";
 import { GarageOSAppIcon } from "@/components/marketing/GarageOSLogo";
 
@@ -40,10 +40,6 @@ export function BrandControlSection() {
                 <p className="text-xs font-semibold text-slate-900 leading-snug">{phone.title}</p>
                 <p className="text-[10px] text-slate-500 mt-2 leading-relaxed">{phone.greeting}</p>
                 <p className="text-[10px] text-slate-500 mt-1 leading-relaxed">{phone.body}</p>
-                <button className="mt-3 w-full flex items-center justify-center gap-1 bg-brand-blue text-white text-[10px] font-semibold py-2 rounded-lg">
-                  <CalendarPlus className="w-3 h-3" />
-                  {phone.button}
-                </button>
               </div>
             </div>
 
