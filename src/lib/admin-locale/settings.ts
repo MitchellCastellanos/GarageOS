@@ -35,6 +35,9 @@ export interface SettingsDictionary {
     hint1: string;
     hint2: string;
     uploaded: string;
+    tooLarge: string;
+    invalidFile: string;
+    failed: string;
   };
   shopInfo: {
     title: string;
@@ -241,9 +244,12 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       title: "Logo del taller",
       change: "Cambiar logo",
       uploading: "Subiendo...",
-      hint1: "JPG, PNG, WebP o SVG · Máximo 5 MB",
+      hint1: "JPG, PNG, WebP o SVG · Máximo 4 MB",
       hint2: "El logo aparece en todas las facturas PDF",
       uploaded: "Logo actualizado",
+      tooLarge: "El logo no puede superar 4 MB",
+      invalidFile: "Selecciona un archivo JPG, PNG, WebP o SVG válido",
+      failed: "No se pudo subir el logo. Inténtalo de nuevo.",
     },
     shopInfo: {
       title: "Datos del taller",
@@ -462,9 +468,12 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       title: "Shop logo",
       change: "Change logo",
       uploading: "Uploading...",
-      hint1: "JPG, PNG, WebP, or SVG · Max 5 MB",
+      hint1: "JPG, PNG, WebP, or SVG · Max 4 MB",
       hint2: "The logo appears on every PDF invoice",
       uploaded: "Logo updated",
+      tooLarge: "The logo cannot exceed 4 MB",
+      invalidFile: "Choose a valid JPG, PNG, WebP or SVG file",
+      failed: "Could not upload the logo. Please try again.",
     },
     shopInfo: {
       title: "Shop details",
@@ -683,9 +692,12 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       title: "Logo du garage",
       change: "Changer le logo",
       uploading: "Téléversement...",
-      hint1: "JPG, PNG, WebP ou SVG · Max 5 Mo",
+      hint1: "JPG, PNG, WebP ou SVG · Max 4 Mo",
       hint2: "Le logo apparaît sur toutes les factures PDF",
       uploaded: "Logo mis à jour",
+      tooLarge: "Le logo ne peut pas dépasser 4 Mo",
+      invalidFile: "Choisissez un fichier JPG, PNG, WebP ou SVG valide",
+      failed: "Impossible de téléverser le logo. Réessayez.",
     },
     shopInfo: {
       title: "Informations du garage",

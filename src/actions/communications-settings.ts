@@ -41,15 +41,15 @@ export async function createSenderIdentityAction(formData: FormData) {
   if (!address) return { error: "La dirección es requerida" };
 
   try {
-    await createSenderIdentity({ shopId, channel, address, displayName });
+    const identity = await createSenderIdentity({ shopId, channel, address, displayName });
+    revalidatePath(ADMIN.settings);
+    revalidatePath(ADMIN.notifications);
+    return { success: true, identity };
   } catch (err) {
     if (err instanceof SenderIdentityError) return { error: err.message };
     console.error("[communications] createSenderIdentityAction:", err);
     return { error: "Error al crear la identidad" };
   }
-
-  revalidatePath(ADMIN.notifications);
-  return { success: true };
 }
 
 export async function updateCommunicationRouteAction(formData: FormData) {
@@ -77,5 +77,6 @@ export async function updateCommunicationRouteAction(formData: FormData) {
   }
 
   revalidatePath(ADMIN.notifications);
+  revalidatePath(ADMIN.settings);
   return { success: true };
 }

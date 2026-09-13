@@ -147,11 +147,10 @@ export async function resolveActiveEmailRoute(
   shop: ShopEmailConfig,
   channel: EmailChannel
 ): Promise<EmailRoute> {
-  const legacy = resolveEmailRoute(shop, channel);
-  if (legacy.pipeline !== "resend") return legacy;
+  if (EMAIL_CHANNEL_META[channel].pipeline !== "resend") return resolveEmailRoute(shop, channel);
 
   const active = await resolveSenderIdentity(shop.id, channel, "EMAIL");
-  if (!active) return legacy;
+  if (!active) return resolveEmailRoute(shop, channel);
 
   return {
     channel,

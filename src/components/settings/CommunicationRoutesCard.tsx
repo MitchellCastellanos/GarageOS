@@ -55,23 +55,7 @@ export function CommunicationRoutesCard({ data }: CommunicationRoutesCardProps) 
       if (result?.success) {
         toast.success("Identidad creada");
         setShowNewIdentity(null);
-        // El servidor ya invalidó la ruta; recargamos la lista completa vía location no es
-        // necesario, basta con que el usuario reabra el selector — pero para feedback
-        // inmediato agregamos un placeholder optimista mínimo.
-        const address = (formData.get("address") as string).trim().toLowerCase();
-        const channel = (formData.get("channel") as string) === "SMS" ? "SMS" : "EMAIL";
-        setIdentities((prev) => [
-          ...prev,
-          {
-            id: `optimistic-${address}`,
-            channel,
-            type: "GARAGEOS_MANAGED",
-            address,
-            displayName: (formData.get("displayName") as string) || null,
-            status: "ACTIVE",
-            createdAt: new Date(),
-          },
-        ]);
+        setIdentities((prev) => [...prev, result.identity]);
       } else {
         toast.error(result?.error ?? "Error al crear la identidad");
       }
