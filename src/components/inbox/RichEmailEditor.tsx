@@ -79,7 +79,7 @@ function InlinePreview({ inlines }: { inlines: EmailRichTextInline[] }) {
   });
 }
 
-function EmailPreview({ document, shopName }: { document: EmailRichTextDocument; shopName: string }) {
+function EmailPreview({ richDocument, shopName }: { richDocument: EmailRichTextDocument; shopName: string }) {
   return (
     <div className="bg-slate-100 p-4 sm:p-6 rounded-b-lg">
       <div className="mx-auto max-w-[560px] overflow-hidden rounded-xl bg-white shadow-sm">
@@ -88,9 +88,9 @@ function EmailPreview({ document, shopName }: { document: EmailRichTextDocument;
           <p className="mt-1 mb-0 text-sm text-blue-200">Mensaje</p>
         </div>
         <div className="px-6 sm:px-10 py-8 text-sm leading-6 text-slate-700 min-h-44">
-          {document.blocks.length === 0 ? (
+          {richDocument.blocks.length === 0 ? (
             <p className="text-slate-400">Tu mensaje aparecerá aquí.</p>
-          ) : document.blocks.map((block, index) => {
+          ) : richDocument.blocks.map((block, index) => {
             if (block.type === "paragraph") {
               return <p key={index} className="mt-0 mb-3 min-h-5"><InlinePreview inlines={block.children} /></p>;
             }
@@ -119,20 +119,20 @@ export function RichEmailEditor({
   required = false,
 }: RichEmailEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
-  const [document, setDocument] = useState<EmailRichTextDocument>(EMPTY_DOCUMENT);
+  const [richDocument, setRichDocument] = useState<EmailRichTextDocument>(EMPTY_DOCUMENT);
   const [plainText, setPlainText] = useState("");
   const [preview, setPreview] = useState(false);
 
   function sync() {
     if (!editorRef.current) return;
     const nextDocument = serializeEditor(editorRef.current);
-    setDocument(nextDocument);
+    setRichDocument(nextDocument);
     setPlainText(editorRef.current.innerText.trim());
   }
 
   function command(commandName: string) {
     editorRef.current?.focus();
-    document.execCommand(commandName);
+    window.document.execCommand(commandName);
     sync();
   }
 
@@ -144,7 +144,7 @@ export function RichEmailEditor({
 
   return (
     <div className="overflow-hidden rounded-lg border border-slate-300 bg-white focus-within:ring-2 focus-within:ring-blue-100 focus-within:border-blue-500">
-      <input type="hidden" name={name} value={JSON.stringify(document)} />
+      <input type="hidden" name={name} value={JSON.stringify(richDocument)} />
       <textarea name="body" value={plainText} readOnly required={required} className="sr-only" aria-hidden="true" tabIndex={-1} />
 
       <div className="flex flex-wrap items-center gap-1 border-b border-slate-200 bg-slate-50 px-2 py-1.5">
@@ -167,7 +167,7 @@ export function RichEmailEditor({
       </div>
 
       {preview ? (
-        <EmailPreview document={document} shopName={shopName} />
+        <EmailPreview richDocument={richDocument} shopName={shopName} />
       ) : (
         <div className="relative">
           {!plainText && <span className="pointer-events-none absolute left-4 top-3 text-sm text-slate-400">{placeholder}</span>}
