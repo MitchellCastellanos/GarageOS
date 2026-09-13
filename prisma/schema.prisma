@@ -22,6 +22,7 @@ model Shop {
   organization             Organization? @relation(fields: [organizationId], references: [id])
   name                     String
   logoUrl                  String?
+  brandColor               String?
   address                  String?
   phone                    String?
   email                    String?

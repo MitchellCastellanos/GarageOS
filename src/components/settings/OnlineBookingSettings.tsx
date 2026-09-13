@@ -8,9 +8,10 @@ import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
 import { Switch } from "@/components/ui/Switch";
 import { SETTINGS_DICT } from "@/lib/admin-locale/settings";
 import { EmbedSnippetCard } from "./EmbedSnippetCard";
+import { BookingQrCode } from "./BookingQrCode";
 
 interface OnlineBookingSettingsProps {
-  shop: { name: string; bookingEnabled: boolean; bookingUrl: string | null };
+  shop: { name: string; logoUrl: string | null; bookingEnabled: boolean; bookingUrl: string | null };
 }
 
 export function OnlineBookingSettings({ shop }: OnlineBookingSettingsProps) {
@@ -142,6 +143,8 @@ export function OnlineBookingSettings({ shop }: OnlineBookingSettingsProps) {
               </button>
             </div>
           </div>
+
+          <BookingQrCode bookingUrl={shop.bookingUrl} logoUrl={shop.logoUrl} shopName={shop.name} />
 
           <EmbedSnippetCard bookingUrl={shop.bookingUrl} />
         </div>
