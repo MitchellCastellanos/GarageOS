@@ -1,7 +1,3 @@
-// Wrapper para Twilio — envío de SMS transaccionales (citas)
-// Requiere TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN y TWILIO_FROM_NUMBER en el entorno.
-// Ver docs/SMS_SETUP.md.
-
 import twilio from "twilio";
 import { recordAndSend } from "@/lib/communications/outbox";
 import { resolveSenderIdentity } from "@/lib/communications/sender-identity";
@@ -10,12 +6,11 @@ function getTwilioClient() {
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken = process.env.TWILIO_AUTH_TOKEN;
   if (!accountSid || !authToken) {
-    throw new Error("Twilio no está configurado (TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN)");
+    throw new Error("Twilio is not configured (TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN)");
   }
   return twilio(accountSid, authToken);
 }
 
-/** Normaliza a E.164 asumiendo Norteamérica (+1) cuando no trae código de país. */
 export function toE164(phone: string): string | null {
   const digits = phone.trim().replace(/[^\d+]/g, "");
   if (digits.startsWith("+")) return digits;
@@ -28,7 +23,6 @@ export interface SendSmsParams {
   to: string;
   body: string;
   shopId: string;
-  /** Purpose/route key (ej. "APPOINTMENT", "INVOICE") — ver CommunicationRoute. */
   purpose: string;
   clientId?: string;
   businessEntityType?: string;
@@ -37,18 +31,15 @@ export interface SendSmsParams {
 }
 
 export async function sendSms(params: SendSmsParams): Promise<void> {
-  // Fase 2: la identidad activa de la ruta (hoy siempre el número compartido, salvo que
-  // Fase 6 aprovisione uno dedicado) manda sobre el env var — mismo motor de resolución
-  // que el email, ver resolveActiveEmailRoute.
   const identity = await resolveSenderIdentity(params.shopId, params.purpose, "SMS");
   const from = identity?.address ?? process.env.TWILIO_FROM_NUMBER;
   if (!from) {
-    throw new Error("TWILIO_FROM_NUMBER no está configurado");
+    throw new Error("TWILIO_FROM_NUMBER is not configured");
   }
 
   const e164 = toE164(params.to);
   if (!e164) {
-    throw new Error(`Número de teléfono inválido para SMS: ${params.to}`);
+    throw new Error(`Invalid phone number for SMS: ${params.to}`);
   }
 
   await recordAndSend({
@@ -71,7 +62,7 @@ export async function sendSms(params: SendSmsParams): Promise<void> {
 }
 
 export type AppointmentSmsType = "confirmation" | "reminder" | "cancellation";
-export type SmsLanguage = "ES" | "EN" | "FR";
+export type SmsLanguage = "EN" | "FR";
 
 export interface AppointmentSmsData {
   type: AppointmentSmsType;
@@ -82,28 +73,14 @@ export interface AppointmentSmsData {
   shopName: string;
   title: string;
   startsAtFormatted: string;
-  /** Idioma preferido del cliente — por defecto español. */
   language?: SmsLanguage | string | null;
-  /** Link para confirmar/cancelar la cita — se omite en cancelación. */
   manageUrl?: string | null;
-  /** Link público de reservas del taller — para invitar a reservar de nuevo (ej. tras cancelar). */
   bookingUrl?: string | null;
 }
 
 type SmsCopyFn = (data: AppointmentSmsData) => string;
 
 const SMS_COPY: Record<SmsLanguage, Record<AppointmentSmsType, SmsCopyFn>> = {
-  ES: {
-    confirmation: (data) =>
-      `${data.shopName}: cita confirmada — ${data.title}, ${data.startsAtFormatted}.` +
-      (data.manageUrl ? ` Confirmar o cancelar: ${data.manageUrl}` : ""),
-    reminder: (data) =>
-      `${data.shopName}: recordatorio de tu cita — ${data.title}, ${data.startsAtFormatted}.` +
-      (data.manageUrl ? ` Confirmar o cancelar: ${data.manageUrl}` : ""),
-    cancellation: (data) =>
-      `${data.shopName}: tu cita "${data.title}" del ${data.startsAtFormatted} fue cancelada.` +
-      (data.bookingUrl ? ` Agenda una nueva en línea: ${data.bookingUrl}` : ""),
-  },
   EN: {
     confirmation: (data) =>
       `${data.shopName}: appointment confirmed — ${data.title}, ${data.startsAtFormatted}.` +
@@ -129,7 +106,7 @@ const SMS_COPY: Record<SmsLanguage, Record<AppointmentSmsType, SmsCopyFn>> = {
 };
 
 function resolveSmsLanguage(language?: string | null): SmsLanguage {
-  return language === "EN" || language === "FR" ? language : "ES";
+  return language === "FR" ? "FR" : "EN";
 }
 
 export async function sendAppointmentSms(data: AppointmentSmsData): Promise<void> {
@@ -153,22 +130,17 @@ export interface InvoiceSmsData {
   shopId: string;
   clientId?: string;
   invoiceId?: string;
-  /** smsSendCount actual (antes de incrementar) — usado para deduplicar reenvíos accidentales. */
   sendAttempt?: number;
   shopName: string;
   invoiceNumber: string;
   totalFormatted: string;
   downloadUrl: string;
-  /** Link público de reservas del taller — se omite si el taller no tiene sitio de reservas. */
   bookingUrl?: string | null;
   language?: SmsLanguage | string | null;
   isResend?: boolean;
 }
 
 const INVOICE_SMS_COPY: Record<SmsLanguage, (data: InvoiceSmsData) => string> = {
-  ES: (data) =>
-    `${data.shopName}: ${data.isResend ? "reenvío de " : ""}factura ${data.invoiceNumber} — ${data.totalFormatted}. Descargar: ${data.downloadUrl}` +
-    (data.bookingUrl ? ` Agenda en línea: ${data.bookingUrl}` : ""),
   EN: (data) =>
     `${data.shopName}: ${data.isResend ? "resend of " : ""}invoice ${data.invoiceNumber} — ${data.totalFormatted}. Download: ${data.downloadUrl}` +
     (data.bookingUrl ? ` Book online: ${data.bookingUrl}` : ""),
@@ -209,8 +181,6 @@ export interface QuoteSmsData {
 }
 
 const QUOTE_SMS_COPY: Record<SmsLanguage, (data: QuoteSmsData) => string> = {
-  ES: (data) =>
-    `${data.shopName}: ${data.isResend ? "reenvío de " : ""}cotización ${data.quoteNumber} — ${data.totalFormatted}. Revísala y responde: ${data.approvalUrl}`,
   EN: (data) =>
     `${data.shopName}: ${data.isResend ? "resend of " : ""}quote ${data.quoteNumber} — ${data.totalFormatted}. Review and respond: ${data.approvalUrl}`,
   FR: (data) =>
