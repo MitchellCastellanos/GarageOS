@@ -12,6 +12,7 @@ import { formatFromHeader } from "@/lib/email-config";
 import { PlainMessageEmail } from "@/emails/PlainMessageEmail";
 import { uploadCommunicationAttachment } from "@/lib/storage";
 import type { EmailAttachment } from "@/lib/email-attachments";
+import type { EmailRichTextDocument } from "@/lib/email-rich-text";
 
 function getResend() {
   const key = process.env.RESEND_API_KEY;
@@ -31,6 +32,7 @@ export interface SendInboxMessageParams {
   bcc?: string[];
   subject: string;
   bodyText: string;
+  bodyRich?: EmailRichTextDocument | null;
   shopName: string;
   attachments?: EmailAttachment[];
   inReplyTo?: string | null;
@@ -70,6 +72,7 @@ export async function sendInboxMessage(params: SendInboxMessageParams): Promise<
   const element = React.createElement(PlainMessageEmail, {
     shopName: params.shopName,
     bodyText: params.bodyText,
+    bodyRich: params.bodyRich,
     footerText: `Este correo fue enviado por ${params.shopName}.`,
   });
   const html = await render(element);
