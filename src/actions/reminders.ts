@@ -1,6 +1,6 @@
 "use server";
 
-import { ADMIN, PLATFORM, adminPath } from "@/lib/routes";
+import { ADMIN } from "@/lib/routes";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -13,24 +13,22 @@ import { getAdminLocale } from "@/lib/get-admin-locale";
 import type { AdminLocale } from "@/lib/admin-locale";
 
 const REMINDER_NOT_FOUND: Record<AdminLocale, string> = {
-  es: "Recordatorio no encontrado",
+  es: "Reminder not found",
   en: "Reminder not found",
   fr: "Rappel introuvable",
 };
 
 const ALREADY_SENT: Record<AdminLocale, string> = {
-  es: "Este recordatorio ya fue enviado",
+  es: "This reminder has already been sent",
   en: "This reminder has already been sent",
   fr: "Ce rappel a déjà été envoyé",
 };
 
 const NO_EMAIL_ON_FILE: Record<AdminLocale, string> = {
-  es: "El cliente no tiene email registrado",
+  es: "The client has no email on file",
   en: "The client has no email on file",
   fr: "Le client n'a pas de courriel enregistré",
 };
-
-// ── READ ────────────────────────────────────────────────────
 
 export async function getReminders(status?: string) {
   const shopId = await getShopId();
@@ -48,8 +46,6 @@ export async function getReminders(status?: string) {
     orderBy: { createdAt: "desc" },
   });
 }
-
-// ── CREATE ──────────────────────────────────────────────────
 
 export async function createReminder(formData: ReminderFormData) {
   const shopId = await getShopId();
@@ -77,8 +73,6 @@ export async function createReminder(formData: ReminderFormData) {
   redirect(ADMIN.reminders);
 }
 
-// ── SEND MANUAL ─────────────────────────────────────────────
-
 export async function sendReminderNow(reminderId: string) {
   const shopId = await getShopId();
   const locale = await getAdminLocale();
@@ -92,8 +86,6 @@ export async function sendReminderNow(reminderId: string) {
   });
 
   if (!reminder) return { error: REMINDER_NOT_FOUND[locale] };
-
-  // No reenviar si ya fue enviado
   if (reminder.sentAt) return { error: ALREADY_SENT[locale] };
 
   const client = reminder.vehicle.client;
@@ -112,6 +104,7 @@ export async function sendReminderNow(reminderId: string) {
     dueMileage: reminder.dueMileage,
     mileageUnit: reminder.vehicle.mileageUnit,
     shopPhone: reminder.shop.phone,
+    language: client.language,
   });
 
   await db.serviceReminder.update({
@@ -123,8 +116,6 @@ export async function sendReminderNow(reminderId: string) {
   return { success: true };
 }
 
-// ── DISMISS ─────────────────────────────────────────────────
-
 export async function dismissReminder(reminderId: string) {
   const shopId = await getShopId();
   await db.serviceReminder.updateMany({
@@ -133,8 +124,6 @@ export async function dismissReminder(reminderId: string) {
   });
   revalidatePath(ADMIN.reminders);
 }
-
-// ── Para formulario: vehículos con sus clientes ─────────────
 
 export async function getReminderFormData() {
   const shopId = await getShopId();
