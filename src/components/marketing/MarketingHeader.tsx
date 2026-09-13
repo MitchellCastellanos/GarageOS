@@ -30,8 +30,8 @@ export function MarketingHeader() {
   }, []);
 
   const navLinks = [
-    { href: "/#product", label: t.nav.product },
-    { href: "/#features", label: t.nav.features },
+    { href: "/product", label: t.nav.product },
+    { href: "/features", label: t.nav.features },
     { href: "/#pricing", label: t.nav.pricing },
   ];
 

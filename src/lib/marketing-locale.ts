@@ -57,15 +57,24 @@ export interface MarketingDictionary {
     };
   };
   featureStrip: string[];
+  workflow: {
+    eyebrow: string;
+    heading: string;
+    description: string;
+    steps: { title: string; description: string }[];
+  };
   tools: {
     eyebrow: string;
     heading: string;
     description: string;
-    left: string[];
-    right: string[];
-    more: string;
+    highlights: { title: string; description: string }[];
     seeAll: string;
-    quote: { text: string; author: string; shop: string };
+  };
+  management: {
+    eyebrow: string;
+    heading: string;
+    description: string;
+    cards: { title: string; description: string }[];
   };
   brandControl: {
     eyebrow: string;
@@ -77,7 +86,6 @@ export interface MarketingDictionary {
       title: string;
       greeting: string;
       body: string;
-      button: string;
     };
     invoice: {
       shopName: string;
@@ -100,12 +108,6 @@ export interface MarketingDictionary {
     cta: string;
     quote: string;
     quoteAuthor: string;
-  };
-  testimonials: {
-    eyebrow: string;
-    heading: string;
-    items: { quote: string; name: string; shop: string }[];
-    shopNames: string[];
   };
   pricing: {
     eyebrow: string;
@@ -207,7 +209,7 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
     meta: {
       title: "GarageOS — Auto shop management software",
       description:
-        "Manage appointments, work orders, invoicing and customer communication — all in one place. Built for independent garages, by people who get it.",
+        "Run the whole job in one place — from booking and estimates to customer approval, invoicing and the next service reminder. Built for independent garages, by people who get it.",
     },
     nav: {
       product: "Product",
@@ -219,8 +221,9 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
     },
     resourcesMenu: [
       { label: "Help Center", href: "/help" },
-      { label: "Blog", href: "/blog" },
+      { label: "Quick Start", href: "/quick-start" },
       { label: "Guides", href: "/guides" },
+      { label: "Blog", href: "/blog" },
       { label: "Changelog", href: "/changelog" },
     ],
     hero: {
@@ -228,31 +231,31 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
       titleLine1: "Less admin.",
       titleLine2: "More wrench time.",
       description:
-        "Manage appointments, work orders, invoicing, customer communication and more — all in one place. Built for independent garages, by people who get it.",
+        "Run the whole job in one place — from booking and estimates to customer approval, invoicing and the next service reminder.",
       ctaPrimary: "Get Started",
       ctaSecondary: "Watch Demo",
-      bullets: ["Save time every day", "Get paid faster", "Happier customers"],
+      bullets: ["Keep every job organized", "Keep customers in the loop", "Bring customers back"],
       mockupCaption: "Everything your shop needs, in one dashboard.",
       dashboard: {
         greeting: "Good morning, Alex",
-        subtitle: "6 appointments today · 3 work orders in progress",
+        subtitle: "6 appointments today · 3 jobs in the shop",
         shopName: "Alex's Garage",
         searchPlaceholder: "Search customers, vehicles...",
         stats: [
           { value: "6", label: "Appointments today" },
-          { value: "3", label: "In progress" },
+          { value: "3", label: "Jobs in service" },
           { value: "2", label: "Awaiting approval" },
           { value: "4", label: "Ready for pickup" },
         ],
         nav: [
           "Dashboard",
           "Appointments",
-          "Work Orders",
+          "Estimates",
           "Customers",
           "Vehicles",
           "Invoices",
-          "Estimates",
           "Messages",
+          "Reminders",
           "Reports",
           "Inventory",
           "Services",
@@ -293,62 +296,119 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
         activityTitle: "Recent Activity",
         activity: [
           { text: "Invoice #1054 paid", time: "2 hours ago" },
-          { text: "New appointment", time: "3 hours ago" },
-          { text: "Estimate sent", time: "4 hours ago" },
-          { text: "Work order completed", time: "5 hours ago" },
+          { text: "New appointment booked", time: "3 hours ago" },
+          { text: "Estimate approved", time: "4 hours ago" },
+          { text: "Vehicle ready for pickup", time: "5 hours ago" },
         ],
       },
     },
     featureStrip: [
-      "Appointments & Scheduling",
-      "Work Orders & Estimates",
+      "Appointments & Booking",
+      "Vehicle Check-In",
+      "Estimates & Approvals",
+      "Parts & Labour",
+      "Customer Messaging",
       "Invoicing & Payments",
-      "Customer Communication",
-      "Vehicle History & Records",
-      "Inventory & Parts",
-      "Reports & Insights",
-      "Your Brand Everywhere",
+      "Vehicle History",
+      "Inventory & Reports",
     ],
+    workflow: {
+      eyebrow: "One connected workflow",
+      heading: "From booking to the next visit.",
+      description:
+        "GarageOS keeps the customer, vehicle, approval, work and payment connected from start to finish.",
+      steps: [
+        {
+          title: "Book",
+          description: "Online or front-desk appointments, customers, vehicles and scheduling.",
+        },
+        {
+          title: "Inspect",
+          description: "Note the vehicle's condition, mileage and the customer's concern before you price the job.",
+        },
+        {
+          title: "Approve",
+          description: "Turn the proposed work into a clear estimate and capture the customer's decision.",
+        },
+        {
+          title: "Repair",
+          description: "Once approved, the team gets to work — the front desk stays aligned on what's confirmed.",
+        },
+        {
+          title: "Pay",
+          description: "Invoice the completed work, record payment and keep the service history together.",
+        },
+        {
+          title: "Return",
+          description: "Set a maintenance reminder and follow up when the vehicle is due back.",
+        },
+      ],
+    },
     tools: {
       eyebrow: "Built for real shops",
       heading: "Tools that actually make your life easier.",
       description:
         "From the first appointment to the final invoice, GarageOS helps you stay organized, professional and profitable.",
-      left: [
-        "Online & in-person booking",
-        "Work orders & digital inspections",
-        "Estimates with approval flow",
-        "Invoicing & payments (card, cash, etc.)",
-        "Branded emails & documents",
-        "Customer & vehicle history",
+      highlights: [
+        {
+          title: "Clear, itemized estimates",
+          description:
+            "Capture the vehicle's condition and the proposed work, then price it out — no retyping between the estimate and the invoice.",
+        },
+        {
+          title: "Customer approvals",
+          description: "Send a clear estimate and keep a traceable record of what the customer approved and when.",
+        },
+        {
+          title: "Keep customers in the loop",
+          description: "Send branded updates by email or text, including letting a customer know their vehicle is ready.",
+        },
+        {
+          title: "Maintenance reminders",
+          description: "Keep future service needs attached to the customer and vehicle so the next visit doesn't get forgotten.",
+        },
+        {
+          title: "Complete vehicle history",
+          description: "Appointments, estimates and invoices all stay connected to the vehicle record.",
+        },
+        {
+          title: "Built to run the shop",
+          description: "Inventory, reports, team access and multi-location tools give owners visibility beyond a single job.",
+        },
       ],
-      right: [
-        "Inventory & parts tracking",
-        "Service reminders",
-        "Multi-techs and roles",
-        "Reports & analytics",
-        "Mobile friendly (shop floor ready)",
-      ],
-      more: "And much more...",
       seeAll: "See all features",
-      quote: {
-        text: "GarageOS has made our day-to-day so much more efficient. We spend less time on paperwork and more time doing what we love.",
-        author: "Marc-Olivier",
-        shop: "Atelier Mécanique 514",
-      },
+    },
+    management: {
+      eyebrow: "Beyond the job",
+      heading: "Run more than the job.",
+      description: "The tools an owner needs to run the whole shop, not just a single appointment.",
+      cards: [
+        { title: "Inventory & parts", description: "Track stock and movement history." },
+        {
+          title: "Reports & visibility",
+          description: "See shop activity and business performance without rebuilding the day in spreadsheets.",
+        },
+        {
+          title: "Multi-location",
+          description: "Operate multiple shop locations with shared access where configured.",
+        },
+        {
+          title: "Communications & branding",
+          description: "Manage customer messaging and keep the shop's brand in front of customers.",
+        },
+      ],
     },
     brandControl: {
       eyebrow: "Your brand. Your customers.",
       heading: "Look professional. Stay in control.",
       description:
-        "Send appointment confirmations, estimates, invoices and follow-ups using your own logo, colors and contact information. GarageOS works behind the scenes — your customers see your brand.",
+        "Your customers see your shop — from booking and approvals to status updates and invoices. GarageOS stays behind the scenes while your logo, contact information and communication identity stay front and center.",
       cta: "See how it works",
       phone: {
         shopName: "Riverside Auto",
-        title: "Your appointment is confirmed",
+        title: "Your vehicle is ready",
         greeting: "Hi James,",
-        body: "Your appointment for your 2019 Honda Civic is confirmed for Monday, Sep 16 at 10:00 AM. We look forward to seeing you!",
-        button: "Add to Calendar",
+        body: "Your 2019 Honda Civic is ready for pickup at Riverside Auto.",
       },
       invoice: {
         shopName: "RIVERSIDE AUTO",
@@ -356,7 +416,7 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
         billTo: "Bill to",
         client: "James Carter",
         email: "jamescarter@gmail.com",
-        vehicleLabel: "2019 Honda Civic · VIN: 2HGFC2F79KH123456",
+        vehicleLabel: "2019 Honda Civic",
         items: [
           { label: "Oil Change", qty: "1", price: "$79.99" },
           { label: "Engine Air Filter", qty: "1", price: "$24.99" },
@@ -371,37 +431,12 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
     },
     builtFor: {
       eyebrow: "More than software",
-      heading: "Built for independent garages. Backed for what's next.",
+      heading: "Built for independent shops — not enterprise process.",
       description:
-        "Whether you're a 1-person shop or a multi-bay operation, GarageOS grows with you. We're here to help you run a better business — today and tomorrow.",
+        "GarageOS gives the front desk and owner one clear place to run the day while keeping technician interaction simple when it's needed. It works for a small single-location shop and can grow into multiple locations.",
       cta: "Get Started",
       quote: "A modern tool for real mechanics.",
       quoteAuthor: "The GarageOS Team",
-    },
-    testimonials: {
-      eyebrow: "Shop owners love GarageOS",
-      heading: "Real shops. Real results.",
-      items: [
-        {
-          quote:
-            "I went from spreadsheets and sticky notes to having everything in one place. Game changer.",
-          name: "Steve L.",
-          shop: "Lachine Mécanique",
-        },
-        {
-          quote:
-            "Our communication with customers is so much better now. The branded emails and inspection reports look incredible.",
-          name: "Caroline D.",
-          shop: "Performance Auto",
-        },
-        {
-          quote:
-            "Simple to use, super powerful, and the support team actually listens. Highly recommend.",
-          name: "Daniel R.",
-          shop: "Atelier 514",
-        },
-      ],
-      shopNames: ["Performance Auto", "Lachine Mécanique", "ATELIER 514", "RPM GARAGE", "Riverside Auto"],
     },
     pricing: {
       eyebrow: "Simple pricing",
@@ -418,7 +453,7 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
           monthlyPrice: 39,
           features: [
             "Up to 2 users",
-            "Appointments & work orders",
+            "Appointments & scheduling",
             "Invoicing & estimates",
             "Customer & vehicle records",
             "Email support",
@@ -457,8 +492,8 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
     },
     ctaBanner: {
       eyebrow: "Ready to get started?",
-      heading: "Join hundreds of garages already running on GarageOS.",
-      description: "Set up your shop in minutes. No credit card required.",
+      heading: "Run your next job in GarageOS.",
+      description: "Set up your shop and start bringing your workflow into one place.",
       cta: "Get Started",
     },
     footer: {
@@ -467,19 +502,21 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
         product: {
           title: "Product",
           links: [
+            { label: "Product", href: "/product" },
             { label: "Features", href: "/features" },
-            { label: "Pricing", href: "/#pricing" },
+            { label: "Demo", href: "/demo" },
             { label: "Integrations", href: "/integrations" },
-            { label: "Changelog", href: "/changelog" },
+            { label: "Pricing", href: "/#pricing" },
           ],
         },
         resources: {
           title: "Resources",
           links: [
+            { label: "Quick Start", href: "/quick-start" },
             { label: "Help Center", href: "/help" },
-            { label: "Blog", href: "/blog" },
             { label: "Guides", href: "/guides" },
-            { label: "Contact", href: "/contact" },
+            { label: "Blog", href: "/blog" },
+            { label: "Changelog", href: "/changelog" },
           ],
         },
         company: {
@@ -568,7 +605,7 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
     meta: {
       title: "GarageOS — Logiciel de gestion pour ateliers mécaniques",
       description:
-        "Gérez vos rendez-vous, ordres de travail, facturation et communication client — le tout au même endroit. Conçu pour les garages indépendants, par des gens qui comprennent le métier.",
+        "Gérez tout le déroulement d'une réparation au même endroit — de la réservation et de la soumission jusqu'à l'approbation du client, la facturation et le prochain rappel de service. Conçu pour les garages indépendants, par des gens qui comprennent le métier.",
     },
     nav: {
       product: "Produit",
@@ -580,8 +617,9 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
     },
     resourcesMenu: [
       { label: "Centre d'aide", href: "/help" },
-      { label: "Blogue", href: "/blog" },
+      { label: "Démarrage rapide", href: "/quick-start" },
       { label: "Guides", href: "/guides" },
+      { label: "Blogue", href: "/blog" },
       { label: "Nouveautés", href: "/changelog" },
     ],
     hero: {
@@ -589,31 +627,31 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
       titleLine1: "Moins d'admin.",
       titleLine2: "Plus de temps sous le capot.",
       description:
-        "Gérez vos rendez-vous, ordres de travail, facturation, communication client et plus encore — le tout au même endroit. Conçu pour les garages indépendants, par des gens qui comprennent le métier.",
+        "Gérez tout le déroulement d'une réparation au même endroit — de la prise de rendez-vous et de la soumission jusqu'à l'approbation du client, la facturation et le prochain rappel de service.",
       ctaPrimary: "Commencer",
       ctaSecondary: "Voir la démo",
-      bullets: ["Gagnez du temps chaque jour", "Soyez payé plus vite", "Des clients plus satisfaits"],
+      bullets: ["Gardez chaque dossier organisé", "Gardez vos clients informés", "Faites revenir vos clients"],
       mockupCaption: "Tout ce dont votre atelier a besoin, dans un seul tableau de bord.",
       dashboard: {
         greeting: "Bonjour, Alex",
-        subtitle: "6 rendez-vous aujourd'hui · 3 ordres de travail en cours",
+        subtitle: "6 rendez-vous aujourd'hui · 3 dossiers en atelier",
         shopName: "Garage d'Alex",
         searchPlaceholder: "Rechercher un client, un véhicule...",
         stats: [
           { value: "6", label: "Rendez-vous aujourd'hui" },
-          { value: "3", label: "En cours" },
+          { value: "3", label: "Dossiers en cours" },
           { value: "2", label: "En attente d'approbation" },
           { value: "4", label: "Prêts à récupérer" },
         ],
         nav: [
           "Tableau de bord",
           "Rendez-vous",
-          "Ordres de travail",
+          "Soumissions",
           "Clients",
           "Véhicules",
           "Factures",
-          "Soumissions",
           "Messages",
+          "Rappels",
           "Rapports",
           "Inventaire",
           "Services",
@@ -655,61 +693,118 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
         activity: [
           { text: "Facture #1054 payée", time: "il y a 2 heures" },
           { text: "Nouveau rendez-vous", time: "il y a 3 heures" },
-          { text: "Soumission envoyée", time: "il y a 4 heures" },
-          { text: "Ordre de travail complété", time: "il y a 5 heures" },
+          { text: "Soumission approuvée", time: "il y a 4 heures" },
+          { text: "Véhicule prêt à récupérer", time: "il y a 5 heures" },
         ],
       },
     },
     featureStrip: [
-      "Rendez-vous et horaire",
-      "Ordres de travail et soumissions",
-      "Facturation et paiements",
+      "Rendez-vous et réservation",
+      "Accueil du véhicule",
+      "Soumissions et approbations",
+      "Pièces et main-d'œuvre",
       "Communication client",
+      "Facturation et paiements",
       "Historique des véhicules",
-      "Inventaire et pièces",
-      "Rapports et statistiques",
-      "Votre image de marque partout",
+      "Inventaire et rapports",
     ],
+    workflow: {
+      eyebrow: "Un flux de travail connecté",
+      heading: "De la réservation à la prochaine visite.",
+      description:
+        "GarageOS garde le client, le véhicule, l'approbation, le travail et le paiement connectés du début à la fin.",
+      steps: [
+        {
+          title: "Réserver",
+          description: "Rendez-vous en ligne ou sur place, clients, véhicules et horaire.",
+        },
+        {
+          title: "Inspecter",
+          description: "Notez l'état du véhicule, le kilométrage et la demande du client avant d'établir le prix.",
+        },
+        {
+          title: "Approuver",
+          description: "Transformez le travail proposé en soumission claire et enregistrez la décision du client.",
+        },
+        {
+          title: "Réparer",
+          description: "Une fois approuvé, l'équipe se met au travail — la réception reste alignée sur ce qui est confirmé.",
+        },
+        {
+          title: "Payer",
+          description: "Facturez le travail complété, enregistrez le paiement et gardez l'historique de service ensemble.",
+        },
+        {
+          title: "Revenir",
+          description: "Créez un rappel de service et faites un suivi lorsque le véhicule doit revenir.",
+        },
+      ],
+    },
     tools: {
       eyebrow: "Conçu pour de vrais ateliers",
       heading: "Des outils qui vous simplifient vraiment la vie.",
       description:
         "Du premier rendez-vous jusqu'à la facture finale, GarageOS vous aide à rester organisé, professionnel et rentable.",
-      left: [
-        "Réservation en ligne et sur place",
-        "Ordres de travail et inspections numériques",
-        "Soumissions avec approbation client",
-        "Facturation et paiements (carte, comptant, etc.)",
-        "Courriels et documents à votre image",
-        "Historique clients et véhicules",
+      highlights: [
+        {
+          title: "Des soumissions claires et détaillées",
+          description:
+            "Notez l'état du véhicule et le travail proposé, puis établissez le prix — sans ressaisir entre la soumission et la facture.",
+        },
+        {
+          title: "Approbations client",
+          description: "Envoyez une soumission claire et gardez une trace de ce que le client a approuvé, et quand.",
+        },
+        {
+          title: "Gardez vos clients informés",
+          description: "Envoyez des mises à jour à votre image par courriel ou texto, y compris pour aviser un client que son véhicule est prêt.",
+        },
+        {
+          title: "Rappels de service",
+          description: "Gardez les prochains besoins de service liés au client et au véhicule pour ne pas oublier la prochaine visite.",
+        },
+        {
+          title: "Historique complet du véhicule",
+          description: "Rendez-vous, soumissions et factures restent tous liés au dossier du véhicule.",
+        },
+        {
+          title: "Conçu pour gérer l'atelier",
+          description: "Inventaire, rapports, accès d'équipe et outils multi-établissements donnent aux propriétaires une vue au-delà d'un seul dossier.",
+        },
       ],
-      right: [
-        "Suivi de l'inventaire et des pièces",
-        "Rappels de service",
-        "Plusieurs techniciens et rôles",
-        "Rapports et analyses",
-        "Pensé pour le plancher d'atelier (mobile)",
-      ],
-      more: "Et bien plus encore...",
       seeAll: "Voir toutes les fonctionnalités",
-      quote: {
-        text: "GarageOS a rendu notre quotidien tellement plus efficace. On passe moins de temps dans la paperasse et plus de temps à faire ce qu'on aime.",
-        author: "Marc-Olivier",
-        shop: "Atelier Mécanique 514",
-      },
+    },
+    management: {
+      eyebrow: "Au-delà du dossier",
+      heading: "Gérez plus que le dossier.",
+      description: "Les outils dont un propriétaire a besoin pour gérer tout l'atelier, pas seulement un rendez-vous.",
+      cards: [
+        { title: "Inventaire et pièces", description: "Suivez le stock et l'historique des mouvements." },
+        {
+          title: "Rapports et visibilité",
+          description: "Voyez l'activité de l'atelier et la performance de l'entreprise sans reconstruire la journée dans des feuilles de calcul.",
+        },
+        {
+          title: "Multi-établissements",
+          description: "Gérez plusieurs emplacements avec un accès partagé lorsque configuré.",
+        },
+        {
+          title: "Communications et image de marque",
+          description: "Gérez la messagerie client et gardez l'image de votre atelier devant vos clients.",
+        },
+      ],
     },
     brandControl: {
       eyebrow: "Votre marque. Vos clients.",
       heading: "Paraissez professionnel. Gardez le contrôle.",
       description:
-        "Envoyez confirmations de rendez-vous, soumissions, factures et suivis avec votre propre logo, vos couleurs et vos coordonnées. GarageOS travaille en coulisses — vos clients voient votre marque.",
+        "Vos clients voient votre atelier — de la réservation et des approbations jusqu'aux mises à jour de statut et aux factures. GarageOS reste en coulisses pendant que votre logo, vos coordonnées et votre identité de communication restent à l'avant-plan.",
       cta: "Voir comment ça fonctionne",
       phone: {
         shopName: "Riverside Auto",
-        title: "Votre rendez-vous est confirmé",
+        title: "Votre véhicule est prêt",
         greeting: "Bonjour James,",
-        body: "Votre rendez-vous pour votre Honda Civic 2019 est confirmé pour le lundi 16 septembre à 10 h 00. Au plaisir de vous voir!",
-        button: "Ajouter au calendrier",
+        body: "Votre Honda Civic 2019 est prête à être récupérée chez Riverside Auto.",
       },
       invoice: {
         shopName: "RIVERSIDE AUTO",
@@ -717,7 +812,7 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
         billTo: "Facturé à",
         client: "James Carter",
         email: "jamescarter@gmail.com",
-        vehicleLabel: "Honda Civic 2019 · NIV : 2HGFC2F79KH123456",
+        vehicleLabel: "Honda Civic 2019",
         items: [
           { label: "Changement d'huile", qty: "1", price: "79,99 $" },
           { label: "Filtre à air moteur", qty: "1", price: "24,99 $" },
@@ -732,37 +827,12 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
     },
     builtFor: {
       eyebrow: "Plus qu'un logiciel",
-      heading: "Conçu pour les garages indépendants. Prêt pour la suite.",
+      heading: "Conçu pour les garages indépendants — pas pour un processus d'entreprise.",
       description:
-        "Que vous soyez seul dans votre atelier ou à la tête de plusieurs baies, GarageOS grandit avec vous. On est là pour vous aider à bâtir une meilleure entreprise — aujourd'hui et demain.",
+        "GarageOS donne à la réception et au propriétaire un seul endroit clair pour gérer la journée, tout en gardant l'interaction des techniciens simple quand c'est nécessaire. Ça fonctionne pour un atelier à un seul établissement et peut grandir vers plusieurs établissements.",
       cta: "Commencer",
       quote: "Un outil moderne pour de vrais mécaniciens.",
       quoteAuthor: "L'équipe GarageOS",
-    },
-    testimonials: {
-      eyebrow: "Les propriétaires d'ateliers aiment GarageOS",
-      heading: "De vrais ateliers. De vrais résultats.",
-      items: [
-        {
-          quote:
-            "Je suis passé des feuilles de calcul et des post-it à tout avoir au même endroit. Ça change tout.",
-          name: "Steve L.",
-          shop: "Lachine Mécanique",
-        },
-        {
-          quote:
-            "Notre communication avec les clients est tellement meilleure maintenant. Les courriels et rapports d'inspection à notre image sont impeccables.",
-          name: "Caroline D.",
-          shop: "Performance Auto",
-        },
-        {
-          quote:
-            "Simple à utiliser, très puissant, et l'équipe de soutien écoute vraiment. Je recommande fortement.",
-          name: "Daniel R.",
-          shop: "Atelier 514",
-        },
-      ],
-      shopNames: ["Performance Auto", "Lachine Mécanique", "ATELIER 514", "RPM GARAGE", "Riverside Auto"],
     },
     pricing: {
       eyebrow: "Tarification simple",
@@ -779,7 +849,7 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
           monthlyPrice: 39,
           features: [
             "Jusqu'à 2 utilisateurs",
-            "Rendez-vous et ordres de travail",
+            "Rendez-vous et horaire",
             "Facturation et soumissions",
             "Dossiers clients et véhicules",
             "Soutien par courriel",
@@ -818,8 +888,8 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
     },
     ctaBanner: {
       eyebrow: "Prêt à commencer?",
-      heading: "Rejoignez des centaines de garages qui utilisent déjà GarageOS.",
-      description: "Configurez votre atelier en quelques minutes. Aucune carte de crédit requise.",
+      heading: "Gérez votre prochain dossier dans GarageOS.",
+      description: "Configurez votre atelier et commencez à rassembler votre flux de travail au même endroit.",
       cta: "Commencer",
     },
     footer: {
@@ -828,19 +898,21 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
         product: {
           title: "Produit",
           links: [
+            { label: "Produit", href: "/product" },
             { label: "Fonctionnalités", href: "/features" },
-            { label: "Tarifs", href: "/#pricing" },
+            { label: "Démo", href: "/demo" },
             { label: "Intégrations", href: "/integrations" },
-            { label: "Nouveautés", href: "/changelog" },
+            { label: "Tarifs", href: "/#pricing" },
           ],
         },
         resources: {
           title: "Ressources",
           links: [
+            { label: "Démarrage rapide", href: "/quick-start" },
             { label: "Centre d'aide", href: "/help" },
-            { label: "Blogue", href: "/blog" },
             { label: "Guides", href: "/guides" },
-            { label: "Contact", href: "/contact" },
+            { label: "Blogue", href: "/blog" },
+            { label: "Nouveautés", href: "/changelog" },
           ],
         },
         company: {

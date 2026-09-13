@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { MarketingPageShell } from "@/components/marketing/MarketingPageShell";
 import { PageHero } from "@/components/marketing/PageHero";
-import { ResourceCards } from "@/components/marketing/ResourceArticles";
+import { GroupedResourceCards } from "@/components/marketing/ResourceArticles";
 import { GUIDES } from "@/lib/marketing-resources";
 
 export const metadata: Metadata = {
@@ -13,11 +13,11 @@ export const metadata: Metadata = {
 const FAQS = [
   {
     q: "What is GarageOS?",
-    a: "GarageOS is management software for independent auto shops — appointments, work orders, estimates, invoicing and customer communication, all in one place.",
+    a: "GarageOS is management software for independent auto shops — appointments, estimates, approvals, invoicing, reminders and customer communication, all in one place.",
   },
   {
     q: "How do I get started?",
-    a: "Your shop owner or manager sets up your account and invites your team. From there you can log in and start managing appointments, clients and invoices.",
+    a: "Your shop owner or manager sets up your account and invites your team. From there you can log in and start managing appointments, clients and invoices. If your shop already has an account, the Quick Start checklist walks through setting it up.",
   },
   {
     q: "Can customers book appointments online?",
@@ -65,7 +65,14 @@ export default function HelpPage() {
       <section className="bg-white">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
           <h2 className="mb-6 text-2xl font-bold text-slate-900">Start with a guide</h2>
-          <ResourceCards articles={GUIDES} basePath="/guides" />
+          <p className="mb-6 text-sm text-slate-600">
+            New to your shop&apos;s account?{" "}
+            <Link href="/quick-start" className="text-brand-blue font-semibold hover:text-brand-blue-dark">
+              Follow the Quick Start checklist
+            </Link>
+            .
+          </p>
+          <GroupedResourceCards articles={GUIDES} basePath="/guides" />
           <h2 className="mb-3 mt-16 text-2xl font-bold text-slate-900">Common questions</h2>
           <div className="divide-y divide-slate-100">
             {FAQS.map((item) => (

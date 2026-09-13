@@ -27,17 +27,17 @@ const STEPS = [
   },
   {
     icon: Users,
-    title: "Invite your team",
-    time: "Optional, anytime",
+    title: "Add your team and customers",
+    time: "A few minutes",
     description:
-      "Bring in mechanics and front-desk staff with their own logins and access levels. You stay in control of what each person can see and do.",
+      "Bring in mechanics and front-desk staff with their own logins and access levels, then add your first customers and vehicles.",
   },
   {
     icon: LayoutDashboard,
-    title: "Run your shop from one dashboard",
+    title: "Run your first job end-to-end",
     time: "From day one",
     description:
-      "Your booking page goes live right away. Manage appointments, quotes, invoices, customer messages and reminders — all in one place.",
+      "Book the appointment, prepare an estimate and record the customer's approval. Move the approved work through to an invoice, record the payment and set a maintenance reminder — all connected to the same customer and vehicle.",
   },
 ];
 

@@ -18,7 +18,7 @@ export default function TermsPage() {
           <div>
             <h2 className="text-base font-semibold text-slate-900 mb-2">Using GarageOS</h2>
             <p>
-              GarageOS is provided to help independent auto shops manage appointments, work orders, invoicing and
+              GarageOS is provided to help independent auto shops manage appointments, estimates, invoicing and
               customer communication. By using GarageOS, your shop agrees to use it only for legitimate business
               purposes and to keep your account credentials secure.
             </p>
