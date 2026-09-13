@@ -13,31 +13,31 @@ export const metadata: Metadata = {
 const STEPS = [
   {
     icon: UserPlus,
-    title: "Create your account",
-    time: "Under a minute",
+    title: "Create your account and choose your plan",
+    time: "First step",
     description:
-      "Tell us your shop name, your name and an email — or continue with Google. No credit card required to get started.",
+      "Tell us your shop name, your name and an email — or continue with Google — then choose the GarageOS plan that fits your operation. Eligible founding shops can use the introductory Pro offer shown on our pricing page.",
   },
   {
     icon: Palette,
     title: "Set up your shop",
     time: "A few minutes",
     description:
-      "Add your logo, services and hours. Your booking page and every quote, invoice and email are branded with your shop's identity from the start.",
+      "Add your logo, services and hours. Your booking experience, approvals, status updates, invoices and customer communications stay centered on your shop's brand.",
   },
   {
     icon: Users,
     title: "Add your team and customers",
     time: "A few minutes",
     description:
-      "Bring in mechanics and front-desk staff with their own logins and access levels, then add your first customers and vehicles.",
+      "Bring in mechanics and front-desk staff with their own logins and access levels, then add or import your customers and vehicles.",
   },
   {
     icon: LayoutDashboard,
     title: "Run your first job end-to-end",
     time: "From day one",
     description:
-      "Book the appointment, prepare an estimate and record the customer's approval. Move the approved work through to an invoice, record the payment and set a maintenance reminder — all connected to the same customer and vehicle.",
+      "Book the appointment, inspect the vehicle, prepare an estimate and capture the customer's approval. Move the approved work through the work order, invoice, payment and next maintenance reminder — all connected to the same customer and vehicle.",
   },
 ];
 
@@ -46,8 +46,8 @@ export default function GetStartedPage() {
     <MarketingPageShell>
       <PageHero
         eyebrow="Get Started"
-        heading="From sign-up to your first appointment in minutes."
-        description="Here's exactly what happens once you create your GarageOS account — no surprises."
+        heading="Bring your whole shop into one connected workflow."
+        description="Choose your plan, configure your shop and start running customer work in GarageOS."
       />
 
       <section className="bg-white">
@@ -77,7 +77,7 @@ export default function GetStartedPage() {
       <section className="bg-slate-50 border-t border-slate-100">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 py-14 sm:py-20 text-center">
           <h2 className="text-2xl sm:text-3xl font-bold text-slate-900">Ready to see it in your shop?</h2>
-          <p className="mt-3 text-slate-600">Create your account now — it takes less time than your next oil change.</p>
+          <p className="mt-3 text-slate-600">Start your GarageOS account and configure the shop around the way your team works.</p>
           <div className="mt-7 flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
               href={ADMIN.signup}
@@ -85,6 +85,12 @@ export default function GetStartedPage() {
             >
               Create your account
               <ArrowRight className="w-4 h-4" />
+            </Link>
+            <Link
+              href="/#pricing"
+              className="text-sm font-medium text-brand-blue hover:underline transition-colors"
+            >
+              Compare plans
             </Link>
             <Link
               href={ADMIN.login}
