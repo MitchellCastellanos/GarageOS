@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { Copy, ExternalLink, Loader2 } from "lucide-react";
+import { Copy, ExternalLink, Loader2, MessageCircle, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { updateWebBookingEnabled } from "@/actions/booking-settings";
 import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
@@ -10,13 +10,27 @@ import { SETTINGS_DICT } from "@/lib/admin-locale/settings";
 import { EmbedSnippetCard } from "./EmbedSnippetCard";
 
 interface OnlineBookingSettingsProps {
-  shop: { bookingEnabled: boolean; bookingUrl: string | null };
+  shop: { name: string; bookingEnabled: boolean; bookingUrl: string | null };
 }
 
 export function OnlineBookingSettings({ shop }: OnlineBookingSettingsProps) {
   const locale = useAdminLocale();
   const t = SETTINGS_DICT[locale].booking;
+  const tEmbed = SETTINGS_DICT[locale].embed;
   const [pending, startTransition] = useTransition();
+  const caption = shop.bookingUrl ? t.shareCaption(shop.name) : "";
+  const buttonSnippet = shop.bookingUrl
+    ? `<a href="${shop.bookingUrl}" target="_blank" rel="noopener" style="display:inline-block;background:#0d9488;color:#fff;font-family:sans-serif;font-weight:600;padding:12px 24px;border-radius:8px;text-decoration:none">${tEmbed.iframeTitle}</a>`
+    : "";
+
+  async function copyText(text: string, message: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(message);
+    } catch {
+      toast.error(t.copyError);
+    }
+  }
 
   function toggle(enabled: boolean) {
     startTransition(async () => {
@@ -33,13 +47,8 @@ export function OnlineBookingSettings({ shop }: OnlineBookingSettingsProps) {
     });
   }
 
-  async function copyLink() {
-    try {
-      await navigator.clipboard.writeText(shop.bookingUrl!);
-      toast.success(t.linkCopied);
-    } catch {
-      toast.error(t.copyError);
-    }
+  function copyLink() {
+    copyText(shop.bookingUrl!, t.linkCopied);
   }
 
   return (
@@ -74,6 +83,66 @@ export function OnlineBookingSettings({ shop }: OnlineBookingSettingsProps) {
               </a>
             </div>
           </div>
+          <div>
+            <h3 className="text-sm font-semibold text-slate-900">{t.shareTitle}</h3>
+            <p className="text-sm text-slate-500 mt-1">{t.shareSubtitle}</p>
+            <div className="flex flex-wrap gap-2 mt-2">
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(`${caption}\n${shop.bookingUrl}`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium px-4 py-2 rounded-lg"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                WhatsApp
+              </a>
+              <a
+                href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shop.bookingUrl)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                Facebook
+              </a>
+              <a
+                href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(caption)}&url=${encodeURIComponent(shop.bookingUrl)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-900 text-white text-sm font-medium px-4 py-2 rounded-lg"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                X
+              </a>
+              <button
+                type="button"
+                onClick={() => copyText(`${caption}\n${shop.bookingUrl}`, t.shareCaptionCopied)}
+                className="flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 px-4 py-2 rounded-lg border border-slate-200"
+              >
+                <MessageCircle className="w-3.5 h-3.5" />
+                {t.shareCopyCaption}
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-semibold text-slate-900">{t.buttonSnippetTitle}</h3>
+            <p className="text-sm text-slate-500 mt-1">{t.buttonSnippetHint}</p>
+            <div className="relative mt-2">
+              <pre className="bg-slate-900 text-slate-100 text-xs rounded-lg p-4 overflow-x-auto">
+                <code>{buttonSnippet}</code>
+              </pre>
+              <button
+                type="button"
+                onClick={() => copyText(buttonSnippet, tEmbed.copied)}
+                className="absolute top-2 right-2 flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg"
+              >
+                <Copy className="w-3.5 h-3.5" />
+                {tEmbed.copy}
+              </button>
+            </div>
+          </div>
+
           <EmbedSnippetCard bookingUrl={shop.bookingUrl} />
         </div>
       )}

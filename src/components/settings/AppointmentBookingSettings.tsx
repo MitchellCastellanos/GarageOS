@@ -26,6 +26,7 @@ interface MechanicRow {
 
 interface AppointmentBookingSettingsProps {
   shop: {
+    name: string;
     bookingEnabled: boolean;
     timezone: string;
     bookingSlotMinutes: number;

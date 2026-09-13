@@ -103,6 +103,13 @@ export interface SettingsDictionary {
     copyLink: string;
     openPage: string;
     linkCopied: string;
+    shareTitle: string;
+    shareSubtitle: string;
+    shareCaption: (shopName: string) => string;
+    shareCopyCaption: string;
+    shareCaptionCopied: string;
+    buttonSnippetTitle: string;
+    buttonSnippetHint: string;
     saveBooking: string;
     saved: string;
     hoursTitle: string;
@@ -310,6 +317,13 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       copyLink: "Copiar enlace",
       openPage: "Abrir página de reservas",
       linkCopied: "Enlace copiado",
+      shareTitle: "Compartir en redes",
+      shareSubtitle: "Comparte tu enlace con un texto ya armado, o cópialo para pegarlo donde quieras (ej. la bio de Instagram).",
+      shareCaption: (shopName) => `¡Reserva tu cita en ${shopName} en línea! 🔧🚗`,
+      shareCopyCaption: "Copiar texto",
+      shareCaptionCopied: "Texto copiado",
+      buttonSnippetTitle: "Botón para tu sitio web",
+      buttonSnippetHint: "Un botón simple que lleva a tu página de reservas — pégalo donde quieras un botón de \"Reservar cita\".",
       saveBooking: "Guardar reservas web",
       saved: "Configuración de reservas guardada",
       hoursTitle: "Horario de apertura",
@@ -515,6 +529,13 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       copyLink: "Copy link",
       openPage: "Open booking page",
       linkCopied: "Link copied",
+      shareTitle: "Share on social media",
+      shareSubtitle: "Share your link with a ready-made caption, or copy it to paste wherever you like (e.g. your Instagram bio).",
+      shareCaption: (shopName) => `Book your appointment at ${shopName} online! 🔧🚗`,
+      shareCopyCaption: "Copy text",
+      shareCaptionCopied: "Text copied",
+      buttonSnippetTitle: "Button for your website",
+      buttonSnippetHint: "A simple button that links to your booking page — paste it anywhere you want a \"Book an appointment\" button.",
       saveBooking: "Save web booking settings",
       saved: "Booking settings saved",
       hoursTitle: "Opening hours",
@@ -720,6 +741,13 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       copyLink: "Copier le lien",
       openPage: "Ouvrir la page de réservation",
       linkCopied: "Lien copié",
+      shareTitle: "Partager sur les réseaux sociaux",
+      shareSubtitle: "Partagez votre lien avec un texte déjà rédigé, ou copiez-le pour le coller où vous voulez (ex. la bio Instagram).",
+      shareCaption: (shopName) => `Prenez rendez-vous chez ${shopName} en ligne ! 🔧🚗`,
+      shareCopyCaption: "Copier le texte",
+      shareCaptionCopied: "Texte copié",
+      buttonSnippetTitle: "Bouton pour votre site web",
+      buttonSnippetHint: "Un bouton simple qui mène à votre page de réservation — collez-le où vous voulez un bouton « Prendre rendez-vous ».",
       saveBooking: "Enregistrer les réservations web",
       saved: "Configuration des réservations enregistrée",
       hoursTitle: "Heures d'ouverture",
