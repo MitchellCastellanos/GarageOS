@@ -53,6 +53,14 @@ export interface SettingsDictionary {
     saving: string;
     saved: string;
   };
+  shopSlug: {
+    title: string;
+    subtitle: string;
+    placeholder: string;
+    emptyWarning: string;
+    save: string;
+    saved: string;
+  };
   password: {
     title: string;
     current: string;
@@ -110,6 +118,7 @@ export interface SettingsDictionary {
     shareCaptionCopied: string;
     buttonSnippetTitle: string;
     buttonSnippetHint: string;
+    missingSlugHint: string;
     saveBooking: string;
     saved: string;
     hoursTitle: string;
@@ -253,6 +262,14 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       saving: "Guardando...",
       saved: "Configuración guardada",
     },
+    shopSlug: {
+      title: "Enlace público de reservas",
+      subtitle: "Este identificador define la URL donde los clientes reservan citas en línea, y habilita compartir el enlace, el botón para tu sitio y el widget embebido en la pestaña Calendario y Horarios.",
+      placeholder: "tu-taller",
+      emptyWarning: "Sin este identificador no tienes enlace público — el botón, el widget y las opciones de compartir no aparecerán hasta que lo definas.",
+      save: "Guardar identificador",
+      saved: "Identificador guardado",
+    },
     appointmentReminders: {
       title: "Citas — notificaciones (SMS y email)",
       reminderHours: "Horas antes de la cita",
@@ -324,6 +341,7 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       shareCaptionCopied: "Texto copiado",
       buttonSnippetTitle: "Botón para tu sitio web",
       buttonSnippetHint: "Un botón simple que lleva a tu página de reservas — pégalo donde quieras un botón de \"Reservar cita\".",
+      missingSlugHint: "Todavía no tienes enlace público. Ve a la pestaña General y define el identificador de tu taller para activar el enlace, el botón, el widget y las opciones de compartir.",
       saveBooking: "Guardar reservas web",
       saved: "Configuración de reservas guardada",
       hoursTitle: "Horario de apertura",
@@ -465,6 +483,14 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       saving: "Saving...",
       saved: "Settings saved",
     },
+    shopSlug: {
+      title: "Public booking link",
+      subtitle: "This identifier sets the URL where clients book appointments online, and unlocks sharing the link, the website button, and the embedded widget in the Calendar & Hours tab.",
+      placeholder: "your-shop",
+      emptyWarning: "Without this identifier you have no public link — the button, widget, and share options won't appear until you set it.",
+      save: "Save identifier",
+      saved: "Identifier saved",
+    },
     appointmentReminders: {
       title: "Appointments — notifications (SMS and email)",
       reminderHours: "Hours before the appointment",
@@ -536,6 +562,7 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       shareCaptionCopied: "Text copied",
       buttonSnippetTitle: "Button for your website",
       buttonSnippetHint: "A simple button that links to your booking page — paste it anywhere you want a \"Book an appointment\" button.",
+      missingSlugHint: "You don't have a public link yet. Go to the General tab and set your shop's identifier to unlock the link, the button, the widget, and the share options.",
       saveBooking: "Save web booking settings",
       saved: "Booking settings saved",
       hoursTitle: "Opening hours",
@@ -677,6 +704,14 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       saving: "Enregistrement...",
       saved: "Configuration enregistrée",
     },
+    shopSlug: {
+      title: "Lien public de réservation",
+      subtitle: "Cet identifiant définit l'URL où les clients réservent en ligne, et active le partage du lien, le bouton pour votre site et le widget intégré dans l'onglet Calendrier et horaires.",
+      placeholder: "votre-garage",
+      emptyWarning: "Sans cet identifiant, vous n'avez pas de lien public — le bouton, le widget et les options de partage n'apparaîtront pas tant que vous ne l'aurez pas défini.",
+      save: "Enregistrer l'identifiant",
+      saved: "Identifiant enregistré",
+    },
     appointmentReminders: {
       title: "Rendez-vous — notifications (SMS et courriel)",
       reminderHours: "Heures avant le rendez-vous",
@@ -748,6 +783,7 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       shareCaptionCopied: "Texte copié",
       buttonSnippetTitle: "Bouton pour votre site web",
       buttonSnippetHint: "Un bouton simple qui mène à votre page de réservation — collez-le où vous voulez un bouton « Prendre rendez-vous ».",
+      missingSlugHint: "Vous n'avez pas encore de lien public. Allez dans l'onglet Général et définissez l'identifiant de votre garage pour activer le lien, le bouton, le widget et les options de partage.",
       saveBooking: "Enregistrer les réservations web",
       saved: "Configuration des réservations enregistrée",
       hoursTitle: "Heures d'ouverture",
