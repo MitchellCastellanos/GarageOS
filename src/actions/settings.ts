@@ -92,6 +92,36 @@ export async function updateShopSettings(formData: FormData) {
   return { success: true };
 }
 
+// ── SLUG PÚBLICO (URL de reservas) ───────────────────
+
+const slugSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .min(3, "Mínimo 3 caracteres")
+  .max(60, "Máximo 60 caracteres")
+  .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "Solo minúsculas, números y guiones (sin empezar/terminar en guión)");
+
+export async function updateShopSlug(formData: FormData) {
+  const shopId = await getShopId();
+
+  const parsed = slugSchema.safeParse(formData.get("slug"));
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Identificador inválido" };
+  }
+
+  try {
+    await db.shop.update({ where: { id: shopId }, data: { slug: parsed.data } });
+  } catch (err) {
+    const isUniqueConflict =
+      typeof err === "object" && err !== null && "code" in err && (err as { code?: string }).code === "P2002";
+    return { error: isUniqueConflict ? "Ese identificador ya está en uso" : "No se pudo guardar" };
+  }
+
+  revalidatePath(ADMIN.settings);
+  return { success: true, slug: parsed.data };
+}
+
 // ── MAILBOXES ───────────────────────────────────────────────
 
 const mailboxSchema = z.object({

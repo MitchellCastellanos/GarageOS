@@ -1,4 +1,5 @@
 import { ADMIN } from "@/lib/routes";
+import { bookingPublicPath, getAppUrl } from "@/config/app";
 import { getShopSettings } from "@/actions/settings";
 import { getAppointmentBookingSettings, getServiceCatalogSettings } from "@/actions/booking-settings";
 import { getShopDomains } from "@/actions/domains";
@@ -37,7 +38,7 @@ export default async function SettingsPage() {
     {
       id: "general",
       label: t.tabs.general,
-      content: <ShopSettingsForm shop={shop} />,
+      content: <ShopSettingsForm shop={shop} slugUrlPrefix={`${getAppUrl()}${bookingPublicPath("")}`} />,
     },
   ];
 
