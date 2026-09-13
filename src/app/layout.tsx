@@ -10,7 +10,7 @@ const oswald = Oswald({
   display: "swap",
 });
 
-const description = "Gestión diaria para talleres mecánicos independientes.";
+const description = "Auto shop management software for independent garages.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(getAppUrl()),
@@ -27,7 +27,8 @@ export const metadata: Metadata = {
     description,
     url: getAppUrl(),
     siteName: APP_NAME,
-    locale: "fr_CA",
+    locale: "en_CA",
+    alternateLocale: ["fr_CA"],
     type: "website",
     images: [{ url: "/og-image.png", width: 1200, height: 630, alt: APP_NAME }],
   },
@@ -45,7 +46,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className={`h-full ${oswald.variable}`}>
+    <html lang="en" className={`h-full ${oswald.variable}`}>
       <body className="min-h-full font-sans antialiased">{children}</body>
     </html>
   );
