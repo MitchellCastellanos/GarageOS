@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { ADMIN } from "@/lib/routes";
 import { useMarketingLocale } from "@/components/marketing/MarketingLocaleProvider";
 import { LanguageToggle } from "@/components/marketing/LanguageToggle";
@@ -25,17 +26,27 @@ export function AuthPanel({ variant, children }: AuthPanelProps) {
       <div className="pointer-events-none absolute -bottom-24 -right-24 w-96 h-96 rounded-full bg-brand-blue/10 blur-3xl" />
       <div className="pointer-events-none absolute top-0 right-0 w-64 h-64 rounded-full bg-brand-blue/5 blur-2xl" />
 
-      <div className="relative flex items-center justify-end gap-4 px-6 py-4 sm:px-10">
-        <LanguageToggle />
-        <p className="text-sm text-slate-500">
-          {topBarText}{" "}
-          <Link
-            href={topBarLinkHref}
-            className="inline-block ml-1 font-semibold text-brand-blue bg-blue-50 hover:bg-blue-100 rounded-lg px-3 py-1.5 transition-colors"
-          >
-            {topBarLinkLabel}
-          </Link>
-        </p>
+      <div className="relative flex items-center justify-between gap-4 px-6 py-4 sm:px-10">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          {t.auth.backToHome}
+        </Link>
+
+        <div className="flex items-center gap-4">
+          <LanguageToggle />
+          <p className="text-sm text-slate-500">
+            {topBarText}{" "}
+            <Link
+              href={topBarLinkHref}
+              className="inline-block ml-1 font-semibold text-brand-blue bg-blue-50 hover:bg-blue-100 rounded-lg px-3 py-1.5 transition-colors"
+            >
+              {topBarLinkLabel}
+            </Link>
+          </p>
+        </div>
       </div>
 
       <div className="relative flex-1 flex items-center justify-center px-6 py-2 min-h-0">

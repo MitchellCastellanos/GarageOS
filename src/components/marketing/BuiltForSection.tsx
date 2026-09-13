@@ -20,7 +20,7 @@ export function BuiltForSection() {
           </h2>
           <p className="mt-4 text-slate-300 leading-relaxed max-w-md">{t.builtFor.description}</p>
           <Link
-            href="/admin/login"
+            href="/get-started"
             className="mt-8 inline-flex items-center gap-2 bg-brand-blue hover:bg-brand-blue-dark text-white font-semibold text-sm px-6 py-3.5 rounded-xl transition-colors"
           >
             {t.builtFor.cta}

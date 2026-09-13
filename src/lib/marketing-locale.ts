@@ -140,6 +140,7 @@ export interface MarketingDictionary {
     madeFor: string;
   };
   auth: {
+    backToHome: string;
     hero: {
       eyebrow: string;
       titleLine1: string;
@@ -494,6 +495,7 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
       madeFor: "Built for the people who keep the world moving.",
     },
     auth: {
+      backToHome: "Home",
       hero: {
         eyebrow: "Built for independent shops",
         titleLine1: "Run your shop",
@@ -854,6 +856,7 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
       madeFor: "Conçu pour les gens qui gardent le monde en mouvement.",
     },
     auth: {
+      backToHome: "Accueil",
       hero: {
         eyebrow: "Conçu pour les garages indépendants",
         titleLine1: "Gérez votre atelier",
