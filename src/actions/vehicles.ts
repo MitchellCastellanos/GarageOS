@@ -28,6 +28,11 @@ export async function getVehicleById(vehicleId: string) {
         where: { status: { not: "DISMISSED" } },
         orderBy: { createdAt: "desc" },
       },
+      workOrders: {
+        where: { status: { not: "CANCELLED" } },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+      },
     },
   });
 

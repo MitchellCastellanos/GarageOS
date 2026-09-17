@@ -110,6 +110,19 @@ export const publicBookingSchema = z.object({
 
 export type PublicBookingFormData = z.infer<typeof publicBookingSchema>;
 
+export const workOrderSchema = z.object({
+  clientId: z.string().min(1, "Select a client"),
+  vehicleId: z.string().min(1, "Select a vehicle"),
+  mechanicId: z.string().optional().or(z.literal("")),
+  concern: z.string().min(1, "Describe the customer concern").max(1000),
+  diagnosis: z.string().max(2000).optional().or(z.literal("")),
+  mileageIn: z.number().int().min(0).optional().nullable(),
+  mileageOut: z.number().int().min(0).optional().nullable(),
+  lineItems: z.array(lineItemSchema).default([]),
+});
+
+export type WorkOrderFormData = z.infer<typeof workOrderSchema>;
+
 export const reminderSchema = z.object({
   vehicleId: z.string().min(1, "Select a vehicle"),
   serviceType: z.string().min(1, "Service type is required").max(100),

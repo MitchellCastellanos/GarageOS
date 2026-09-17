@@ -10,9 +10,9 @@ El taller administra el estado del trabajo y las comunicaciones con el cliente. 
 
 ## Estado actual y construcción priorizada
 
-### 0. Work Orders de punta a punta
+### 0. Work Orders de punta a punta — ✅ Implementado
 
-Completar la función usable de órdenes de trabajo aprovechando `WorkOrder`, `WorkOrderLine` y el state machine ya existentes. Debe integrarse con citas, clientes/vehículos, cotizaciones/aprobaciones, técnico asignado, facturación e historial sin crear sistemas paralelos.
+Función usable de órdenes de trabajo sobre `WorkOrder`, `WorkOrderLine` y el state machine ya existentes (`canTransitionWorkOrder`): lista/detalle/crear/editar, técnico asignado (`WorkOrder.mechanicId`), generación de una orden por vehículo desde una cotización aceptada, conversión a factura borrador al completarse y sección de órdenes en el historial del vehículo. Integración con citas (vincular una orden a su `Appointment` de origen) queda pendiente como posible mejora futura, no bloqueante.
 
 ### 1. En implementación — expansión operativa
 

@@ -3,6 +3,7 @@ import { formatDocumentNumber } from "@/lib/utils";
 
 const INVOICE_PREFIX = "INV";
 const QUOTE_PREFIX = "COT";
+const WORK_ORDER_PREFIX = "OT";
 
 // Secuencia atómica por taller y tipo de documento (docs/domain-model.md
 // invariante 6) — ver el modelo DocumentSequence en schema.prisma. El
@@ -35,6 +36,13 @@ export async function allocateNextQuoteNumber(
   shopId: string
 ): Promise<string> {
   return allocateNextDocumentNumber(tx, shopId, "QUOTE", QUOTE_PREFIX);
+}
+
+export async function allocateNextWorkOrderNumber(
+  tx: Prisma.TransactionClient,
+  shopId: string
+): Promise<string> {
+  return allocateNextDocumentNumber(tx, shopId, "WORK_ORDER", WORK_ORDER_PREFIX);
 }
 
 export function isUniqueConstraintError(err: unknown): boolean {

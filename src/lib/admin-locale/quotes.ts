@@ -79,6 +79,8 @@ export interface QuotesDictionary {
     accepted: string;
     rejected: string;
     convertToInvoice: string;
+    createWorkOrder: string;
+    viewWorkOrder: (orderNumber: string) => string;
     cancel: string;
     delete: string;
   };
@@ -178,6 +180,8 @@ export const QUOTES_DICT: Record<AdminLocale, QuotesDictionary> = {
       accepted: "Cotización aceptada",
       rejected: "Cotización rechazada",
       convertToInvoice: "Convertir a factura",
+      createWorkOrder: "Crear orden de trabajo",
+      viewWorkOrder: (orderNumber) => `Ver orden ${orderNumber}`,
       cancel: "Anular",
       delete: "Eliminar",
     },
@@ -276,6 +280,8 @@ export const QUOTES_DICT: Record<AdminLocale, QuotesDictionary> = {
       accepted: "Quote accepted",
       rejected: "Quote rejected",
       convertToInvoice: "Convert to invoice",
+      createWorkOrder: "Create work order",
+      viewWorkOrder: (orderNumber) => `View order ${orderNumber}`,
       cancel: "Void",
       delete: "Delete",
     },
@@ -374,6 +380,8 @@ export const QUOTES_DICT: Record<AdminLocale, QuotesDictionary> = {
       accepted: "Soumission acceptée",
       rejected: "Soumission refusée",
       convertToInvoice: "Convertir en facture",
+      createWorkOrder: "Créer un ordre de travail",
+      viewWorkOrder: (orderNumber) => `Voir l'ordre ${orderNumber}`,
       cancel: "Annuler",
       delete: "Supprimer",
     },

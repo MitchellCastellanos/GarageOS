@@ -4,11 +4,12 @@ import { formatDate, formatCurrency } from "@/lib/utils";
 import { formatClientName } from "@/lib/client-name";
 import { INVOICE_STATUS_BADGE, invoiceStatusLabel } from "@/lib/invoice-status";
 import Link from "next/link";
-import { ChevronLeft, Pencil, Car, FileText, Bell, Plus } from "lucide-react";
+import { ChevronLeft, Pencil, Car, FileText, Bell, Plus, Wrench } from "lucide-react";
 import { DeleteVehicleButton } from "@/components/clients/DeleteVehicleButton";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import type { AdminLocale } from "@/lib/admin-locale";
 import { CLIENTS_DICT, type ClientsDictionary } from "@/lib/admin-locale/clients";
+import { WORK_ORDERS_DICT, type WorkOrdersDictionary } from "@/lib/admin-locale/work-orders";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -18,6 +19,7 @@ export default async function VehicleDetailPage({ params }: Props) {
   const { id } = await params;
   const [vehicle, locale] = await Promise.all([getVehicleById(id), getAdminLocale()]);
   const t = CLIENTS_DICT[locale];
+  const woT = WORK_ORDERS_DICT[locale];
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -106,6 +108,46 @@ export default async function VehicleDetailPage({ params }: Props) {
         )}
       </div>
 
+      {/* Órdenes de trabajo */}
+      <div className="bg-white rounded-xl border border-slate-200">
+        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Wrench className="w-4 h-4 text-slate-400" />
+            <h2 className="font-semibold text-slate-900">{t.vehicleDetail.workOrdersTitle}</h2>
+          </div>
+          <Link
+            href={adminPath(`/work-orders/new?vehicleId=${id}&clientId=${vehicle.clientId}`)}
+            className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            {t.vehicleDetail.newWorkOrder}
+          </Link>
+        </div>
+
+        {vehicle.workOrders.length === 0 ? (
+          <div className="p-8 text-center">
+            <Wrench className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+            <p className="text-sm text-slate-400">{t.vehicleDetail.noWorkOrders}</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {vehicle.workOrders.map((wo) => (
+              <Link
+                key={wo.id}
+                href={adminPath(`/work-orders/${wo.id}`)}
+                className="flex items-center justify-between px-5 py-3.5 hover:bg-slate-50 transition-colors"
+              >
+                <div>
+                  <p className="text-sm font-medium text-slate-900">{wo.orderNumber}</p>
+                  <p className="text-xs text-slate-500">{formatDate(wo.createdAt)}</p>
+                </div>
+                <WorkOrderStatusBadge status={wo.status} t={woT} />
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Recordatorios */}
       {vehicle.reminders.length > 0 && (
         <div className="bg-white rounded-xl border border-slate-200">
@@ -139,6 +181,26 @@ function StatusBadge({ status, locale }: { status: string; locale: AdminLocale }
       className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${INVOICE_STATUS_BADGE[status] ?? "bg-slate-100 text-slate-500"}`}
     >
       {invoiceStatusLabel(status, locale)}
+    </span>
+  );
+}
+
+const WORK_ORDER_STATUS_BADGE: Record<string, string> = {
+  OPEN: "bg-slate-100 text-slate-600",
+  AWAITING_APPROVAL: "bg-amber-100 text-amber-700",
+  APPROVED: "bg-blue-100 text-blue-700",
+  IN_PROGRESS: "bg-indigo-100 text-indigo-700",
+  COMPLETED: "bg-emerald-100 text-emerald-700",
+  INVOICED: "bg-teal-100 text-teal-700",
+  CANCELLED: "bg-slate-100 text-slate-400",
+};
+
+function WorkOrderStatusBadge({ status, t }: { status: string; t: WorkOrdersDictionary }) {
+  return (
+    <span
+      className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${WORK_ORDER_STATUS_BADGE[status] ?? "bg-slate-100 text-slate-500"}`}
+    >
+      {t.status[status as keyof typeof t.status] ?? status}
     </span>
   );
 }

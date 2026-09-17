@@ -61,6 +61,9 @@ export interface ClientsDictionary {
       sent: string;
       acknowledged: string;
     };
+    workOrdersTitle: string;
+    newWorkOrder: string;
+    noWorkOrders: string;
   };
   vehicleEdit: {
     title: string;
@@ -170,6 +173,9 @@ export const CLIENTS_DICT: Record<AdminLocale, ClientsDictionary> = {
         sent: "Enviado",
         acknowledged: "Confirmado",
       },
+      workOrdersTitle: "Órdenes de trabajo",
+      newWorkOrder: "Nueva orden",
+      noWorkOrders: "Sin órdenes de trabajo activas",
     },
     vehicleEdit: {
       title: "Editar vehículo",
@@ -278,6 +284,9 @@ export const CLIENTS_DICT: Record<AdminLocale, ClientsDictionary> = {
         sent: "Sent",
         acknowledged: "Confirmed",
       },
+      workOrdersTitle: "Work orders",
+      newWorkOrder: "New work order",
+      noWorkOrders: "No active work orders",
     },
     vehicleEdit: {
       title: "Edit vehicle",
@@ -386,6 +395,9 @@ export const CLIENTS_DICT: Record<AdminLocale, ClientsDictionary> = {
         sent: "Envoyé",
         acknowledged: "Confirmé",
       },
+      workOrdersTitle: "Ordres de travail",
+      newWorkOrder: "Nouvel ordre",
+      noWorkOrders: "Aucun ordre de travail actif",
     },
     vehicleEdit: {
       title: "Modifier le véhicule",
