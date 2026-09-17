@@ -4,6 +4,7 @@ import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { provisionDefaultSenderIdentities } from "@/lib/communications/sender-identity";
+import { createDefaultSubscription } from "@/lib/subscription";
 
 import { ADMIN } from "@/lib/routes";
 
@@ -38,6 +39,9 @@ export const authConfig: NextAuthConfig = {
       // Identidad de envío inicial (Communications Platform) — no bloquea el signup si falla.
       await provisionDefaultSenderIdentities(shop).catch((err) => {
         console.error("[communications] provisionDefaultSenderIdentities falló en signup:", err);
+      });
+      await createDefaultSubscription(db, shop.id).catch((err) => {
+        console.error("[subscription] createDefaultSubscription falló en signup:", err);
       });
       return true;
     },

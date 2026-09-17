@@ -3,6 +3,9 @@ import Link from "next/link";
 import { Megaphone, Plus } from "lucide-react";
 import { listCampaigns } from "@/actions/campaigns";
 import { formatDate } from "@/lib/utils";
+import { getShopId } from "@/lib/shop-context";
+import { can } from "@/lib/subscription";
+import { UpgradeCTA } from "@/components/billing/UpgradeCTA";
 
 const STATUS_BADGE: Record<string, string> = {
   DRAFT: "bg-slate-100 text-slate-600",
@@ -21,6 +24,24 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export default async function CampaignsPage() {
+  const shopId = await getShopId();
+  const entitled = await can(shopId, "communications.campaigns");
+
+  if (!entitled) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Campañas</h1>
+        </div>
+        <UpgradeCTA
+          requiredPlan="PRO"
+          title="Las campañas son una función Pro"
+          description="Envía correos segmentados a tus clientes (inactivos, por idioma, listas manuales). Incluido en Pro y Complete."
+        />
+      </div>
+    );
+  }
+
   const campaigns = await listCampaigns();
 
   return (

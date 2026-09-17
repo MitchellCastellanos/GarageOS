@@ -8,12 +8,14 @@ import {
   updateCommunicationRouteAction,
   type CommunicationSettingsData,
 } from "@/actions/communications-settings";
+import { UpgradeCTA } from "@/components/billing/UpgradeCTA";
 
 interface CommunicationRoutesCardProps {
   data: CommunicationSettingsData;
+  canCreateIdentity: boolean;
 }
 
-export function CommunicationRoutesCard({ data }: CommunicationRoutesCardProps) {
+export function CommunicationRoutesCard({ data, canCreateIdentity }: CommunicationRoutesCardProps) {
   const [identities, setIdentities] = useState(data.identities);
   const [routes, setRoutes] = useState(data.routes);
   const [pending, startTransition] = useTransition();
@@ -118,18 +120,29 @@ export function CommunicationRoutesCard({ data }: CommunicationRoutesCardProps) 
       </div>
 
       <div className="space-y-3">
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setShowNewIdentity(showNewIdentity === "EMAIL" ? null : "EMAIL")}
-            className="flex items-center gap-1.5 text-sm font-medium text-teal-700 hover:bg-teal-50 px-3 py-1.5 rounded-lg"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Nueva identidad de email
-          </button>
-        </div>
+        {!canCreateIdentity && (
+          <UpgradeCTA
+            requiredPlan="PRO"
+            title="Identidades de envío personalizadas"
+            description="Agregar remitentes propios (más allá de los de GarageOS) está disponible en Pro y Complete."
+            compact
+          />
+        )}
 
-        {showNewIdentity === "EMAIL" && (
+        {canCreateIdentity && (
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setShowNewIdentity(showNewIdentity === "EMAIL" ? null : "EMAIL")}
+              className="flex items-center gap-1.5 text-sm font-medium text-teal-700 hover:bg-teal-50 px-3 py-1.5 rounded-lg"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Nueva identidad de email
+            </button>
+          </div>
+        )}
+
+        {canCreateIdentity && showNewIdentity === "EMAIL" && (
           <form onSubmit={handleCreateIdentity} className="flex flex-wrap gap-2 items-start">
             <input type="hidden" name="channel" value="EMAIL" />
             <input

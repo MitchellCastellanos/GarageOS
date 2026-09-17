@@ -5,6 +5,9 @@ import { getInventoryParts } from "@/actions/inventory";
 import { formatCurrency } from "@/lib/utils";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import { INVENTORY_DICT } from "@/lib/admin-locale/inventory";
+import { getShopId } from "@/lib/shop-context";
+import { can } from "@/lib/subscription";
+import { UpgradeCTA } from "@/components/billing/UpgradeCTA";
 
 interface Props {
   searchParams: Promise<{ q?: string }>;
@@ -13,6 +16,25 @@ interface Props {
 export default async function InventoryPage({ searchParams }: Props) {
   const locale = await getAdminLocale();
   const t = INVENTORY_DICT[locale];
+  const shopId = await getShopId();
+  const entitled = await can(shopId, "inventory.manage");
+
+  if (!entitled) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">{t.page.title}</h1>
+        </div>
+        <UpgradeCTA
+          requiredPlan="PRO"
+          title={t.locked.title}
+          description={t.locked.description}
+          ctaLabel={t.locked.cta}
+        />
+      </div>
+    );
+  }
+
   const { q } = await searchParams;
   const parts = await getInventoryParts(q);
   const lowStockCount = parts.filter((p) => p.quantityOnHand <= p.reorderThreshold).length;

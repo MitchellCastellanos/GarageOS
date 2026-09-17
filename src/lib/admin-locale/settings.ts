@@ -9,6 +9,7 @@ export interface SettingsDictionary {
     team: string;
     locations: string;
     domain: string;
+    billing: string;
     support: string;
   };
   appointmentReminders: {
@@ -241,6 +242,12 @@ export interface SettingsDictionary {
   support: {
     needHelp: string;
   };
+  billingCta: {
+    seatLimitTitle: string;
+    seatLimitDescription: (limit: number) => string;
+    multiLocationTitle: string;
+    multiLocationDescription: string;
+  };
 }
 
 export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
@@ -256,6 +263,7 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       team: "Equipo",
       locations: "Ubicaciones",
       domain: "Dominio",
+      billing: "Facturación",
       support: "Soporte",
     },
     language: {
@@ -491,6 +499,14 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       },
     },
     support: { needHelp: "¿Necesita ayuda?" },
+    billingCta: {
+      seatLimitTitle: "Límite de usuarios alcanzado",
+      seatLimitDescription: (limit) =>
+        `Tu plan actual permite hasta ${limit} usuarios. Actualiza a Pro para usuarios ilimitados.`,
+      multiLocationTitle: "Multi-sucursal es una función Complete",
+      multiLocationDescription:
+        "Agregar más de una ubicación requiere el plan Complete — incluye administración centralizada y reportes consolidados.",
+    },
   },
   en: {
     page: {
@@ -504,6 +520,7 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       team: "Team",
       locations: "Locations",
       domain: "Domain",
+      billing: "Billing",
       support: "Support",
     },
     language: {
@@ -739,6 +756,14 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       },
     },
     support: { needHelp: "Need help?" },
+    billingCta: {
+      seatLimitTitle: "User limit reached",
+      seatLimitDescription: (limit) =>
+        `Your current plan allows up to ${limit} users. Upgrade to Pro for unlimited users.`,
+      multiLocationTitle: "Multi-location is a Complete feature",
+      multiLocationDescription:
+        "Adding more than one location requires the Complete plan — includes centralized administration and consolidated reporting.",
+    },
   },
   fr: {
     page: {
@@ -752,6 +777,7 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       team: "Équipe",
       locations: "Emplacements",
       domain: "Domaine",
+      billing: "Facturation",
       support: "Assistance",
     },
     language: {
@@ -987,5 +1013,13 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       },
     },
     support: { needHelp: "Besoin d'aide?" },
+    billingCta: {
+      seatLimitTitle: "Limite d’utilisateurs atteinte",
+      seatLimitDescription: (limit) =>
+        `Votre plan actuel permet jusqu’à ${limit} utilisateurs. Passez à Pro pour des utilisateurs illimités.`,
+      multiLocationTitle: "Le multi-établissement est une fonction Complete",
+      multiLocationDescription:
+        "Ajouter plus d’un établissement nécessite le plan Complete — inclut l’administration centralisée et les rapports consolidés.",
+    },
   },
 };

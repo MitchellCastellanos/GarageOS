@@ -21,6 +21,7 @@ import {
   Package,
   Wrench,
   ClipboardCheck,
+  Lock,
   X,
 } from "lucide-react";
 
@@ -34,11 +35,13 @@ function RailLink({
   label,
   icon: Icon,
   active,
+  locked,
 }: {
   href: string;
   label: string;
   icon: typeof LayoutDashboard;
   active: boolean;
+  locked?: boolean;
 }) {
   return (
     <Link
@@ -52,10 +55,16 @@ function RailLink({
       )}
     >
       <Icon className="w-5 h-5 flex-shrink-0" />
+      {locked && (
+        <span className="absolute top-0.5 right-0.5 w-3.5 h-3.5 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center">
+          <Lock className="w-2 h-2" />
+        </span>
+      )}
       <span
         className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-md bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 z-20"
       >
         {label}
+        {locked && <span className="text-amber-400 ml-1">· Pro</span>}
       </span>
     </Link>
   );
@@ -65,11 +74,14 @@ export function Sidebar({
   isOwner,
   mobileOpen,
   onMobileClose,
+  lockedNavHrefs,
 }: {
   isOwner: boolean;
   mobileOpen: boolean;
   onMobileClose: () => void;
+  lockedNavHrefs?: string[];
 }) {
+  const lockedSet = new Set(lockedNavHrefs ?? []);
   const pathname = usePathname();
   const locale = useAdminLocale();
   const t = LAYOUT_DICT[locale];
@@ -157,6 +169,7 @@ export function Sidebar({
                 label={item.label}
                 icon={item.icon}
                 active={isActive}
+                locked={lockedSet.has(item.href)}
               />
             );
           })}
@@ -226,6 +239,12 @@ export function Sidebar({
                   >
                     <item.icon className="w-4.5 h-4.5 flex-shrink-0" />
                     {item.label}
+                    {lockedSet.has(item.href) && (
+                      <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-semibold text-amber-400">
+                        <Lock className="w-3 h-3" />
+                        Pro
+                      </span>
+                    )}
                   </Link>
                 ))}
                 <div className="border-t border-slate-800 my-2" />

@@ -5,8 +5,9 @@ import { toast } from "sonner";
 import { Loader2, RefreshCw, Trash2 } from "lucide-react";
 import { StatusBadge, DnsRecordsTable, type DomainInfo } from "./domain-shared";
 import { setEmailDomain, verifyEmailDomainAction, removeEmailDomainAction } from "@/actions/domains";
+import { UpgradeCTA } from "@/components/billing/UpgradeCTA";
 
-export function EmailDomainCard({ email }: { email: DomainInfo | null }) {
+export function EmailDomainCard({ email, entitled }: { email: DomainInfo | null; entitled: boolean }) {
   const [pending, startTransition] = useTransition();
   const [domain, setDomain] = useState(email?.domain ?? "");
 
@@ -52,23 +53,41 @@ export function EmailDomainCard({ email }: { email: DomainInfo | null }) {
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="flex flex-wrap gap-2">
-        <input
-          name="domain"
-          placeholder="tudominio.com"
-          value={domain}
-          onChange={(e) => setDomain(e.target.value)}
-          className="flex-1 min-w-[200px] px-3 py-2 border border-slate-300 rounded-lg text-sm"
+      {!entitled && !email && (
+        <UpgradeCTA
+          requiredPlan="PRO"
+          title="Dominio propio de correo"
+          description="Disponible en Pro y Complete."
+          compact
         />
-        <button
-          type="submit"
-          disabled={pending || !domain.trim()}
-          className="flex items-center gap-2 bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg"
-        >
-          {pending && <Loader2 className="w-4 h-4 animate-spin" />}
-          {email ? "Actualizar" : "Registrar dominio"}
-        </button>
-      </form>
+      )}
+
+      {(entitled || email) && (
+        <form onSubmit={handleSubmit} className="flex flex-wrap gap-2">
+          <input
+            name="domain"
+            placeholder="tudominio.com"
+            value={domain}
+            onChange={(e) => setDomain(e.target.value)}
+            disabled={!entitled}
+            className="flex-1 min-w-[200px] px-3 py-2 border border-slate-300 rounded-lg text-sm disabled:bg-slate-50 disabled:text-slate-400"
+          />
+          <button
+            type="submit"
+            disabled={pending || !domain.trim() || !entitled}
+            className="flex items-center gap-2 bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg"
+          >
+            {pending && <Loader2 className="w-4 h-4 animate-spin" />}
+            {email ? "Actualizar" : "Registrar dominio"}
+          </button>
+        </form>
+      )}
+      {!entitled && email && (
+        <p className="text-xs text-amber-600">
+          Tu plan ya no incluye dominio propio de correo — este dominio se mantiene activo, pero
+          no puedes editarlo ni agregar uno nuevo hasta actualizar tu plan.
+        </p>
+      )}
 
       {email && (
         <div className="space-y-3">

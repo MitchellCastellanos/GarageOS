@@ -13,6 +13,7 @@ import {
 } from "@/actions/locations";
 import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
 import { SETTINGS_DICT } from "@/lib/admin-locale/settings";
+import { UpgradeCTA } from "@/components/billing/UpgradeCTA";
 
 interface LocationShop {
   id: string;
@@ -32,6 +33,7 @@ interface LocationsSettingsProps {
   shops: LocationShop[];
   currentShopId: string;
   orgUsers: OrgUser[];
+  canAddLocation: boolean;
 }
 
 export function LocationsSettings({
@@ -39,6 +41,7 @@ export function LocationsSettings({
   shops,
   currentShopId,
   orgUsers,
+  canAddLocation,
 }: LocationsSettingsProps) {
   const locale = useAdminLocale();
   const t = SETTINGS_DICT[locale];
@@ -107,7 +110,15 @@ export function LocationsSettings({
         <p className="text-sm text-slate-500 mt-0.5">{t.locations.subtitle}</p>
       </div>
 
-      {!organizationId && (
+      {!organizationId && !canAddLocation && (
+        <UpgradeCTA
+          requiredPlan="COMPLETE"
+          title={t.billingCta.multiLocationTitle}
+          description={t.billingCta.multiLocationDescription}
+        />
+      )}
+
+      {!organizationId && canAddLocation && (
         <div className="bg-white rounded-xl border border-slate-200 p-5">
           <h3 className="font-medium text-slate-900">{t.locations.addFirstTitle}</h3>
           <p className="text-sm text-slate-500 mt-1 mb-4">{t.locations.addFirstSubtitle}</p>
@@ -215,26 +226,34 @@ export function LocationsSettings({
             })}
           </div>
 
-          <div className="bg-white rounded-xl border border-slate-200 p-5">
-            <h3 className="font-medium text-slate-900 mb-3">{t.locations.createButton}</h3>
-            <form onSubmit={handleCreate} className="flex gap-2">
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder={t.locations.namePlaceholder}
-                className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <button
-                type="submit"
-                disabled={pending}
-                className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                {pending ? t.locations.creating : t.locations.createButton}
-              </button>
-            </form>
-          </div>
+          {canAddLocation ? (
+            <div className="bg-white rounded-xl border border-slate-200 p-5">
+              <h3 className="font-medium text-slate-900 mb-3">{t.locations.createButton}</h3>
+              <form onSubmit={handleCreate} className="flex gap-2">
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder={t.locations.namePlaceholder}
+                  className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <button
+                  type="submit"
+                  disabled={pending}
+                  className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  {pending ? t.locations.creating : t.locations.createButton}
+                </button>
+              </form>
+            </div>
+          ) : (
+            <UpgradeCTA
+              requiredPlan="COMPLETE"
+              title={t.billingCta.multiLocationTitle}
+              description={t.billingCta.multiLocationDescription}
+            />
+          )}
         </>
       )}
     </div>

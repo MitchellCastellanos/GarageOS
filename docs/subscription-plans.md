@@ -265,12 +265,49 @@ The exact names can change during implementation, but the concepts should stay s
 
 ## Current implementation status
 
-As of this packaging decision:
-
-- The marketing site may display the final plan structure before every planned feature is finished.
-- **No runtime plan blockers should be assumed to exist yet.**
-- Billing/subscription enforcement should be implemented later using this document and the product roadmap together.
-- A feature marked Future here still depends on the roadmap and its actual implementation state.
-- `src/lib/marketing-pricing.ts` is the public marketing pricing source for the homepage.
+- **Runtime entitlement gates are implemented** for the capabilities that
+  already exist in the product: `inventory.manage`, `communications.campaigns`,
+  `branding.customDomain`, `branding.customSender`, `organization.multiLocation`,
+  plus the `users.limit` seat cap. Everything still marked "Future" above
+  (two-way SMS, public API, QuickBooks sync, advanced reports/DVI, etc.) has
+  no gate yet because the feature itself doesn't exist in code.
+- `src/config/entitlements.ts` is the single source of truth for
+  plan → capability mapping (`CAPABILITY_MIN_PLAN`) and per-plan numeric
+  limits (`PLAN_LIMITS`). `src/lib/subscription.ts` resolves a shop's
+  effective plan (`getEffectiveSubscription`, `can`, `requireEntitlement`/
+  `checkEntitlement`) — trial expiry and multi-location organizations (which
+  share one Subscription per org) are resolved there, never by comparing
+  `plan === "..."` elsewhere.
+- Enforcement exists at both layers per the guidance below: server actions
+  reject a disallowed write (`src/actions/inventory.ts`, `campaigns.ts`,
+  `domains.ts`, `communications-settings.ts`, `users.ts`, `locations.ts`),
+  and the corresponding pages/components show an upgrade CTA
+  (`src/components/billing/UpgradeCTA.tsx`) instead of silently failing —
+  full-page for Inventory/Campaigns, inline for Domains/Sender
+  identities/Team/Locations, plus a small lock badge on the gated nav items.
+- Billing lives in Settings → Billing (`src/components/billing/BillingCard.tsx`,
+  `src/actions/billing.ts`): current plan/status, a monthly/yearly plan
+  picker that starts a Stripe Checkout session, and a "Manage billing" link
+  to the Stripe customer portal.
+- Stripe sync is a webhook at `src/app/api/stripe/webhook/route.ts`
+  (`checkout.session.completed`, `customer.subscription.*`) plus
+  `src/lib/stripe.ts`. See `.env.example` for the required `STRIPE_*`
+  variables and the chat response that shipped alongside this change for the
+  exact Dashboard configuration (products, prices, webhook, portal, CAD/tax
+  settings).
+- New shops (signup, Google sign-in, and platform-admin-created shops) start
+  on a 14-day **Pro trial** (`createDefaultSubscription`). Shops that
+  existed before this system shipped were grandfathered to **Complete/Active**
+  in the backfill migration (`prisma/migrations/20260917153000_add_subscriptions`)
+  so nothing already in use broke.
+- Per-location metered billing for Multi-Shop ($199 CAD/month/location) is
+  **not wired to Stripe yet** — `organization.multiLocation` gates *whether*
+  a Complete-plan shop can add a second location at all, but adding
+  locations does not yet adjust a Stripe subscription item's quantity. Do
+  this next if/when Multi-Shop billing needs to be metered automatically.
+- `src/lib/marketing-pricing.ts` is the public marketing pricing source for
+  the homepage — it is copy only and intentionally separate from
+  `PLAN_PRICING_CAD` in `src/config/entitlements.ts` (used for the in-app
+  billing picker); keep both in sync by hand when prices change.
 
 When product scope changes, update this document first or in the same PR as the entitlement change so marketing, billing and runtime gates cannot silently drift apart.

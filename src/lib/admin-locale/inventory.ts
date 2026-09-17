@@ -8,6 +8,11 @@ export interface InventoryDictionary {
     lowStockBanner: (count: number) => string;
     searchPlaceholder: string;
   };
+  locked: {
+    title: string;
+    description: string;
+    cta: string;
+  };
   table: {
     colName: string;
     colSku: string;
@@ -85,6 +90,12 @@ export const INVENTORY_DICT: Record<AdminLocale, InventoryDictionary> = {
         `${count} refacción${count !== 1 ? "es" : ""} en o por debajo del punto de reorden`,
       searchPlaceholder: "Buscar por nombre o SKU...",
     },
+    locked: {
+      title: "El inventario es una función Pro",
+      description:
+        "Controla refacciones, niveles de stock y consumo automático en las órdenes. Incluido en Pro y Complete.",
+      cta: "Actualizar a Pro",
+    },
     table: {
       colName: "Refacción",
       colSku: "SKU",
@@ -158,6 +169,12 @@ export const INVENTORY_DICT: Record<AdminLocale, InventoryDictionary> = {
       newPart: "New part",
       lowStockBanner: (count) => `${count} part${count !== 1 ? "s" : ""} at or below reorder point`,
       searchPlaceholder: "Search by name or SKU...",
+    },
+    locked: {
+      title: "Inventory is a Pro feature",
+      description:
+        "Track parts, stock levels and automatic consumption on jobs. Included in Pro and Complete.",
+      cta: "Upgrade to Pro",
     },
     table: {
       colName: "Part",
@@ -233,6 +250,12 @@ export const INVENTORY_DICT: Record<AdminLocale, InventoryDictionary> = {
       lowStockBanner: (count) =>
         `${count} pièce${count !== 1 ? "s" : ""} au seuil de réapprovisionnement ou en dessous`,
       searchPlaceholder: "Rechercher par nom ou SKU...",
+    },
+    locked: {
+      title: "L’inventaire est une fonction Pro",
+      description:
+        "Suivez vos pièces, niveaux de stock et la consommation automatique sur les travaux. Inclus dans Pro et Complete.",
+      cta: "Passer à Pro",
     },
     table: {
       colName: "Pièce",

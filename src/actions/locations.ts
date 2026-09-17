@@ -9,6 +9,7 @@ import { shopLocationSchema, type ShopLocationFormData } from "@/lib/validations
 import { provisionDefaultSenderIdentities } from "@/lib/communications/sender-identity";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import { SETTINGS_DICT } from "@/lib/admin-locale/settings";
+import { checkEntitlement } from "@/lib/subscription";
 
 // ── Ubicaciones accesibles para el usuario actual ──────────────
 // El shop "de casa" (User.shopId) siempre es accesible implícitamente, sin
@@ -105,6 +106,9 @@ export async function createShopLocation(formData: ShopLocationFormData) {
   const session = await requireOwner();
   const locale = await getAdminLocale();
   const t = SETTINGS_DICT[locale];
+
+  const entitlementError = await checkEntitlement(session.user.shopId!, "organization.multiLocation");
+  if (entitlementError) return { error: entitlementError };
 
   const parsed = shopLocationSchema.safeParse(formData);
   if (!parsed.success) {
