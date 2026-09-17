@@ -22,6 +22,15 @@ export interface SettingsDictionary {
     saving: string;
     saved: string;
   };
+  workOrderNotifications: {
+    title: string;
+    emailLabel: string;
+    smsLabel: string;
+    hint: string;
+    save: string;
+    saving: string;
+    saved: string;
+  };
   language: {
     title: string;
     hint: string;
@@ -312,6 +321,15 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       saving: "Guardando...",
       saved: "Configuración guardada",
     },
+    workOrderNotifications: {
+      title: "Órdenes de trabajo — avisar cuando el vehículo esté listo",
+      emailLabel: "Notificar por email al marcar \"Listo para retirar\"",
+      smsLabel: "Notificar por SMS al marcar \"Listo para retirar\"",
+      hint: "Se envía una sola vez por orden de trabajo, reutilizando el email/teléfono del cliente.",
+      save: "Guardar cambios",
+      saving: "Guardando...",
+      saved: "Configuración guardada",
+    },
     password: {
       title: "Cambiar contraseña",
       current: "Contraseña actual",
@@ -551,6 +569,15 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       saving: "Saving...",
       saved: "Settings saved",
     },
+    workOrderNotifications: {
+      title: "Work orders — notify when the vehicle is ready",
+      emailLabel: 'Notify by email when marked "Ready for pickup"',
+      smsLabel: 'Notify by SMS when marked "Ready for pickup"',
+      hint: "Sent once per work order, reusing the client's email/phone on file.",
+      save: "Save changes",
+      saving: "Saving...",
+      saved: "Settings saved",
+    },
     password: {
       title: "Change password",
       current: "Current password",
@@ -786,6 +813,15 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       emailNotifLabel: "Envoyer aussi par courriel (secondaire)",
       smsHint:
         "Le SMS nécessite un compte Twilio configuré par l'équipe technique (TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN / TWILIO_FROM_NUMBER).",
+      save: "Enregistrer les changements",
+      saving: "Enregistrement...",
+      saved: "Configuration enregistrée",
+    },
+    workOrderNotifications: {
+      title: "Ordres de travail — aviser quand le véhicule est prêt",
+      emailLabel: "Notifier par courriel lorsque marqué « Prêt pour la récupération »",
+      smsLabel: "Notifier par SMS lorsque marqué « Prêt pour la récupération »",
+      hint: "Envoyé une seule fois par ordre de travail, en réutilisant le courriel/téléphone du client.",
       save: "Enregistrer les changements",
       saving: "Enregistrement...",
       saved: "Configuration enregistrée",

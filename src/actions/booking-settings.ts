@@ -341,6 +341,28 @@ const reminderSchema = z.object({
   appointmentEmailsEnabled: z.coerce.boolean(),
 });
 
+const workOrderNotifySchema = z.object({
+  workOrderReadyNotifyEmail: z.coerce.boolean(),
+  workOrderReadyNotifySms: z.coerce.boolean(),
+});
+
+export async function updateWorkOrderNotificationSettings(formData: FormData) {
+  const session = await requireOwner();
+  const shopId = session.user.shopId!;
+
+  const parsed = workOrderNotifySchema.safeParse({
+    workOrderReadyNotifyEmail: formData.get("workOrderReadyNotifyEmail") === "on",
+    workOrderReadyNotifySms: formData.get("workOrderReadyNotifySms") === "on",
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.flatten().fieldErrors };
+  }
+
+  await db.shop.update({ where: { id: shopId }, data: parsed.data });
+  revalidatePath(ADMIN.settings);
+  return { success: true };
+}
+
 export async function updateAppointmentReminderSettings(formData: FormData) {
   const session = await requireOwner();
   const shopId = session.user.shopId!;

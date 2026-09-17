@@ -23,6 +23,7 @@ const EXTRA_ROUTE_PURPOSES: RoutePurpose[] = [
   { purpose: "APPOINTMENT", channel: "SMS", label: "Citas (SMS)" },
   { purpose: "INVOICE", channel: "SMS", label: "Facturas (SMS)" },
   { purpose: "QUOTE", channel: "SMS", label: "Cotizaciones (SMS)" },
+  { purpose: "WORK_ORDER", channel: "SMS", label: "Órdenes de trabajo (SMS)" },
 ];
 
 export const ROUTE_PURPOSES: RoutePurpose[] = [...EMAIL_ROUTE_PURPOSES, ...EXTRA_ROUTE_PURPOSES];

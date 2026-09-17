@@ -14,13 +14,11 @@ El taller administra el estado del trabajo y las comunicaciones con el cliente. 
 
 Función usable de órdenes de trabajo sobre `WorkOrder`, `WorkOrderLine` y el state machine ya existentes (`canTransitionWorkOrder`): lista/detalle/crear/editar, técnico asignado (`WorkOrder.mechanicId`), generación de una orden por vehículo desde una cotización aceptada, conversión a factura borrador al completarse y sección de órdenes en el historial del vehículo. Integración con citas (vincular una orden a su `Appointment` de origen) queda pendiente como posible mejora futura, no bloqueante.
 
-### 1. En implementación — expansión operativa
+### 1. Expansión operativa
 
-Estas tres funciones están siendo construidas actualmente en una rama/PR separado. No se consideran terminadas hasta revisar y validar la implementación:
-
-- **Vehicle / Job Status + customer notifications.** Estado operacional simple administrado por el taller (por ejemplo checked in, in service, waiting approval/parts, ready for pickup, completed), integrado con Work Orders donde corresponda. Notificación opcional por SMS/email — especialmente Ready for Pickup — reutilizando Communications y evitando duplicados. No convertir esto en un Work Board.
-- **Service / Maintenance Reminders.** Recordatorios futuros asociados a cliente/vehículo (aceite, frenos, cambio estacional de neumáticos, mantenimiento y recordatorios personalizados), reutilizando la infraestructura de comunicaciones y con procesamiento idempotente.
-- **Digital Vehicle Inspections (DVI).** Inspecciones móviles con estados tipo good / attention / service required, notas, recomendaciones y fotos/media usando la infraestructura existente. Los hallazgos deben integrarse naturalmente con Estimates/Quotes y Work Orders y quedar en el historial del vehículo.
+- **Vehicle / Job Status + customer notifications — ✅ Implementado.** `WorkOrder.jobStatus` (checked in, waiting approval, waiting parts, in service, ready for pickup, completed) administrado por el taller desde el detalle y la lista de Work Orders. Al marcar Ready for Pickup se notifica por email/SMS reutilizando Communications (`WORK_ORDER` channel/purpose), de forma idempotente (`readyForPickupNotifiedAt`, una sola vez por orden) y con toggles por taller en Configuración. No es un Work Board.
+- **Service / Maintenance Reminders — ✅ Implementado.** Recordatorios futuros asociados a cliente/vehículo, reutilizando la infraestructura de comunicaciones.
+- **Digital Vehicle Inspections (DVI) — ✅ Implementado.** Checklist digital (`Inspection`/`InspectionItem`/`InspectionPhoto`) con condición good/attention/service required, notas y fotos por elemento (Supabase Storage). Se puede vincular a un Work Order y a un mecánico, queda en el historial del vehículo, y "Crear cotización de hallazgos" genera una cotización borrador a partir de los elementos marcados attention/service required, reutilizando el sistema de Quotes existente. Surfacing de hallazgos en la página pública de aprobación de la cotización queda como mejora futura no bloqueante.
 
 ### 2. Pendientes ya identificados en el producto
 

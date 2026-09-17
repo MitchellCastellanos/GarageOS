@@ -16,7 +16,8 @@ La regla sigue siendo la misma: una función no cuenta como implementada solo po
 | Inventory & Parts | ✅ Implementado | Módulo autónomo y ledger de movimientos. Integración automática con uso/facturación de piezas sigue pendiente. |
 | Reports & Analytics | ⚠️ Parcial | Dashboard tiene insights; falta sección de Reports completa. |
 | Branding | ✅ Implementado | Branding en emails/PDFs/booking y dominio propio por taller. |
-| Estimates + customer approval | ✅ Implementado | Token, snapshot/hash, expiración y aprobación. Debe reutilizarse para DVI en vez de crear otro approval flow. |
+| Estimates + customer approval | ✅ Implementado | Token, snapshot/hash, expiración y aprobación. Reutilizado por DVI ("Crear cotización de hallazgos") en vez de un approval flow paralelo. |
+| Digital Vehicle Inspections (DVI) | ✅ Implementado | Checklist con condición good/attention/service required, notas y fotos; genera cotización borrador desde los hallazgos. |
 | Roles | ⚠️ Parcial | OWNER/MECHANIC/VIEWER existen; MECHANIC y VIEWER necesitan diferenciación adicional. |
 | Multi-location | ✅ Implementado | Organization, accesos y cambio de ubicación. Aislamiento sigue siendo principalmente application-level. |
 | Signup | ✅ Implementado | Self-service signup funcional. |
@@ -24,23 +25,19 @@ La regla sigue siendo la misma: una función no cuenta como implementada solo po
 
 ## Actualmente en implementación
 
-Un agente está construyendo estas tres funciones. Se mantienen como **EN IMPLEMENTACIÓN**, no como completadas, hasta revisar el PR y validar el comportamiento real:
+### Vehicle / Job Status + customer notifications — ✅ Implementado
 
-### Vehicle / Job Status + customer notifications
+`WorkOrder.jobStatus` (CHECKED_IN, WAITING_APPROVAL, WAITING_PARTS, IN_SERVICE, READY_FOR_PICKUP, COMPLETED) administrado por el front desk desde la lista y el detalle de Work Orders — no es un Work Board/kanban. Al marcar Ready for Pickup se notifica al cliente por email y/o SMS reutilizando Communications (nuevo canal/purpose `WORK_ORDER`), de forma idempotente vía `readyForPickupNotifiedAt` (una sola notificación por orden). El taller controla ambos canales desde Configuración (`Shop.workOrderReadyNotifyEmail` / `workOrderReadyNotifySms`).
 
-Objetivo: que el front desk/admin pueda representar de forma simple el estado operacional de un trabajo/vehículo y, cuando corresponda, avisar al cliente. Debe integrarse con Work Orders y Communications existentes en vez de crear un sistema paralelo. Ready for Pickup es el caso de notificación principal; el taller controla si la automatización está habilitada y el envío debe ser idempotente.
+### Service / Maintenance Reminders — ✅ Implementado
 
-No se quiere un Work Board/kanban como requisito. El producto está pensado para que el dueño/front desk pueda operar el flujo aunque el mecánico casi no toque el software.
+Recordatorios futuros asociados a cliente/vehículo para aceite, frenos, mantenimiento estacional y servicios personalizados, aprovechando Communications.
 
-### Service / Maintenance Reminders
+### Digital Vehicle Inspections (DVI) — ✅ Implementado
 
-Objetivo: recordatorios futuros asociados a cliente/vehículo para aceite, frenos, mantenimiento estacional, inspecciones y servicios personalizados. Deben aprovechar Communications, integrarse con historial cuando aporte valor y evitar envíos duplicados. Una V1 basada en fechas es suficiente salvo que el modelo existente permita algo mejor sin complejidad innecesaria.
+Checklist digital (`Inspection` → `InspectionItem` → `InspectionPhoto`) con categorías estándar (neumáticos, frenos, batería, luces, fluidos, etc.) más elementos personalizados, condición good/attention/service required, notas y fotos por elemento subidas al bucket existente de Supabase Storage. Vive en el historial del vehículo, puede vincularse a un Work Order y a un mecánico, y "Crear cotización de hallazgos" arma una cotización DRAFT a partir de los elementos con hallazgo, reutilizando el sistema de Quotes/approval existente en vez de un flujo paralelo.
 
-### Digital Vehicle Inspections (DVI)
-
-Objetivo: inspecciones digitales utilizables en móvil/tablet con estados equivalentes a good / attention / service required, notas, recomendaciones y fotos/media. Deben vivir en el historial del vehículo y reutilizar Estimates/Quotes + approval para convertir hallazgos en trabajo autorizable sin reescribir la información.
-
-La implementación debe reutilizar media/storage, public-token flows, Work Orders y aislamiento existentes donde corresponda.
+Pendiente como mejora futura no bloqueante: mostrar fotos/notas de la inspección directamente en la página pública de aprobación de la cotización generada.
 
 ## Pendientes que YA estaban identificados
 
@@ -98,4 +95,4 @@ Customer Portal queda deliberadamente después de este núcleo.
 
 Antes de exponer GarageOS a datos reales de varios talleres todavía deben tratarse como launch-critical: aislamiento tenant/shop, ownership de relaciones y media, concurrencia e idempotencia, fiscalidad Quebec/Canadá aplicable, backups/restauración, communications reales, responsive/mobile, importación/migración y subscription gates.
 
-Este documento debe actualizarse otra vez cuando el PR de Status + Reminders + DVI se revise: solo entonces esas tres funciones pasan de **EN IMPLEMENTACIÓN** a **IMPLEMENTADAS**.
+Work Orders, Vehicle/Job Status + notificaciones, Service Reminders y DVI ya están implementados (ver tabla arriba). Lo siguiente en `docs/roadmap.md` es Reports & Analytics completos, permisos MECHANIC/VIEWER, integración Inventory → uso/facturación, y las nuevas funciones de menor a mayor alcance (Data Import, Tire Storage, Accounting Light + QBO, Customer Portal).

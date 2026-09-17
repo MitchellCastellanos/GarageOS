@@ -123,6 +123,23 @@ export const workOrderSchema = z.object({
 
 export type WorkOrderFormData = z.infer<typeof workOrderSchema>;
 
+export const newInspectionSchema = z.object({
+  clientId: z.string().min(1, "Select a client"),
+  vehicleId: z.string().min(1, "Select a vehicle"),
+  workOrderId: z.string().optional().or(z.literal("")),
+  mechanicId: z.string().optional().or(z.literal("")),
+  mileage: z.number().int().min(0).optional().nullable(),
+});
+
+export type NewInspectionFormData = z.infer<typeof newInspectionSchema>;
+
+export const inspectionItemUpdateSchema = z.object({
+  condition: z.enum(["GOOD", "ATTENTION", "SERVICE_REQUIRED"]),
+  notes: z.string().max(1000).optional().or(z.literal("")),
+});
+
+export type InspectionItemUpdateData = z.infer<typeof inspectionItemUpdateSchema>;
+
 export const reminderSchema = z.object({
   vehicleId: z.string().min(1, "Select a vehicle"),
   serviceType: z.string().min(1, "Service type is required").max(100),

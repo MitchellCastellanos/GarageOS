@@ -33,6 +33,11 @@ export async function getVehicleById(vehicleId: string) {
         orderBy: { createdAt: "desc" },
         take: 10,
       },
+      inspections: {
+        orderBy: { createdAt: "desc" },
+        take: 10,
+        include: { items: { select: { condition: true } } },
+      },
     },
   });
 
