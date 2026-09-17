@@ -15,6 +15,24 @@ export interface WorkOrdersDictionary {
     PART: string;
     OTHER: string;
   };
+  jobStatus: {
+    CHECKED_IN: string;
+    WAITING_APPROVAL: string;
+    WAITING_PARTS: string;
+    IN_SERVICE: string;
+    READY_FOR_PICKUP: string;
+    COMPLETED: string;
+  };
+  jobStatusControl: {
+    title: string;
+    label: string;
+    notifiedBadge: string;
+    notifyEmailSent: string;
+    notifySmsSent: string;
+    notifyNoContact: string;
+    notifyFailed: string;
+    updated: string;
+  };
   list: {
     title: string;
     countSuffix: string;
@@ -29,6 +47,7 @@ export interface WorkOrdersDictionary {
     colMechanic: string;
     colDate: string;
     colStatus: string;
+    colJobStatus: string;
     unassigned: string;
   };
   new: {
@@ -131,6 +150,24 @@ export const WORK_ORDERS_DICT: Record<AdminLocale, WorkOrdersDictionary> = {
       PART: "Repuesto",
       OTHER: "Otro",
     },
+    jobStatus: {
+      CHECKED_IN: "Recibido",
+      WAITING_APPROVAL: "Esperando aprobación",
+      WAITING_PARTS: "Esperando repuestos",
+      IN_SERVICE: "En servicio",
+      READY_FOR_PICKUP: "Listo para retirar",
+      COMPLETED: "Entregado",
+    },
+    jobStatusControl: {
+      title: "Estado para el cliente",
+      label: "Estado actual",
+      notifiedBadge: "Cliente notificado",
+      notifyEmailSent: "Se notificó al cliente por email",
+      notifySmsSent: "Se notificó al cliente por SMS",
+      notifyNoContact: "Estado actualizado, pero el cliente no tiene contacto para notificar",
+      notifyFailed: "Estado actualizado, pero no se pudo notificar al cliente",
+      updated: "Estado actualizado",
+    },
     list: {
       title: "Órdenes de trabajo",
       countSuffix: "órdenes",
@@ -145,6 +182,7 @@ export const WORK_ORDERS_DICT: Record<AdminLocale, WorkOrdersDictionary> = {
       colMechanic: "Mecánico",
       colDate: "Fecha",
       colStatus: "Estado",
+      colJobStatus: "Estado cliente",
       unassigned: "Sin asignar",
     },
     new: {
@@ -245,6 +283,24 @@ export const WORK_ORDERS_DICT: Record<AdminLocale, WorkOrdersDictionary> = {
       PART: "Part",
       OTHER: "Other",
     },
+    jobStatus: {
+      CHECKED_IN: "Checked in",
+      WAITING_APPROVAL: "Awaiting approval",
+      WAITING_PARTS: "Waiting on parts",
+      IN_SERVICE: "In service",
+      READY_FOR_PICKUP: "Ready for pickup",
+      COMPLETED: "Picked up",
+    },
+    jobStatusControl: {
+      title: "Customer-facing status",
+      label: "Current status",
+      notifiedBadge: "Customer notified",
+      notifyEmailSent: "Customer notified by email",
+      notifySmsSent: "Customer notified by SMS",
+      notifyNoContact: "Status updated, but the customer has no contact info to notify",
+      notifyFailed: "Status updated, but the customer could not be notified",
+      updated: "Status updated",
+    },
     list: {
       title: "Work orders",
       countSuffix: "work orders",
@@ -259,6 +315,7 @@ export const WORK_ORDERS_DICT: Record<AdminLocale, WorkOrdersDictionary> = {
       colMechanic: "Mechanic",
       colDate: "Date",
       colStatus: "Status",
+      colJobStatus: "Customer status",
       unassigned: "Unassigned",
     },
     new: {
@@ -359,6 +416,24 @@ export const WORK_ORDERS_DICT: Record<AdminLocale, WorkOrdersDictionary> = {
       PART: "Pièce",
       OTHER: "Autre",
     },
+    jobStatus: {
+      CHECKED_IN: "Reçu",
+      WAITING_APPROVAL: "En attente d'approbation",
+      WAITING_PARTS: "En attente de pièces",
+      IN_SERVICE: "En service",
+      READY_FOR_PICKUP: "Prêt pour la récupération",
+      COMPLETED: "Récupéré",
+    },
+    jobStatusControl: {
+      title: "Statut pour le client",
+      label: "Statut actuel",
+      notifiedBadge: "Client notifié",
+      notifyEmailSent: "Le client a été notifié par courriel",
+      notifySmsSent: "Le client a été notifié par SMS",
+      notifyNoContact: "Statut mis à jour, mais le client n'a aucun contact pour être notifié",
+      notifyFailed: "Statut mis à jour, mais le client n'a pas pu être notifié",
+      updated: "Statut mis à jour",
+    },
     list: {
       title: "Ordres de travail",
       countSuffix: "ordres de travail",
@@ -373,6 +448,7 @@ export const WORK_ORDERS_DICT: Record<AdminLocale, WorkOrdersDictionary> = {
       colMechanic: "Mécanicien",
       colDate: "Date",
       colStatus: "Statut",
+      colJobStatus: "Statut client",
       unassigned: "Non assigné",
     },
     new: {

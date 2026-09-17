@@ -7,6 +7,7 @@ import { getTeamMembers } from "@/actions/users";
 import { ShopSettingsForm } from "@/components/settings/ShopSettingsForm";
 import { AppointmentBookingSettings } from "@/components/settings/AppointmentBookingSettings";
 import { AppointmentReminderSettings } from "@/components/settings/AppointmentReminderSettings";
+import { WorkOrderNotificationSettings } from "@/components/settings/WorkOrderNotificationSettings";
 import { ServiceCatalogSettings } from "@/components/settings/ServiceCatalogSettings";
 import { DomainSettings } from "@/components/settings/DomainSettings";
 import { TeamManagement } from "@/components/settings/TeamManagement";
@@ -54,6 +55,7 @@ export default async function SettingsPage() {
             mechanics={bookingSettings.mechanics}
           />
           <AppointmentReminderSettings shop={shop} />
+          <WorkOrderNotificationSettings shop={shop} />
         </div>
       ),
     });

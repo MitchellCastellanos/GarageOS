@@ -35,6 +35,8 @@ model Shop {
   appointmentReminderHours Int           @default(24)
   appointmentEmailsEnabled Boolean       @default(true)
   appointmentSmsEnabled    Boolean       @default(true)
+  workOrderReadyNotifyEmail Boolean      @default(true)
+  workOrderReadyNotifySms   Boolean      @default(true)
   slug                     String?       @unique
   bookingEnabled           Boolean       @default(false)
   timezone                 String        @default("America/Montreal")
@@ -632,6 +634,8 @@ model WorkOrder {
   mechanic    User?           @relation("WorkOrderMechanic", fields: [mechanicId], references: [id])
   orderNumber String
   status      WorkOrderStatus @default(OPEN)
+  jobStatus   JobStatus       @default(CHECKED_IN)
+  readyForPickupNotifiedAt DateTime?
   concern     String
   diagnosis   String?         @db.Text
   mileageIn   Int?
@@ -642,6 +646,18 @@ model WorkOrder {
 
   @@unique([shopId, orderNumber])
   @@index([shopId, status])
+  @@index([shopId, jobStatus])
+  @@schema("garageos")
+}
+
+enum JobStatus {
+  CHECKED_IN
+  WAITING_APPROVAL
+  WAITING_PARTS
+  IN_SERVICE
+  READY_FOR_PICKUP
+  COMPLETED
+
   @@schema("garageos")
 }
 

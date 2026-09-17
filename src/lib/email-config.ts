@@ -7,6 +7,7 @@ export type EmailChannel =
   | "QUOTE"
   | "APPOINTMENT"
   | "REMINDER"
+  | "WORK_ORDER"
   | "ACCOUNTING"
   | "WEB_CONTACT"
   | "PROVIDERS"
@@ -64,6 +65,15 @@ export const EMAIL_CHANNEL_META: Record<EmailChannel, ChannelMeta> = {
   REMINDER: {
     label: "Recordatorios",
     description: "Recordatorios de servicio programados",
+    shopFromField: "infoEmail",
+    envFromKey: "EMAIL_FROM_REMINDERS",
+    shopReplyField: "infoEmail",
+    pipeline: "resend",
+    implemented: true,
+  },
+  WORK_ORDER: {
+    label: "Órdenes de trabajo",
+    description: "Avisos de estado de la orden — especialmente Ready for Pickup",
     shopFromField: "infoEmail",
     envFromKey: "EMAIL_FROM_REMINDERS",
     shopReplyField: "infoEmail",

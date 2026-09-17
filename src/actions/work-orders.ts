@@ -4,7 +4,7 @@ import { ADMIN } from "@/lib/routes";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { WorkOrderStatus } from "@prisma/client";
+import type { WorkOrderStatus, JobStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getShopId } from "@/lib/shop-context";
 import { workOrderSchema, type WorkOrderFormData } from "@/lib/validations";
@@ -14,6 +14,10 @@ import { syncSavedLineItems } from "@/actions/line-items";
 import { canTransitionWorkOrder } from "@/domain/work-order";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import type { AdminLocale } from "@/lib/admin-locale";
+import { formatClientName } from "@/lib/client-name";
+import { shopToEmailConfig } from "@/lib/email-config";
+import { sendWorkOrderReadyEmail } from "@/lib/email";
+import { sendWorkOrderReadySms } from "@/lib/sms";
 import Decimal from "decimal.js";
 
 const WORK_ORDER_NOT_FOUND: Record<AdminLocale, string> = {
@@ -299,6 +303,73 @@ export async function updateWorkOrderStatus(id: string, toStatus: WorkOrderStatu
   revalidatePath(`/work-orders/${id}`);
   revalidatePath(ADMIN.workOrders);
   return { success: true };
+}
+
+export async function updateJobStatus(id: string, jobStatus: JobStatus) {
+  const shopId = await getShopId();
+  const locale = await getAdminLocale();
+
+  const workOrder = await db.workOrder.findFirst({
+    where: { id, shopId },
+    include: { client: true, vehicle: true, shop: true },
+  });
+  if (!workOrder) return { error: WORK_ORDER_NOT_FOUND[locale] };
+
+  await db.workOrder.update({ where: { id }, data: { jobStatus } });
+
+  let notified: { email: boolean; sms: boolean } | null = null;
+
+  if (jobStatus === "READY_FOR_PICKUP" && !workOrder.readyForPickupNotifiedAt) {
+    notified = { email: false, sms: false };
+    const vehicleDescription = `${workOrder.vehicle.year} ${workOrder.vehicle.make} ${workOrder.vehicle.model}`;
+    const clientName = formatClientName(workOrder.client);
+    const clientEmail = workOrder.client.email?.trim();
+    const clientPhone = workOrder.client.phone?.trim();
+
+    if (workOrder.shop.workOrderReadyNotifyEmail && clientEmail) {
+      try {
+        await sendWorkOrderReadyEmail({
+          shop: shopToEmailConfig(workOrder.shop),
+          to: clientEmail,
+          clientId: workOrder.clientId,
+          clientName,
+          workOrderId: workOrder.id,
+          orderNumber: workOrder.orderNumber,
+          vehicleDescription,
+          language: workOrder.client.language,
+        });
+        notified.email = true;
+      } catch (err) {
+        console.error(`Error sending Ready for Pickup email for ${workOrder.orderNumber}:`, err);
+      }
+    }
+
+    if (workOrder.shop.workOrderReadyNotifySms && clientPhone) {
+      try {
+        await sendWorkOrderReadySms({
+          to: clientPhone,
+          shopId,
+          clientId: workOrder.clientId,
+          workOrderId: workOrder.id,
+          shopName: workOrder.shop.name,
+          orderNumber: workOrder.orderNumber,
+          vehicleDescription,
+          language: workOrder.client.language,
+        });
+        notified.sms = true;
+      } catch (err) {
+        console.error(`Error sending Ready for Pickup SMS for ${workOrder.orderNumber}:`, err);
+      }
+    }
+
+    if (notified.email || notified.sms) {
+      await db.workOrder.update({ where: { id }, data: { readyForPickupNotifiedAt: new Date() } });
+    }
+  }
+
+  revalidatePath(`/work-orders/${id}`);
+  revalidatePath(ADMIN.workOrders);
+  return { success: true, notified };
 }
 
 export async function convertWorkOrderToInvoice(id: string) {

@@ -203,3 +203,35 @@ export async function sendQuoteSms(data: QuoteSmsData): Promise<void> {
         : undefined,
   });
 }
+
+export interface WorkOrderReadySmsData {
+  to: string;
+  shopId: string;
+  clientId?: string;
+  workOrderId: string;
+  shopName: string;
+  orderNumber: string;
+  vehicleDescription: string;
+  language?: SmsLanguage | string | null;
+}
+
+const WORK_ORDER_READY_SMS_COPY: Record<SmsLanguage, (data: WorkOrderReadySmsData) => string> = {
+  EN: (data) =>
+    `${data.shopName}: your ${data.vehicleDescription} is ready for pickup (order ${data.orderNumber}).`,
+  FR: (data) =>
+    `${data.shopName} : votre ${data.vehicleDescription} est prêt (ordre ${data.orderNumber}).`,
+};
+
+export async function sendWorkOrderReadySms(data: WorkOrderReadySmsData): Promise<void> {
+  const body = WORK_ORDER_READY_SMS_COPY[resolveSmsLanguage(data.language)](data);
+  await sendSms({
+    to: data.to,
+    body,
+    shopId: data.shopId,
+    purpose: "WORK_ORDER",
+    clientId: data.clientId,
+    businessEntityType: "WORK_ORDER",
+    businessEntityId: data.workOrderId,
+    idempotencyKey: `work-order-ready-sms:${data.workOrderId}`,
+  });
+}

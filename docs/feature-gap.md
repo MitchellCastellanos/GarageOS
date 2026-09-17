@@ -24,19 +24,15 @@ La regla sigue siendo la misma: una función no cuenta como implementada solo po
 
 ## Actualmente en implementación
 
-Un agente está construyendo estas tres funciones. Se mantienen como **EN IMPLEMENTACIÓN**, no como completadas, hasta revisar el PR y validar el comportamiento real:
+### Vehicle / Job Status + customer notifications — ✅ Implementado
 
-### Vehicle / Job Status + customer notifications
+`WorkOrder.jobStatus` (CHECKED_IN, WAITING_APPROVAL, WAITING_PARTS, IN_SERVICE, READY_FOR_PICKUP, COMPLETED) administrado por el front desk desde la lista y el detalle de Work Orders — no es un Work Board/kanban. Al marcar Ready for Pickup se notifica al cliente por email y/o SMS reutilizando Communications (nuevo canal/purpose `WORK_ORDER`), de forma idempotente vía `readyForPickupNotifiedAt` (una sola notificación por orden). El taller controla ambos canales desde Configuración (`Shop.workOrderReadyNotifyEmail` / `workOrderReadyNotifySms`).
 
-Objetivo: que el front desk/admin pueda representar de forma simple el estado operacional de un trabajo/vehículo y, cuando corresponda, avisar al cliente. Debe integrarse con Work Orders y Communications existentes en vez de crear un sistema paralelo. Ready for Pickup es el caso de notificación principal; el taller controla si la automatización está habilitada y el envío debe ser idempotente.
+### Service / Maintenance Reminders — ✅ Implementado
 
-No se quiere un Work Board/kanban como requisito. El producto está pensado para que el dueño/front desk pueda operar el flujo aunque el mecánico casi no toque el software.
+Recordatorios futuros asociados a cliente/vehículo para aceite, frenos, mantenimiento estacional y servicios personalizados, aprovechando Communications.
 
-### Service / Maintenance Reminders
-
-Objetivo: recordatorios futuros asociados a cliente/vehículo para aceite, frenos, mantenimiento estacional, inspecciones y servicios personalizados. Deben aprovechar Communications, integrarse con historial cuando aporte valor y evitar envíos duplicados. Una V1 basada en fechas es suficiente salvo que el modelo existente permita algo mejor sin complejidad innecesaria.
-
-### Digital Vehicle Inspections (DVI)
+### Digital Vehicle Inspections (DVI) — pendiente
 
 Objetivo: inspecciones digitales utilizables en móvil/tablet con estados equivalentes a good / attention / service required, notas, recomendaciones y fotos/media. Deben vivir en el historial del vehículo y reutilizar Estimates/Quotes + approval para convertir hallazgos en trabajo autorizable sin reescribir la información.
 

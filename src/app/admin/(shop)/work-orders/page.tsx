@@ -17,6 +17,15 @@ const STATUS_BADGE: Record<string, string> = {
   CANCELLED: "bg-slate-100 text-slate-400",
 };
 
+const JOB_STATUS_BADGE: Record<string, string> = {
+  CHECKED_IN: "bg-slate-100 text-slate-600",
+  WAITING_APPROVAL: "bg-amber-100 text-amber-700",
+  WAITING_PARTS: "bg-amber-100 text-amber-700",
+  IN_SERVICE: "bg-indigo-100 text-indigo-700",
+  READY_FOR_PICKUP: "bg-emerald-100 text-emerald-700",
+  COMPLETED: "bg-teal-100 text-teal-700",
+};
+
 interface PageProps {
   searchParams: Promise<{ status?: string }>;
 }
@@ -93,12 +102,13 @@ export default async function WorkOrdersPage({ searchParams }: PageProps) {
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <div className="hidden sm:grid grid-cols-[1fr_180px_150px_110px_120px] gap-4 px-5 py-3 bg-slate-50 border-b border-slate-200 text-xs font-medium text-slate-500 uppercase">
+          <div className="hidden sm:grid grid-cols-[1fr_180px_150px_110px_120px_140px] gap-4 px-5 py-3 bg-slate-50 border-b border-slate-200 text-xs font-medium text-slate-500 uppercase">
             <span>{t.list.colOrderClient}</span>
             <span>{t.list.colVehicle}</span>
             <span>{t.list.colMechanic}</span>
             <span>{t.list.colDate}</span>
             <span>{t.list.colStatus}</span>
+            <span>{t.list.colJobStatus}</span>
           </div>
 
           <div className="divide-y divide-slate-100">
@@ -106,7 +116,7 @@ export default async function WorkOrdersPage({ searchParams }: PageProps) {
               <Link
                 key={wo.id}
                 href={adminPath(`/work-orders/${wo.id}`)}
-                className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_180px_150px_110px_120px] gap-4 px-5 py-4 items-center hover:bg-slate-50 transition-colors"
+                className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_180px_150px_110px_120px_140px] gap-4 px-5 py-4 items-center hover:bg-slate-50 transition-colors"
               >
                 <div>
                   <p className="font-medium text-slate-900 text-sm">{wo.orderNumber}</p>
@@ -127,6 +137,13 @@ export default async function WorkOrdersPage({ searchParams }: PageProps) {
                     className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[wo.status] ?? "bg-slate-100 text-slate-500"}`}
                   >
                     {t.status[wo.status as keyof typeof t.status] ?? wo.status}
+                  </span>
+                </div>
+                <div className="hidden sm:block">
+                  <span
+                    className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${JOB_STATUS_BADGE[wo.jobStatus] ?? "bg-slate-100 text-slate-500"}`}
+                  >
+                    {t.jobStatus[wo.jobStatus as keyof typeof t.jobStatus] ?? wo.jobStatus}
                   </span>
                 </div>
               </Link>

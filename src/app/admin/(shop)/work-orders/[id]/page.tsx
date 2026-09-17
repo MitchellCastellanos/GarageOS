@@ -5,6 +5,7 @@ import { getWorkOrderById } from "@/actions/work-orders";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { formatClientName } from "@/lib/client-name";
 import { WorkOrderActions } from "@/components/work-orders/WorkOrderActions";
+import { JobStatusControl } from "@/components/work-orders/JobStatusControl";
 import Decimal from "decimal.js";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import { WORK_ORDERS_DICT } from "@/lib/admin-locale/work-orders";
@@ -81,6 +82,12 @@ export default async function WorkOrderDetailPage({ params }: PageProps) {
           />
         </div>
       </div>
+
+      <JobStatusControl
+        workOrderId={workOrder.id}
+        jobStatus={workOrder.jobStatus}
+        readyForPickupNotifiedAt={workOrder.readyForPickupNotifiedAt}
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="bg-white rounded-xl border border-slate-200 p-5">

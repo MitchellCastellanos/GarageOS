@@ -350,6 +350,57 @@ export async function sendAppointmentEmail(data: AppointmentEmailSendData) {
   });
 }
 
+interface WorkOrderReadyEmailData {
+  shop: ShopEmailConfig;
+  to: string;
+  clientId?: string;
+  clientName: string;
+  workOrderId: string;
+  orderNumber: string;
+  vehicleDescription: string;
+  language?: string | null;
+}
+
+const WORK_ORDER_READY_COPY = {
+  EN: {
+    subject: (orderNumber: string, shopName: string) => `Your vehicle is ready — ${orderNumber} · ${shopName}`,
+    subtitle: "Your vehicle is ready",
+    body: (data: WorkOrderReadyEmailData) =>
+      `Hello ${data.clientName},\n\nGood news — your ${data.vehicleDescription} is ready for pickup (order ${data.orderNumber}).\n\nSee you soon!`,
+  },
+  FR: {
+    subject: (orderNumber: string, shopName: string) => `Votre véhicule est prêt — ${orderNumber} · ${shopName}`,
+    subtitle: "Votre véhicule est prêt",
+    body: (data: WorkOrderReadyEmailData) =>
+      `Bonjour ${data.clientName},\n\nBonne nouvelle — votre ${data.vehicleDescription} est prêt (ordre ${data.orderNumber}).\n\nÀ bientôt !`,
+  },
+} as const;
+
+export async function sendWorkOrderReadyEmail(data: WorkOrderReadyEmailData) {
+  const lang: "EN" | "FR" = data.language === "FR" ? "FR" : "EN";
+  const copy = WORK_ORDER_READY_COPY[lang];
+
+  const element = React.createElement(PlainMessageEmail, {
+    shopName: data.shop.name,
+    headerSubtitle: copy.subtitle,
+    bodyText: copy.body(data),
+    footerText: `This email was sent by ${data.shop.name}.`,
+    lang: lang.toLowerCase(),
+  });
+
+  await sendTransactionalEmail({
+    shop: data.shop,
+    channel: "WORK_ORDER",
+    to: data.to,
+    subject: copy.subject(data.orderNumber, data.shop.name),
+    react: element,
+    clientId: data.clientId,
+    businessEntityType: "WORK_ORDER",
+    businessEntityId: data.workOrderId,
+    idempotencyKey: `work-order-ready-email:${data.workOrderId}`,
+  });
+}
+
 interface ContactStaffNotifyData {
   shop: ShopEmailConfig;
   customerName: string;
