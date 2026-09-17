@@ -7,6 +7,7 @@ export interface LayoutDictionary {
     appointments: string;
     clients: string;
     quotes: string;
+    workOrders: string;
     invoices: string;
     campaigns: string;
     notifications: string;
@@ -35,6 +36,7 @@ export const LAYOUT_DICT: Record<AdminLocale, LayoutDictionary> = {
       appointments: "Citas",
       clients: "Clientes",
       quotes: "Cotizaciones",
+      workOrders: "Órdenes de trabajo",
       invoices: "Facturas",
       campaigns: "Campañas",
       notifications: "Notificaciones",
@@ -61,6 +63,7 @@ export const LAYOUT_DICT: Record<AdminLocale, LayoutDictionary> = {
       appointments: "Appointments",
       clients: "Clients",
       quotes: "Quotes",
+      workOrders: "Work orders",
       invoices: "Invoices",
       campaigns: "Campaigns",
       notifications: "Notifications",
@@ -87,6 +90,7 @@ export const LAYOUT_DICT: Record<AdminLocale, LayoutDictionary> = {
       appointments: "Rendez-vous",
       clients: "Clients",
       quotes: "Soumissions",
+      workOrders: "Ordres de travail",
       invoices: "Factures",
       campaigns: "Campagnes",
       notifications: "Notifications",

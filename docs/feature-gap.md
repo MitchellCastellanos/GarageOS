@@ -9,7 +9,7 @@ La regla sigue siendo la misma: una función no cuenta como implementada solo po
 | Área | Estado | Nota |
 | --- | --- | --- |
 | Appointments & Scheduling | ✅ Implementado | Booking público y administrativo; protección de doble-booking ya validada. DST sigue pendiente de prueba específica. |
-| Work Orders | ⚠️ Pendiente principal | Modelos/state machine existen, pero el corte auditado todavía no tenía actions/UI usable de punta a punta. Es la siguiente pieza estructural del flujo. |
+| Work Orders | ✅ Implementado | CRUD completo (lista/detalle/crear/editar), transiciones de estado vía `canTransitionWorkOrder`, técnico asignado, generación desde cotización aceptada (una orden por vehículo), conversión a factura borrador y sección en el historial del vehículo. |
 | Invoicing & Payments | ✅ Implementado | Pagos, PDF y folios atómicos. Queda normalización fiscal como residual. |
 | Customer Communication | ✅ Base implementada | Inbox, Campaigns, dominios propios y outbox idempotente. Algunas piezas de producción dependen de infraestructura/credenciales reales. |
 | Clients / Vehicles / History | ✅ Implementado | Base para las nuevas funciones de mantenimiento e inspección. |

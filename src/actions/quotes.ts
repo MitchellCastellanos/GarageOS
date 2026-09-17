@@ -123,6 +123,7 @@ export async function getQuoteById(id: string) {
         include: { vehicle: true, lineItems: { orderBy: { sortOrder: "asc" } } },
         orderBy: { sortOrder: "asc" },
       },
+      workOrders: { orderBy: { createdAt: "asc" } },
       shop: true,
     },
   });

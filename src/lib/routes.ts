@@ -6,6 +6,7 @@ export const ADMIN = {
   clients: "/admin/clients",
   invoices: "/admin/invoices",
   quotes: "/admin/quotes",
+  workOrders: "/admin/work-orders",
   appointments: "/admin/appointments",
   reminders: "/admin/reminders",
   accounting: "/admin/accounting",

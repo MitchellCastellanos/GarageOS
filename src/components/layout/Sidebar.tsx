@@ -19,6 +19,7 @@ import {
   Megaphone,
   Mail,
   Package,
+  Wrench,
   X,
 } from "lucide-react";
 
@@ -121,6 +122,7 @@ export function Sidebar({
     { label: t.nav.appointments, href: ADMIN.appointments, icon: Calendar },
     { label: t.nav.clients, href: ADMIN.clients, icon: Users },
     { label: t.nav.quotes, href: ADMIN.quotes, icon: FileSpreadsheet },
+    { label: t.nav.workOrders, href: ADMIN.workOrders, icon: Wrench },
     { label: t.nav.invoices, href: ADMIN.invoices, icon: FileText },
     { label: t.nav.inventory, href: ADMIN.inventory, icon: Package },
     { label: t.nav.campaigns, href: ADMIN.campaigns, icon: Megaphone },

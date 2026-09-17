@@ -82,6 +82,7 @@ model User {
   accounts     Account[]
   sessions     Session[]
   appointments Appointment[]          @relation("AppointmentMechanic")
+  workOrders   WorkOrder[]            @relation("WorkOrderMechanic")
   workingHours MechanicWorkingHours[]
   shopAccess   UserShopAccess[]
 
@@ -627,6 +628,8 @@ model WorkOrder {
   quote       Quote?          @relation(fields: [quoteId], references: [id])
   invoiceId   String?
   invoice     Invoice?        @relation(fields: [invoiceId], references: [id])
+  mechanicId  String?
+  mechanic    User?           @relation("WorkOrderMechanic", fields: [mechanicId], references: [id])
   orderNumber String
   status      WorkOrderStatus @default(OPEN)
   concern     String

@@ -12,12 +12,18 @@ import {
   cancelQuote,
   deleteQuote,
 } from "@/actions/quotes";
+import { createWorkOrdersFromQuote } from "@/actions/work-orders";
 import { QuoteSendDialog } from "@/components/quotes/QuoteSendDialog";
 import { QuoteSmsButton } from "@/components/quotes/QuoteSmsButton";
 import { adminPath } from "@/lib/routes";
-import { FileText, Loader2, Ban, Trash2, Mail, Check, X, ArrowRightLeft } from "lucide-react";
+import { FileText, Loader2, Ban, Trash2, Mail, Check, X, ArrowRightLeft, Wrench } from "lucide-react";
 import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
 import { QUOTES_DICT } from "@/lib/admin-locale/quotes";
+
+interface WorkOrderSummary {
+  id: string;
+  orderNumber: string;
+}
 
 interface QuoteActionsProps {
   quoteId: string;
@@ -29,6 +35,7 @@ interface QuoteActionsProps {
   emailSendCount?: number;
   smsSendCount?: number;
   convertedInvoiceId?: string | null;
+  workOrders?: WorkOrderSummary[];
 }
 
 const EMAILABLE = new Set(["DRAFT", "SENT", "ACCEPTED"]);
@@ -45,6 +52,7 @@ export function QuoteActions({
   emailSendCount = 0,
   smsSendCount = 0,
   convertedInvoiceId,
+  workOrders = [],
 }: QuoteActionsProps) {
   const router = useRouter();
   const locale = useAdminLocale();
@@ -53,11 +61,18 @@ export function QuoteActions({
   const [acceptPending, startAccept] = useTransition();
   const [rejectPending, startReject] = useTransition();
   const [convertPending, startConvert] = useTransition();
+  const [workOrderPending, startWorkOrder] = useTransition();
   const [cancelPending, startCancel] = useTransition();
   const [deletePending, startDelete] = useTransition();
 
   const isAnyPending =
-    sentPending || acceptPending || rejectPending || convertPending || cancelPending || deletePending;
+    sentPending ||
+    acceptPending ||
+    rejectPending ||
+    convertPending ||
+    workOrderPending ||
+    cancelPending ||
+    deletePending;
 
   const hasClientEmail = Boolean(clientEmail?.trim());
   const hasClientPhone = Boolean(clientPhone?.trim());
@@ -89,6 +104,15 @@ export function QuoteActions({
     if (!confirm(t.actions.confirmConvert(quoteNumber))) return;
     startConvert(async () => {
       const result = await convertQuoteToInvoice(quoteId);
+      if (result?.error) {
+        toast.error(result.error);
+      }
+    });
+  }
+
+  function handleCreateWorkOrder() {
+    startWorkOrder(async () => {
+      const result = await createWorkOrdersFromQuote(quoteId);
       if (result?.error) {
         toast.error(result.error);
       }
@@ -212,6 +236,27 @@ export function QuoteActions({
           {t.actions.convertToInvoice}
         </button>
       )}
+
+      {status === "ACCEPTED" &&
+        (workOrders.length === 0 ? (
+          <button
+            type="button"
+            disabled={isAnyPending}
+            onClick={handleCreateWorkOrder}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            {workOrderPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wrench className="w-4 h-4" />}
+            {t.actions.createWorkOrder}
+          </button>
+        ) : (
+          <Link
+            href={adminPath(`/work-orders/${workOrders[0].id}`)}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            <Wrench className="w-4 h-4" />
+            {t.actions.viewWorkOrder(workOrders[0].orderNumber)}
+          </Link>
+        ))}
 
       {VOIDABLE.has(status) && (
         <button
