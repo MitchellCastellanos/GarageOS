@@ -19,6 +19,9 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import { SETTINGS_DICT } from "@/lib/admin-locale/settings";
+import { BillingCard } from "@/components/billing/BillingCard";
+import { getBillingOverview } from "@/actions/billing";
+import { PLAN_LIMITS, planIncludes } from "@/config/entitlements";
 
 export default async function SettingsPage() {
   const session = await auth();
@@ -35,6 +38,11 @@ export default async function SettingsPage() {
   const bookingSettings = isOwner ? await getAppointmentBookingSettings() : null;
   const serviceCatalog = isOwner ? await getServiceCatalogSettings() : null;
   const domains = isOwner ? await getShopDomains() : null;
+  const billing = isOwner ? await getBillingOverview() : null;
+  const plan = billing?.subscription.plan ?? "CORE";
+  const seatLimit = PLAN_LIMITS[plan].users;
+  const canAddLocation = planIncludes(plan, "organization.multiLocation");
+  const canCustomDomain = planIncludes(plan, "branding.customDomain");
   const tabs: TabItem[] = [
     {
       id: "general",
@@ -73,7 +81,7 @@ export default async function SettingsPage() {
     tabs.push({
       id: "team",
       label: t.tabs.team,
-      content: <TeamManagement members={team} currentUserId={session.user.id} />,
+      content: <TeamManagement members={team} currentUserId={session.user.id} seatLimit={seatLimit} />,
     });
 
     const [locations, orgUsers] = await Promise.all([
@@ -89,6 +97,7 @@ export default async function SettingsPage() {
           shops={locations.shops}
           currentShopId={session.user.shopId!}
           orgUsers={orgUsers}
+          canAddLocation={canAddLocation}
         />
       ),
     });
@@ -105,8 +114,17 @@ export default async function SettingsPage() {
           subdomainUrl={domains.subdomainUrl}
           rootDomainConfigured={domains.rootDomainConfigured}
           landing={domains.landing}
+          entitled={canCustomDomain}
         />
       ),
+    });
+  }
+
+  if (isOwner && billing) {
+    tabs.push({
+      id: "billing",
+      label: t.tabs.billing,
+      content: <BillingCard subscription={billing.subscription} />,
     });
   }
 

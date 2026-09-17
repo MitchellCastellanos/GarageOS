@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Loader2, RefreshCw, Trash2 } from "lucide-react";
 import { StatusBadge, DnsRecordsTable, type DomainInfo } from "./domain-shared";
 import { setLandingDomain, verifyLandingDomainAction, removeLandingDomainAction } from "@/actions/domains";
+import { UpgradeCTA } from "@/components/billing/UpgradeCTA";
 
 interface DomainSettingsProps {
   slug: string | null;
@@ -12,6 +13,7 @@ interface DomainSettingsProps {
   subdomainUrl: string | null;
   rootDomainConfigured: boolean;
   landing: DomainInfo | null;
+  entitled: boolean;
 }
 
 export function DomainSettings({
@@ -20,6 +22,7 @@ export function DomainSettings({
   subdomainUrl,
   rootDomainConfigured,
   landing,
+  entitled,
 }: DomainSettingsProps) {
   return (
     <div className="space-y-6 max-w-2xl">
@@ -29,6 +32,7 @@ export function DomainSettings({
         subdomainUrl={subdomainUrl}
         rootDomainConfigured={rootDomainConfigured}
         landing={landing}
+        entitled={entitled}
       />
     </div>
   );
@@ -40,12 +44,14 @@ function LandingDomainCard({
   subdomainUrl,
   rootDomainConfigured,
   landing,
+  entitled,
 }: {
   slug: string | null;
   bookingUrl: string | null;
   subdomainUrl: string | null;
   rootDomainConfigured: boolean;
   landing: DomainInfo | null;
+  entitled: boolean;
 }) {
   const [pending, startTransition] = useTransition();
   const [domain, setDomain] = useState(landing?.domain ?? "");
@@ -105,27 +111,47 @@ function LandingDomainCard({
         )}
       </div>
 
-      <form onSubmit={handleSubmit} className="flex flex-wrap gap-2">
-        <input
-          name="domain"
-          placeholder="citas.tudominio.com"
-          value={domain}
-          onChange={(e) => setDomain(e.target.value)}
-          className="flex-1 min-w-[200px] px-3 py-2 border border-slate-300 rounded-lg text-sm"
+      {!entitled && !landing && (
+        <UpgradeCTA
+          requiredPlan="PRO"
+          title="Dominio propio para tu landing"
+          description="Disponible en Pro y Complete."
+          compact
         />
-        <button
-          type="submit"
-          disabled={pending || !domain.trim()}
-          className="flex items-center gap-2 bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg"
-        >
-          {pending && <Loader2 className="w-4 h-4 animate-spin" />}
-          {landing ? "Actualizar" : "Usar mi dominio"}
-        </button>
-      </form>
-      <p className="text-xs text-slate-400">
-        Solo soportamos subdominios (ej. citas.tudominio.com) — un dominio raíz necesita un
-        tipo de registro que la mayoría de proveedores DNS no ofrece.
-      </p>
+      )}
+
+      {(entitled || landing) && (
+        <form onSubmit={handleSubmit} className="flex flex-wrap gap-2">
+          <input
+            name="domain"
+            placeholder="citas.tudominio.com"
+            value={domain}
+            onChange={(e) => setDomain(e.target.value)}
+            disabled={!entitled}
+            className="flex-1 min-w-[200px] px-3 py-2 border border-slate-300 rounded-lg text-sm disabled:bg-slate-50 disabled:text-slate-400"
+          />
+          <button
+            type="submit"
+            disabled={pending || !domain.trim() || !entitled}
+            className="flex items-center gap-2 bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg"
+          >
+            {pending && <Loader2 className="w-4 h-4 animate-spin" />}
+            {landing ? "Actualizar" : "Usar mi dominio"}
+          </button>
+        </form>
+      )}
+      {entitled && (
+        <p className="text-xs text-slate-400">
+          Solo soportamos subdominios (ej. citas.tudominio.com) — un dominio raíz necesita un
+          tipo de registro que la mayoría de proveedores DNS no ofrece.
+        </p>
+      )}
+      {!entitled && landing && (
+        <p className="text-xs text-amber-600">
+          Tu plan ya no incluye dominio propio — este dominio se mantiene activo, pero no puedes
+          editarlo ni agregar uno nuevo hasta actualizar tu plan.
+        </p>
+      )}
 
       {landing && (
         <div className="space-y-3">

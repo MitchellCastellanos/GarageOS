@@ -18,6 +18,7 @@ import {
   getLandingDnsInstructions,
   isApexDomain,
 } from "@/lib/domains/landing";
+import { checkEntitlement } from "@/lib/subscription";
 import { z } from "zod";
 
 function toJson(records: DnsRecordRow[]): Prisma.InputJsonValue {
@@ -74,6 +75,9 @@ export async function getShopDomains() {
 export async function setEmailDomain(formData: FormData) {
   const session = await requireOwner();
   const shopId = session.user.shopId!;
+
+  const entitlementError = await checkEntitlement(shopId, "branding.customDomain");
+  if (entitlementError) return { error: entitlementError };
 
   const parsed = domainSchema.safeParse(formData.get("domain"));
   if (!parsed.success) {
@@ -170,6 +174,9 @@ export async function removeEmailDomainAction() {
 export async function setLandingDomain(formData: FormData) {
   const session = await requireOwner();
   const shopId = session.user.shopId!;
+
+  const entitlementError = await checkEntitlement(shopId, "branding.customDomain");
+  if (entitlementError) return { error: entitlementError };
 
   const parsed = domainSchema.safeParse(formData.get("domain"));
   if (!parsed.success) {

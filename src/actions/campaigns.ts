@@ -11,6 +11,7 @@ import {
   type SegmentDefinition,
 } from "@/lib/communications/segments";
 import { sendCampaignEmail } from "@/lib/communications/campaigns";
+import { checkEntitlement } from "@/lib/subscription";
 import type { InvoiceLanguage } from "@prisma/client";
 import type { Prisma } from "@prisma/client";
 
@@ -70,6 +71,9 @@ export async function createCampaignAction(formData: FormData) {
   const session = await requireOwner();
   const shopId = session.user.shopId!;
 
+  const entitlementError = await checkEntitlement(shopId, "communications.campaigns");
+  if (entitlementError) return { error: entitlementError };
+
   const name = (formData.get("name") as string)?.trim();
   const subject = (formData.get("subject") as string)?.trim();
   const body = (formData.get("body") as string)?.trim();
@@ -116,6 +120,9 @@ export async function sendTestEmailAction(campaignId: string) {
 async function scheduleCampaign(campaignId: string, scheduledFor: Date) {
   const session = await requireOwner();
   const shopId = session.user.shopId!;
+
+  const entitlementError = await checkEntitlement(shopId, "communications.campaigns");
+  if (entitlementError) return { error: entitlementError };
 
   const campaign = await db.campaign.findFirst({ where: { id: campaignId, shopId } });
   if (!campaign) return { error: "Campaña no encontrada" };

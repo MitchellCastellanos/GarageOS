@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { signIn } from "@/lib/auth";
 import { ADMIN } from "@/lib/routes";
+import { createDefaultSubscription } from "@/lib/subscription";
 import {
   MARKETING_DICTIONARIES,
   DEFAULT_MARKETING_LOCALE,
@@ -68,6 +69,7 @@ export async function POST(req: NextRequest) {
           role: "OWNER",
         },
       });
+      await createDefaultSubscription(tx, shop.id);
     });
   } catch (err) {
     console.error("[/api/auth/signup] error:", err);

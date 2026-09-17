@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import { AdminLocaleProvider } from "@/components/admin/AdminLocaleProvider";
 import { getAccessibleShops } from "@/actions/locations";
+import { can } from "@/lib/subscription";
 
 export default async function DashboardLayout({
   children,
@@ -27,14 +28,21 @@ export default async function DashboardLayout({
     redirect(ADMIN.login);
   }
 
-  const [shop, locale, accessibleShops] = await Promise.all([
+  const [shop, locale, accessibleShops, inventoryEntitled, campaignsEntitled] = await Promise.all([
     db.shop.findUnique({
       where: { id: session.user.shopId },
       select: { name: true, logoUrl: true },
     }),
     getAdminLocale(),
     getAccessibleShops(),
+    can(session.user.shopId, "inventory.manage"),
+    can(session.user.shopId, "communications.campaigns"),
   ]);
+
+  const lockedNavHrefs = [
+    ...(inventoryEntitled ? [] : [ADMIN.inventory]),
+    ...(campaignsEntitled ? [] : [ADMIN.campaigns]),
+  ];
 
   return (
     <AdminLocaleProvider locale={locale}>
@@ -45,6 +53,7 @@ export default async function DashboardLayout({
         isOwner={session.user.role === "OWNER"}
         accessibleShops={accessibleShops}
         currentShopId={session.user.shopId}
+        lockedNavHrefs={lockedNavHrefs}
       >
         {children}
       </AdminChrome>

@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireSuperAdmin } from "@/lib/permissions";
 import { provisionDefaultSenderIdentities } from "@/lib/communications/sender-identity";
+import { createDefaultSubscription } from "@/lib/subscription";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 
@@ -82,6 +83,9 @@ export async function createShop(formData: FormData) {
   // Identidad de envío inicial (Communications Platform) — no bloquea la creación si falla.
   await provisionDefaultSenderIdentities(shop).catch((err) => {
     console.error("[communications] provisionDefaultSenderIdentities falló al crear taller:", err);
+  });
+  await createDefaultSubscription(db, shop.id).catch((err) => {
+    console.error("[subscription] createDefaultSubscription falló al crear taller:", err);
   });
 
   revalidatePath(PLATFORM.home);

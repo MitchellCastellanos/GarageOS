@@ -14,6 +14,7 @@ import {
 import { isUniqueConstraintError } from "@/lib/invoice-number";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import { INVENTORY_DICT } from "@/lib/admin-locale/inventory";
+import { checkEntitlement } from "@/lib/subscription";
 
 // ── READ ────────────────────────────────────────────────────
 
@@ -65,6 +66,9 @@ export async function createInventoryPart(formData: InventoryPartFormData) {
   const shopId = await getShopId();
   const locale = await getAdminLocale();
   const t = INVENTORY_DICT[locale];
+
+  const entitlementError = await checkEntitlement(shopId, "inventory.manage");
+  if (entitlementError) return { error: { name: [entitlementError] } };
 
   const parsed = inventoryPartSchema.safeParse(formData);
   if (!parsed.success) {
@@ -118,6 +122,9 @@ export async function updateInventoryPart(id: string, formData: InventoryPartFor
   const locale = await getAdminLocale();
   const t = INVENTORY_DICT[locale];
 
+  const entitlementError = await checkEntitlement(shopId, "inventory.manage");
+  if (entitlementError) return { error: { name: [entitlementError] } };
+
   const parsed = inventoryPartSchema.safeParse(formData);
   if (!parsed.success) {
     return { error: parsed.error.flatten().fieldErrors };
@@ -159,6 +166,9 @@ export async function recordInventoryMovement(
   const shopId = await getShopId();
   const locale = await getAdminLocale();
   const t = INVENTORY_DICT[locale];
+
+  const entitlementError = await checkEntitlement(shopId, "inventory.manage");
+  if (entitlementError) return { error: entitlementError };
 
   const parsed = inventoryMovementSchema.safeParse(formData);
   if (!parsed.success) {

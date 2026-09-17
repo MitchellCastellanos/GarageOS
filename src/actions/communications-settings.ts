@@ -13,6 +13,7 @@ import {
   type SenderIdentitySummary,
 } from "@/lib/communications/sender-identity";
 import { ROUTE_PURPOSES, type RoutePurpose } from "@/lib/communications/route-purposes";
+import { checkEntitlement } from "@/lib/subscription";
 import type { CommChannel } from "@prisma/client";
 
 export interface CommunicationSettingsData {
@@ -33,6 +34,9 @@ export async function getCommunicationSettings(): Promise<CommunicationSettingsD
 export async function createSenderIdentityAction(formData: FormData) {
   const session = await requireOwner();
   const shopId = session.user.shopId!;
+
+  const entitlementError = await checkEntitlement(shopId, "branding.customSender");
+  if (entitlementError) return { error: entitlementError };
 
   const channel = (formData.get("channel") as string) === "SMS" ? "SMS" : "EMAIL";
   const address = (formData.get("address") as string)?.trim();

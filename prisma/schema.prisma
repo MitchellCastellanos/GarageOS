@@ -66,6 +66,64 @@ model Shop {
   suppressions              CommunicationSuppression[]
   campaigns                 Campaign[]
   communicationsSuspendedAt DateTime?
+  subscription              Subscription?
+
+  @@schema("garageos")
+}
+
+/**
+ * Billing/entitlements — ver docs/subscription-plans.md. Una fila por Shop "raíz"
+ * (el primero de la organización, el único que se crea en signup). Para talleres
+ * multi-sucursal, getEffectiveSubscription (src/lib/subscription.ts) resuelve por
+ * Organization: cualquier Shop del mismo org comparte la misma Subscription — las
+ * ubicaciones adicionales (createShopLocation) nunca crean su propia fila.
+ * Un Shop sin fila aquí cae al plan por defecto (DEFAULT_PLAN) vía el mismo helper,
+ * nunca directo a este modelo.
+ */
+model Subscription {
+  id     String @id @default(cuid())
+  shopId String @unique
+  shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  plan             Plan
+  status           SubscriptionStatus @default(TRIALING)
+  billingInterval  BillingInterval?
+  trialEndsAt      DateTime?
+  currentPeriodEnd DateTime?
+  cancelAtPeriodEnd Boolean           @default(false)
+
+  stripeCustomerId     String? @unique
+  stripeSubscriptionId String? @unique
+  stripePriceId        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@schema("garageos")
+}
+
+enum Plan {
+  CORE
+  PRO
+  COMPLETE
+
+  @@schema("garageos")
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  UNPAID
+  INCOMPLETE
+
+  @@schema("garageos")
+}
+
+enum BillingInterval {
+  MONTHLY
+  YEARLY
 
   @@schema("garageos")
 }

@@ -9,6 +9,8 @@ import { MailboxesCard } from "@/components/settings/MailboxesCard";
 import { EmailDomainCard } from "@/components/settings/EmailDomainCard";
 import { CommunicationRoutesCard } from "@/components/settings/CommunicationRoutesCard";
 import { NOTIFICATIONS_DICT } from "@/lib/admin-locale/notifications";
+import { getEffectiveSubscription } from "@/lib/subscription";
+import { planIncludes } from "@/config/entitlements";
 
 export default async function NotificationsPage() {
   const session = await auth();
@@ -21,6 +23,9 @@ export default async function NotificationsPage() {
   if (!shop) redirect(ADMIN.dashboard);
   const domains = await getShopDomains();
   const communications = await getCommunicationSettings();
+  const { plan } = await getEffectiveSubscription(session.user.shopId!);
+  const canCustomDomain = planIncludes(plan, "branding.customDomain");
+  const canCreateIdentity = planIncludes(plan, "branding.customSender");
 
   return (
     <div className="space-y-6">
@@ -30,9 +35,13 @@ export default async function NotificationsPage() {
       </div>
       <div className="space-y-6 max-w-2xl">
         <MailboxesCard shop={shop} />
-        <EmailDomainCard email={domains.email} />
+        <EmailDomainCard email={domains.email} entitled={canCustomDomain} />
         {/* La tarjeta mantiene estado local; un guardado de buzones debe renovarlo. */}
-        <CommunicationRoutesCard key={JSON.stringify(communications)} data={communications} />
+        <CommunicationRoutesCard
+          key={JSON.stringify(communications)}
+          data={communications}
+          canCreateIdentity={canCreateIdentity}
+        />
       </div>
     </div>
   );

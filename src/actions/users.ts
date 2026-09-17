@@ -5,6 +5,7 @@ import { ADMIN, PLATFORM, adminPath } from "@/lib/routes";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireOwner } from "@/lib/permissions";
+import { canAddUser } from "@/lib/subscription";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 
@@ -46,6 +47,17 @@ export async function getTeamMembers() {
 
 export async function createTeamMember(formData: FormData) {
   const session = await requireOwner();
+
+  const { allowed, limit } = await canAddUser(session.user.shopId!);
+  if (!allowed) {
+    return {
+      error: {
+        email: [
+          `Tu plan actual permite hasta ${limit} usuarios — actualiza tu plan en Configuración → Facturación para agregar más.`,
+        ],
+      },
+    };
+  }
 
   const parsed = createUserSchema.safeParse({
     name: formData.get("name"),
