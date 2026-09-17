@@ -4,12 +4,14 @@ import { formatDate, formatCurrency } from "@/lib/utils";
 import { formatClientName } from "@/lib/client-name";
 import { INVOICE_STATUS_BADGE, invoiceStatusLabel } from "@/lib/invoice-status";
 import Link from "next/link";
-import { ChevronLeft, Pencil, Car, FileText, Bell, Plus, Wrench } from "lucide-react";
+import { ChevronLeft, Pencil, Car, FileText, Bell, Plus, Wrench, ClipboardCheck } from "lucide-react";
 import { DeleteVehicleButton } from "@/components/clients/DeleteVehicleButton";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import type { AdminLocale } from "@/lib/admin-locale";
 import { CLIENTS_DICT, type ClientsDictionary } from "@/lib/admin-locale/clients";
 import { WORK_ORDERS_DICT, type WorkOrdersDictionary } from "@/lib/admin-locale/work-orders";
+import { INSPECTIONS_DICT } from "@/lib/admin-locale/inspections";
+import { countFindings } from "@/domain/inspection";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -20,6 +22,7 @@ export default async function VehicleDetailPage({ params }: Props) {
   const [vehicle, locale] = await Promise.all([getVehicleById(id), getAdminLocale()]);
   const t = CLIENTS_DICT[locale];
   const woT = WORK_ORDERS_DICT[locale];
+  const inspT = INSPECTIONS_DICT[locale];
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -144,6 +147,52 @@ export default async function VehicleDetailPage({ params }: Props) {
                 <WorkOrderStatusBadge status={wo.status} t={woT} />
               </Link>
             ))}
+          </div>
+        )}
+      </div>
+
+      {/* Inspecciones */}
+      <div className="bg-white rounded-xl border border-slate-200">
+        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ClipboardCheck className="w-4 h-4 text-slate-400" />
+            <h2 className="font-semibold text-slate-900">{inspT.list.title}</h2>
+          </div>
+          <Link
+            href={adminPath(`/inspections/new?vehicleId=${id}&clientId=${vehicle.clientId}`)}
+            className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            {inspT.list.newInspection}
+          </Link>
+        </div>
+
+        {vehicle.inspections.length === 0 ? (
+          <div className="p-8 text-center">
+            <ClipboardCheck className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+            <p className="text-sm text-slate-400">{inspT.list.emptyAll}</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {vehicle.inspections.map((inspection) => {
+              const findings = countFindings(inspection.items);
+              return (
+                <Link
+                  key={inspection.id}
+                  href={adminPath(`/inspections/${inspection.id}`)}
+                  className="flex items-center justify-between px-5 py-3.5 hover:bg-slate-50 transition-colors"
+                >
+                  <p className="text-sm font-medium text-slate-900">{formatDate(inspection.createdAt)}</p>
+                  <span
+                    className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
+                      findings > 0 ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"
+                    }`}
+                  >
+                    {inspT.list.findingsCount(findings)}
+                  </span>
+                </Link>
+              );
+            })}
           </div>
         )}
       </div>

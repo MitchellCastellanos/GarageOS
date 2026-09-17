@@ -7,6 +7,7 @@ export const ADMIN = {
   invoices: "/admin/invoices",
   quotes: "/admin/quotes",
   workOrders: "/admin/work-orders",
+  inspections: "/admin/inspections",
   appointments: "/admin/appointments",
   reminders: "/admin/reminders",
   accounting: "/admin/accounting",

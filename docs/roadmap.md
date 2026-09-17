@@ -18,7 +18,7 @@ Función usable de órdenes de trabajo sobre `WorkOrder`, `WorkOrderLine` y el s
 
 - **Vehicle / Job Status + customer notifications — ✅ Implementado.** `WorkOrder.jobStatus` (checked in, waiting approval, waiting parts, in service, ready for pickup, completed) administrado por el taller desde el detalle y la lista de Work Orders. Al marcar Ready for Pickup se notifica por email/SMS reutilizando Communications (`WORK_ORDER` channel/purpose), de forma idempotente (`readyForPickupNotifiedAt`, una sola vez por orden) y con toggles por taller en Configuración. No es un Work Board.
 - **Service / Maintenance Reminders — ✅ Implementado.** Recordatorios futuros asociados a cliente/vehículo, reutilizando la infraestructura de comunicaciones.
-- **Digital Vehicle Inspections (DVI).** Pendiente. Inspecciones móviles con estados tipo good / attention / service required, notas, recomendaciones y fotos/media usando la infraestructura existente. Los hallazgos deben integrarse naturalmente con Estimates/Quotes y Work Orders y quedar en el historial del vehículo.
+- **Digital Vehicle Inspections (DVI) — ✅ Implementado.** Checklist digital (`Inspection`/`InspectionItem`/`InspectionPhoto`) con condición good/attention/service required, notas y fotos por elemento (Supabase Storage). Se puede vincular a un Work Order y a un mecánico, queda en el historial del vehículo, y "Crear cotización de hallazgos" genera una cotización borrador a partir de los elementos marcados attention/service required, reutilizando el sistema de Quotes existente. Surfacing de hallazgos en la página pública de aprobación de la cotización queda como mejora futura no bloqueante.
 
 ### 2. Pendientes ya identificados en el producto
 
