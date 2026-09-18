@@ -9,18 +9,12 @@ export type EmailChannel =
   | "REMINDER"
   | "WORK_ORDER"
   | "ACCOUNTING"
-  | "WEB_CONTACT"
-  | "PROVIDERS"
-  | "NEWSLETTER";
+  | "WEB_CONTACT";
 
 export type ShopEmailConfig = {
   id: string;
   name: string;
   email?: string | null;
-  billingEmail?: string | null;
-  infoEmail?: string | null;
-  providersEmail?: string | null;
-  newsletterEmail?: string | null;
 };
 
 type ChannelMeta = {
@@ -38,83 +32,65 @@ export const EMAIL_CHANNEL_META: Record<EmailChannel, ChannelMeta> = {
   INVOICE: {
     label: "Facturas",
     description: "Envío y reenvío de facturas PDF al cliente",
-    shopFromField: "infoEmail",
+    shopFromField: "email",
     envFromKey: "EMAIL_FROM_INVOICES",
-    shopReplyField: "infoEmail",
+    shopReplyField: "email",
     pipeline: "resend",
     implemented: true,
   },
   QUOTE: {
     label: "Cotizaciones",
     description: "Envío y reenvío de cotizaciones PDF al cliente",
-    shopFromField: "infoEmail",
+    shopFromField: "email",
     envFromKey: "EMAIL_FROM_INVOICES",
-    shopReplyField: "infoEmail",
+    shopReplyField: "email",
     pipeline: "resend",
     implemented: true,
   },
   APPOINTMENT: {
     label: "Citas",
     description: "Confirmaciones, recordatorios y cancelaciones de citas",
-    shopFromField: "infoEmail",
+    shopFromField: "email",
     envFromKey: "EMAIL_FROM_REMINDERS",
-    shopReplyField: "infoEmail",
+    shopReplyField: "email",
     pipeline: "resend",
     implemented: true,
   },
   REMINDER: {
     label: "Recordatorios",
     description: "Recordatorios de servicio programados",
-    shopFromField: "infoEmail",
+    shopFromField: "email",
     envFromKey: "EMAIL_FROM_REMINDERS",
-    shopReplyField: "infoEmail",
+    shopReplyField: "email",
     pipeline: "resend",
     implemented: true,
   },
   WORK_ORDER: {
     label: "Órdenes de trabajo",
     description: "Avisos de estado de la orden — especialmente Ready for Pickup",
-    shopFromField: "infoEmail",
+    shopFromField: "email",
     envFromKey: "EMAIL_FROM_REMINDERS",
-    shopReplyField: "infoEmail",
+    shopReplyField: "email",
     pipeline: "resend",
     implemented: true,
   },
   ACCOUNTING: {
     label: "Contabilidad",
     description: "Aviso a la contadora al subir documentos",
-    shopFromField: "infoEmail",
+    shopFromField: "email",
     envFromKey: "EMAIL_FROM_ACCOUNTING",
-    shopReplyField: "infoEmail",
+    shopReplyField: "email",
     pipeline: "resend",
     implemented: true,
   },
   WEB_CONTACT: {
     label: "Formulario web",
     description: "Contacto desde el sitio público del taller",
-    shopFromField: "infoEmail",
+    shopFromField: "email",
     envFromKey: "EMAIL_FROM_WEB",
-    shopReplyField: "infoEmail",
+    shopReplyField: "email",
     pipeline: "resend",
     implemented: true,
-  },
-  PROVIDERS: {
-    label: "Proveedores",
-    description: "Comunicación con proveedores (futuro)",
-    shopFromField: "providersEmail",
-    envFromKey: null,
-    shopReplyField: "providersEmail",
-    pipeline: "resend",
-    implemented: false,
-  },
-  NEWSLETTER: {
-    label: "Newsletter",
-    description: "Campañas masivas — usar Brevo/Mailchimp, no Resend",
-    shopFromField: "newsletterEmail",
-    envFromKey: null,
-    shopReplyField: "newsletterEmail",
-    pipeline: "external",
-    implemented: false,
   },
 };
 
@@ -146,6 +122,17 @@ export function extractEmailAddress(from: string): string | null {
   if (match) return match[1].trim();
   if (from.includes("@")) return from.trim();
   return null;
+}
+
+/**
+ * Dominio propio de GarageOS, verificado en Resend, usado para las direcciones
+ * gestionadas (`{slug}@dominio`) de talleres que no conectaron su propio dominio.
+ * Sin esta variable, no se pueden crear/aprovisionar identidades GARAGEOS_MANAGED
+ * nuevas — solo queda disponible la opción de dominio propio verificado.
+ */
+export function getManagedEmailDomain(): string | null {
+  const raw = process.env.EMAIL_MANAGED_DOMAIN?.trim().toLowerCase();
+  return raw || null;
 }
 
 export function formatFromHeader(shopName: string, address: string): string {
@@ -215,9 +202,5 @@ export function shopToEmailConfig(shop: ShopEmailConfig): ShopEmailConfig {
     id: shop.id,
     name: shop.name,
     email: shop.email,
-    billingEmail: shop.billingEmail,
-    infoEmail: shop.infoEmail,
-    providersEmail: shop.providersEmail,
-    newsletterEmail: shop.newsletterEmail,
   };
 }

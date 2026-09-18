@@ -13,6 +13,7 @@ import {
   EMAIL_CHANNEL_META,
   resolveEmailRoute,
   formatFromHeader,
+  getManagedEmailDomain,
   type EmailChannel,
   type EmailRoute,
   type ShopEmailConfig,
@@ -42,32 +43,50 @@ const IMPLEMENTED_EMAIL_CHANNELS: EmailChannel[] = (
 /** Purposes SMS actuales — mismo número compartido hasta que exista aislamiento por taller (Fase 6). */
 const SMS_PURPOSES = ["APPOINTMENT", "INVOICE", "QUOTE", "WORK_ORDER"] as const;
 
-export type ProvisionableShop = ShopEmailConfig & { id: string };
+export type ProvisionableShop = ShopEmailConfig & { id: string; slug?: string | null };
 
 /**
  * Crea/actualiza SenderIdentity + CommunicationRoute para un taller a partir de sus
  * campos de email actuales y TWILIO_FROM_NUMBER. Idempotente (upsert) — seguro de
  * llamar en cada guardado de Configuración, en el backfill de deploy, o al crear un
  * taller nuevo. Un canal sin dirección resoluble simplemente se omite (no bloquea).
+ *
+ * Cuando el taller ya tiene `slug` y hay un EMAIL_MANAGED_DOMAIN configurado, la
+ * dirección de envío pasa a ser `{slug}@{EMAIL_MANAGED_DOMAIN}` (dominio ya verificado
+ * por GarageOS en Resend) y el correo real del taller queda como reply-to — así el
+ * envío técnico siempre sale autenticado, sin importar en qué dominio esté el correo
+ * que el dueño puso en Configuración (gmail, hotmail, etc). Sin slug o sin la variable
+ * de entorno, se mantiene el comportamiento legado (address = correo real del taller).
  */
 /** Purposes sin columna dedicada en Shop — reusan la dirección general del taller (APPOINTMENT). */
 const GENERAL_EMAIL_PURPOSES = ["INBOX", "CAMPAIGN"] as const;
 
+function managedAddressFor(shop: ProvisionableShop, contactAddress: string): { address: string; replyTo: string | null } {
+  const managedDomain = getManagedEmailDomain();
+  const slug = shop.slug?.trim().toLowerCase();
+  if (managedDomain && slug) {
+    return { address: `${slug}@${managedDomain}`, replyTo: contactAddress };
+  }
+  return { address: contactAddress, replyTo: null };
+}
+
 export async function provisionDefaultSenderIdentities(shop: ProvisionableShop): Promise<void> {
   for (const channel of IMPLEMENTED_EMAIL_CHANNELS) {
-    let address: string;
+    let contactAddress: string;
     try {
-      address = resolveEmailRoute(shop, channel).fromAddress;
+      contactAddress = resolveEmailRoute(shop, channel).fromAddress;
     } catch {
       continue;
     }
-    await upsertRoute(shop.id, channel, "EMAIL", address, shop.name);
+    const { address, replyTo } = managedAddressFor(shop, contactAddress);
+    await upsertRoute(shop.id, channel, "EMAIL", address, replyTo, shop.name);
   }
 
   try {
-    const generalAddress = resolveEmailRoute(shop, "APPOINTMENT").fromAddress;
+    const contactAddress = resolveEmailRoute(shop, "APPOINTMENT").fromAddress;
+    const { address, replyTo } = managedAddressFor(shop, contactAddress);
     for (const purpose of GENERAL_EMAIL_PURPOSES) {
-      await upsertRoute(shop.id, purpose, "EMAIL", generalAddress, shop.name);
+      await upsertRoute(shop.id, purpose, "EMAIL", address, replyTo, shop.name);
     }
   } catch {
     // Sin dirección configurable todavía — se completa en el próximo backfill/guardado.
@@ -76,7 +95,7 @@ export async function provisionDefaultSenderIdentities(shop: ProvisionableShop):
   const smsFrom = process.env.TWILIO_FROM_NUMBER?.trim();
   if (smsFrom) {
     for (const purpose of SMS_PURPOSES) {
-      await upsertRoute(shop.id, purpose, "SMS", smsFrom, shop.name);
+      await upsertRoute(shop.id, purpose, "SMS", smsFrom, null, shop.name);
     }
   }
 }
@@ -86,15 +105,17 @@ async function upsertRoute(
   purpose: string,
   channel: CommChannel,
   address: string,
+  replyTo: string | null,
   displayName: string
 ): Promise<void> {
   const identity = await db.senderIdentity.upsert({
     where: { shopId_channel_address: { shopId, channel, address } },
-    update: { displayName },
+    update: { displayName, replyTo },
     create: {
       shopId,
       channel,
       address,
+      replyTo,
       displayName,
       type: "GARAGEOS_MANAGED",
       status: "ACTIVE",
@@ -111,6 +132,7 @@ async function upsertRoute(
 export interface ResolvedSenderIdentity {
   id: string;
   address: string;
+  replyTo: string | null;
   displayName: string | null;
 }
 
@@ -132,6 +154,7 @@ export async function resolveSenderIdentity(
   return {
     id: route.senderIdentity.id,
     address: route.senderIdentity.address,
+    replyTo: route.senderIdentity.replyTo,
     displayName: route.senderIdentity.displayName,
   };
 }
@@ -155,7 +178,7 @@ export async function resolveActiveEmailRoute(
   return {
     channel,
     from: formatFromHeader(shop.name, active.address),
-    replyTo: active.address,
+    replyTo: active.replyTo ?? active.address,
     fromAddress: active.address,
     pipeline: "resend",
   };
@@ -166,6 +189,7 @@ export interface SenderIdentitySummary {
   channel: CommChannel;
   type: "GARAGEOS_MANAGED" | "CUSTOM_DOMAIN";
   address: string;
+  replyTo: string | null;
   displayName: string | null;
   status: "PENDING" | "ACTIVE" | "SUSPENDED" | "FAILED";
   createdAt: Date;
@@ -181,6 +205,7 @@ export async function listSenderIdentities(shopId: string): Promise<SenderIdenti
     channel: r.channel,
     type: r.type,
     address: r.address,
+    replyTo: r.replyTo,
     displayName: r.displayName,
     status: r.status,
     createdAt: r.createdAt,
@@ -196,6 +221,48 @@ export interface SenderIdentityRouteRow {
 export async function listCommunicationRoutes(shopId: string): Promise<SenderIdentityRouteRow[]> {
   const rows = await db.communicationRoute.findMany({ where: { shopId } });
   return rows.map((r) => ({ purpose: r.purpose, channel: r.channel, senderIdentityId: r.senderIdentityId }));
+}
+
+/**
+ * Identidad de email explícita por id — para cuando quien redacta en el Inbox elige
+ * "Enviar desde" en vez de usar la ruta INBOX por defecto. Valida que sea del taller,
+ * de canal EMAIL y esté activa, igual que resolveSenderIdentity.
+ */
+export async function resolveSenderIdentityById(
+  shopId: string,
+  identityId: string
+): Promise<ResolvedSenderIdentity | null> {
+  const identity = await db.senderIdentity.findFirst({
+    where: { id: identityId, shopId, channel: "EMAIL", status: "ACTIVE" },
+  });
+  if (!identity) return null;
+  return { id: identity.id, address: identity.address, replyTo: identity.replyTo, displayName: identity.displayName };
+}
+
+export interface InboxSenderOption {
+  id: string;
+  address: string;
+  displayName: string | null;
+}
+
+/**
+ * Opciones para el selector "Enviar desde" del compositor del Inbox. El dropdown solo
+ * debe mostrarse cuando hay más de una — con una sola no hay nada que elegir.
+ */
+export async function getInboxSenderOptions(
+  shopId: string
+): Promise<{ options: InboxSenderOption[]; defaultId: string | null }> {
+  const [identities, route] = await Promise.all([
+    db.senderIdentity.findMany({
+      where: { shopId, channel: "EMAIL", status: "ACTIVE" },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, address: true, displayName: true },
+    }),
+    db.communicationRoute.findUnique({
+      where: { shopId_purpose_channel: { shopId, purpose: "INBOX", channel: "EMAIL" } },
+    }),
+  ]);
+  return { options: identities, defaultId: route?.senderIdentityId ?? null };
 }
 
 /**
@@ -217,7 +284,43 @@ function localPartOf(address: string): string {
   return address.split("@")[0]?.toLowerCase().trim() ?? "";
 }
 
-/** Valida y crea una identidad nueva para el taller (OWNER-only, ver actions). */
+function domainOf(address: string): string {
+  return address.split("@")[1]?.toLowerCase().trim() ?? "";
+}
+
+export interface SenderDomainOptions {
+  /** Dominio compartido de GarageOS (EMAIL_MANAGED_DOMAIN) — null si el servidor no lo configuró. */
+  managedDomain: string | null;
+  /** Slug del taller — requerido para usar managedDomain (evita choques entre talleres). */
+  slug: string | null;
+  /** Dominio propio del taller ya verificado en Resend, o null si no tiene uno. */
+  verifiedCustomDomain: string | null;
+}
+
+/** Opciones de dominio que el formulario de "nueva identidad" puede ofrecer para este taller. */
+export async function getSenderDomainOptions(shopId: string): Promise<SenderDomainOptions> {
+  const [shop, domain] = await Promise.all([
+    db.shop.findUnique({ where: { id: shopId }, select: { slug: true } }),
+    db.shopDomain.findFirst({ where: { shopId, purpose: "EMAIL", status: "VERIFIED" } }),
+  ]);
+  return {
+    managedDomain: getManagedEmailDomain(),
+    slug: shop?.slug ?? null,
+    verifiedCustomDomain: domain?.domain ?? null,
+  };
+}
+
+/**
+ * Valida y crea una identidad nueva para el taller (OWNER-only, ver actions).
+ *
+ * El dominio de `address` debe ser, sin excepción, uno de estos dos:
+ *  - EMAIL_MANAGED_DOMAIN (dominio de GarageOS, ya verificado en Resend): la parte
+ *    local debe ser o empezar con el `slug` del taller, para que dos talleres nunca
+ *    puedan reclamar la misma dirección en el dominio compartido.
+ *  - Un dominio propio del taller ya verificado (ShopDomain purpose=EMAIL, VERIFIED).
+ * Cualquier otro dominio (gmail.com, un dominio sin verificar, etc.) se rechaza —
+ * mandar "From" desde un dominio no verificado en Resend falla o cae en spam.
+ */
 export async function createSenderIdentity(params: {
   shopId: string;
   channel: CommChannel;
@@ -232,6 +335,61 @@ export async function createSenderIdentity(params: {
 
   if (RESERVED_LOCAL_PARTS.has(localPartOf(address))) {
     throw new SenderIdentityError("Ese nombre de remitente está reservado");
+  }
+
+  let type: "GARAGEOS_MANAGED" | "CUSTOM_DOMAIN" = "GARAGEOS_MANAGED";
+  let domainId: string | null = null;
+  let replyTo: string | null = null;
+  let verifiedAt: Date | null = null;
+
+  if (params.channel === "EMAIL") {
+    const domain = domainOf(address);
+    const managedDomain = getManagedEmailDomain();
+
+    if (managedDomain && domain === managedDomain) {
+      const shop = await db.shop.findUnique({
+        where: { id: params.shopId },
+        select: { slug: true, email: true },
+      });
+      const slug = shop?.slug?.trim().toLowerCase();
+      if (!slug) {
+        throw new SenderIdentityError(
+          `Configura primero el identificador (slug) de tu taller en Configuración antes de crear una dirección @${managedDomain}`
+        );
+      }
+      const localPart = localPartOf(address);
+      if (localPart !== slug && !localPart.startsWith(`${slug}-`)) {
+        throw new SenderIdentityError(
+          `La dirección debe empezar con "${slug}" (tu identificador) para usar @${managedDomain} — ej. ${slug}@${managedDomain} o ${slug}-citas@${managedDomain}`
+        );
+      }
+      // El slug es único por taller, pero un slug que es prefijo de otro (ej. "garage" y
+      // "garage-citas") todavía podría producir la misma address — el dominio es
+      // compartido entre TODOS los talleres, así que hay que checar unicidad global aquí,
+      // no solo por shopId (el índice único de la tabla es [shopId, channel, address]).
+      const takenByOtherShop = await db.senderIdentity.findFirst({
+        where: { channel: params.channel, address, shopId: { not: params.shopId } },
+      });
+      if (takenByOtherShop) {
+        throw new SenderIdentityError("Esa dirección ya está en uso por otro taller");
+      }
+
+      type = "GARAGEOS_MANAGED";
+      replyTo = shop?.email?.trim() || null;
+    } else {
+      const verifiedDomain = await db.shopDomain.findFirst({
+        where: { shopId: params.shopId, purpose: "EMAIL", domain, status: "VERIFIED" },
+      });
+      if (!verifiedDomain) {
+        throw new SenderIdentityError(
+          `Para usar @${domain} primero debes conectarlo y verificarlo en Configuración → Dominios`
+        );
+      }
+      type = "CUSTOM_DOMAIN";
+      domainId = verifiedDomain.id;
+      replyTo = address;
+      verifiedAt = new Date();
+    }
   }
 
   const count = await db.senderIdentity.count({ where: { shopId: params.shopId } });
@@ -251,8 +409,11 @@ export async function createSenderIdentity(params: {
       shopId: params.shopId,
       channel: params.channel,
       address,
+      replyTo,
       displayName: params.displayName?.trim() || null,
-      type: "GARAGEOS_MANAGED",
+      type,
+      domainId,
+      verifiedAt,
       status: "ACTIVE",
     },
   });
@@ -272,6 +433,7 @@ export async function createSenderIdentity(params: {
     channel: identity.channel,
     type: identity.type,
     address: identity.address,
+    replyTo: identity.replyTo,
     displayName: identity.displayName,
     status: identity.status,
     createdAt: identity.createdAt,

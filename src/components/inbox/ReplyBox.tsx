@@ -10,14 +10,29 @@ import { RichEmailEditor } from "@/components/inbox/RichEmailEditor";
 
 const MAX_ATTACHMENTS = 8;
 
+interface SenderOption {
+  id: string;
+  address: string;
+  displayName: string | null;
+}
+
 interface ReplyBoxProps {
   threadId: string;
   defaultTo: string;
   defaultSubject: string;
   shopName: string;
+  senderOptions: SenderOption[];
+  defaultSenderId: string | null;
 }
 
-export function ReplyBox({ threadId, defaultTo, defaultSubject, shopName }: ReplyBoxProps) {
+export function ReplyBox({
+  threadId,
+  defaultTo,
+  defaultSubject,
+  shopName,
+  senderOptions,
+  defaultSenderId,
+}: ReplyBoxProps) {
   const router = useRouter();
   const [files, setFiles] = useState<File[]>([]);
   const [showCc, setShowCc] = useState(false);
@@ -69,6 +84,24 @@ export function ReplyBox({ threadId, defaultTo, defaultSubject, shopName }: Repl
         Para: <span className="font-medium text-slate-700">{defaultTo}</span>{" "}
         {!showCc && <button type="button" onClick={() => setShowCc(true)} className="text-blue-600 hover:underline ml-1">+ CC/CCO</button>}
       </div>
+
+      {senderOptions.length > 1 && (
+        <div>
+          <label className="block text-xs font-medium text-slate-500 mb-1">Enviar desde</label>
+          <select
+            name="senderIdentityId"
+            defaultValue={defaultSenderId ?? senderOptions[0].id}
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+          >
+            {senderOptions.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.displayName ? `${option.displayName} — ` : ""}
+                {option.address}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {showCc && <div className="grid grid-cols-2 gap-2"><input name="cc" placeholder="CC" className="px-3 py-2 border border-slate-300 rounded-lg text-sm" /><input name="bcc" placeholder="CCO" className="px-3 py-2 border border-slate-300 rounded-lg text-sm" /></div>}
       <input name="subject" defaultValue={defaultSubject} placeholder="Asunto" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />

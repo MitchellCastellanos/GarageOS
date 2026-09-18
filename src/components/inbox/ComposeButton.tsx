@@ -11,7 +11,19 @@ import { adminPath } from "@/lib/routes";
 
 const MAX_ATTACHMENTS = 8;
 
-export function ComposeButton({ shopName }: { shopName: string }) {
+interface SenderOption {
+  id: string;
+  address: string;
+  displayName: string | null;
+}
+
+interface ComposeButtonProps {
+  shopName: string;
+  senderOptions: SenderOption[];
+  defaultSenderId: string | null;
+}
+
+export function ComposeButton({ shopName, senderOptions, defaultSenderId }: ComposeButtonProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
@@ -60,6 +72,23 @@ export function ComposeButton({ shopName }: { shopName: string }) {
             </div>
 
             <div className="p-5 space-y-3">
+              {senderOptions.length > 1 && (
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Enviar desde</label>
+                  <select
+                    name="senderIdentityId"
+                    defaultValue={defaultSenderId ?? senderOptions[0].id}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                  >
+                    {senderOptions.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.displayName ? `${option.displayName} — ` : ""}
+                        {option.address}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <input name="to" required placeholder="Para (separa varios con coma)" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
               <input name="cc" placeholder="CC (opcional)" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
               <input name="bcc" placeholder="CCO (opcional)" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />

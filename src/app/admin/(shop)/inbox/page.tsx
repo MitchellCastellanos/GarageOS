@@ -1,7 +1,7 @@
 import { ADMIN, adminPath } from "@/lib/routes";
 import Link from "next/link";
 import { Inbox as InboxIcon, ArrowDownLeft, ArrowUpRight } from "lucide-react";
-import { listThreads } from "@/actions/inbox";
+import { listThreads, getInboxSenderOptionsAction } from "@/actions/inbox";
 import { formatClientName } from "@/lib/client-name";
 import { ComposeButton } from "@/components/inbox/ComposeButton";
 import { db } from "@/lib/db";
@@ -23,16 +23,17 @@ function formatRelative(date: Date): string {
 export default async function InboxPage({ searchParams }: PageProps) {
   const { status } = await searchParams;
   const activeTab = status === "ARCHIVED" ? "ARCHIVED" : "OPEN";
-  const [threads, shop] = await Promise.all([
+  const [threads, shop, senderOptions] = await Promise.all([
     listThreads(activeTab),
     getShopId().then((shopId) => db.shop.findUniqueOrThrow({ where: { id: shopId }, select: { name: true } })),
+    getInboxSenderOptionsAction(),
   ]);
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div><h1 className="text-2xl font-bold text-slate-900">Bandeja de entrada</h1><p className="text-slate-500 text-sm mt-1">{threads.length} conversación{threads.length !== 1 ? "es" : ""}</p></div>
-        <ComposeButton shopName={shop.name} />
+        <ComposeButton shopName={shop.name} senderOptions={senderOptions.options} defaultSenderId={senderOptions.defaultId} />
       </div>
 
       <div className="flex gap-1 bg-slate-100 p-1 rounded-lg w-fit">

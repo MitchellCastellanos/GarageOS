@@ -27,10 +27,6 @@ model Shop {
   address                   String?
   phone                     String?
   email                     String?
-  billingEmail              String?
-  infoEmail                 String?
-  providersEmail            String?
-  newsletterEmail           String?
   taxId                     String?
   currency                  String        @default("CAD")
   appointmentReminderHours  Int           @default(24)
@@ -861,6 +857,12 @@ model SenderIdentity {
   channel                CommChannel
   type                   SenderIdentityType   @default(GARAGEOS_MANAGED)
   address                String
+  // Para identidades GARAGEOS_MANAGED, `address` vive en el dominio compartido
+  // (ej. slug@garage-os.ca) y `replyTo` es el correo real del taller — así las
+  // respuestas del cliente llegan a su bandeja normal aunque el envío técnico
+  // salga autenticado desde el dominio de GarageOS. Para CUSTOM_DOMAIN, replyTo
+  // suele ser igual a address. Null = usar address como reply-to (compat legado).
+  replyTo                String?
   displayName            String?
   domainId               String?
   domain                 ShopDomain?          @relation(fields: [domainId], references: [id])

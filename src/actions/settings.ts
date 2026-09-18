@@ -5,7 +5,6 @@ import { ADMIN } from "@/lib/routes";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
-import { requireOwner } from "@/lib/permissions";
 import { getShopId } from "@/lib/shop-context";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -72,6 +71,7 @@ export async function updateShopSettings(formData: FormData) {
   });
 
   revalidatePath(ADMIN.settings);
+  revalidatePath(ADMIN.notifications);
   return { success: true };
 }
 
@@ -91,13 +91,18 @@ export async function updateShopSlug(formData: FormData) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid identifier" };
   }
 
+  let updatedShop;
   try {
-    await db.shop.update({ where: { id: shopId }, data: { slug: parsed.data } });
+    updatedShop = await db.shop.update({ where: { id: shopId }, data: { slug: parsed.data } });
   } catch (err) {
     const isUniqueConflict =
       typeof err === "object" && err !== null && "code" in err && (err as { code?: string }).code === "P2002";
     return { error: isUniqueConflict ? "That identifier is already in use" : "Could not save changes" };
   }
+
+  await provisionDefaultSenderIdentities(updatedShop).catch((err) => {
+    console.error("[communications] provisionDefaultSenderIdentities failed:", err);
+  });
 
   revalidatePath(ADMIN.settings);
   return { success: true, slug: parsed.data };
@@ -126,49 +131,6 @@ export async function updateShopBrandColor(formData: FormData) {
   await db.shop.update({ where: { id: shopId }, data: { brandColor: parsed.data } });
   revalidatePath(ADMIN.settings);
   return { success: true, brandColor: parsed.data };
-}
-
-const mailboxSchema = z.object({
-  billingEmail: z.string().email("Invalid email address").optional().or(z.literal("")),
-  infoEmail: z.string().email("Invalid email address").optional().or(z.literal("")),
-  providersEmail: z.string().email("Invalid email address").optional().or(z.literal("")),
-  newsletterEmail: z.string().email("Invalid email address").optional().or(z.literal("")),
-});
-
-export async function updateMailboxSettings(formData: FormData) {
-  const session = await requireOwner();
-  const shopId = session.user.shopId!;
-
-  const raw = {
-    billingEmail: formData.get("billingEmail") as string,
-    infoEmail: formData.get("infoEmail") as string,
-    providersEmail: formData.get("providersEmail") as string,
-    newsletterEmail: formData.get("newsletterEmail") as string,
-  };
-
-  const parsed = mailboxSchema.safeParse(raw);
-  if (!parsed.success) {
-    return { error: parsed.error.flatten().fieldErrors };
-  }
-
-  const { billingEmail, infoEmail, providersEmail, newsletterEmail } = parsed.data;
-
-  const updatedShop = await db.shop.update({
-    where: { id: shopId },
-    data: {
-      billingEmail: billingEmail || null,
-      infoEmail: infoEmail || null,
-      providersEmail: providersEmail || null,
-      newsletterEmail: newsletterEmail || null,
-    },
-  });
-
-  await provisionDefaultSenderIdentities(updatedShop).catch((err) => {
-    console.error("[communications] provisionDefaultSenderIdentities failed:", err);
-  });
-
-  revalidatePath(ADMIN.notifications);
-  return { success: true };
 }
 
 export async function uploadShopLogo(formData: FormData) {

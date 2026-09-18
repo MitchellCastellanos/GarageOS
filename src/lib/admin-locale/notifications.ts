@@ -2,18 +2,14 @@ import type { AdminLocale } from "@/lib/admin-locale";
 
 export interface NotificationsDictionary {
   page: { title: string; subtitle: string };
-  mailboxes: {
+  /** Aviso simple para talleres sin dominio propio ni identidades extra (plan Core). */
+  banner: {
     title: string;
-    billingLabel: string;
-    billingHint: string;
-    infoLabel: string;
-    providersLabel: string;
-    providersHint: string;
-    newsletterLabel: string;
-    newsletterHint: string;
-    save: string;
-    saving: string;
-    saved: string;
+    bodyWithAddress: (address: string) => string;
+    bodyNoSlug: string;
+    linkText: string;
+    upgradeHint: string;
+    upgradeLinkText: string;
   };
 }
 
@@ -21,58 +17,49 @@ export const NOTIFICATIONS_DICT: Record<AdminLocale, NotificationsDictionary> = 
   es: {
     page: {
       title: "Notificaciones",
-      subtitle: "Buzones de correo, remitentes automáticos y dominio de envío",
+      subtitle: "Remitente y dominio de envío de tus correos",
     },
-    mailboxes: {
-      title: "Buzones del dominio",
-      billingLabel: "billing@ — Sin uso",
-      billingHint: "Las facturas y contabilidad ahora salen de info@",
-      infoLabel: "info@ — Facturas, cotizaciones, recordatorios y web",
-      providersLabel: "providers@ — Proveedores",
-      providersHint: "Reservado para uso futuro",
-      newsletterLabel: "newsletter@ — Marketing",
-      newsletterHint: "Para Brevo/Mailchimp más adelante",
-      save: "Guardar cambios",
-      saving: "Guardando...",
-      saved: "Configuración guardada",
+    banner: {
+      title: "Tu remitente de correo",
+      bodyWithAddress: (address) =>
+        `Todos tus correos (citas, facturas, cotizaciones, mensajes) salen desde ${address}.`,
+      bodyNoSlug:
+        "Todavía no tienes un identificador configurado, así que tus correos usan un remitente compartido de GarageOS.",
+      linkText: "Configura tu identificador y tu correo de contacto",
+      upgradeHint: "¿Quieres usar tu propio dominio (ej. citas@tutaller.com)?",
+      upgradeLinkText: "Mejora tu plan →",
     },
   },
   en: {
     page: {
       title: "Notifications",
-      subtitle: "Mailboxes, automatic senders, and sending domain",
+      subtitle: "Sender and sending domain for your emails",
     },
-    mailboxes: {
-      title: "Domain mailboxes",
-      billingLabel: "billing@ — Unused",
-      billingHint: "Invoices and accounting now go out from info@",
-      infoLabel: "info@ — Invoices, quotes, reminders, and web",
-      providersLabel: "providers@ — Providers",
-      providersHint: "Reserved for future use",
-      newsletterLabel: "newsletter@ — Marketing",
-      newsletterHint: "For Brevo/Mailchimp later on",
-      save: "Save changes",
-      saving: "Saving...",
-      saved: "Settings saved",
+    banner: {
+      title: "Your email sender",
+      bodyWithAddress: (address) =>
+        `All your emails (appointments, invoices, quotes, messages) go out from ${address}.`,
+      bodyNoSlug:
+        "You haven't set up an identifier yet, so your emails use a shared GarageOS sender.",
+      linkText: "Set up your identifier and contact email",
+      upgradeHint: "Want to use your own domain (e.g. appointments@yourshop.com)?",
+      upgradeLinkText: "Upgrade your plan →",
     },
   },
   fr: {
     page: {
       title: "Notifications",
-      subtitle: "Boîtes courriel, expéditeurs automatiques et domaine d'envoi",
+      subtitle: "Expéditeur et domaine d'envoi de vos courriels",
     },
-    mailboxes: {
-      title: "Boîtes courriel du domaine",
-      billingLabel: "billing@ — Inutilisée",
-      billingHint: "Les factures et la comptabilité proviennent maintenant de info@",
-      infoLabel: "info@ — Factures, soumissions, rappels et site web",
-      providersLabel: "providers@ — Fournisseurs",
-      providersHint: "Réservée pour un usage futur",
-      newsletterLabel: "newsletter@ — Marketing",
-      newsletterHint: "Pour Brevo/Mailchimp plus tard",
-      save: "Enregistrer les changements",
-      saving: "Enregistrement...",
-      saved: "Configuration enregistrée",
+    banner: {
+      title: "Votre expéditeur de courriel",
+      bodyWithAddress: (address) =>
+        `Tous vos courriels (rendez-vous, factures, soumissions, messages) proviennent de ${address}.`,
+      bodyNoSlug:
+        "Vous n'avez pas encore configuré d'identifiant, donc vos courriels utilisent un expéditeur partagé de GarageOS.",
+      linkText: "Configurez votre identifiant et votre courriel de contact",
+      upgradeHint: "Vous voulez utiliser votre propre domaine (ex. rendezvous@votregarage.com) ?",
+      upgradeLinkText: "Améliorez votre plan →",
     },
   },
 };

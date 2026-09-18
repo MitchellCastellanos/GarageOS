@@ -9,8 +9,10 @@ import {
   listCommunicationRoutes,
   createSenderIdentity,
   setCommunicationRoute,
+  getSenderDomainOptions,
   SenderIdentityError,
   type SenderIdentitySummary,
+  type SenderDomainOptions,
 } from "@/lib/communications/sender-identity";
 import { ROUTE_PURPOSES, type RoutePurpose } from "@/lib/communications/route-purposes";
 import { checkEntitlement } from "@/lib/subscription";
@@ -20,15 +22,17 @@ export interface CommunicationSettingsData {
   identities: SenderIdentitySummary[];
   routes: { purpose: string; channel: CommChannel; senderIdentityId: string }[];
   purposes: RoutePurpose[];
+  domainOptions: SenderDomainOptions;
 }
 
 export async function getCommunicationSettings(): Promise<CommunicationSettingsData> {
   const shopId = await getShopId();
-  const [identities, routes] = await Promise.all([
+  const [identities, routes, domainOptions] = await Promise.all([
     listSenderIdentities(shopId),
     listCommunicationRoutes(shopId),
+    getSenderDomainOptions(shopId),
   ]);
-  return { identities, routes, purposes: ROUTE_PURPOSES };
+  return { identities, routes, purposes: ROUTE_PURPOSES, domainOptions };
 }
 
 export async function createSenderIdentityAction(formData: FormData) {
@@ -39,10 +43,12 @@ export async function createSenderIdentityAction(formData: FormData) {
   if (entitlementError) return { error: entitlementError };
 
   const channel = (formData.get("channel") as string) === "SMS" ? "SMS" : "EMAIL";
-  const address = (formData.get("address") as string)?.trim();
+  const localPart = (formData.get("localPart") as string)?.trim();
+  const domain = (formData.get("domain") as string)?.trim();
   const displayName = (formData.get("displayName") as string) || null;
 
-  if (!address) return { error: "La dirección es requerida" };
+  if (!localPart || !domain) return { error: "La dirección es requerida" };
+  const address = `${localPart}@${domain}`;
 
   try {
     const identity = await createSenderIdentity({ shopId, channel, address, displayName });

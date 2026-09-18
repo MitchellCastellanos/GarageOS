@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { getShopId } from "@/lib/shop-context";
 import { requireShopSession } from "@/lib/permissions";
 import { sendInboxMessage } from "@/lib/communications/inbox";
+import { getInboxSenderOptions } from "@/lib/communications/sender-identity";
 import { parseEmailAttachments } from "@/lib/email-attachments";
 import { emailRichTextToPlainText, parseEmailRichText } from "@/lib/email-rich-text";
 
@@ -65,6 +66,16 @@ export async function reopenThreadAction(threadId: string) {
   return { success: true };
 }
 
+export async function getInboxSenderOptionsAction() {
+  const shopId = await getShopId();
+  return getInboxSenderOptions(shopId);
+}
+
+function readSenderIdentityId(formData: FormData): string | null {
+  const value = formData.get("senderIdentityId");
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
 function splitAddresses(value: FormDataEntryValue | null): string[] {
   if (typeof value !== "string" || !value.trim()) return [];
   return value.split(",").map((v) => v.trim()).filter(Boolean);
@@ -109,6 +120,7 @@ export async function replyToThreadAction(threadId: string, formData: FormData) 
       bodyRich,
       shopName: shop.name,
       attachments: attachmentResult.attachments,
+      senderIdentityId: readSenderIdentityId(formData),
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Error desconocido";
@@ -152,6 +164,7 @@ export async function composeMessageAction(formData: FormData) {
       bodyRich,
       shopName: shop.name,
       attachments: attachmentResult.attachments,
+      senderIdentityId: readSenderIdentityId(formData),
     });
     threadId = result.threadId;
   } catch (err) {
