@@ -7,7 +7,7 @@ import { Resend } from "resend";
 import React from "react";
 import { db } from "@/lib/db";
 import { recordAndSend } from "@/lib/communications/outbox";
-import { resolveSenderIdentity } from "@/lib/communications/sender-identity";
+import { resolveSenderIdentity, resolveSenderIdentityById } from "@/lib/communications/sender-identity";
 import { formatFromHeader } from "@/lib/email-config";
 import { PlainMessageEmail } from "@/emails/PlainMessageEmail";
 import { uploadCommunicationAttachment } from "@/lib/storage";
@@ -36,6 +36,8 @@ export interface SendInboxMessageParams {
   shopName: string;
   attachments?: EmailAttachment[];
   inReplyTo?: string | null;
+  /** Override del selector "Enviar desde" — si no viene, usa la ruta INBOX por defecto. */
+  senderIdentityId?: string | null;
 }
 
 export interface SendInboxMessageResult {
@@ -49,7 +51,9 @@ export interface SendInboxMessageResult {
  * cada clic de "Enviar" es una acción humana deliberada, no un reintento automático.
  */
 export async function sendInboxMessage(params: SendInboxMessageParams): Promise<SendInboxMessageResult> {
-  const identity = await resolveSenderIdentity(params.shopId, "INBOX", "EMAIL");
+  const identity = params.senderIdentityId
+    ? await resolveSenderIdentityById(params.shopId, params.senderIdentityId)
+    : await resolveSenderIdentity(params.shopId, "INBOX", "EMAIL");
   if (!identity) {
     throw new Error(
       "No hay un remitente configurado para la Bandeja. Configura uno en Configuración → Rutas de comunicación."

@@ -224,6 +224,48 @@ export async function listCommunicationRoutes(shopId: string): Promise<SenderIde
 }
 
 /**
+ * Identidad de email explícita por id — para cuando quien redacta en el Inbox elige
+ * "Enviar desde" en vez de usar la ruta INBOX por defecto. Valida que sea del taller,
+ * de canal EMAIL y esté activa, igual que resolveSenderIdentity.
+ */
+export async function resolveSenderIdentityById(
+  shopId: string,
+  identityId: string
+): Promise<ResolvedSenderIdentity | null> {
+  const identity = await db.senderIdentity.findFirst({
+    where: { id: identityId, shopId, channel: "EMAIL", status: "ACTIVE" },
+  });
+  if (!identity) return null;
+  return { id: identity.id, address: identity.address, replyTo: identity.replyTo, displayName: identity.displayName };
+}
+
+export interface InboxSenderOption {
+  id: string;
+  address: string;
+  displayName: string | null;
+}
+
+/**
+ * Opciones para el selector "Enviar desde" del compositor del Inbox. El dropdown solo
+ * debe mostrarse cuando hay más de una — con una sola no hay nada que elegir.
+ */
+export async function getInboxSenderOptions(
+  shopId: string
+): Promise<{ options: InboxSenderOption[]; defaultId: string | null }> {
+  const [identities, route] = await Promise.all([
+    db.senderIdentity.findMany({
+      where: { shopId, channel: "EMAIL", status: "ACTIVE" },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, address: true, displayName: true },
+    }),
+    db.communicationRoute.findUnique({
+      where: { shopId_purpose_channel: { shopId, purpose: "INBOX", channel: "EMAIL" } },
+    }),
+  ]);
+  return { options: identities, defaultId: route?.senderIdentityId ?? null };
+}
+
+/**
  * Resuelve a qué taller pertenece una dirección de email entrante (Fase 4) — nunca
  * confía en el contenido del mensaje (From, headers) para esto, solo en qué
  * SenderIdentity activa de GarageOS recibió el correo (doc §7/§12).

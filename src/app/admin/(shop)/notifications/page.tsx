@@ -8,7 +8,7 @@ import { getShopSettings } from "@/actions/settings";
 import { getShopDomains } from "@/actions/domains";
 import { getCommunicationSettings } from "@/actions/communications-settings";
 import { EmailDomainCard } from "@/components/settings/EmailDomainCard";
-import { CommunicationRoutesCard } from "@/components/settings/CommunicationRoutesCard";
+import { SenderSettingsSection } from "@/components/settings/SenderSettingsSection";
 import { NOTIFICATIONS_DICT } from "@/lib/admin-locale/notifications";
 import { getManagedEmailDomain } from "@/lib/email-config";
 import { getEffectiveSubscription } from "@/lib/subscription";
@@ -58,6 +58,12 @@ export default async function NotificationsPage() {
               >
                 {t.banner.linkText}
               </Link>
+              <p className="text-xs text-slate-500 mt-3">
+                {t.banner.upgradeHint}{" "}
+                <Link href={`${ADMIN.settings}?tab=billing`} className="font-medium text-teal-700 hover:underline">
+                  {t.banner.upgradeLinkText}
+                </Link>
+              </p>
             </div>
           </div>
         )}
@@ -65,7 +71,7 @@ export default async function NotificationsPage() {
         {showAdvanced && (
           <>
             <EmailDomainCard email={domains.email} entitled={canCustomDomain} />
-            <CommunicationRoutesCard
+            <SenderSettingsSection
               key={JSON.stringify(communications)}
               data={communications}
               canCreateIdentity={canCreateIdentity}

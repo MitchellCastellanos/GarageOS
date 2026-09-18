@@ -8,6 +8,8 @@ export interface NotificationsDictionary {
     bodyWithAddress: (address: string) => string;
     bodyNoSlug: string;
     linkText: string;
+    upgradeHint: string;
+    upgradeLinkText: string;
   };
 }
 
@@ -24,6 +26,8 @@ export const NOTIFICATIONS_DICT: Record<AdminLocale, NotificationsDictionary> = 
       bodyNoSlug:
         "Todavía no tienes un identificador configurado, así que tus correos usan un remitente compartido de GarageOS.",
       linkText: "Configura tu identificador y tu correo de contacto",
+      upgradeHint: "¿Quieres usar tu propio dominio (ej. citas@tutaller.com)?",
+      upgradeLinkText: "Mejora tu plan →",
     },
   },
   en: {
@@ -38,6 +42,8 @@ export const NOTIFICATIONS_DICT: Record<AdminLocale, NotificationsDictionary> = 
       bodyNoSlug:
         "You haven't set up an identifier yet, so your emails use a shared GarageOS sender.",
       linkText: "Set up your identifier and contact email",
+      upgradeHint: "Want to use your own domain (e.g. appointments@yourshop.com)?",
+      upgradeLinkText: "Upgrade your plan →",
     },
   },
   fr: {
@@ -52,6 +58,8 @@ export const NOTIFICATIONS_DICT: Record<AdminLocale, NotificationsDictionary> = 
       bodyNoSlug:
         "Vous n'avez pas encore configuré d'identifiant, donc vos courriels utilisent un expéditeur partagé de GarageOS.",
       linkText: "Configurez votre identifiant et votre courriel de contact",
+      upgradeHint: "Vous voulez utiliser votre propre domaine (ex. rendezvous@votregarage.com) ?",
+      upgradeLinkText: "Améliorez votre plan →",
     },
   },
 };
