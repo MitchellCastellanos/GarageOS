@@ -39,6 +39,7 @@ export async function sendCampaignEmail(params: {
   }
 
   const from = formatFromHeader(params.shop.name, identity.address);
+  const replyTo = identity.replyTo ?? identity.address;
   const unsubscribeUrl = params.client
     ? `${getAppUrl()}/api/unsubscribe/${buildUnsubscribeToken(params.shop.id, params.client.id)}`
     : null;
@@ -61,7 +62,7 @@ export async function sendCampaignEmail(params: {
     direction: "OUTBOUND",
     messageType: "CAMPAIGN",
     from,
-    replyTo: identity.address,
+    replyTo,
     to: [params.address],
     subject: params.campaign.subject ?? params.campaign.name,
     htmlBody: html,
@@ -71,7 +72,7 @@ export async function sendCampaignEmail(params: {
     send: async () => {
       const { data, error } = await getResend().emails.send({
         from,
-        replyTo: identity.address,
+        replyTo,
         to: params.address,
         subject: params.campaign.subject ?? params.campaign.name,
         html,

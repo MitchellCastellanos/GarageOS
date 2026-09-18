@@ -27,7 +27,6 @@ model Shop {
   address                   String?
   phone                     String?
   email                     String?
-  newsletterEmail           String?
   taxId                     String?
   currency                  String        @default("CAD")
   appointmentReminderHours  Int           @default(24)

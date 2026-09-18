@@ -74,13 +74,6 @@ test("a maximum-size multipart logo fits both the Server Action and Vercel reque
   assert.ok(bytes < 4_500_000);
 });
 
-test("external newsletter routes do not query transactional sender identities", async (t) => {
-  const lookup = mockRoute(t, null);
-  const route = await resolveActiveEmailRoute({ id: "shop", name: "Shop", newsletterEmail: "news@example.com" }, "NEWSLETTER");
-  assert.equal(route.pipeline, "external");
-  assert.equal(lookup.mock.callCount(), 0);
-});
-
 test("createSenderIdentity rejects a domain that is neither the managed domain nor a verified custom domain", async (t) => {
   const original = process.env.EMAIL_MANAGED_DOMAIN;
   process.env.EMAIL_MANAGED_DOMAIN = "garage-os.ca";

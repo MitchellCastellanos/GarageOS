@@ -9,14 +9,12 @@ export type EmailChannel =
   | "REMINDER"
   | "WORK_ORDER"
   | "ACCOUNTING"
-  | "WEB_CONTACT"
-  | "NEWSLETTER";
+  | "WEB_CONTACT";
 
 export type ShopEmailConfig = {
   id: string;
   name: string;
   email?: string | null;
-  newsletterEmail?: string | null;
 };
 
 type ChannelMeta = {
@@ -93,15 +91,6 @@ export const EMAIL_CHANNEL_META: Record<EmailChannel, ChannelMeta> = {
     shopReplyField: "email",
     pipeline: "resend",
     implemented: true,
-  },
-  NEWSLETTER: {
-    label: "Newsletter",
-    description: "Campañas masivas — usar Brevo/Mailchimp, no Resend",
-    shopFromField: "newsletterEmail",
-    envFromKey: null,
-    shopReplyField: "newsletterEmail",
-    pipeline: "external",
-    implemented: false,
   },
 };
 
@@ -213,6 +202,5 @@ export function shopToEmailConfig(shop: ShopEmailConfig): ShopEmailConfig {
     id: shop.id,
     name: shop.name,
     email: shop.email,
-    newsletterEmail: shop.newsletterEmail,
   };
 }
