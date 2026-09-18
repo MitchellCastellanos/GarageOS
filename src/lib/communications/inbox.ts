@@ -57,6 +57,7 @@ export async function sendInboxMessage(params: SendInboxMessageParams): Promise<
   }
 
   const from = formatFromHeader(params.shopName, identity.address);
+  const replyTo = identity.replyTo ?? identity.address;
 
   const thread = params.threadId
     ? await db.communicationThread.findFirstOrThrow({ where: { id: params.threadId, shopId: params.shopId } })
@@ -87,7 +88,7 @@ export async function sendInboxMessage(params: SendInboxMessageParams): Promise<
     direction: "OUTBOUND",
     messageType: "HUMAN",
     from,
-    replyTo: identity.address,
+    replyTo,
     to: params.to,
     cc: params.cc,
     bcc: params.bcc,
@@ -100,7 +101,7 @@ export async function sendInboxMessage(params: SendInboxMessageParams): Promise<
     send: async () => {
       const { data, error } = await getResend().emails.send({
         from,
-        replyTo: identity.address,
+        replyTo,
         to: params.to,
         cc: params.cc,
         bcc: params.bcc,

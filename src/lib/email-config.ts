@@ -148,6 +148,17 @@ export function extractEmailAddress(from: string): string | null {
   return null;
 }
 
+/**
+ * Dominio propio de GarageOS, verificado en Resend, usado para las direcciones
+ * gestionadas (`{slug}@dominio`) de talleres que no conectaron su propio dominio.
+ * Sin esta variable, no se pueden crear/aprovisionar identidades GARAGEOS_MANAGED
+ * nuevas — solo queda disponible la opción de dominio propio verificado.
+ */
+export function getManagedEmailDomain(): string | null {
+  const raw = process.env.EMAIL_MANAGED_DOMAIN?.trim().toLowerCase();
+  return raw || null;
+}
+
 export function formatFromHeader(shopName: string, address: string): string {
   const safeName = shopName.replace(/"/g, "'");
   return `"${safeName}" <${address}>`;

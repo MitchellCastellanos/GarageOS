@@ -91,13 +91,18 @@ export async function updateShopSlug(formData: FormData) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid identifier" };
   }
 
+  let updatedShop;
   try {
-    await db.shop.update({ where: { id: shopId }, data: { slug: parsed.data } });
+    updatedShop = await db.shop.update({ where: { id: shopId }, data: { slug: parsed.data } });
   } catch (err) {
     const isUniqueConflict =
       typeof err === "object" && err !== null && "code" in err && (err as { code?: string }).code === "P2002";
     return { error: isUniqueConflict ? "That identifier is already in use" : "Could not save changes" };
   }
+
+  await provisionDefaultSenderIdentities(updatedShop).catch((err) => {
+    console.error("[communications] provisionDefaultSenderIdentities failed:", err);
+  });
 
   revalidatePath(ADMIN.settings);
   return { success: true, slug: parsed.data };

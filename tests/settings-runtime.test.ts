@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 import { MAX_LOGO_BYTES, validateLogo } from "../src/lib/logo-upload";
 import { db } from "../src/lib/db";
-import { resolveActiveEmailRoute } from "../src/lib/communications/sender-identity";
+import { resolveActiveEmailRoute, createSenderIdentity } from "../src/lib/communications/sender-identity";
 import nextConfig from "../next.config";
 
 function mockRoute(t: TestContext, result: unknown) {
@@ -14,6 +14,18 @@ function mockRoute(t: TestContext, result: unknown) {
   db.communicationRoute.findUnique = lookup as unknown as typeof original;
   t.after(() => { db.communicationRoute.findUnique = original; });
   return lookup;
+}
+
+/** Deja el mock puesto y lo restaura al terminar el test — usado para el resto de tablas que createSenderIdentity toca. */
+function mockDb<M extends keyof typeof db, K extends keyof (typeof db)[M]>(
+  t: TestContext,
+  model: M,
+  method: K,
+  impl: (...args: unknown[]) => unknown
+) {
+  const original = db[model][method];
+  db[model][method] = (t.mock.fn(impl) as unknown) as (typeof db)[M][K];
+  t.after(() => { db[model][method] = original; });
 }
 
 test("logo validation accepts files above 1 MiB through 4 MiB and rejects oversized or invalid files", () => {
@@ -67,4 +79,60 @@ test("external newsletter routes do not query transactional sender identities", 
   const route = await resolveActiveEmailRoute({ id: "shop", name: "Shop", newsletterEmail: "news@example.com" }, "NEWSLETTER");
   assert.equal(route.pipeline, "external");
   assert.equal(lookup.mock.callCount(), 0);
+});
+
+test("createSenderIdentity rejects a domain that is neither the managed domain nor a verified custom domain", async (t) => {
+  const original = process.env.EMAIL_MANAGED_DOMAIN;
+  process.env.EMAIL_MANAGED_DOMAIN = "garage-os.ca";
+  t.after(() => { process.env.EMAIL_MANAGED_DOMAIN = original; });
+
+  mockDb(t, "shop", "findUnique", async () => ({ slug: "garage-tremblay", infoEmail: null, email: null }));
+  mockDb(t, "shopDomain", "findFirst", async () => null);
+
+  await assert.rejects(
+    createSenderIdentity({ shopId: "shop", channel: "EMAIL", address: "garagetremblay@gmail.com" }),
+    /conectarlo y verificarlo/
+  );
+});
+
+test("createSenderIdentity rejects a managed-domain address that doesn't start with the shop's slug", async (t) => {
+  const original = process.env.EMAIL_MANAGED_DOMAIN;
+  process.env.EMAIL_MANAGED_DOMAIN = "garage-os.ca";
+  t.after(() => { process.env.EMAIL_MANAGED_DOMAIN = original; });
+
+  mockDb(t, "shop", "findUnique", async () => ({ slug: "garage-tremblay", infoEmail: null, email: null }));
+
+  await assert.rejects(
+    createSenderIdentity({ shopId: "shop", channel: "EMAIL", address: "otro-taller@garage-os.ca" }),
+    /debe empezar con "garage-tremblay"/
+  );
+});
+
+test("createSenderIdentity accepts a managed-domain address matching the shop's slug and uses the shop's contact email as reply-to", async (t) => {
+  const original = process.env.EMAIL_MANAGED_DOMAIN;
+  process.env.EMAIL_MANAGED_DOMAIN = "garage-os.ca";
+  t.after(() => { process.env.EMAIL_MANAGED_DOMAIN = original; });
+
+  mockDb(t, "shop", "findUnique", async () => ({
+    slug: "garage-tremblay",
+    infoEmail: "garagetremblay@gmail.com",
+    email: null,
+  }));
+  mockDb(t, "senderIdentity", "findFirst", async () => null);
+  mockDb(t, "senderIdentity", "count", async () => 0);
+  mockDb(t, "senderIdentity", "findUnique", async () => null);
+  mockDb(t, "senderIdentity", "create", async (...args: unknown[]) => {
+    const { data } = args[0] as { data: Record<string, unknown> };
+    return { id: "new-identity", createdAt: new Date(), ...data };
+  });
+  mockDb(t, "communicationAuditLog", "create", async () => ({}));
+
+  const identity = await createSenderIdentity({
+    shopId: "shop",
+    channel: "EMAIL",
+    address: "garage-tremblay@garage-os.ca",
+  });
+  assert.equal(identity.address, "garage-tremblay@garage-os.ca");
+  assert.equal(identity.type, "GARAGEOS_MANAGED");
+  assert.equal(identity.replyTo, "garagetremblay@gmail.com");
 });
