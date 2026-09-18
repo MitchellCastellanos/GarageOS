@@ -28,7 +28,7 @@ export async function startCheckoutAction(formData: FormData) {
     return { error: "Plan o intervalo inválido" };
   }
 
-  const shop = await db.shop.findUnique({ where: { id: shopId }, select: { billingEmail: true, email: true } });
+  const shop = await db.shop.findUnique({ where: { id: shopId }, select: { email: true } });
   const subscription = await getEffectiveSubscription(shopId);
   const appUrl = getAppUrl();
 
@@ -37,7 +37,7 @@ export async function startCheckoutAction(formData: FormData) {
       shopId,
       plan: plan as Plan,
       interval: interval as BillingInterval,
-      customerEmail: shop?.billingEmail || shop?.email || session.user.email || "",
+      customerEmail: shop?.email || session.user.email || "",
       existingStripeCustomerId: subscription.stripeCustomerId,
       successUrl: `${appUrl}${ADMIN.settings}?tab=billing&checkout=success`,
       cancelUrl: `${appUrl}${ADMIN.settings}?tab=billing&checkout=cancelled`,

@@ -5,7 +5,6 @@ import { ADMIN } from "@/lib/routes";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
-import { requireOwner } from "@/lib/permissions";
 import { getShopId } from "@/lib/shop-context";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -72,6 +71,7 @@ export async function updateShopSettings(formData: FormData) {
   });
 
   revalidatePath(ADMIN.settings);
+  revalidatePath(ADMIN.notifications);
   return { success: true };
 }
 
@@ -131,46 +131,6 @@ export async function updateShopBrandColor(formData: FormData) {
   await db.shop.update({ where: { id: shopId }, data: { brandColor: parsed.data } });
   revalidatePath(ADMIN.settings);
   return { success: true, brandColor: parsed.data };
-}
-
-const mailboxSchema = z.object({
-  billingEmail: z.string().email("Invalid email address").optional().or(z.literal("")),
-  infoEmail: z.string().email("Invalid email address").optional().or(z.literal("")),
-  newsletterEmail: z.string().email("Invalid email address").optional().or(z.literal("")),
-});
-
-export async function updateMailboxSettings(formData: FormData) {
-  const session = await requireOwner();
-  const shopId = session.user.shopId!;
-
-  const raw = {
-    billingEmail: formData.get("billingEmail") as string,
-    infoEmail: formData.get("infoEmail") as string,
-    newsletterEmail: formData.get("newsletterEmail") as string,
-  };
-
-  const parsed = mailboxSchema.safeParse(raw);
-  if (!parsed.success) {
-    return { error: parsed.error.flatten().fieldErrors };
-  }
-
-  const { billingEmail, infoEmail, newsletterEmail } = parsed.data;
-
-  const updatedShop = await db.shop.update({
-    where: { id: shopId },
-    data: {
-      billingEmail: billingEmail || null,
-      infoEmail: infoEmail || null,
-      newsletterEmail: newsletterEmail || null,
-    },
-  });
-
-  await provisionDefaultSenderIdentities(updatedShop).catch((err) => {
-    console.error("[communications] provisionDefaultSenderIdentities failed:", err);
-  });
-
-  revalidatePath(ADMIN.notifications);
-  return { success: true };
 }
 
 export async function uploadShopLogo(formData: FormData) {

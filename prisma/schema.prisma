@@ -27,8 +27,6 @@ model Shop {
   address                   String?
   phone                     String?
   email                     String?
-  billingEmail              String?
-  infoEmail                 String?
   newsletterEmail           String?
   taxId                     String?
   currency                  String        @default("CAD")

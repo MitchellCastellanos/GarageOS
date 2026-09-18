@@ -307,7 +307,7 @@ export async function createSenderIdentity(params: {
     if (managedDomain && domain === managedDomain) {
       const shop = await db.shop.findUnique({
         where: { id: params.shopId },
-        select: { slug: true, infoEmail: true, email: true },
+        select: { slug: true, email: true },
       });
       const slug = shop?.slug?.trim().toLowerCase();
       if (!slug) {
@@ -333,7 +333,7 @@ export async function createSenderIdentity(params: {
       }
 
       type = "GARAGEOS_MANAGED";
-      replyTo = shop?.infoEmail?.trim() || shop?.email?.trim() || null;
+      replyTo = shop?.email?.trim() || null;
     } else {
       const verifiedDomain = await db.shopDomain.findFirst({
         where: { shopId: params.shopId, purpose: "EMAIL", domain, status: "VERIFIED" },

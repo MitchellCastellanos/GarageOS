@@ -50,7 +50,7 @@ test("web contact uses its active route even when the legacy shop has no email",
 
 test("unconfigured routes still use the legacy shop email", async (t) => {
   mockRoute(t, null);
-  const route = await resolveActiveEmailRoute({ id: "shop", name: "Shop", infoEmail: "info@example.com" }, "WEB_CONTACT");
+  const route = await resolveActiveEmailRoute({ id: "shop", name: "Shop", email: "info@example.com" }, "WEB_CONTACT");
   assert.equal(route.fromAddress, "info@example.com");
 });
 
@@ -58,7 +58,7 @@ test("inactive identities are not used for sending", async (t) => {
   mockRoute(t, {
     senderIdentity: { id: "sender", address: "inactive@example.com", status: "SUSPENDED" },
   });
-  const route = await resolveActiveEmailRoute({ id: "shop", name: "Shop", infoEmail: "info@example.com" }, "WEB_CONTACT");
+  const route = await resolveActiveEmailRoute({ id: "shop", name: "Shop", email: "info@example.com" }, "WEB_CONTACT");
   assert.equal(route.fromAddress, "info@example.com");
 });
 
@@ -86,7 +86,7 @@ test("createSenderIdentity rejects a domain that is neither the managed domain n
   process.env.EMAIL_MANAGED_DOMAIN = "garage-os.ca";
   t.after(() => { process.env.EMAIL_MANAGED_DOMAIN = original; });
 
-  mockDb(t, "shop", "findUnique", async () => ({ slug: "garage-tremblay", infoEmail: null, email: null }));
+  mockDb(t, "shop", "findUnique", async () => ({ slug: "garage-tremblay", email: null }));
   mockDb(t, "shopDomain", "findFirst", async () => null);
 
   await assert.rejects(
@@ -100,7 +100,7 @@ test("createSenderIdentity rejects a managed-domain address that doesn't start w
   process.env.EMAIL_MANAGED_DOMAIN = "garage-os.ca";
   t.after(() => { process.env.EMAIL_MANAGED_DOMAIN = original; });
 
-  mockDb(t, "shop", "findUnique", async () => ({ slug: "garage-tremblay", infoEmail: null, email: null }));
+  mockDb(t, "shop", "findUnique", async () => ({ slug: "garage-tremblay", email: null }));
 
   await assert.rejects(
     createSenderIdentity({ shopId: "shop", channel: "EMAIL", address: "otro-taller@garage-os.ca" }),
@@ -115,8 +115,7 @@ test("createSenderIdentity accepts a managed-domain address matching the shop's 
 
   mockDb(t, "shop", "findUnique", async () => ({
     slug: "garage-tremblay",
-    infoEmail: "garagetremblay@gmail.com",
-    email: null,
+    email: "garagetremblay@gmail.com",
   }));
   mockDb(t, "senderIdentity", "findFirst", async () => null);
   mockDb(t, "senderIdentity", "count", async () => 0);

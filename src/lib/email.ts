@@ -305,7 +305,7 @@ function resolveAppointmentAdminCc(
   shop: ShopEmailConfig,
   clientEmail: string
 ): string | undefined {
-  const adminEmail = shop.infoEmail?.trim();
+  const adminEmail = shop.email?.trim();
   if (!adminEmail) return undefined;
   if (adminEmail.toLowerCase() === clientEmail.toLowerCase()) return undefined;
   return adminEmail;
@@ -411,7 +411,7 @@ interface ContactStaffNotifyData {
 }
 
 export async function sendContactStaffNotification(data: ContactStaffNotifyData) {
-  const notifyTo = (data.shop.infoEmail || data.shop.email)?.trim();
+  const notifyTo = data.shop.email?.trim();
   if (!notifyTo) return;
 
   const contactLine = [data.customerEmail, data.customerPhone].filter(Boolean).join(" · ");

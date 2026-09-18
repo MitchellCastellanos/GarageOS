@@ -14,8 +14,6 @@ async function main() {
       name: true,
       slug: true,
       email: true,
-      billingEmail: true,
-      infoEmail: true,
       newsletterEmail: true,
     },
   });
