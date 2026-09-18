@@ -12,10 +12,10 @@ async function main() {
     select: {
       id: true,
       name: true,
+      slug: true,
       email: true,
       billingEmail: true,
       infoEmail: true,
-      providersEmail: true,
       newsletterEmail: true,
     },
   });

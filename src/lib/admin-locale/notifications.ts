@@ -7,8 +7,6 @@ export interface NotificationsDictionary {
     billingLabel: string;
     billingHint: string;
     infoLabel: string;
-    providersLabel: string;
-    providersHint: string;
     newsletterLabel: string;
     newsletterHint: string;
     save: string;
@@ -28,8 +26,6 @@ export const NOTIFICATIONS_DICT: Record<AdminLocale, NotificationsDictionary> = 
       billingLabel: "billing@ — Sin uso",
       billingHint: "Las facturas y contabilidad ahora salen de info@",
       infoLabel: "info@ — Facturas, cotizaciones, recordatorios y web",
-      providersLabel: "providers@ — Proveedores",
-      providersHint: "Reservado para uso futuro",
       newsletterLabel: "newsletter@ — Marketing",
       newsletterHint: "Para Brevo/Mailchimp más adelante",
       save: "Guardar cambios",
@@ -47,8 +43,6 @@ export const NOTIFICATIONS_DICT: Record<AdminLocale, NotificationsDictionary> = 
       billingLabel: "billing@ — Unused",
       billingHint: "Invoices and accounting now go out from info@",
       infoLabel: "info@ — Invoices, quotes, reminders, and web",
-      providersLabel: "providers@ — Providers",
-      providersHint: "Reserved for future use",
       newsletterLabel: "newsletter@ — Marketing",
       newsletterHint: "For Brevo/Mailchimp later on",
       save: "Save changes",
@@ -66,8 +60,6 @@ export const NOTIFICATIONS_DICT: Record<AdminLocale, NotificationsDictionary> = 
       billingLabel: "billing@ — Inutilisée",
       billingHint: "Les factures et la comptabilité proviennent maintenant de info@",
       infoLabel: "info@ — Factures, soumissions, rappels et site web",
-      providersLabel: "providers@ — Fournisseurs",
-      providersHint: "Réservée pour un usage futur",
       newsletterLabel: "newsletter@ — Marketing",
       newsletterHint: "Pour Brevo/Mailchimp plus tard",
       save: "Enregistrer les changements",

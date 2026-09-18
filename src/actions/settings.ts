@@ -136,7 +136,6 @@ export async function updateShopBrandColor(formData: FormData) {
 const mailboxSchema = z.object({
   billingEmail: z.string().email("Invalid email address").optional().or(z.literal("")),
   infoEmail: z.string().email("Invalid email address").optional().or(z.literal("")),
-  providersEmail: z.string().email("Invalid email address").optional().or(z.literal("")),
   newsletterEmail: z.string().email("Invalid email address").optional().or(z.literal("")),
 });
 
@@ -147,7 +146,6 @@ export async function updateMailboxSettings(formData: FormData) {
   const raw = {
     billingEmail: formData.get("billingEmail") as string,
     infoEmail: formData.get("infoEmail") as string,
-    providersEmail: formData.get("providersEmail") as string,
     newsletterEmail: formData.get("newsletterEmail") as string,
   };
 
@@ -156,14 +154,13 @@ export async function updateMailboxSettings(formData: FormData) {
     return { error: parsed.error.flatten().fieldErrors };
   }
 
-  const { billingEmail, infoEmail, providersEmail, newsletterEmail } = parsed.data;
+  const { billingEmail, infoEmail, newsletterEmail } = parsed.data;
 
   const updatedShop = await db.shop.update({
     where: { id: shopId },
     data: {
       billingEmail: billingEmail || null,
       infoEmail: infoEmail || null,
-      providersEmail: providersEmail || null,
       newsletterEmail: newsletterEmail || null,
     },
   });

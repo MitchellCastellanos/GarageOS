@@ -11,7 +11,6 @@ interface MailboxesCardProps {
   shop: {
     billingEmail: string | null;
     infoEmail: string | null;
-    providersEmail: string | null;
     newsletterEmail: string | null;
   };
 }
@@ -64,20 +63,6 @@ export function MailboxesCard({ shop }: MailboxesCardProps) {
             placeholder="info@tutaller.com"
             className={inputClass}
           />
-        </div>
-        <div>
-          <label htmlFor="providersEmail" className="block text-sm font-medium text-slate-700 mb-1.5">
-            {t.providersLabel}
-          </label>
-          <input
-            id="providersEmail"
-            name="providersEmail"
-            type="email"
-            defaultValue={shop.providersEmail ?? ""}
-            placeholder="providers@tutaller.com"
-            className={inputClass}
-          />
-          <p className="text-xs text-slate-400 mt-1">{t.providersHint}</p>
         </div>
         <div>
           <label htmlFor="newsletterEmail" className="block text-sm font-medium text-slate-700 mb-1.5">

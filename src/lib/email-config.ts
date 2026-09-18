@@ -10,7 +10,6 @@ export type EmailChannel =
   | "WORK_ORDER"
   | "ACCOUNTING"
   | "WEB_CONTACT"
-  | "PROVIDERS"
   | "NEWSLETTER";
 
 export type ShopEmailConfig = {
@@ -19,7 +18,6 @@ export type ShopEmailConfig = {
   email?: string | null;
   billingEmail?: string | null;
   infoEmail?: string | null;
-  providersEmail?: string | null;
   newsletterEmail?: string | null;
 };
 
@@ -97,15 +95,6 @@ export const EMAIL_CHANNEL_META: Record<EmailChannel, ChannelMeta> = {
     shopReplyField: "infoEmail",
     pipeline: "resend",
     implemented: true,
-  },
-  PROVIDERS: {
-    label: "Proveedores",
-    description: "Comunicación con proveedores (futuro)",
-    shopFromField: "providersEmail",
-    envFromKey: null,
-    shopReplyField: "providersEmail",
-    pipeline: "resend",
-    implemented: false,
   },
   NEWSLETTER: {
     label: "Newsletter",
@@ -228,7 +217,6 @@ export function shopToEmailConfig(shop: ShopEmailConfig): ShopEmailConfig {
     email: shop.email,
     billingEmail: shop.billingEmail,
     infoEmail: shop.infoEmail,
-    providersEmail: shop.providersEmail,
     newsletterEmail: shop.newsletterEmail,
   };
 }
