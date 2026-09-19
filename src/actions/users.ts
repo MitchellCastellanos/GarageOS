@@ -194,6 +194,23 @@ export async function deleteTeamMember(userId: string) {
 
 // ── VERIFICACIÓN DE EMAIL ────────────────────────────────────
 
+/**
+ * Reenvío desde /admin/verify-email-sent o el error de login — sin sesión
+ * (el OWNER está bloqueado hasta confirmar, ver src/lib/auth.ts). No revela
+ * si el correo existe o ya está confirmado, siempre responde success.
+ */
+export async function resendVerificationEmailPublic(email: string) {
+  const trimmed = email.trim().toLowerCase();
+  const user = await db.user.findUnique({
+    where: { email: trimmed },
+    select: { name: true, emailVerified: true },
+  });
+  if (user && !user.emailVerified) {
+    await sendVerificationEmail({ email: trimmed, name: user.name });
+  }
+  return { success: true };
+}
+
 /** Reenvía el correo de verificación al usuario logueado (banner "confirma tu correo"). */
 export async function resendMyVerificationEmail() {
   const session = await requireSession();

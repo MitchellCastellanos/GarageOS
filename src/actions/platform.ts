@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { requireSuperAdmin } from "@/lib/permissions";
 import { provisionDefaultSenderIdentities } from "@/lib/communications/sender-identity";
 import { createDefaultSubscription, resolveBillingNotificationRecipients } from "@/lib/subscription";
+import { sendVerificationEmail } from "@/lib/email-verification";
 import { auth, unstable_update } from "@/lib/auth";
 import { logPlatformAction, getShopAuditLog } from "@/lib/platform/audit";
 import { notifyPlanChanged, notifySubscriptionCanceled } from "@/lib/platform/notify";
@@ -274,6 +275,10 @@ export async function createShopOwner(formData: FormData) {
       role: "OWNER",
     },
   });
+
+  await sendVerificationEmail({ email: normalizedEmail, name }).catch((err) =>
+    console.error("[createShopOwner] sendVerificationEmail falló:", err)
+  );
 
   await logPlatformAction({
     actorUserId: session.user.id,
