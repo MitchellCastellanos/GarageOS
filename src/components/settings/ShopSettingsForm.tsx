@@ -2,9 +2,16 @@
 
 import { useTransition, useRef, useState } from "react";
 import { toast } from "sonner";
-import { updateShopSettings, updateShopSlug, updateShopBrandColor, uploadShopLogo, changePassword } from "@/actions/settings";
+import {
+  updateShopSettings,
+  updateShopSlug,
+  updateShopBrandColor,
+  updateEtransferSettings,
+  uploadShopLogo,
+  changePassword,
+} from "@/actions/settings";
 import { validateLogo } from "@/lib/logo-upload";
-import { Upload, Loader2 } from "lucide-react";
+import { Upload, Loader2, Info } from "lucide-react";
 import Image from "next/image";
 import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
 import { SETTINGS_DICT } from "@/lib/admin-locale/settings";
@@ -20,6 +27,8 @@ interface Shop {
   logoUrl: string | null;
   slug: string | null;
   brandColor: string | null;
+  etransferEnabled: boolean;
+  etransferEmail: string | null;
 }
 
 interface ShopSettingsFormProps {
@@ -38,6 +47,8 @@ export function ShopSettingsForm({ shop, slugUrlPrefix }: ShopSettingsFormProps)
   const [slugPending, startSlugTransition] = useTransition();
   const [colorPending, startColorTransition] = useTransition();
   const [pwPending, startPwTransition] = useTransition();
+  const [etransferPending, startEtransferTransition] = useTransition();
+  const [etransferEnabled, setEtransferEnabled] = useState(shop.etransferEnabled);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const pwFormRef = useRef<HTMLFormElement>(null);
 
@@ -89,6 +100,20 @@ export function ShopSettingsForm({ shop, slugUrlPrefix }: ShopSettingsFormProps)
       } else if (result?.error) {
         const msg = Object.values(result.error).flat()[0];
         toast.error(typeof msg === "string" ? msg : t.shopInfo.saved);
+      }
+    });
+  }
+
+  function handleEtransferSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    startEtransferTransition(async () => {
+      const result = await updateEtransferSettings(formData);
+      if (result?.success) {
+        toast.success(t.etransfer.saved);
+      } else if (result?.error) {
+        const msg = Object.values(result.error).flat()[0];
+        toast.error(typeof msg === "string" ? msg : t.etransfer.saved);
       }
     });
   }
@@ -260,6 +285,57 @@ export function ShopSettingsForm({ shop, slugUrlPrefix }: ShopSettingsFormProps)
           >
             {infopending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
             {infopending ? t.shopInfo.saving : t.shopInfo.save}
+          </button>
+        </div>
+      </form>
+
+      {/* ── E-transfer (Interac) ── */}
+      <form onSubmit={handleEtransferSubmit} className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
+        <h2 className="font-semibold text-slate-900">{t.etransfer.title}</h2>
+
+        <div className="flex items-center gap-3">
+          <input
+            id="etransferEnabled"
+            name="etransferEnabled"
+            type="checkbox"
+            checked={etransferEnabled}
+            onChange={(e) => setEtransferEnabled(e.target.checked)}
+            className="w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+          />
+          <label htmlFor="etransferEnabled" className="text-sm text-slate-700">
+            {t.etransfer.enableLabel}
+          </label>
+        </div>
+
+        {etransferEnabled && (
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+              {t.etransfer.emailLabel}
+            </label>
+            <input
+              name="etransferEmail"
+              type="email"
+              defaultValue={shop.etransferEmail ?? ""}
+              placeholder={t.etransfer.emailPlaceholder}
+              required={etransferEnabled}
+              className={inputClass}
+            />
+          </div>
+        )}
+
+        <div className="flex items-start gap-2.5 bg-blue-50 border border-blue-100 rounded-lg px-3.5 py-3">
+          <Info className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
+          <p className="text-xs text-blue-800 leading-relaxed">{t.etransfer.infoNote}</p>
+        </div>
+
+        <div className="flex justify-end pt-2">
+          <button
+            type="submit"
+            disabled={etransferPending}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium px-5 py-2 rounded-lg text-sm transition-colors"
+          >
+            {etransferPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+            {etransferPending ? t.etransfer.saving : t.etransfer.save}
           </button>
         </div>
       </form>

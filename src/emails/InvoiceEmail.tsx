@@ -4,10 +4,6 @@ import { getInvoiceStrings, type InvoiceLanguage } from "@/lib/invoice-i18n";
 import { getDefaultEmailLogoUrl } from "@/lib/app-url";
 import { ShopEmailLayout } from "@/emails/layout/ShopEmailLayout";
 
-// TODO(garageos): la app original enviaba siempre al mismo correo de e-transfer de un
-// solo taller. Aquí se usa el email general del taller como destino — antes
-// de aceptar pagos reales hace falta un campo dedicado por taller.
-
 export interface InvoiceEmailProps {
   clientName: string;
   shopName: string;
@@ -15,6 +11,8 @@ export interface InvoiceEmailProps {
   shopEmail?: string | null;
   shopAddress?: string | null;
   shopLogoUrl?: string | null;
+  etransferEnabled?: boolean;
+  etransferEmail?: string | null;
   invoiceNumber: string;
   totalFormatted: string;
   vehicleDescription: string;
@@ -32,6 +30,8 @@ export function InvoiceEmail({
   shopEmail,
   shopAddress,
   shopLogoUrl,
+  etransferEnabled,
+  etransferEmail,
   invoiceNumber,
   totalFormatted,
   vehicleDescription,
@@ -88,9 +88,9 @@ export function InvoiceEmail({
         <Text style={styles.totalValue}>{totalFormatted}</Text>
       </Section>
 
-      {shopEmail && (
+      {etransferEnabled && etransferEmail && (
         <Section style={styles.etransferBox}>
-          <Text style={styles.etransferText}>{t.etransferNotice(shopEmail)}</Text>
+          <Text style={styles.etransferText}>{t.etransferNotice(etransferEmail)}</Text>
         </Section>
       )}
 

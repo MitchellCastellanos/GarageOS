@@ -27,6 +27,8 @@ model Shop {
   address                   String?
   phone                     String?
   email                     String?
+  etransferEnabled          Boolean       @default(false)
+  etransferEmail            String?
   taxId                     String?
   currency                  String        @default("CAD")
   appointmentReminderHours  Int           @default(24)

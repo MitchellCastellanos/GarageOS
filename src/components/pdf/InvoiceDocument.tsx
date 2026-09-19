@@ -70,6 +70,8 @@ interface InvoiceData {
     taxId?: string | null;
     logoUrl?: string | null;
     currency?: string | null;
+    etransferEnabled?: boolean;
+    etransferEmail?: string | null;
   };
 }
 
@@ -85,10 +87,6 @@ const SLATE_100 = "#f1f5f9";
 const SLATE_50 = "#f8fafc";
 const EMERALD = "#059669";
 const WHITE = "#ffffff";
-
-// TODO(garageos): antes había un único correo de Interac fijo para un solo
-// taller. Aquí se usa el email del taller (invoice.shop.email); antes de
-// aceptar pagos reales hace falta un campo dedicado por taller.
 
 const LOGO_WIDTH = 110;
 const LOGO_HEIGHT = 88;
@@ -880,7 +878,7 @@ export function InvoiceDocument({ invoice }: { invoice: InvoiceData }) {
                   </View>
                 ) : null}
 
-                {invoice.shop.email ? (
+                {invoice.shop.etransferEnabled && invoice.shop.etransferEmail ? (
                   <View
                     style={[
                       styles.etransferBox,
@@ -888,7 +886,7 @@ export function InvoiceDocument({ invoice }: { invoice: InvoiceData }) {
                     ]}
                   >
                     <Text style={styles.etransferLabel}>{t.etransfer}</Text>
-                    <Text style={styles.etransferEmail}>{invoice.shop.email}</Text>
+                    <Text style={styles.etransferEmail}>{invoice.shop.etransferEmail}</Text>
                   </View>
                 ) : null}
               </View>
