@@ -47,7 +47,14 @@ export default async function SettingsPage() {
     {
       id: "general",
       label: t.tabs.general,
-      content: <ShopSettingsForm shop={shop} slugUrlPrefix={`${getAppUrl()}${bookingPublicPath("")}`} />,
+      content: (
+        <ShopSettingsForm
+          shop={shop}
+          slugUrlPrefix={`${getAppUrl()}${bookingPublicPath("")}`}
+          canUseLoginEmail={isOwner}
+          loginEmail={session.user.email ?? ""}
+        />
+      ),
     },
   ];
 

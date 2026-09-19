@@ -41,6 +41,13 @@ model Shop {
   appointmentSmsEnabled     Boolean       @default(true)
   workOrderReadyNotifyEmail Boolean       @default(true)
   workOrderReadyNotifySms   Boolean       @default(true)
+  // Confirmación de que el "email principal" (arriba) es alcanzable — null
+  // hasta que se confirme. Se auto-marca al guardar si el valor coincide con
+  // el correo de login del OWNER (ya forzoso-verificado, ver User.emailVerified).
+  // Mientras no esté confirmado, resolveEffectiveShopContactEmail (sender-identity.ts)
+  // usa el correo del OWNER en su lugar para reply-to/CC de cara al cliente —
+  // nunca se manda nada a este campo sin confirmar.
+  emailVerified             DateTime?
   slug                      String?       @unique
   bookingEnabled            Boolean       @default(false)
   timezone                  String        @default("America/Montreal")
