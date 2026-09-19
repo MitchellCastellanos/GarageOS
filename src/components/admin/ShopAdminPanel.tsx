@@ -123,8 +123,7 @@ function ShopAccountTab({ shop }: { shop: ShopDetail }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between">
-        <div />
+      <div className="flex justify-end">
         <button
           type="button"
           onClick={handleToggleSuspension}

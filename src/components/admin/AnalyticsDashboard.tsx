@@ -144,14 +144,14 @@ function BreakdownList({ title, rows }: { title: string; rows: { label: string; 
       ) : (
         <div className="space-y-2">
           {rows.map((r) => (
-            <div key={r.label} className="flex items-center gap-3 text-sm">
-              <span className="w-32 shrink-0 truncate text-slate-600" title={r.label}>
+            <div key={r.label} className="flex items-center gap-2 sm:gap-3 text-sm">
+              <span className="w-20 sm:w-32 shrink-0 truncate text-slate-600" title={r.label}>
                 {r.label}
               </span>
               <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
                 <div className="h-full rounded-full" style={{ width: `${(r.value / max) * 100}%`, backgroundColor: "#2a78d6" }} />
               </div>
-              <span className="w-10 text-right text-slate-500 tabular-nums">{r.value}</span>
+              <span className="w-8 sm:w-10 text-right text-slate-500 tabular-nums shrink-0">{r.value}</span>
             </div>
           ))}
         </div>

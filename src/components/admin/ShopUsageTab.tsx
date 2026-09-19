@@ -41,7 +41,7 @@ export function ShopUsageTab({
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="font-semibold text-slate-900">Uso y actividad</h2>
         <button
           type="button"
