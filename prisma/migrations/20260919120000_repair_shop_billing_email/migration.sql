@@ -5,4 +5,4 @@
 -- checksum matches, so `prisma migrate deploy` reports "no pending
 -- migrations" and never re-runs it). Idempotent so it's a no-op wherever the
 -- column already exists.
-ALTER TABLE "Shop" ADD COLUMN IF NOT EXISTS "billingEmail" TEXT;
+ALTER TABLE "garageos"."Shop" ADD COLUMN IF NOT EXISTS "billingEmail" TEXT;
