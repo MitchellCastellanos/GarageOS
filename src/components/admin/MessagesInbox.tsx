@@ -40,7 +40,7 @@ export function MessagesInbox({ conversations }: { conversations: ConversationRo
             <Link
               key={c.id}
               href={PLATFORM.message(c.id)}
-              className="flex items-center justify-between gap-4 p-4 hover:bg-slate-50"
+              className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 p-4 hover:bg-slate-50"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
@@ -48,12 +48,14 @@ export function MessagesInbox({ conversations }: { conversations: ConversationRo
                 </div>
                 <div className="min-w-0">
                   <p className="font-medium text-slate-900">{c.shop.name}</p>
-                  <p className="text-sm text-slate-500 truncate max-w-md">{c.lastMessagePreview ?? "—"}</p>
+                  <p className="text-sm text-slate-500 truncate max-w-[240px] sm:max-w-md">{c.lastMessagePreview ?? "—"}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 shrink-0">
-                <span className={`text-xs font-medium px-2 py-1 rounded-full ${STATUS_COLOR[c.status]}`}>{STATUS_LABEL[c.status]}</span>
-                <span className="text-xs text-slate-400">{new Date(c.lastMessageAt).toLocaleDateString("es-CA")}</span>
+              <div className="flex items-center gap-3 shrink-0 ml-[3.25rem] sm:ml-0">
+                <span className={`text-xs font-medium px-2 py-1 rounded-full whitespace-nowrap ${STATUS_COLOR[c.status]}`}>
+                  {STATUS_LABEL[c.status]}
+                </span>
+                <span className="text-xs text-slate-400 whitespace-nowrap">{new Date(c.lastMessageAt).toLocaleDateString("es-CA")}</span>
               </div>
             </Link>
           ))}

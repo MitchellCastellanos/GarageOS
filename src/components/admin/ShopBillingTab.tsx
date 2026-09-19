@@ -74,7 +74,7 @@ export function ShopBillingTab({ shopId, subscription }: { shopId: string; subsc
       <div>
         <h2 className="font-semibold text-slate-900 mb-3">Estado de la suscripción</h2>
         {subscription ? (
-          <div className="bg-white border border-slate-200 rounded-xl p-4 grid grid-cols-2 gap-3 text-sm">
+          <div className="bg-white border border-slate-200 rounded-xl p-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
             <Field label="Plan actual" value={PLAN_LABELS[subscription.plan]} />
             <Field label="Estado" value={STATUS_LABELS[subscription.status] ?? subscription.status} />
             <Field label="Intervalo" value={subscription.billingInterval ?? "—"} />
@@ -126,7 +126,7 @@ export function ShopBillingTab({ shopId, subscription }: { shopId: string; subsc
           Separado del contacto operativo del taller — a este correo llegan los avisos de cambio de plan/cancelación. Si se deja
           vacío, cae al email general del taller.
         </p>
-        <div className="flex gap-2 max-w-md">
+        <div className="flex flex-col sm:flex-row gap-2 max-w-md">
           <input
             type="email"
             value={billingEmail}
@@ -138,7 +138,7 @@ export function ShopBillingTab({ shopId, subscription }: { shopId: string; subsc
             type="button"
             onClick={handleBillingContact}
             disabled={pending}
-            className="bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium px-4 py-2 rounded-lg whitespace-nowrap"
+            className="bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium px-4 py-2 rounded-lg whitespace-nowrap shrink-0"
           >
             Guardar
           </button>

@@ -104,7 +104,7 @@ export function PlatformConversationThread({
 
       <h1 className="text-xl font-bold text-slate-900">{shopName}</h1>
 
-      <div className="flex flex-col h-[calc(100vh-280px)] bg-white border border-slate-200 rounded-xl overflow-hidden">
+      <div className="flex flex-col h-[calc(100dvh-300px)] min-h-[360px] bg-white border border-slate-200 rounded-xl overflow-hidden">
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {messages.map((m) => (
             <div key={m.id} className={`flex ${m.sender === "SUPER_ADMIN" ? "justify-end" : "justify-start"}`}>

@@ -66,7 +66,7 @@ export function SupportChat({ conversationId, initialMessages }: { conversationI
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-220px)] bg-white border border-slate-200 rounded-xl overflow-hidden">
+    <div className="flex flex-col h-[calc(100dvh-240px)] min-h-[360px] bg-white border border-slate-200 rounded-xl overflow-hidden">
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {messages.length === 0 && (
           <p className="text-sm text-slate-400 text-center mt-8">
