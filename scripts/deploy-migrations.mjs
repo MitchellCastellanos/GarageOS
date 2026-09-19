@@ -12,6 +12,20 @@ if (!connectionString) {
   process.exit(0);
 }
 
+// One-time repair: 20260919120000_repair_shop_billing_email failed on
+// production because its first version referenced "Shop" unqualified
+// instead of "garageos"."Shop" (this datasource uses multiSchema). A failed
+// migration blocks `migrate deploy` entirely (P3009) until resolved, and we
+// have no direct DB credential outside this build to run `migrate resolve`
+// by hand — so do it here. The ALTER never actually ran, so `--rolled-back`
+// is correct; on any database where this migration never failed (fresh
+// databases, other environments) the command just errors harmlessly and is
+// ignored. Safe to delete this block once production is confirmed healthy.
+spawnSync("npx", ["prisma", "migrate", "resolve", "--rolled-back", "20260919120000_repair_shop_billing_email"], {
+  stdio: "inherit",
+  env: process.env,
+});
+
 console.log("[deploy-migrations] Applying pending Prisma migrations...");
 const result = spawnSync("npx", ["prisma", "migrate", "deploy"], {
   stdio: "inherit",
