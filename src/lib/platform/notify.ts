@@ -32,7 +32,7 @@ function platformFromAddress(): string {
   return raw.includes("<") ? raw : `"${APP_NAME}" <${raw}>`;
 }
 
-async function sendPlatformEmail(to: string, subject: string, react: React.ReactElement): Promise<void> {
+async function sendPlatformEmail(to: string | string[], subject: string, react: React.ReactElement): Promise<void> {
   const resend = getResend();
   if (!resend) {
     console.warn(`[platform/notify] RESEND_API_KEY no configurada — correo "${subject}" a ${to} omitido.`);
@@ -46,7 +46,7 @@ async function sendPlatformEmail(to: string, subject: string, react: React.React
 }
 
 export async function notifyPlanChanged(params: {
-  to: string;
+  to: string | string[];
   shopName: string;
   previousPlan: Plan;
   newPlan: Plan;
@@ -103,7 +103,7 @@ export async function notifyAdminNewSupportMessage(params: { shopName: string; m
 }
 
 export async function notifySubscriptionCanceled(params: {
-  to: string;
+  to: string | string[];
   shopName: string;
   reason: string;
   initiatedBySuperAdmin: boolean;

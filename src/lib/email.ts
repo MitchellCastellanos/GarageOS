@@ -12,7 +12,7 @@ import { PlainMessageEmail } from "@/emails/PlainMessageEmail";
 import { type ShopEmailConfig, type EmailChannel } from "@/lib/email-config";
 import { getInvoiceStrings, type InvoiceLanguage } from "@/lib/invoice-i18n";
 import { recordAndSend } from "@/lib/communications/outbox";
-import { resolveActiveEmailRoute } from "@/lib/communications/sender-identity";
+import { resolveActiveEmailRoute, resolveEffectiveShopContactEmail } from "@/lib/communications/sender-identity";
 import React from "react";
 
 function getResend() {
@@ -301,11 +301,11 @@ const APPOINTMENT_SUBJECTS: Record<"EN" | "FR", Record<AppointmentEmailType, (ti
   },
 };
 
-function resolveAppointmentAdminCc(
+async function resolveAppointmentAdminCc(
   shop: ShopEmailConfig,
   clientEmail: string
-): string | undefined {
-  const adminEmail = shop.email?.trim();
+): Promise<string | undefined> {
+  const adminEmail = await resolveEffectiveShopContactEmail(shop.id, shop.email);
   if (!adminEmail) return undefined;
   if (adminEmail.toLowerCase() === clientEmail.toLowerCase()) return undefined;
   return adminEmail;
@@ -331,7 +331,7 @@ export async function sendAppointmentEmail(data: AppointmentEmailSendData) {
 
   const cc =
     data.type === "confirmation" || data.type === "cancellation"
-      ? resolveAppointmentAdminCc(data.shop, data.to)
+      ? await resolveAppointmentAdminCc(data.shop, data.to)
       : undefined;
 
   await sendTransactionalEmail({
@@ -411,7 +411,7 @@ interface ContactStaffNotifyData {
 }
 
 export async function sendContactStaffNotification(data: ContactStaffNotifyData) {
-  const notifyTo = data.shop.email?.trim();
+  const notifyTo = await resolveEffectiveShopContactEmail(data.shop.id, data.shop.email);
   if (!notifyTo) return;
 
   const contactLine = [data.customerEmail, data.customerPhone].filter(Boolean).join(" · ");

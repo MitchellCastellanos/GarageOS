@@ -2,6 +2,7 @@
 export const ADMIN = {
   login: "/admin/login",
   signup: "/admin/signup",
+  verifyEmailSent: "/admin/verify-email-sent",
   dashboard: "/admin/dashboard",
   clients: "/admin/clients",
   invoices: "/admin/invoices",

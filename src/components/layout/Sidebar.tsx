@@ -37,12 +37,14 @@ function RailLink({
   icon: Icon,
   active,
   locked,
+  unread,
 }: {
   href: string;
   label: string;
   icon: typeof LayoutDashboard;
   active: boolean;
   locked?: boolean;
+  unread?: boolean;
 }) {
   return (
     <Link
@@ -61,11 +63,15 @@ function RailLink({
           <Lock className="w-2 h-2" />
         </span>
       )}
+      {unread && !locked && (
+        <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-slate-900" />
+      )}
       <span
         className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-md bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 z-20"
       >
         {label}
         {locked && <span className="text-amber-400 ml-1">· Pro</span>}
+        {unread && !locked && <span className="text-red-400 ml-1">· nuevo</span>}
       </span>
     </Link>
   );
@@ -76,11 +82,13 @@ export function Sidebar({
   mobileOpen,
   onMobileClose,
   lockedNavHrefs,
+  hasUnreadSupport,
 }: {
   isOwner: boolean;
   mobileOpen: boolean;
   onMobileClose: () => void;
   lockedNavHrefs?: string[];
+  hasUnreadSupport?: boolean;
 }) {
   const lockedSet = new Set(lockedNavHrefs ?? []);
   const pathname = usePathname();
@@ -172,6 +180,7 @@ export function Sidebar({
                 icon={item.icon}
                 active={isActive}
                 locked={lockedSet.has(item.href)}
+                unread={item.href === ADMIN.support && hasUnreadSupport}
               />
             );
           })}
@@ -246,6 +255,9 @@ export function Sidebar({
                         <Lock className="w-3 h-3" />
                         Pro
                       </span>
+                    )}
+                    {item.href === ADMIN.support && hasUnreadSupport && !lockedSet.has(item.href) && (
+                      <span className="ml-auto w-2 h-2 rounded-full bg-red-500" />
                     )}
                   </Link>
                 ))}

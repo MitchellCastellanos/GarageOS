@@ -6,10 +6,12 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { getShopId } from "@/lib/shop-context";
+import { requireShopSession } from "@/lib/permissions";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { uploadShopLogoToStorage } from "@/lib/storage";
 import { provisionDefaultSenderIdentities } from "@/lib/communications/sender-identity";
+import { sendShopEmailVerification } from "@/lib/email-verification";
 import bcrypt from "bcryptjs";
 import sharp from "sharp";
 import { validateLogo } from "@/lib/logo-upload";
@@ -38,7 +40,8 @@ const shopSchema = z.object({
 });
 
 export async function updateShopSettings(formData: FormData) {
-  const shopId = await getShopId();
+  const session = await requireShopSession();
+  const shopId = session.user.shopId!;
 
   const raw = {
     name: formData.get("name") as string,
@@ -54,6 +57,28 @@ export async function updateShopSettings(formData: FormData) {
   }
 
   const { name, address, phone, email, taxId } = parsed.data;
+  const normalizedEmail = email ? email.trim().toLowerCase() : null;
+
+  const previous = await db.shop.findUnique({ where: { id: shopId }, select: { email: true, emailVerified: true } });
+  const previousEmail = previous?.email?.trim().toLowerCase() || null;
+  const loginEmailMatch = session.user.role === "OWNER" && normalizedEmail === session.user.email?.trim().toLowerCase();
+
+  let emailVerified: Date | null;
+  let shouldSendVerification = false;
+
+  if (!normalizedEmail) {
+    emailVerified = null;
+  } else if (normalizedEmail === previousEmail) {
+    // Sin cambio real en el correo — no reiniciar una confirmación que ya tenía.
+    emailVerified = previous?.emailVerified ?? null;
+  } else if (loginEmailMatch) {
+    // Es el mismo correo con el que el dueño inicia sesión — ya está probado
+    // (src/lib/auth.ts fuerza esa verificación al login), no hace falta mandar otro correo.
+    emailVerified = new Date();
+  } else {
+    emailVerified = null;
+    shouldSendVerification = true;
+  }
 
   const updatedShop = await db.shop.update({
     where: { id: shopId },
@@ -61,9 +86,40 @@ export async function updateShopSettings(formData: FormData) {
       name,
       address: address || null,
       phone: phone || null,
-      email: email || null,
+      email: normalizedEmail,
       taxId: taxId || null,
+      emailVerified,
     },
+  });
+
+  if (shouldSendVerification && normalizedEmail) {
+    await sendShopEmailVerification({ shopId, email: normalizedEmail, shopName: updatedShop.name }).catch((err) =>
+      console.error("[updateShopSettings] sendShopEmailVerification falló:", err)
+    );
+  }
+
+  await provisionDefaultSenderIdentities(updatedShop).catch((err) => {
+    console.error("[communications] provisionDefaultSenderIdentities failed:", err);
+  });
+
+  revalidatePath(ADMIN.settings);
+  revalidatePath(ADMIN.notifications);
+  return { success: true, email: normalizedEmail, emailVerified: !!emailVerified };
+}
+
+/** Botón de acceso rápido en Configuración → General — usa el correo con el que ya iniciaste sesión como email principal, auto-confirmado (ver updateShopSettings). Solo tiene sentido para OWNER, el único rol con login forzosamente verificado. */
+export async function setShopContactToLoginEmail() {
+  const session = await requireShopSession();
+  if (session.user.role !== "OWNER" || !session.user.email) {
+    return { error: "No autorizado" };
+  }
+
+  const shopId = session.user.shopId!;
+  const email = session.user.email.trim().toLowerCase();
+
+  const updatedShop = await db.shop.update({
+    where: { id: shopId },
+    data: { email, emailVerified: new Date() },
   });
 
   await provisionDefaultSenderIdentities(updatedShop).catch((err) => {
@@ -72,6 +128,19 @@ export async function updateShopSettings(formData: FormData) {
 
   revalidatePath(ADMIN.settings);
   revalidatePath(ADMIN.notifications);
+  return { success: true, email };
+}
+
+/** Reenviar la verificación del email principal del taller — desde el badge "sin confirmar" en Configuración. */
+export async function resendShopEmailVerification() {
+  const session = await requireShopSession();
+  const shopId = session.user.shopId!;
+
+  const shop = await db.shop.findUnique({ where: { id: shopId }, select: { email: true, name: true, emailVerified: true } });
+  if (!shop?.email) return { error: "No hay un correo principal configurado" };
+  if (shop.emailVerified) return { error: "Este correo ya está confirmado" };
+
+  await sendShopEmailVerification({ shopId, email: shop.email, shopName: shop.name });
   return { success: true };
 }
 

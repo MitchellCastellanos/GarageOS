@@ -1,6 +1,7 @@
 "use client";
 
-import { useTransition, useRef, useState } from "react";
+import { useEffect, useTransition, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
   updateShopSettings,
@@ -9,9 +10,11 @@ import {
   updateEtransferSettings,
   uploadShopLogo,
   changePassword,
+  setShopContactToLoginEmail,
+  resendShopEmailVerification,
 } from "@/actions/settings";
 import { validateLogo } from "@/lib/logo-upload";
-import { Upload, Loader2, Info } from "lucide-react";
+import { Upload, Loader2, Info, CheckCircle2, MailWarning } from "lucide-react";
 import Image from "next/image";
 import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
 import { SETTINGS_DICT } from "@/lib/admin-locale/settings";
@@ -23,6 +26,7 @@ interface Shop {
   address: string | null;
   phone: string | null;
   email: string | null;
+  emailVerified: Date | null;
   taxId: string | null;
   logoUrl: string | null;
   slug: string | null;
@@ -34,15 +38,58 @@ interface Shop {
 interface ShopSettingsFormProps {
   shop: Shop;
   slugUrlPrefix: string;
+  /** true si quien ve esta pantalla es OWNER — el único rol con login forzosamente verificado. */
+  canUseLoginEmail: boolean;
+  loginEmail: string;
 }
 
-export function ShopSettingsForm({ shop, slugUrlPrefix }: ShopSettingsFormProps) {
+export function ShopSettingsForm({ shop, slugUrlPrefix, canUseLoginEmail, loginEmail }: ShopSettingsFormProps) {
   const locale = useAdminLocale();
   const t = SETTINGS_DICT[locale];
+  const searchParams = useSearchParams();
   const [logoUrl, setLogoUrl] = useState(shop.logoUrl);
+  const [emailValue, setEmailValue] = useState(shop.email ?? "");
+  const [emailVerified, setEmailVerified] = useState<Date | null>(shop.emailVerified);
   const [slug, setSlug] = useState(shop.slug ?? "");
   const [brandColor, setBrandColor] = useState(shop.brandColor ?? DEFAULT_BRAND_COLOR);
   const [infopending, startInfoTransition] = useTransition();
+  const [useLoginPending, startUseLoginTransition] = useTransition();
+  const [resendPending, startResendTransition] = useTransition();
+  const [resendSent, setResendSent] = useState(false);
+
+  useEffect(() => {
+    const verifyShopEmail = searchParams.get("verifyShopEmail");
+    if (verifyShopEmail === "success") toast.success("Correo principal confirmado");
+    else if (verifyShopEmail === "expired") toast.error("Ese link venció — pide que se reenvíe la confirmación");
+    else if (verifyShopEmail === "invalid") toast.error("Ese link de confirmación no es válido");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function handleUseLoginEmail() {
+    startUseLoginTransition(async () => {
+      const result = await setShopContactToLoginEmail();
+      if (result?.success) {
+        setEmailValue(result.email);
+        setEmailVerified(new Date());
+        setResendSent(false);
+        toast.success("Listo — tu correo de acceso ya es el email principal, confirmado");
+      } else {
+        toast.error(result?.error ?? "No se pudo actualizar");
+      }
+    });
+  }
+
+  function handleResendShopEmailVerification() {
+    startResendTransition(async () => {
+      const result = await resendShopEmailVerification();
+      if (result?.success) {
+        setResendSent(true);
+        toast.success("Confirmación reenviada");
+      } else {
+        toast.error(result?.error ?? "No se pudo reenviar");
+      }
+    });
+  }
   const [logoPending, startLogoTransition] = useTransition();
   const [slugPending, startSlugTransition] = useTransition();
   const [colorPending, startColorTransition] = useTransition();
@@ -97,6 +144,8 @@ export function ShopSettingsForm({ shop, slugUrlPrefix }: ShopSettingsFormProps)
       const result = await updateShopSettings(formData);
       if (result?.success) {
         toast.success(t.shopInfo.saved);
+        setEmailVerified(result.emailVerified ? new Date() : null);
+        setResendSent(false);
       } else if (result?.error) {
         const msg = Object.values(result.error).flat()[0];
         toast.error(typeof msg === "string" ? msg : t.shopInfo.saved);
@@ -250,17 +299,61 @@ export function ShopSettingsForm({ shop, slugUrlPrefix }: ShopSettingsFormProps)
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+            <label className="block text-sm font-medium text-slate-700 mb-1.5 flex items-center gap-1.5">
               {t.shopInfo.email}
+              {emailValue && (
+                emailVerified ? (
+                  <span title="Confirmado">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-600">
+                    <MailWarning className="w-3.5 h-3.5" />
+                    Sin confirmar
+                  </span>
+                )
+              )}
             </label>
             <input
               name="email"
               type="email"
-              defaultValue={shop.email ?? ""}
+              value={emailValue}
+              onChange={(e) => setEmailValue(e.target.value)}
               placeholder={t.shopInfo.emailPlaceholder}
               className={inputClass}
             />
             <p className="text-xs text-slate-400 mt-1">{t.shopInfo.emailHint}</p>
+
+            {canUseLoginEmail && emailValue.trim().toLowerCase() !== loginEmail.trim().toLowerCase() && (
+              <button
+                type="button"
+                disabled={useLoginPending}
+                onClick={handleUseLoginEmail}
+                className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 disabled:opacity-50"
+              >
+                {useLoginPending && <Loader2 className="w-3 h-3 animate-spin" />}
+                Usar mi correo de acceso ({loginEmail}) — queda confirmado al instante
+              </button>
+            )}
+
+            {emailValue && !emailVerified && (
+              <div className="mt-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800 space-y-1">
+                <p>
+                  Mientras no se confirme, tus clientes verán/contestarán a{" "}
+                  {canUseLoginEmail ? <strong>{loginEmail}</strong> : "el correo del dueño del taller"} en su lugar —
+                  nada se pierde.
+                </p>
+                <button
+                  type="button"
+                  disabled={resendPending || resendSent}
+                  onClick={handleResendShopEmailVerification}
+                  className="font-medium text-amber-700 hover:text-amber-900 disabled:opacity-50 inline-flex items-center gap-1"
+                >
+                  {resendPending && <Loader2 className="w-3 h-3 animate-spin" />}
+                  {resendSent ? "Confirmación reenviada" : "Reenviar confirmación"}
+                </button>
+              </div>
+            )}
           </div>
           <div className="sm:col-span-2">
             <label className="block text-sm font-medium text-slate-700 mb-1.5">

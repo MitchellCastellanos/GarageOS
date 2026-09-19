@@ -4,8 +4,9 @@ import { ADMIN, PLATFORM, adminPath } from "@/lib/routes";
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireOwner } from "@/lib/permissions";
+import { requireOwner, requireSession } from "@/lib/permissions";
 import { canAddUser } from "@/lib/subscription";
+import { sendVerificationEmail } from "@/lib/email-verification";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 
@@ -35,6 +36,8 @@ export async function getTeamMembers() {
       email: true,
       role: true,
       createdAt: true,
+      emailVerified: true,
+      receiveBillingNotifications: true,
     },
     orderBy: [{ role: "asc" }, { name: "asc" }],
   });
@@ -88,6 +91,10 @@ export async function createTeamMember(formData: FormData) {
       role,
     },
   });
+
+  await sendVerificationEmail({ email, name }).catch((err) =>
+    console.error("[createTeamMember] sendVerificationEmail falló:", err)
+  );
 
   revalidatePath(ADMIN.settings);
   return { success: true };
@@ -181,6 +188,75 @@ export async function deleteTeamMember(userId: string) {
   }
 
   await db.user.delete({ where: { id: userId } });
+  revalidatePath(ADMIN.settings);
+  return { success: true };
+}
+
+// ── VERIFICACIÓN DE EMAIL ────────────────────────────────────
+
+/**
+ * Reenvío desde /admin/verify-email-sent o el error de login — sin sesión
+ * (el OWNER está bloqueado hasta confirmar, ver src/lib/auth.ts). No revela
+ * si el correo existe o ya está confirmado, siempre responde success.
+ */
+export async function resendVerificationEmailPublic(email: string) {
+  const trimmed = email.trim().toLowerCase();
+  const user = await db.user.findUnique({
+    where: { email: trimmed },
+    select: { name: true, emailVerified: true },
+  });
+  if (user && !user.emailVerified) {
+    await sendVerificationEmail({ email: trimmed, name: user.name });
+  }
+  return { success: true };
+}
+
+/** Reenvía el correo de verificación al usuario logueado (banner "confirma tu correo"). */
+export async function resendMyVerificationEmail() {
+  const session = await requireSession();
+
+  const user = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: { email: true, name: true, emailVerified: true },
+  });
+  if (!user) return { error: "Usuario no encontrado" };
+  if (user.emailVerified) return { error: "Este correo ya está confirmado" };
+
+  await sendVerificationEmail({ email: user.email, name: user.name });
+  return { success: true };
+}
+
+/** El dueño reenvía la verificación a un miembro de su equipo (ej. un mecánico que no la recibió). */
+export async function resendTeamMemberVerification(userId: string) {
+  const session = await requireOwner();
+
+  const target = await db.user.findFirst({
+    where: { id: userId, shopId: session.user.shopId },
+    select: { email: true, name: true, emailVerified: true },
+  });
+  if (!target) return { error: "Usuario no encontrado" };
+  if (target.emailVerified) return { error: "Este correo ya está confirmado" };
+
+  await sendVerificationEmail({ email: target.email, name: target.name });
+  return { success: true };
+}
+
+// ── NOTIFICACIONES DE FACTURACIÓN (solo OWNER) ───────────────
+
+/**
+ * Cada OWNER decide si recibe los correos de facturación/cambios de plan de
+ * GarageOS (opt-out, todos activos por defecto — ver resolveBillingNotificationRecipients).
+ * Un owner puede prender/apagar esto para sí mismo o para otro owner del mismo taller.
+ */
+export async function updateOwnerBillingNotification(userId: string, receive: boolean) {
+  const session = await requireOwner();
+
+  const target = await db.user.findFirst({
+    where: { id: userId, shopId: session.user.shopId, role: "OWNER" },
+  });
+  if (!target) return { error: "Usuario no encontrado" };
+
+  await db.user.update({ where: { id: userId }, data: { receiveBillingNotifications: receive } });
   revalidatePath(ADMIN.settings);
   return { success: true };
 }

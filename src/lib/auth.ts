@@ -34,6 +34,8 @@ export const authConfig: NextAuthConfig = {
           name: ownerName,
           email: user.email,
           role: "OWNER",
+          // Google ya confirmó este correo — no le pedimos verificarlo otra vez.
+          emailVerified: new Date(),
         },
       });
       // Identidad de envío inicial (Communications Platform) — no bloquea el signup si falla.
@@ -153,6 +155,7 @@ export const authConfig: NextAuthConfig = {
               passwordHash: true,
               shopId: true,
               role: true,
+              emailVerified: true,
             },
           });
 
@@ -160,6 +163,14 @@ export const authConfig: NextAuthConfig = {
 
           const isValid = await bcrypt.compare(password, user.passwordHash);
           if (!isValid) return null;
+
+          // El dueño es el contacto de facturación por defecto — bloqueamos
+          // su login hasta que confirme el correo para no quedarnos sin
+          // forma de avisarle algo importante (cambio de plan, cobro
+          // fallido). Staff (mecánico/viewer) solo ve el banner, nunca se
+          // bloquea — ver src/app/api/auth/login/route.ts para el mensaje
+          // amigable que precede a este bloqueo real.
+          if (user.role === "OWNER" && !user.emailVerified) return null;
 
           return {
             id: user.id,

@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
   try {
     const user = await db.user.findUnique({
       where: { email },
-      select: { passwordHash: true, role: true },
+      select: { passwordHash: true, role: true, emailVerified: true },
     });
 
     if (!user?.passwordHash) {
@@ -84,6 +84,18 @@ export async function POST(req: NextRequest) {
     if (!isValid) {
       if (isFormRequest) return loginRedirect(req, errors.invalidCredentials);
       return NextResponse.json({ error: errors.invalidCredentials }, { status: 401 });
+    }
+
+    // El dueño no puede entrar hasta confirmar su correo (ver src/lib/auth.ts,
+    // que bloquea esto también a nivel del provider) — lo mandamos a la
+    // pantalla de espera con opción de reenviar, en vez de un error genérico.
+    if (user.role === "OWNER" && !user.emailVerified) {
+      if (isFormRequest) {
+        const url = new URL(ADMIN.verifyEmailSent, req.url);
+        url.searchParams.set("email", email);
+        return NextResponse.redirect(url, { status: 303 });
+      }
+      return NextResponse.json({ error: errors.emailNotVerified }, { status: 403 });
     }
 
     userRole = user.role;

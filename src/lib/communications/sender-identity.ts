@@ -46,6 +46,33 @@ const SMS_PURPOSES = ["APPOINTMENT", "INVOICE", "QUOTE", "WORK_ORDER"] as const;
 export type ProvisionableShop = ShopEmailConfig & { id: string; slug?: string | null };
 
 /**
+ * El correo que de verdad queda expuesto a clientes (reply-to, CC de citas,
+ * notificación del formulario de contacto) — nunca el Shop.email sin
+ * confirmar. Mientras no se confirme (Shop.emailVerified null), cae al
+ * correo del primer OWNER verificado (forzoso al login, ver
+ * src/lib/auth.ts) para que un correo mal escrito o abandonado no deje al
+ * cliente "escribiendo al vacío" ni genere bounces de Resend contra el
+ * dominio compartido. Ver conversación de diseño — el dueño puede evitar
+ * todo esto usando su propio correo de login como email principal
+ * (updateShopSettings lo auto-confirma en ese caso).
+ */
+export async function resolveEffectiveShopContactEmail(shopId: string, rawEmail?: string | null): Promise<string | null> {
+  const trimmed = rawEmail?.trim() || null;
+
+  if (trimmed) {
+    const shop = await db.shop.findUnique({ where: { id: shopId }, select: { emailVerified: true } });
+    if (shop?.emailVerified) return trimmed;
+  }
+
+  const owner = await db.user.findFirst({
+    where: { shopId, role: "OWNER", emailVerified: { not: null } },
+    orderBy: { createdAt: "asc" },
+    select: { email: true },
+  });
+  return owner?.email ?? trimmed;
+}
+
+/**
  * Crea/actualiza SenderIdentity + CommunicationRoute para un taller a partir de sus
  * campos de email actuales y TWILIO_FROM_NUMBER. Idempotente (upsert) — seguro de
  * llamar en cada guardado de Configuración, en el backfill de deploy, o al crear un
@@ -71,20 +98,23 @@ function managedAddressFor(shop: ProvisionableShop, contactAddress: string): { a
 }
 
 export async function provisionDefaultSenderIdentities(shop: ProvisionableShop): Promise<void> {
+  const effectiveEmail = await resolveEffectiveShopContactEmail(shop.id, shop.email);
+  const effectiveShop: ProvisionableShop = { ...shop, email: effectiveEmail };
+
   for (const channel of IMPLEMENTED_EMAIL_CHANNELS) {
     let contactAddress: string;
     try {
-      contactAddress = resolveEmailRoute(shop, channel).fromAddress;
+      contactAddress = resolveEmailRoute(effectiveShop, channel).fromAddress;
     } catch {
       continue;
     }
-    const { address, replyTo } = managedAddressFor(shop, contactAddress);
+    const { address, replyTo } = managedAddressFor(effectiveShop, contactAddress);
     await upsertRoute(shop.id, channel, "EMAIL", address, replyTo, shop.name);
   }
 
   try {
-    const contactAddress = resolveEmailRoute(shop, "APPOINTMENT").fromAddress;
-    const { address, replyTo } = managedAddressFor(shop, contactAddress);
+    const contactAddress = resolveEmailRoute(effectiveShop, "APPOINTMENT").fromAddress;
+    const { address, replyTo } = managedAddressFor(effectiveShop, contactAddress);
     for (const purpose of GENERAL_EMAIL_PURPOSES) {
       await upsertRoute(shop.id, purpose, "EMAIL", address, replyTo, shop.name);
     }

@@ -41,6 +41,13 @@ model Shop {
   appointmentSmsEnabled     Boolean       @default(true)
   workOrderReadyNotifyEmail Boolean       @default(true)
   workOrderReadyNotifySms   Boolean       @default(true)
+  // Confirmación de que el "email principal" (arriba) es alcanzable — null
+  // hasta que se confirme. Se auto-marca al guardar si el valor coincide con
+  // el correo de login del OWNER (ya forzoso-verificado, ver User.emailVerified).
+  // Mientras no esté confirmado, resolveEffectiveShopContactEmail (sender-identity.ts)
+  // usa el correo del OWNER en su lugar para reply-to/CC de cara al cliente —
+  // nunca se manda nada a este campo sin confirmar.
+  emailVerified             DateTime?
   slug                      String?       @unique
   bookingEnabled            Boolean       @default(false)
   timezone                  String        @default("America/Montreal")
@@ -175,10 +182,18 @@ model User {
   shop            Shop?           @relation(fields: [shopId], references: [id])
   name            String
   email           String          @unique
+  // Confirmación de que este correo es alcanzable — null hasta que la
+  // persona haga click en el link de verificación (ver src/lib/email-verification.ts).
+  // Un email sin confirmar no cuenta para recibir notificaciones de
+  // facturación (ver resolveBillingNotificationRecipients en subscription.ts).
+  emailVerified   DateTime?
   passwordHash    String?
   role            Role            @default(MECHANIC)
   bookable        Boolean         @default(true)
   preferredLocale InvoiceLanguage @default(ES)
+  // Solo aplica a role OWNER — si un taller tiene varios dueños, cada uno
+  // decide si quiere recibir los correos de facturación/cambios de plan.
+  receiveBillingNotifications Boolean @default(true)
   createdAt       DateTime        @default(now())
 
   accounts     Account[]
@@ -1376,6 +1391,10 @@ model PlatformConversation {
   status         PlatformConversationStatus  @default(WAITING_HUMAN)
   staffAlertedAt DateTime?
   lastMessageAt  DateTime                    @default(now())
+  // Última vez que el taller vio esta conversación — se actualiza al abrir
+  // /admin/support (ver markSupportConversationRead en support.ts). Alimenta
+  // el punto de "mensaje nuevo" en el sidebar del admin, no un correo.
+  shopReadAt     DateTime?
   createdAt      DateTime                    @default(now())
   updatedAt      DateTime                    @updatedAt
 

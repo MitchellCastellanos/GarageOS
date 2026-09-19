@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { signIn } from "@/lib/auth";
 import { ADMIN } from "@/lib/routes";
 import { createDefaultSubscription } from "@/lib/subscription";
+import { sendVerificationEmail } from "@/lib/email-verification";
 import {
   MARKETING_DICTIONARIES,
   DEFAULT_MARKETING_LOCALE,
@@ -76,15 +76,15 @@ export async function POST(req: NextRequest) {
     return signupRedirect(req, errors.signupError);
   }
 
-  try {
-    await signIn("credentials", { email, password, redirect: false, redirectTo: ADMIN.dashboard });
-  } catch (err) {
-    console.error("[/api/auth/signup] signIn error:", err);
-    // La cuenta ya quedó creada; que inicie sesión manualmente.
-    const url = new URL(ADMIN.login, req.url);
-    url.searchParams.set("error", errors.accountCreatedSignIn);
-    return NextResponse.redirect(url, { status: 303 });
-  }
+  await sendVerificationEmail({ email, name }).catch((err) =>
+    console.error("[/api/auth/signup] sendVerificationEmail falló:", err)
+  );
 
-  return NextResponse.redirect(new URL(ADMIN.dashboard, req.url), { status: 303 });
+  // El dueño no puede iniciar sesión todavía — src/lib/auth.ts bloquea el
+  // login de OWNER hasta que confirme el correo (es el contacto de
+  // facturación por defecto). Lo mandamos a la pantalla de espera en vez de
+  // autenticarlo.
+  const url = new URL(ADMIN.verifyEmailSent, req.url);
+  url.searchParams.set("email", email);
+  return NextResponse.redirect(url, { status: 303 });
 }
