@@ -399,6 +399,8 @@ export async function sendInvoiceByEmail(id: string, formData?: FormData) {
       shopPhone: invoice.shop.phone,
       shopAddress: invoice.shop.address,
       shopLogoUrl: invoice.shop.logoUrl,
+      etransferEnabled: invoice.shop.etransferEnabled,
+      etransferEmail: invoice.shop.etransferEmail,
       invoiceNumber: invoice.invoiceNumber,
       totalFormatted: formatCurrency(Number(invoice.total)),
       vehicleDescription,

@@ -75,6 +75,41 @@ export async function updateShopSettings(formData: FormData) {
   return { success: true };
 }
 
+const etransferSchema = z
+  .object({
+    etransferEnabled: z.coerce.boolean(),
+    etransferEmail: z.string().email("Invalid email address").optional().or(z.literal("")),
+  })
+  .refine((data) => !data.etransferEnabled || !!data.etransferEmail, {
+    message: "Email is required to enable this",
+    path: ["etransferEmail"],
+  });
+
+export async function updateEtransferSettings(formData: FormData) {
+  const shopId = await getShopId();
+
+  const parsed = etransferSchema.safeParse({
+    etransferEnabled: formData.get("etransferEnabled") === "on",
+    etransferEmail: formData.get("etransferEmail") as string,
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.flatten().fieldErrors };
+  }
+
+  const { etransferEnabled, etransferEmail } = parsed.data;
+
+  await db.shop.update({
+    where: { id: shopId },
+    data: {
+      etransferEnabled,
+      etransferEmail: etransferEmail || null,
+    },
+  });
+
+  revalidatePath(ADMIN.settings);
+  return { success: true };
+}
+
 const slugSchema = z
   .string()
   .trim()

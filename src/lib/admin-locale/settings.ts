@@ -66,6 +66,17 @@ export interface SettingsDictionary {
     saving: string;
     saved: string;
   };
+  etransfer: {
+    title: string;
+    enableLabel: string;
+    emailLabel: string;
+    emailPlaceholder: string;
+    emailRequired: string;
+    infoNote: string;
+    save: string;
+    saving: string;
+    saved: string;
+  };
   shopSlug: {
     title: string;
     subtitle: string;
@@ -296,6 +307,17 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       taxId: "Número de impuestos (NEQ / TPS / TVQ)",
       taxIdPlaceholder: "TPS: 123456789 RT0001 · TVQ: 1234567890 TQ0001",
       taxIdHint: "Aparece en el pie de página de las facturas PDF",
+      save: "Guardar cambios",
+      saving: "Guardando...",
+      saved: "Configuración guardada",
+    },
+    etransfer: {
+      title: "E-transfer (Interac)",
+      enableLabel: "Mostrar un correo de e-transfer en las facturas de mis clientes",
+      emailLabel: "Correo para recibir e-transfers",
+      emailPlaceholder: "pagos@tutaller.com",
+      emailRequired: "Ingresa un correo para poder activar esta opción",
+      infoNote: "Esto es solo informativo para tus clientes: les muestra a qué correo enviar su e-transfer. GarageOS no cobra, recibe ni procesa ese pago — la transferencia queda entre tu taller y tus clientes.",
       save: "Guardar cambios",
       saving: "Guardando...",
       saved: "Configuración guardada",
@@ -557,6 +579,17 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       saving: "Saving...",
       saved: "Settings saved",
     },
+    etransfer: {
+      title: "E-transfer (Interac)",
+      enableLabel: "Show an e-transfer email on my clients' invoices",
+      emailLabel: "Email to receive e-transfers",
+      emailPlaceholder: "payments@yourshop.com",
+      emailRequired: "Enter an email to turn this on",
+      infoNote: "This is just for your clients' information — it shows them which email to send their e-transfer to. GarageOS doesn't charge, receive, or process that payment — the transfer stays between your shop and your clients.",
+      save: "Save changes",
+      saving: "Saving...",
+      saved: "Settings saved",
+    },
     shopSlug: {
       title: "Public booking link",
       subtitle: "This identifier sets the URL where clients book appointments online, and unlocks sharing the link, the website button, and the embedded widget in the Calendar & Hours tab.",
@@ -810,6 +843,17 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       taxId: "Numéro de taxes (NEQ / TPS / TVQ)",
       taxIdPlaceholder: "TPS : 123456789 RT0001 · TVQ : 1234567890 TQ0001",
       taxIdHint: "Apparaît en bas des factures PDF",
+      save: "Enregistrer les changements",
+      saving: "Enregistrement...",
+      saved: "Configuration enregistrée",
+    },
+    etransfer: {
+      title: "Virement Interac (e-transfer)",
+      enableLabel: "Afficher un courriel de virement Interac sur les factures de mes clients",
+      emailLabel: "Courriel pour recevoir les virements",
+      emailPlaceholder: "paiements@votregarage.com",
+      emailRequired: "Entrez un courriel pour activer cette option",
+      infoNote: "Ceci est uniquement informatif pour vos clients : ça leur indique à quel courriel envoyer leur virement Interac. GarageOS ne facture, ne reçoit ni ne traite ce paiement — le virement reste entre votre garage et vos clients.",
       save: "Enregistrer les changements",
       saving: "Enregistrement...",
       saved: "Configuration enregistrée",
