@@ -89,6 +89,33 @@ export async function createBillingPortalSession(params: {
   });
 }
 
+/**
+ * Mueve una suscripción de Stripe ya existente al price de un plan/intervalo
+ * distinto, con proration automático — usado por el cambio de plan manual de
+ * super admin (src/actions/platform.ts changeShopPlan) para que Stripe y la
+ * fila de Subscription nunca queden desincronizados.
+ */
+export async function updateStripeSubscriptionPrice(
+  stripeSubscriptionId: string,
+  newPriceId: string
+): Promise<Stripe.Subscription> {
+  const stripe = getStripeClient();
+  const subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
+  const itemId = subscription.items.data[0]?.id;
+  if (!itemId) {
+    throw new Error(`La suscripción de Stripe ${stripeSubscriptionId} no tiene items`);
+  }
+  return stripe.subscriptions.update(stripeSubscriptionId, {
+    items: [{ id: itemId, price: newPriceId }],
+    proration_behavior: "create_prorations",
+  });
+}
+
+/** Cancela al final del período actual — nunca de inmediato, para no cortar un servicio ya pagado. */
+export async function cancelStripeSubscriptionAtPeriodEnd(stripeSubscriptionId: string): Promise<Stripe.Subscription> {
+  return getStripeClient().subscriptions.update(stripeSubscriptionId, { cancel_at_period_end: true });
+}
+
 export function constructWebhookEvent(payload: string | Buffer, signature: string): Stripe.Event {
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!secret) throw new Error("STRIPE_WEBHOOK_SECRET no está configurada");

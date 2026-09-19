@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Oswald } from "next/font/google";
+import { Suspense } from "react";
 import "./globals.css";
 import { APP_NAME, getAppUrl } from "@/config/app";
+import AnalyticsBeacon from "@/components/AnalyticsBeacon";
 
 const oswald = Oswald({
   subsets: ["latin"],
@@ -47,7 +49,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`h-full ${oswald.variable}`}>
-      <body className="min-h-full font-sans antialiased">{children}</body>
+      <body className="min-h-full font-sans antialiased">
+        {children}
+        <Suspense fallback={null}>
+          <AnalyticsBeacon />
+        </Suspense>
+      </body>
     </html>
   );
 }

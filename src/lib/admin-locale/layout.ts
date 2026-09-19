@@ -17,6 +17,7 @@ export interface LayoutDictionary {
     accounting: string;
     reminders: string;
     settings: string;
+    support: string;
   };
   topbar: {
     openMenu: string;
@@ -47,6 +48,7 @@ export const LAYOUT_DICT: Record<AdminLocale, LayoutDictionary> = {
       accounting: "Contabilidad",
       reminders: "Recordatorios",
       settings: "Configuración",
+      support: "Ayuda",
     },
     topbar: {
       openMenu: "Abrir menú",
@@ -75,6 +77,7 @@ export const LAYOUT_DICT: Record<AdminLocale, LayoutDictionary> = {
       accounting: "Accounting",
       reminders: "Reminders",
       settings: "Settings",
+      support: "Help",
     },
     topbar: {
       openMenu: "Open menu",
@@ -103,6 +106,7 @@ export const LAYOUT_DICT: Record<AdminLocale, LayoutDictionary> = {
       accounting: "Comptabilité",
       reminders: "Rappels",
       settings: "Configuration",
+      support: "Aide",
     },
     topbar: {
       openMenu: "Ouvrir le menu",

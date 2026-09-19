@@ -4,9 +4,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, LogOut, Shield } from "lucide-react";
+import { LayoutDashboard, LogOut, Shield, BarChart3, MessagesSquare } from "lucide-react";
 import { ADMIN, PLATFORM } from "@/lib/routes";
 import { APP_NAME } from "@/config/app";
+
+const NAV_ITEMS = [
+  { href: PLATFORM.home, label: "Talleres", icon: LayoutDashboard, exact: true },
+  { href: PLATFORM.analytics, label: "Analytics", icon: BarChart3, exact: false },
+  { href: PLATFORM.messages, label: "Mensajes", icon: MessagesSquare, exact: false },
+] as const;
 
 export function AdminSidebar() {
   const pathname = usePathname();
@@ -25,19 +31,23 @@ export function AdminSidebar() {
         </div>
       </div>
 
-      <nav className="flex-1 px-3 py-4">
-        <Link
-          href={PLATFORM.home}
-          className={cn(
-            "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-            pathname === PLATFORM.home || pathname === "/platform"
-              ? "bg-amber-500 text-slate-950"
-              : "text-slate-400 hover:text-white hover:bg-slate-800"
-          )}
-        >
-          <LayoutDashboard className="w-4 h-4" />
-          Talleres
-        </Link>
+      <nav className="flex-1 px-3 py-4 space-y-1">
+        {NAV_ITEMS.map((item) => {
+          const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                active ? "bg-amber-500 text-slate-950" : "text-slate-400 hover:text-white hover:bg-slate-800"
+              )}
+            >
+              <item.icon className="w-4 h-4" />
+              {item.label}
+            </Link>
+          );
+        })}
       </nav>
 
       <div className="px-3 py-4 border-t border-slate-800">

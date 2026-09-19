@@ -45,7 +45,18 @@ export const authConfig: NextAuthConfig = {
       });
       return true;
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
+      // Disparado por unstable_update() en src/lib/platform/impersonation.ts —
+      // arranca/termina el "login as" sin tocar la identidad real del super
+      // admin (token.userId/shopId/role abajo siguen siendo los suyos).
+      if (trigger === "update" && session && "impersonation" in session) {
+        if (session.impersonation) {
+          token.impersonation = session.impersonation;
+        } else {
+          delete token.impersonation;
+        }
+      }
+
       // Se re-resuelve shopId/role desde la DB en cada request (no solo en
       // el sign-in inicial) para que cambiar de ubicación activa
       // (switchActiveShop, multi-sucursal) tome efecto sin tener que cerrar
@@ -68,6 +79,14 @@ export const authConfig: NextAuthConfig = {
         token.shopId = dbUser.shopId ?? undefined;
         token.role = dbUser.role;
       }
+
+      // Auto-expira una impersonación vencida en vez de esperar a que alguien
+      // llame endImpersonation() — así una pestaña olvidada abierta no queda
+      // "viendo como el taller" indefinidamente.
+      if (token.impersonation && token.impersonation.expiresAt < Date.now()) {
+        delete token.impersonation;
+      }
+
       return token;
     },
     async session({ session, token }) {
@@ -75,6 +94,15 @@ export const authConfig: NextAuthConfig = {
         session.user.id = token.userId as string;
         session.user.shopId = token.shopId as string;
         session.user.role = token.role as string;
+
+        // Mientras dura la impersonación, la sesión "ve" el taller
+        // impersonado (shopId/role de OWNER) — la identidad real del super
+        // admin queda intacta en el token para poder salir en cualquier momento.
+        if (token.impersonation) {
+          session.user.shopId = token.impersonation.shopId;
+          session.user.role = "OWNER";
+          session.impersonation = token.impersonation;
+        }
       }
       return session;
     },

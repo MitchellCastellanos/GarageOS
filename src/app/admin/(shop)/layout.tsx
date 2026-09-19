@@ -8,6 +8,7 @@ import { getAdminLocale } from "@/lib/get-admin-locale";
 import { AdminLocaleProvider } from "@/components/admin/AdminLocaleProvider";
 import { getAccessibleShops } from "@/actions/locations";
 import { can } from "@/lib/subscription";
+import { ImpersonationBanner } from "@/components/admin/ImpersonationBanner";
 
 export default async function DashboardLayout({
   children,
@@ -46,6 +47,9 @@ export default async function DashboardLayout({
 
   return (
     <AdminLocaleProvider locale={locale}>
+      {session.impersonation && (
+        <ImpersonationBanner shopName={session.impersonation.shopName} startedByName={session.impersonation.startedByName} />
+      )}
       <AdminChrome
         shopName={shop?.name}
         shopLogoUrl={shop?.logoUrl}
