@@ -12,6 +12,10 @@ import {
 } from "@/actions/platform";
 import { ArrowLeft, KeyRound, Loader2, Trash2, UserPlus, ShieldAlert } from "lucide-react";
 import { PLATFORM } from "@/lib/routes";
+import { Tabs } from "@/components/ui/Tabs";
+import { ShopUsageTab, type ShopUsage } from "@/components/admin/ShopUsageTab";
+import { ShopBillingTab, type ShopSubscriptionDetail } from "@/components/admin/ShopBillingTab";
+import { ShopActivityTab, type PlatformNoteRow, type PlatformAuditLogRow } from "@/components/admin/ShopActivityTab";
 
 type ShopDetail = {
   id: string;
@@ -19,8 +23,9 @@ type ShopDetail = {
   email: string | null;
   phone: string | null;
   communicationsSuspendedAt: Date | null;
-  _count: { clients: number; invoices: number };
+  _count: { clients: number; invoices: number; workOrders: number; appointments: number };
   users: { id: string; name: string; email: string; role: string; createdAt: Date }[];
+  subscription: ShopSubscriptionDetail | null;
 };
 
 const ROLE_LABELS: Record<string, string> = {
@@ -29,7 +34,55 @@ const ROLE_LABELS: Record<string, string> = {
   VIEWER: "Solo lectura",
 };
 
-export function ShopAdminPanel({ shop }: { shop: ShopDetail }) {
+export function ShopAdminPanel({
+  shop,
+  usage,
+  notes,
+  auditLog,
+  actorNames,
+}: {
+  shop: ShopDetail;
+  usage: ShopUsage;
+  notes: PlatformNoteRow[];
+  auditLog: PlatformAuditLogRow[];
+  actorNames: Record<string, string>;
+}) {
+  return (
+    <div className="space-y-6">
+      <Link href={PLATFORM.home} className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800">
+        <ArrowLeft className="w-4 h-4" />
+        Todos los talleres
+      </Link>
+
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900">{shop.name}</h1>
+        <p className="text-slate-500 text-sm mt-1">
+          {shop._count.clients} clientes · {shop._count.invoices} facturas · {shop._count.workOrders} work orders
+        </p>
+      </div>
+
+      <Tabs
+        basePath={PLATFORM.shop(shop.id)}
+        tabs={[
+          { id: "account", label: "Cuenta", content: <ShopAccountTab shop={shop} /> },
+          {
+            id: "usage",
+            label: "Uso",
+            content: <ShopUsageTab shopId={shop.id} usage={usage} subscriptionStatus={shop.subscription?.status ?? null} />,
+          },
+          { id: "billing", label: "Plan y facturación", content: <ShopBillingTab shopId={shop.id} subscription={shop.subscription} /> },
+          {
+            id: "activity",
+            label: "Notas y bitácora",
+            content: <ShopActivityTab shopId={shop.id} notes={notes} auditLog={auditLog} actorNames={actorNames} />,
+          },
+        ]}
+      />
+    </div>
+  );
+}
+
+function ShopAccountTab({ shop }: { shop: ShopDetail }) {
   const [resetUserId, setResetUserId] = useState<string | null>(null);
   const [showOwner, setShowOwner] = useState(shop.users.every((u) => u.role !== "OWNER"));
   const [showUser, setShowUser] = useState(false);
@@ -70,18 +123,8 @@ export function ShopAdminPanel({ shop }: { shop: ShopDetail }) {
 
   return (
     <div className="space-y-6">
-      <Link href={PLATFORM.home} className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800">
-        <ArrowLeft className="w-4 h-4" />
-        Todos los talleres
-      </Link>
-
       <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">{shop.name}</h1>
-          <p className="text-slate-500 text-sm mt-1">
-            {shop._count.clients} clientes · {shop._count.invoices} facturas
-          </p>
-        </div>
+        <div />
         <button
           type="button"
           onClick={handleToggleSuspension}

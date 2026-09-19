@@ -17,6 +17,11 @@ model Shop {
   inventoryMovements InventoryMovement[]
   userAccess         UserShopAccess[]
   documentSequences  DocumentSequence[]
+  platformNotes              PlatformNote[]
+  platformAuditLogs          PlatformAuditLog[]
+  platformConversations      PlatformConversation[]
+  subscriptionCancellations  SubscriptionCancellation[]
+  pageViews                  PageView[]
 
   id                        String        @id @default(cuid())
   organizationId            String?
@@ -92,9 +97,47 @@ model Subscription {
   stripeSubscriptionId String? @unique
   stripePriceId        String?
 
+  // Contacto de facturación — separado del contacto operativo del taller
+  // (Shop.email). Relación comercial GarageOS↔taller, editable solo desde
+  // /platform. Ver docs/super-admin-todo.md.
+  billingEmail String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  cancellations SubscriptionCancellation[]
+
+  @@schema("garageos")
+}
+
+enum CancellationInitiator {
+  OWNER
+  SUPER_ADMIN
+  STRIPE
+
+  @@schema("garageos")
+}
+
+/**
+ * Historial de cancelaciones/solicitudes de cancelación — nunca se
+ * sobrescribe un campo, siempre se agrega una fila. Un taller puede
+ * cancelar y reactivarse varias veces; cada evento queda registrado aquí.
+ * Alimenta el % de cancelación de /platform.
+ */
+model SubscriptionCancellation {
+  id                 String                @id @default(cuid())
+  subscriptionId     String
+  subscription       Subscription          @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  shopId             String
+  shop               Shop                  @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  planAtCancellation Plan
+  reason             String                @db.Text
+  initiatedBy        CancellationInitiator
+  initiatedByUserId  String?
+  effectiveAt        DateTime?
+  createdAt          DateTime              @default(now())
+
+  @@index([shopId, createdAt])
   @@schema("garageos")
 }
 
@@ -1254,5 +1297,132 @@ model InspectionPhoto {
   storagePath      String
   createdAt        DateTime       @default(now())
 
+  @@schema("garageos")
+}
+
+// ---------------------------------------------------------------------------
+// Panel de super admin (GarageOS administrando talleres) — docs/super-admin-todo.md.
+// Todo vive bajo /platform, separado del mundo del taller (/admin). Nada aquí
+// es visible para el dueño del taller salvo lo explícitamente expuesto (ej.
+// el email de cambio de plan).
+// ---------------------------------------------------------------------------
+
+/**
+ * Bitácora de toda acción sensible de super admin sobre un taller — reset de
+ * password, cambio de plan, cancelación, impersonación, notas, suspensión de
+ * comunicaciones. Toda acción nueva de /platform que toque datos de un
+ * taller debe registrar una fila aquí; es la única fuente de "qué hizo
+ * GarageOS y por qué" si algún día hay que auditar o resolver una disputa.
+ */
+model PlatformAuditLog {
+  id          String   @id @default(cuid())
+  actorUserId String
+  shopId      String?
+  shop        Shop?    @relation(fields: [shopId], references: [id], onDelete: SetNull)
+  action      String
+  targetType  String
+  targetId    String?
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now())
+
+  @@index([shopId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@schema("garageos")
+}
+
+/** Notas internas del equipo de GarageOS sobre un taller — nunca visibles para el taller. */
+model PlatformNote {
+  id           String   @id @default(cuid())
+  shopId       String
+  shop         Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  authorUserId String
+  body         String   @db.Text
+  createdAt    DateTime @default(now())
+
+  @@index([shopId, createdAt])
+  @@schema("garageos")
+}
+
+enum PlatformConversationStatus {
+  WAITING_HUMAN
+  LIVE
+  CLOSED
+
+  @@schema("garageos")
+}
+
+enum PlatformMessageSender {
+  SHOP
+  SUPER_ADMIN
+  SYSTEM
+
+  @@schema("garageos")
+}
+
+/**
+ * Soporte GarageOS↔taller — NO confundir con CommunicationThread (eso es
+ * taller↔cliente). Arranca en WAITING_HUMAN porque el chatbot de IA todavía
+ * no existe (queda planeado, ver conversación de diseño en
+ * docs/super-admin-todo.md); cuando se conecte, alcanza con sumar un estado
+ * inicial de bot y la llamada al bot en la creación, sin tocar este schema.
+ */
+model PlatformConversation {
+  id             String                      @id @default(cuid())
+  shopId         String
+  shop           Shop                        @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  subject        String?
+  status         PlatformConversationStatus  @default(WAITING_HUMAN)
+  staffAlertedAt DateTime?
+  lastMessageAt  DateTime                    @default(now())
+  createdAt      DateTime                    @default(now())
+  updatedAt      DateTime                    @updatedAt
+
+  messages PlatformMessage[]
+
+  @@index([status, lastMessageAt])
+  @@index([shopId])
+  @@schema("garageos")
+}
+
+model PlatformMessage {
+  id             String                @id @default(cuid())
+  conversationId String
+  conversation   PlatformConversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         PlatformMessageSender
+  authorUserId   String?
+  content        String                @db.Text
+  createdAt      DateTime              @default(now())
+
+  @@index([conversationId, createdAt])
+  @@schema("garageos")
+}
+
+/**
+ * Analytics de visitas de primera parte, sin cookies — mismo enfoque que
+ * Montreal Spider Co (visitorHash es un hash unidireccional de IP+UA salado
+ * por día, nunca se guarda IP cruda). Cubre el sitio de marketing y las
+ * landings públicas de reserva (/book/[slug]); nunca rutas /admin o /platform.
+ */
+model PageView {
+  id           String   @id @default(cuid())
+  path         String
+  locale       String   @default("en")
+  referrerHost String   @default("")
+  utmSource    String   @default("")
+  utmMedium    String   @default("")
+  utmCampaign  String   @default("")
+  device       String   @default("desktop")
+  browser      String   @default("")
+  country      String   @default("")
+  /** Slug del taller cuando la visita fue a /book/[slug] o su dominio propio — vacío en el sitio de marketing. */
+  shopSlug     String   @default("")
+  shopId       String?
+  shop         Shop?    @relation(fields: [shopId], references: [id], onDelete: SetNull)
+  visitorHash  String
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([path, createdAt])
+  @@index([visitorHash, createdAt])
   @@schema("garageos")
 }

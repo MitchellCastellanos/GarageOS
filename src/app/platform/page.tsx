@@ -1,7 +1,13 @@
-import { getPlatformOverview } from "@/actions/platform";
+import { getPlatformOverview, getPlatformGrowth } from "@/actions/platform";
 import { PlatformOverview } from "@/components/admin/PlatformOverview";
+import { PlatformGrowthSummary } from "@/components/admin/PlatformGrowthSummary";
 
 export default async function AdminPage() {
-  const shops = await getPlatformOverview();
-  return <PlatformOverview shops={shops} />;
+  const [shops, growth] = await Promise.all([getPlatformOverview(), getPlatformGrowth()]);
+  return (
+    <div className="space-y-8">
+      <PlatformGrowthSummary growth={growth} />
+      <PlatformOverview shops={shops} />
+    </div>
+  );
 }

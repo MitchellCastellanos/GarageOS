@@ -17,12 +17,16 @@ export const ADMIN = {
   notifications: "/admin/notifications",
   inventory: "/admin/inventory",
   settings: "/admin/settings",
+  support: "/admin/support",
 } as const;
 
 /** Panel super-admin de la plataforma — separado del /admin de cada taller */
 export const PLATFORM = {
   home: "/platform",
   shop: (id: string) => `/platform/shops/${id}`,
+  analytics: "/platform/analytics",
+  messages: "/platform/messages",
+  message: (id: string) => `/platform/messages/${id}`,
 } as const;
 
 export function adminPath(path: string): string {

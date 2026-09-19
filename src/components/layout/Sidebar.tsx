@@ -23,6 +23,7 @@ import {
   ClipboardCheck,
   Lock,
   X,
+  LifeBuoy,
 } from "lucide-react";
 
 import { ADMIN } from "@/lib/routes";
@@ -144,6 +145,7 @@ export function Sidebar({
     { label: t.nav.caja, href: ADMIN.caja, icon: Banknote },
     { label: t.nav.accounting, href: ADMIN.accounting, icon: FolderOpen },
     { label: t.nav.reminders, href: ADMIN.reminders, icon: Bell },
+    { label: t.nav.support, href: ADMIN.support, icon: LifeBuoy },
   ];
 
   return (

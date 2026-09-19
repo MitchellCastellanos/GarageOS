@@ -1,10 +1,10 @@
-# Super admin de GarageOS — pendiente de planear
+# Super admin de GarageOS
 
-Este doc es un placeholder para cuando se planee el panel de super admin
-(GarageOS administrando talleres, no un taller administrando sus propios
-clientes). No hay nada implementado todavía — es solo la lista de cosas
-que quedaron fuera de alcance de otros cambios porque, en realidad,
-pertenecen aquí.
+Panel de GarageOS administrando talleres (no un taller administrando sus
+propios clientes) — vive bajo `/platform`, separado del `/admin` de cada
+taller. Ver `docs/platform-super-admin.md` para la arquitectura completa de
+lo ya implementado (operaciones, analytics, mensajería, crecimiento). Este
+doc queda como historial de la decisión original sobre `billingEmail`.
 
 ## Contacto de facturación (`billingEmail`)
 
@@ -22,14 +22,10 @@ etc.) debería vivir en un panel de super admin donde GarageOS controla la
 relación comercial con cada taller, no en la configuración que el dueño
 del taller edita sobre sí mismo.
 
-Falta decidir cuando se diseñe ese panel:
-- ¿El contacto de facturación lo edita el propio taller (como antes) o
-  solo GarageOS desde el super admin?
-- ¿Vive en `Shop` o en una tabla aparte ligada a `Subscription`?
-- ¿Qué más de la relación comercial (no solo el email) debería moverse
-  ahí — método de pago, historial de facturas, cambios de plan manuales,
-  notas internas del equipo de GarageOS sobre el taller?
-
-Hasta entonces, Stripe simplemente usa `shop.email` (o el email de login
-del dueño como último fallback) — sin regresión funcional, solo sin la
-posibilidad de diferenciar "contacto general" de "contacto de cobros".
+Resuelto: `billingEmail` vive en `Subscription` (no en `Shop`), editable solo
+desde `/platform/shops/[id]` → Plan y facturación (`updateBillingContact` en
+`src/actions/platform.ts`) — nunca por el propio taller. Cae a `shop.email`
+si se deja vacío. El resto de la relación comercial (cambios de plan
+manuales con motivo obligatorio, cancelación con historial, notas internas
+del equipo, bitácora de acciones) también vive ahí — ver
+`docs/platform-super-admin.md`.

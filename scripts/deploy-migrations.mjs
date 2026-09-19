@@ -38,3 +38,17 @@ if (backfill.status !== 0) {
     "[deploy-migrations] backfill-sender-identities falló — continuando el deploy de todos modos."
   );
 }
+
+// Bootstrap del super admin (PLATFORM_ADMIN_EMAIL/PASSWORD/NAME) — no-op si
+// esas variables no están configuradas. Idempotente, no bloquea el deploy.
+console.log("[deploy-migrations] Bootstrapping super admin...");
+const bootstrapAdmin = spawnSync("npx", ["tsx", "scripts/bootstrap-super-admin.ts"], {
+  stdio: "inherit",
+  env: process.env,
+});
+
+if (bootstrapAdmin.status !== 0) {
+  console.error(
+    "[deploy-migrations] bootstrap-super-admin falló — continuando el deploy de todos modos."
+  );
+}
