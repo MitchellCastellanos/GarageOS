@@ -8,6 +8,7 @@ import { getAdminLocale } from "@/lib/get-admin-locale";
 import { AdminLocaleProvider } from "@/components/admin/AdminLocaleProvider";
 import { getAccessibleShops } from "@/actions/locations";
 import { can } from "@/lib/subscription";
+import { hasUnreadSupportMessage } from "@/actions/support";
 import { ImpersonationBanner } from "@/components/admin/ImpersonationBanner";
 import { EmailVerificationBanner } from "@/components/admin/EmailVerificationBanner";
 
@@ -30,7 +31,7 @@ export default async function DashboardLayout({
     redirect(ADMIN.login);
   }
 
-  const [shop, locale, accessibleShops, inventoryEntitled, campaignsEntitled, currentUser] = await Promise.all([
+  const [shop, locale, accessibleShops, inventoryEntitled, campaignsEntitled, currentUser, hasUnreadSupport] = await Promise.all([
     db.shop.findUnique({
       where: { id: session.user.shopId },
       select: { name: true, logoUrl: true },
@@ -43,6 +44,7 @@ export default async function DashboardLayout({
       where: { id: session.user.id },
       select: { email: true, emailVerified: true },
     }),
+    hasUnreadSupportMessage(session.user.shopId),
   ]);
 
   const lockedNavHrefs = [
@@ -64,6 +66,7 @@ export default async function DashboardLayout({
         accessibleShops={accessibleShops}
         currentShopId={session.user.shopId}
         lockedNavHrefs={lockedNavHrefs}
+        hasUnreadSupport={hasUnreadSupport}
       >
         {children}
       </AdminChrome>

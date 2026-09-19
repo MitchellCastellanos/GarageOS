@@ -13,6 +13,8 @@ interface AdminChromeProps {
   currentShopId: string;
   /** Rutas de nav que el plan actual no incluye — se muestran con un candado, no se ocultan. */
   lockedNavHrefs?: string[];
+  /** Punto en el ícono de Ayuda — hay una respuesta de GarageOS que el taller no ha visto todavía. */
+  hasUnreadSupport?: boolean;
   children: React.ReactNode;
 }
 
@@ -24,6 +26,7 @@ export function AdminChrome({
   accessibleShops,
   currentShopId,
   lockedNavHrefs,
+  hasUnreadSupport,
   children,
 }: AdminChromeProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -46,6 +49,7 @@ export function AdminChrome({
           mobileOpen={mobileNavOpen}
           onMobileClose={closeMobileNav}
           lockedNavHrefs={lockedNavHrefs}
+          hasUnreadSupport={hasUnreadSupport}
         />
         <main className="flex-1 min-w-0 p-4 sm:p-6 overflow-auto">{children}</main>
       </div>

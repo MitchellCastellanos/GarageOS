@@ -1384,6 +1384,10 @@ model PlatformConversation {
   status         PlatformConversationStatus  @default(WAITING_HUMAN)
   staffAlertedAt DateTime?
   lastMessageAt  DateTime                    @default(now())
+  // Última vez que el taller vio esta conversación — se actualiza al abrir
+  // /admin/support (ver markSupportConversationRead en support.ts). Alimenta
+  // el punto de "mensaje nuevo" en el sidebar del admin, no un correo.
+  shopReadAt     DateTime?
   createdAt      DateTime                    @default(now())
   updatedAt      DateTime                    @updatedAt
 

@@ -1,8 +1,9 @@
-import { getMyConversation } from "@/actions/support";
+import { getMyConversation, markSupportConversationRead } from "@/actions/support";
 import { SupportChat } from "@/components/support/SupportChat";
 
 export default async function SupportPage() {
   const conversation = await getMyConversation();
+  await markSupportConversationRead();
 
   return (
     <div className="space-y-4">
