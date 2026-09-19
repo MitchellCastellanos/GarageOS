@@ -150,6 +150,40 @@ export async function checkEntitlement(shopId: string, capability: CapabilityKey
   return `Esta función requiere el plan ${minPlanFor(capability)} o superior — actualiza tu plan en Configuración → Facturación.`;
 }
 
+/**
+ * A quién le llegan los correos de facturación/cambios de plan de GarageOS
+ * (ver docs/super-admin-todo.md y la conversación que originó esto: antes
+ * solo iba a Shop.email o Subscription.billingEmail, nunca a los dueños del
+ * taller). Prioriza a los OWNER del taller con correo confirmado y que no
+ * hayan desactivado estas notificaciones (opt-out, todos activos por
+ * defecto) — si ninguno califica (recién creado, nadie confirmó todavía,
+ * etc.), cae al contacto de facturación/operativo de siempre para no perder
+ * el aviso. billingEmail (contacto explícito puesto por super admin, p.ej.
+ * un contador) siempre se incluye si existe, además de los dueños.
+ */
+export async function resolveBillingNotificationRecipients(shopId: string): Promise<string[]> {
+  const shop = await db.shop.findUnique({
+    where: { id: shopId },
+    select: {
+      email: true,
+      subscription: { select: { billingEmail: true } },
+      users: {
+        where: { role: "OWNER", emailVerified: { not: null }, receiveBillingNotifications: true },
+        select: { email: true },
+      },
+    },
+  });
+  if (!shop) return [];
+
+  const recipients = new Set<string>();
+  if (shop.subscription?.billingEmail) recipients.add(shop.subscription.billingEmail);
+  for (const owner of shop.users) recipients.add(owner.email);
+
+  if (recipients.size === 0 && shop.email) recipients.add(shop.email);
+
+  return Array.from(recipients);
+}
+
 export async function getUserCount(shopId: string): Promise<number> {
   return db.user.count({ where: { shopId, role: { not: "SUPER_ADMIN" } } });
 }

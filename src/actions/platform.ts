@@ -7,7 +7,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireSuperAdmin } from "@/lib/permissions";
 import { provisionDefaultSenderIdentities } from "@/lib/communications/sender-identity";
-import { createDefaultSubscription } from "@/lib/subscription";
+import { createDefaultSubscription, resolveBillingNotificationRecipients } from "@/lib/subscription";
 import { auth, unstable_update } from "@/lib/auth";
 import { logPlatformAction, getShopAuditLog } from "@/lib/platform/audit";
 import { notifyPlanChanged, notifySubscriptionCanceled } from "@/lib/platform/notify";
@@ -465,8 +465,8 @@ export async function changeShopPlan(shopId: string, newPlan: Plan, reason: stri
     metadata: { previousPlan, newPlan, reason: trimmedReason },
   });
 
-  const billingTo = shop.subscription?.billingEmail || shop.email;
-  if (billingTo) {
+  const billingTo = await resolveBillingNotificationRecipients(shopId);
+  if (billingTo.length > 0) {
     await notifyPlanChanged({ to: billingTo, shopName: shop.name, previousPlan, newPlan, reason: trimmedReason }).catch((err) =>
       console.error("[platform] notifyPlanChanged falló:", err)
     );
@@ -564,8 +564,8 @@ export async function cancelShopSubscription(shopId: string, reason: string) {
     metadata: { reason: trimmedReason, effectiveAt: effectiveAt.toISOString() },
   });
 
-  const billingTo = sub.billingEmail || shop.email;
-  if (billingTo) {
+  const billingTo = await resolveBillingNotificationRecipients(shopId);
+  if (billingTo.length > 0) {
     await notifySubscriptionCanceled({
       to: billingTo,
       shopName: shop.name,

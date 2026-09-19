@@ -1,14 +1,17 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
   createTeamMember,
   resetTeamMemberPassword,
   updateTeamMemberRole,
   deleteTeamMember,
+  resendTeamMemberVerification,
+  updateOwnerBillingNotification,
 } from "@/actions/users";
-import { Loader2, UserPlus, KeyRound, Trash2 } from "lucide-react";
+import { Loader2, UserPlus, KeyRound, Trash2, MailWarning, CheckCircle2 } from "lucide-react";
 import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
 import { SETTINGS_DICT } from "@/lib/admin-locale/settings";
 import { UpgradeCTA } from "@/components/billing/UpgradeCTA";
@@ -21,6 +24,8 @@ interface TeamMember {
   email: string;
   role: Role;
   createdAt: Date;
+  emailVerified: Date | null;
+  receiveBillingNotifications: boolean;
 }
 
 interface TeamManagementProps {
@@ -41,6 +46,30 @@ export function TeamManagement({ members, currentUserId, seatLimit }: TeamManage
   const [showCreate, setShowCreate] = useState(false);
   const [resetUserId, setResetUserId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const verifyEmail = searchParams.get("verifyEmail");
+    if (verifyEmail === "success") toast.success("Correo confirmado");
+    else if (verifyEmail === "expired") toast.error("Ese link de confirmación venció — pide que te reenvíen uno");
+    else if (verifyEmail === "invalid") toast.error("Ese link de confirmación no es válido");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function handleResendVerification(userId: string, name: string) {
+    startTransition(async () => {
+      const result = await resendTeamMemberVerification(userId);
+      if (result?.success) toast.success(`Correo de confirmación reenviado a ${name}`);
+      else toast.error(result?.error ?? "No se pudo reenviar el correo");
+    });
+  }
+
+  function handleBillingNotificationToggle(userId: string, receive: boolean) {
+    startTransition(async () => {
+      const result = await updateOwnerBillingNotification(userId, receive);
+      if (!result?.success) toast.error(result?.error ?? "No se pudo actualizar");
+    });
+  }
 
   function handleCreate(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -174,7 +203,37 @@ export function TeamManagement({ members, currentUserId, seatLimit }: TeamManage
                     <span className="ml-2 text-xs font-normal text-blue-600">({t.team.you})</span>
                   )}
                 </p>
-                <p className="text-sm text-slate-500">{member.email}</p>
+                <p className="text-sm text-slate-500 flex items-center gap-1.5">
+                  {member.email}
+                  {member.emailVerified ? (
+                    <span title="Correo confirmado">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => handleResendVerification(member.id, member.name)}
+                      title="Correo sin confirmar — clic para reenviar"
+                      className="flex items-center gap-1 text-amber-600 hover:text-amber-700 disabled:opacity-50"
+                    >
+                      <MailWarning className="w-3.5 h-3.5" />
+                      <span className="text-xs">Sin confirmar · reenviar</span>
+                    </button>
+                  )}
+                </p>
+                {member.role === "OWNER" && (
+                  <label className="flex items-center gap-1.5 mt-1 text-xs text-slate-500">
+                    <input
+                      type="checkbox"
+                      checked={member.receiveBillingNotifications}
+                      disabled={pending}
+                      onChange={(e) => handleBillingNotificationToggle(member.id, e.target.checked)}
+                      className="rounded border-slate-300"
+                    />
+                    Recibe correos de facturación/plan
+                  </label>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 {member.id === currentUserId ? (

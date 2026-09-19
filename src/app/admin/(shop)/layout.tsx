@@ -9,6 +9,7 @@ import { AdminLocaleProvider } from "@/components/admin/AdminLocaleProvider";
 import { getAccessibleShops } from "@/actions/locations";
 import { can } from "@/lib/subscription";
 import { ImpersonationBanner } from "@/components/admin/ImpersonationBanner";
+import { EmailVerificationBanner } from "@/components/admin/EmailVerificationBanner";
 
 export default async function DashboardLayout({
   children,
@@ -29,7 +30,7 @@ export default async function DashboardLayout({
     redirect(ADMIN.login);
   }
 
-  const [shop, locale, accessibleShops, inventoryEntitled, campaignsEntitled] = await Promise.all([
+  const [shop, locale, accessibleShops, inventoryEntitled, campaignsEntitled, currentUser] = await Promise.all([
     db.shop.findUnique({
       where: { id: session.user.shopId },
       select: { name: true, logoUrl: true },
@@ -38,6 +39,10 @@ export default async function DashboardLayout({
     getAccessibleShops(),
     can(session.user.shopId, "inventory.manage"),
     can(session.user.shopId, "communications.campaigns"),
+    db.user.findUnique({
+      where: { id: session.user.id },
+      select: { email: true, emailVerified: true },
+    }),
   ]);
 
   const lockedNavHrefs = [
@@ -50,6 +55,7 @@ export default async function DashboardLayout({
       {session.impersonation && (
         <ImpersonationBanner shopName={session.impersonation.shopName} startedByName={session.impersonation.startedByName} />
       )}
+      {currentUser && !currentUser.emailVerified && <EmailVerificationBanner email={currentUser.email} />}
       <AdminChrome
         shopName={shop?.name}
         shopLogoUrl={shop?.logoUrl}

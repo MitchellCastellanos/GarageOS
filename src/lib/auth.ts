@@ -34,6 +34,8 @@ export const authConfig: NextAuthConfig = {
           name: ownerName,
           email: user.email,
           role: "OWNER",
+          // Google ya confirmó este correo — no le pedimos verificarlo otra vez.
+          emailVerified: new Date(),
         },
       });
       // Identidad de envío inicial (Communications Platform) — no bloquea el signup si falla.

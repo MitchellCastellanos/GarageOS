@@ -5,6 +5,7 @@ import { z } from "zod";
 import { signIn } from "@/lib/auth";
 import { ADMIN } from "@/lib/routes";
 import { createDefaultSubscription } from "@/lib/subscription";
+import { sendVerificationEmail } from "@/lib/email-verification";
 import {
   MARKETING_DICTIONARIES,
   DEFAULT_MARKETING_LOCALE,
@@ -75,6 +76,10 @@ export async function POST(req: NextRequest) {
     console.error("[/api/auth/signup] error:", err);
     return signupRedirect(req, errors.signupError);
   }
+
+  await sendVerificationEmail({ email, name }).catch((err) =>
+    console.error("[/api/auth/signup] sendVerificationEmail falló:", err)
+  );
 
   try {
     await signIn("credentials", { email, password, redirect: false, redirectTo: ADMIN.dashboard });
