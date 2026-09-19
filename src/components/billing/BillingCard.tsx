@@ -7,37 +7,14 @@ import { Loader2, CheckCircle2, ExternalLink } from "lucide-react";
 import { startCheckoutAction, openBillingPortalAction } from "@/actions/billing";
 import { PLANS, PLAN_LABELS, PLAN_PRICING_CAD, type Plan } from "@/config/entitlements";
 import type { EffectiveSubscription } from "@/lib/subscription";
+import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
+import { BILLING_DICT } from "@/lib/admin-locale/billing";
 import { cn } from "@/lib/utils";
 
-const PLAN_FEATURES: Record<Plan, string[]> = {
-  CORE: [
-    "Hasta 3 usuarios · 1 ubicación",
-    "Citas, clientes, cotizaciones, órdenes y facturas",
-    "DVI básica, recordatorios y portal de cliente",
-  ],
-  PRO: [
-    "Usuarios ilimitados · 1 ubicación",
-    "Inventario, campañas y DVI completa",
-    "Dominio propio, identidad de envío y reportes avanzados",
-  ],
-  COMPLETE: [
-    "Todo lo de Pro",
-    "Multi-sucursal y administración centralizada",
-    "Migración estándar y soporte prioritario",
-  ],
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  TRIALING: "En prueba",
-  ACTIVE: "Activa",
-  PAST_DUE: "Pago pendiente",
-  CANCELED: "Cancelada",
-  UNPAID: "Sin pagar",
-  INCOMPLETE: "Incompleta",
-  NONE: "Sin suscripción",
-};
-
 export function BillingCard({ subscription }: { subscription: EffectiveSubscription }) {
+  const locale = useAdminLocale();
+  const t = BILLING_DICT[locale];
+  const intlLocale = locale === "fr" ? "fr-CA" : "en-CA";
   const searchParams = useSearchParams();
   const [interval, setInterval] = useState<"MONTHLY" | "YEARLY">(subscription.billingInterval ?? "MONTHLY");
   const [pending, startTransition] = useTransition();
@@ -58,7 +35,7 @@ export function BillingCard({ subscription }: { subscription: EffectiveSubscript
       if (result?.url) {
         window.location.href = result.url;
       } else {
-        toast.error(result?.error ?? "No se pudo iniciar el checkout de Stripe");
+        toast.error(result?.error ?? t.errors.checkoutGeneric);
       }
     });
   }
@@ -71,7 +48,7 @@ export function BillingCard({ subscription }: { subscription: EffectiveSubscript
       if (result?.url) {
         window.location.href = result.url;
       } else {
-        toast.error(result?.error ?? "No se pudo abrir el portal de facturación");
+        toast.error(result?.error ?? t.errors.portalGeneric);
       }
     });
   }
@@ -81,39 +58,38 @@ export function BillingCard({ subscription }: { subscription: EffectiveSubscript
       {checkoutResult === "success" && (
         <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm px-4 py-3 rounded-lg">
           <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-          Pago recibido — tu plan se actualiza en unos segundos.
+          {t.banners.checkoutSuccess}
         </div>
       )}
       {checkoutResult === "cancelled" && (
         <div className="bg-amber-50 border border-amber-200 text-amber-800 text-sm px-4 py-3 rounded-lg">
-          Checkout cancelado — no se hizo ningún cambio a tu plan.
+          {t.banners.checkoutCancelled}
         </div>
       )}
 
       <div className="bg-white rounded-xl border border-slate-200 p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Plan actual</p>
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">{t.currentPlan.label}</p>
             <p className="text-xl font-bold text-slate-900 mt-0.5">
               {PLAN_LABELS[subscription.plan]}
               <span className="ml-2 text-sm font-medium text-slate-400">
-                {STATUS_LABEL[subscription.status] ?? subscription.status}
+                {t.statusLabel[subscription.status as keyof typeof t.statusLabel] ?? subscription.status}
               </span>
             </p>
             {subscription.isTrialing && subscription.trialEndsAt && (
               <p className="text-sm text-amber-600 mt-1">
-                Prueba gratuita hasta el {subscription.trialEndsAt.toLocaleDateString("es-CA")}
+                {t.currentPlan.trialUntil(subscription.trialEndsAt.toLocaleDateString(intlLocale))}
               </p>
             )}
             {subscription.isTrialExpired && (
-              <p className="text-sm text-red-600 mt-1">
-                Tu prueba de Pro terminó — elige un plan abajo para seguir con esas funciones.
-              </p>
+              <p className="text-sm text-red-600 mt-1">{t.currentPlan.trialExpired}</p>
             )}
             {subscription.currentPeriodEnd && subscription.status === "ACTIVE" && (
               <p className="text-sm text-slate-500 mt-1">
-                {subscription.cancelAtPeriodEnd ? "Se cancela el " : "Próximo cobro el "}
-                {subscription.currentPeriodEnd.toLocaleDateString("es-CA")}
+                {subscription.cancelAtPeriodEnd
+                  ? t.currentPlan.cancelsOn(subscription.currentPeriodEnd.toLocaleDateString(intlLocale))
+                  : t.currentPlan.renewsOn(subscription.currentPeriodEnd.toLocaleDateString(intlLocale))}
               </p>
             )}
           </div>
@@ -126,7 +102,7 @@ export function BillingCard({ subscription }: { subscription: EffectiveSubscript
             >
               {portalPending && <Loader2 className="w-4 h-4 animate-spin" />}
               <ExternalLink className="w-4 h-4" />
-              Administrar facturación
+              {t.currentPlan.manageBilling}
             </button>
           )}
         </div>
@@ -141,7 +117,7 @@ export function BillingCard({ subscription }: { subscription: EffectiveSubscript
             interval === "MONTHLY" ? "bg-white shadow text-slate-900" : "text-slate-500"
           )}
         >
-          Mensual
+          {t.interval.monthly}
         </button>
         <button
           type="button"
@@ -151,7 +127,7 @@ export function BillingCard({ subscription }: { subscription: EffectiveSubscript
             interval === "YEARLY" ? "bg-white shadow text-slate-900" : "text-slate-500"
           )}
         >
-          Anual (2 meses gratis)
+          {t.interval.yearly}
         </button>
       </div>
 
@@ -170,7 +146,7 @@ export function BillingCard({ subscription }: { subscription: EffectiveSubscript
             >
               {plan === "PRO" && (
                 <span className="absolute -top-2.5 left-4 bg-blue-600 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full">
-                  Más popular
+                  {t.mostPopular}
                 </span>
               )}
               <p className="font-semibold text-slate-900">{PLAN_LABELS[plan]}</p>
@@ -178,11 +154,9 @@ export function BillingCard({ subscription }: { subscription: EffectiveSubscript
                 ${interval === "MONTHLY" ? price.monthly : price.yearly}
                 <span className="text-sm font-normal text-slate-400"> CAD</span>
               </p>
-              <p className="text-xs text-slate-400 mb-3">
-                {interval === "MONTHLY" ? "/ mes" : "/ año"}
-              </p>
+              <p className="text-xs text-slate-400 mb-3">{interval === "MONTHLY" ? t.perMonth : t.perYear}</p>
               <ul className="text-sm text-slate-600 space-y-1.5 flex-1 mb-4">
-                {PLAN_FEATURES[plan].map((feature) => (
+                {t.features[plan].map((feature) => (
                   <li key={feature}>· {feature}</li>
                 ))}
               </ul>
@@ -198,7 +172,7 @@ export function BillingCard({ subscription }: { subscription: EffectiveSubscript
                 )}
               >
                 {loadingPlan === plan && <Loader2 className="w-4 h-4 animate-spin" />}
-                {isCurrent ? "Plan actual" : "Elegir " + PLAN_LABELS[plan]}
+                {isCurrent ? t.currentPlanButton : t.choosePlan(PLAN_LABELS[plan])}
               </button>
             </div>
           );
