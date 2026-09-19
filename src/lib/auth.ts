@@ -1,4 +1,4 @@
-import NextAuth, { type NextAuthConfig } from "next-auth";
+import NextAuth, { type NextAuthConfig, customFetch } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
@@ -111,6 +111,26 @@ export const authConfig: NextAuthConfig = {
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      // El discovery document de Google anuncia
+      // `authorization_response_iss_parameter_supported: true`, pero sus
+      // respuestas de autorización no siempre incluyen `iss` — oauth4webapi
+      // entonces rechaza el callback con `response parameter "iss" missing`.
+      // Se le quita esa bandera solo a la respuesta de discovery; el resto
+      // (jwks/token/userinfo) sigue viniendo de Google sin tocar.
+      [customFetch]: async (...args: Parameters<typeof fetch>) => {
+        const response = await fetch(...args);
+        const url = new URL(new Request(...args).url);
+        if (!response.ok || url.pathname !== "/.well-known/openid-configuration") {
+          return response;
+        }
+        const metadata = await response.json();
+        delete metadata.authorization_response_iss_parameter_supported;
+        return new Response(JSON.stringify(metadata), {
+          status: response.status,
+          statusText: response.statusText,
+          headers: response.headers,
+        });
+      },
     }),
     Credentials({
       credentials: {
