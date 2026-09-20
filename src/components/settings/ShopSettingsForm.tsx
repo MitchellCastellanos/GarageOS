@@ -59,9 +59,9 @@ export function ShopSettingsForm({ shop, slugUrlPrefix, canUseLoginEmail, loginE
 
   useEffect(() => {
     const verifyShopEmail = searchParams.get("verifyShopEmail");
-    if (verifyShopEmail === "success") toast.success("Correo principal confirmado");
-    else if (verifyShopEmail === "expired") toast.error("Ese link venció — pide que se reenvíe la confirmación");
-    else if (verifyShopEmail === "invalid") toast.error("Ese link de confirmación no es válido");
+    if (verifyShopEmail === "success") toast.success(t.shopEmailVerification.mainConfirmed);
+    else if (verifyShopEmail === "expired") toast.error(t.shopEmailVerification.linkExpired);
+    else if (verifyShopEmail === "invalid") toast.error(t.shopEmailVerification.linkInvalid);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -72,9 +72,9 @@ export function ShopSettingsForm({ shop, slugUrlPrefix, canUseLoginEmail, loginE
         setEmailValue(result.email);
         setEmailVerified(new Date());
         setResendSent(false);
-        toast.success("Listo — tu correo de acceso ya es el email principal, confirmado");
+        toast.success(t.shopEmailVerification.useLoginEmailSuccess);
       } else {
-        toast.error(result?.error ?? "No se pudo actualizar");
+        toast.error(result?.error ?? t.shopEmailVerification.useLoginEmailError);
       }
     });
   }
@@ -84,9 +84,9 @@ export function ShopSettingsForm({ shop, slugUrlPrefix, canUseLoginEmail, loginE
       const result = await resendShopEmailVerification();
       if (result?.success) {
         setResendSent(true);
-        toast.success("Confirmación reenviada");
+        toast.success(t.shopEmailVerification.resendSuccess);
       } else {
-        toast.error(result?.error ?? "No se pudo reenviar");
+        toast.error(result?.error ?? t.shopEmailVerification.resendError);
       }
     });
   }
@@ -303,13 +303,13 @@ export function ShopSettingsForm({ shop, slugUrlPrefix, canUseLoginEmail, loginE
               {t.shopInfo.email}
               {emailValue && (
                 emailVerified ? (
-                  <span title="Confirmado">
+                  <span title={t.shopEmailVerification.confirmedTooltip}>
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-600">
                     <MailWarning className="w-3.5 h-3.5" />
-                    Sin confirmar
+                    {t.shopEmailVerification.unconfirmedLabel}
                   </span>
                 )
               )}
@@ -332,16 +332,16 @@ export function ShopSettingsForm({ shop, slugUrlPrefix, canUseLoginEmail, loginE
                 className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 disabled:opacity-50"
               >
                 {useLoginPending && <Loader2 className="w-3 h-3 animate-spin" />}
-                Usar mi correo de acceso ({loginEmail}) — queda confirmado al instante
+                {t.shopEmailVerification.useLoginEmailButton(loginEmail)}
               </button>
             )}
 
             {emailValue && !emailVerified && (
               <div className="mt-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800 space-y-1">
                 <p>
-                  Mientras no se confirme, tus clientes verán/contestarán a{" "}
-                  {canUseLoginEmail ? <strong>{loginEmail}</strong> : "el correo del dueño del taller"} en su lugar —
-                  nada se pierde.
+                  {t.shopEmailVerification.unconfirmedPrefix}{" "}
+                  {canUseLoginEmail ? <strong>{loginEmail}</strong> : t.shopEmailVerification.unconfirmedFallbackContact}{" "}
+                  {t.shopEmailVerification.unconfirmedSuffix}
                 </p>
                 <button
                   type="button"
@@ -350,7 +350,7 @@ export function ShopSettingsForm({ shop, slugUrlPrefix, canUseLoginEmail, loginE
                   className="font-medium text-amber-700 hover:text-amber-900 disabled:opacity-50 inline-flex items-center gap-1"
                 >
                   {resendPending && <Loader2 className="w-3 h-3 animate-spin" />}
-                  {resendSent ? "Confirmación reenviada" : "Reenviar confirmación"}
+                  {resendSent ? t.shopEmailVerification.resendSentLabel : t.shopEmailVerification.resendButton}
                 </button>
               </div>
             )}
