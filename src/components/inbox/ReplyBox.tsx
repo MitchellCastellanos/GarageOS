@@ -7,6 +7,8 @@ import { Loader2, Send, X } from "lucide-react";
 import { replyToThreadAction, archiveThreadAction } from "@/actions/inbox";
 import { FileAttachmentButtons } from "@/components/ui/FileAttachmentButtons";
 import { RichEmailEditor } from "@/components/inbox/RichEmailEditor";
+import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
+import { INBOX_DICT } from "@/lib/admin-locale/inbox";
 
 const MAX_ATTACHMENTS = 8;
 
@@ -34,6 +36,8 @@ export function ReplyBox({
   defaultSenderId,
 }: ReplyBoxProps) {
   const router = useRouter();
+  const locale = useAdminLocale();
+  const t = INBOX_DICT[locale].reply;
   const [files, setFiles] = useState<File[]>([]);
   const [showCc, setShowCc] = useState(false);
   const [editorKey, setEditorKey] = useState(0);
@@ -42,7 +46,7 @@ export function ReplyBox({
 
   function addFiles(incoming: File[]) {
     const merged = [...files, ...incoming].slice(0, MAX_ATTACHMENTS);
-    if (files.length + incoming.length > MAX_ATTACHMENTS) toast.error(`Máximo ${MAX_ATTACHMENTS} adjuntos`);
+    if (files.length + incoming.length > MAX_ATTACHMENTS) toast.error(t.maxAttachments(MAX_ATTACHMENTS));
     setFiles(merged);
   }
   function removeFile(index: number) { setFiles((prev) => prev.filter((_, i) => i !== index)); }
@@ -56,7 +60,7 @@ export function ReplyBox({
     startTransition(async () => {
       const result = await replyToThreadAction(threadId, formData);
       if (result?.error) { toast.error(result.error); return; }
-      toast.success("Respuesta enviada");
+      toast.success(t.toastReplySent);
       setFiles([]);
       form.reset();
       setEditorKey((key) => key + 1);
@@ -67,7 +71,7 @@ export function ReplyBox({
   function handleArchive() {
     startArchiveTransition(async () => {
       await archiveThreadAction(threadId);
-      toast.success("Conversación archivada");
+      toast.success(t.toastArchived);
       router.refresh();
     });
   }
@@ -75,19 +79,19 @@ export function ReplyBox({
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-slate-200 p-5 space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-slate-900">Responder</h3>
-        <button type="button" onClick={handleArchive} disabled={archiving} className="text-xs text-slate-500 hover:text-slate-700">Archivar conversación</button>
+        <h3 className="text-sm font-semibold text-slate-900">{t.title}</h3>
+        <button type="button" onClick={handleArchive} disabled={archiving} className="text-xs text-slate-500 hover:text-slate-700">{t.archiveButton}</button>
       </div>
 
       <input type="hidden" name="to" value={defaultTo} />
       <div className="text-xs text-slate-500">
-        Para: <span className="font-medium text-slate-700">{defaultTo}</span>{" "}
-        {!showCc && <button type="button" onClick={() => setShowCc(true)} className="text-blue-600 hover:underline ml-1">+ CC/CCO</button>}
+        {t.toLabel} <span className="font-medium text-slate-700">{defaultTo}</span>{" "}
+        {!showCc && <button type="button" onClick={() => setShowCc(true)} className="text-blue-600 hover:underline ml-1">{t.addCcBcc}</button>}
       </div>
 
       {senderOptions.length > 1 && (
         <div>
-          <label className="block text-xs font-medium text-slate-500 mb-1">Enviar desde</label>
+          <label className="block text-xs font-medium text-slate-500 mb-1">{t.sendFromLabel}</label>
           <select
             name="senderIdentityId"
             defaultValue={defaultSenderId ?? senderOptions[0].id}
@@ -103,9 +107,9 @@ export function ReplyBox({
         </div>
       )}
 
-      {showCc && <div className="grid grid-cols-2 gap-2"><input name="cc" placeholder="CC" className="px-3 py-2 border border-slate-300 rounded-lg text-sm" /><input name="bcc" placeholder="CCO" className="px-3 py-2 border border-slate-300 rounded-lg text-sm" /></div>}
-      <input name="subject" defaultValue={defaultSubject} placeholder="Asunto" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
-      <RichEmailEditor key={editorKey} shopName={shopName} disabled={pending} placeholder="Escribe tu respuesta…" required />
+      {showCc && <div className="grid grid-cols-2 gap-2"><input name="cc" placeholder={t.ccPlaceholder} className="px-3 py-2 border border-slate-300 rounded-lg text-sm" /><input name="bcc" placeholder={t.bccPlaceholder} className="px-3 py-2 border border-slate-300 rounded-lg text-sm" /></div>}
+      <input name="subject" defaultValue={defaultSubject} placeholder={t.subjectPlaceholder} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm" />
+      <RichEmailEditor key={editorKey} shopName={shopName} disabled={pending} placeholder={t.bodyPlaceholder} required />
 
       <div className="flex flex-wrap gap-2"><FileAttachmentButtons disabled={pending} onFilesSelected={addFiles} /></div>
       {files.length > 0 && (
@@ -121,7 +125,7 @@ export function ReplyBox({
 
       <div className="flex justify-end">
         <button type="submit" disabled={pending} className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium">
-          {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}{pending ? "Enviando…" : "Enviar"}
+          {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}{pending ? t.sending : t.send}
         </button>
       </div>
     </form>

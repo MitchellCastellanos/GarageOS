@@ -39,6 +39,8 @@ async function MessageRow({ message, youTo }: { message: ThreadMessage; youTo: (
 }
 
 export default async function ThreadDetailPage({ params }: PageProps) {
+  const locale = await getAdminLocale();
+  const t = INBOX_DICT[locale];
   const { threadId } = await params;
   const [detail, shop, senderOptions] = await Promise.all([
     getThreadDetail(threadId),
@@ -55,9 +57,9 @@ export default async function ThreadDetailPage({ params }: PageProps) {
 
   return (
     <div className="max-w-3xl space-y-6">
-      <div><h1 className="text-xl font-bold text-slate-900">{thread.client ? formatClientName(thread.client) : thread.subject || "Conversación"}</h1><p className="text-slate-500 text-sm mt-1">{thread.subject || "Sin asunto"}</p></div>
-      <div className="bg-white rounded-xl border border-slate-200 divide-y divide-slate-100">{thread.messages.map((message) => <MessageRow key={message.id} message={message} />)}</div>
-      {clientHistory.length > 0 && <div className="bg-white rounded-xl border border-slate-200 p-5"><h3 className="text-sm font-semibold text-slate-900 mb-3">Historial automatizado del cliente</h3><ul className="space-y-2">{clientHistory.map((m) => <li key={m.id} className="text-xs text-slate-500 flex items-center justify-between"><span>{m.purpose ?? m.channel} — {m.subject ?? m.status}</span><span>{formatDate(m.createdAt)}</span></li>)}</ul></div>}
+      <div><h1 className="text-xl font-bold text-slate-900">{thread.client ? formatClientName(thread.client) : thread.subject || t.thread.fallbackTitle}</h1><p className="text-slate-500 text-sm mt-1">{thread.subject || t.thread.noSubject}</p></div>
+      <div className="bg-white rounded-xl border border-slate-200 divide-y divide-slate-100">{thread.messages.map((message) => <MessageRow key={message.id} message={message} youTo={t.thread.youTo} />)}</div>
+      {clientHistory.length > 0 && <div className="bg-white rounded-xl border border-slate-200 p-5"><h3 className="text-sm font-semibold text-slate-900 mb-3">{t.thread.clientHistoryTitle}</h3><ul className="space-y-2">{clientHistory.map((m) => <li key={m.id} className="text-xs text-slate-500 flex items-center justify-between"><span>{m.purpose ?? m.channel} — {m.subject ?? m.status}</span><span>{formatDate(m.createdAt)}</span></li>)}</ul></div>}
       <ReplyBox
         threadId={thread.id}
         defaultTo={defaultTo}

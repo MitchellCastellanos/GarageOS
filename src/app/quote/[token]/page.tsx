@@ -70,25 +70,32 @@ export default async function PublicQuoteApprovalPage({
 
           {quote.notes && (
             <div className="mt-6 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
-              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Notas</p>
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{t.notes}</p>
               <p className="whitespace-pre-wrap">{quote.notes}</p>
             </div>
           )}
 
           <div className="mt-6 space-y-2 border-t border-slate-200 pt-5 text-sm">
-            <div className="flex justify-between text-slate-600"><span>Subtotal</span><span>{formatCurrency(Number(quote.subtotal))}</span></div>
-            <div className="flex justify-between text-slate-600"><span>Impuestos</span><span>{formatCurrency(Number(quote.taxAmount))}</span></div>
-            <div className="flex justify-between pt-2 text-lg font-bold text-slate-900"><span>Total CAD</span><span className="text-blue-600">{formatCurrency(Number(quote.total))}</span></div>
+            <div className="flex justify-between text-slate-600"><span>{t.subtotal}</span><span>{formatCurrency(Number(quote.subtotal))}</span></div>
+            <div className="flex justify-between text-slate-600"><span>{t.taxes}</span><span>{formatCurrency(Number(quote.taxAmount))}</span></div>
+            <div className="flex justify-between pt-2 text-lg font-bold text-slate-900"><span>{t.totalCad}</span><span className="text-blue-600">{formatCurrency(Number(quote.total))}</span></div>
           </div>
         </section>
 
-        <QuoteApprovalForm token={token} shopName={quote.shop.name} />
-        <p className="text-center text-xs text-slate-400">Este enlace es privado y solo puede utilizarse una vez.</p>
+        <QuoteApprovalForm token={token} shopName={quote.shop.name} language={language} />
+        <p className="text-center text-xs text-slate-400">{t.footerDisclaimer}</p>
       </div>
     </main>
   );
 }
 
-export function generateMetadata() {
-  return { title: "Revisar cotización | GarageOS" };
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ token: string }>;
+}) {
+  const { token } = await params;
+  const quote = await getQuoteForApproval(token);
+  const language = resolveLanguage(quote?.language);
+  return { title: getQuoteApprovalStrings(language).metaTitle };
 }

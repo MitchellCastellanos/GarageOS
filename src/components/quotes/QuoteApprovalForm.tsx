@@ -5,9 +5,19 @@ import { useRouter } from "next/navigation";
 import { Check, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import { decideQuoteApproval } from "@/actions/quote-approvals";
+import { getQuoteApprovalStrings, type QuoteApprovalLanguage } from "@/lib/quote-approval-i18n";
 
-export function QuoteApprovalForm({ token, shopName }: { token: string; shopName: string }) {
+export function QuoteApprovalForm({
+  token,
+  shopName,
+  language,
+}: {
+  token: string;
+  shopName: string;
+  language: QuoteApprovalLanguage;
+}) {
   const router = useRouter();
+  const t = getQuoteApprovalStrings(language);
   const [actorName, setActorName] = useState("");
   const [completed, setCompleted] = useState<"ACCEPTED" | "REJECTED" | null>(null);
   const [pending, startTransition] = useTransition();
@@ -31,25 +41,23 @@ export function QuoteApprovalForm({ token, shopName }: { token: string; shopName
           {completed === "ACCEPTED" ? <Check className="h-6 w-6" /> : <X className="h-6 w-6" />}
         </div>
         <h2 className="mt-4 text-xl font-bold text-slate-900">
-          {completed === "ACCEPTED" ? "Cotización aceptada" : "Cotización rechazada"}
+          {completed === "ACCEPTED" ? t.form.acceptedHeading : t.form.rejectedHeading}
         </h2>
-        <p className="mt-2 text-sm text-slate-600">
-          {shopName} recibió tu decisión. Puedes cerrar esta ventana.
-        </p>
+        <p className="mt-2 text-sm text-slate-600">{t.form.decisionReceivedBody(shopName)}</p>
       </section>
     );
   }
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-      <h2 className="text-lg font-bold text-slate-900">¿Qué deseas hacer?</h2>
-      <p className="mt-1 text-sm text-slate-500">Tu nombre quedará registrado junto con la decisión.</p>
+      <h2 className="text-lg font-bold text-slate-900">{t.form.whatToDo}</h2>
+      <p className="mt-1 text-sm text-slate-500">{t.form.subtitle}</p>
       <label className="mt-5 block text-sm font-medium text-slate-700">
-        Nombre
+        {t.form.nameLabel}
         <input
           value={actorName}
           onChange={(event) => setActorName(event.target.value)}
-          placeholder="Tu nombre completo"
+          placeholder={t.form.namePlaceholder}
           maxLength={120}
           disabled={pending}
           className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none ring-blue-500 focus:ring-2"
@@ -63,7 +71,7 @@ export function QuoteApprovalForm({ token, shopName }: { token: string; shopName
           className="flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-          Aceptar cotización
+          {t.form.acceptButton}
         </button>
         <button
           type="button"
@@ -72,7 +80,7 @@ export function QuoteApprovalForm({ token, shopName }: { token: string; shopName
           className="flex items-center justify-center gap-2 rounded-lg border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <X className="h-4 w-4" />
-          Rechazar
+          {t.form.rejectButton}
         </button>
       </div>
     </section>

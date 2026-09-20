@@ -34,6 +34,7 @@ export interface InboxDictionary {
     send: string;
     sending: string;
     maxAttachments: (max: number) => string;
+    toastSent: string;
   };
   reply: {
     title: string;
@@ -88,6 +89,7 @@ export const INBOX_DICT: Record<AdminLocale, InboxDictionary> = {
       send: "Enviar",
       sending: "Enviando…",
       maxAttachments: (max) => `Máximo ${max} adjuntos`,
+      toastSent: "Mensaje enviado",
     },
     reply: {
       title: "Responder",
@@ -140,6 +142,7 @@ export const INBOX_DICT: Record<AdminLocale, InboxDictionary> = {
       send: "Send",
       sending: "Sending…",
       maxAttachments: (max) => `Maximum ${max} attachments`,
+      toastSent: "Message sent",
     },
     reply: {
       title: "Reply",
@@ -192,6 +195,7 @@ export const INBOX_DICT: Record<AdminLocale, InboxDictionary> = {
       send: "Envoyer",
       sending: "Envoi…",
       maxAttachments: (max) => `Maximum ${max} pièces jointes`,
+      toastSent: "Message envoyé",
     },
     reply: {
       title: "Répondre",

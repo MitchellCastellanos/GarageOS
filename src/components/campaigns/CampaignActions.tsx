@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, Send, TestTube2, CalendarClock, X } from "lucide-react";
 import { sendTestEmailAction, scheduleCampaignAction, sendNowAction, cancelCampaignAction } from "@/actions/campaigns";
+import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
+import { CAMPAIGNS_DICT } from "@/lib/admin-locale/campaigns";
 
 interface CampaignActionsProps {
   campaignId: string;
@@ -12,6 +14,8 @@ interface CampaignActionsProps {
 }
 
 export function CampaignActions({ campaignId, status }: CampaignActionsProps) {
+  const locale = useAdminLocale();
+  const t = CAMPAIGNS_DICT[locale];
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [scheduleAt, setScheduleAt] = useState("");
@@ -20,17 +24,17 @@ export function CampaignActions({ campaignId, status }: CampaignActionsProps) {
     startTransition(async () => {
       const result = await sendTestEmailAction(campaignId);
       if (result?.error) toast.error(result.error);
-      else toast.success("Prueba enviada a tu correo");
+      else toast.success(t.actions.toastTestSent);
     });
   }
 
   function handleSendNow() {
-    if (!confirm("¿Enviar esta campaña ahora a toda la audiencia?")) return;
+    if (!confirm(t.actions.confirmSendNow)) return;
     startTransition(async () => {
       const result = await sendNowAction(campaignId);
       if (result?.error) toast.error(result.error);
       else {
-        toast.success("Campaña en cola de envío");
+        toast.success(t.actions.toastQueued);
         router.refresh();
       }
     });
@@ -38,7 +42,7 @@ export function CampaignActions({ campaignId, status }: CampaignActionsProps) {
 
   function handleSchedule() {
     if (!scheduleAt) {
-      toast.error("Elige fecha y hora");
+      toast.error(t.actions.toastChooseDateTime);
       return;
     }
     startTransition(async () => {
@@ -47,17 +51,17 @@ export function CampaignActions({ campaignId, status }: CampaignActionsProps) {
       const result = await scheduleCampaignAction(campaignId, formData);
       if (result?.error) toast.error(result.error);
       else {
-        toast.success("Campaña programada");
+        toast.success(t.actions.toastScheduled);
         router.refresh();
       }
     });
   }
 
   function handleCancel() {
-    if (!confirm("¿Cancelar esta campaña?")) return;
+    if (!confirm(t.actions.confirmCancel)) return;
     startTransition(async () => {
       await cancelCampaignAction(campaignId);
-      toast.success("Campaña cancelada");
+      toast.success(t.actions.toastCancelled);
       router.refresh();
     });
   }
@@ -68,7 +72,7 @@ export function CampaignActions({ campaignId, status }: CampaignActionsProps) {
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
-      <h2 className="font-semibold text-slate-900">Enviar</h2>
+      <h2 className="font-semibold text-slate-900">{t.actions.heading}</h2>
 
       <button
         type="button"
@@ -77,7 +81,7 @@ export function CampaignActions({ campaignId, status }: CampaignActionsProps) {
         className="flex items-center gap-2 text-sm text-slate-700 border border-slate-200 hover:bg-slate-50 px-3 py-2 rounded-lg"
       >
         {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : <TestTube2 className="w-4 h-4" />}
-        Enviar prueba a mi correo
+        {t.actions.sendTestButton}
       </button>
 
       {status === "DRAFT" && (
@@ -96,7 +100,7 @@ export function CampaignActions({ campaignId, status }: CampaignActionsProps) {
               className="flex items-center gap-2 text-sm text-slate-700 border border-slate-200 hover:bg-slate-50 px-3 py-2 rounded-lg"
             >
               <CalendarClock className="w-4 h-4" />
-              Programar
+              {t.actions.scheduleButton}
             </button>
           </div>
 
@@ -107,7 +111,7 @@ export function CampaignActions({ campaignId, status }: CampaignActionsProps) {
             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg"
           >
             {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            Enviar ahora
+            {t.actions.sendNowButton}
           </button>
         </>
       )}
@@ -120,7 +124,7 @@ export function CampaignActions({ campaignId, status }: CampaignActionsProps) {
           className="flex items-center gap-2 text-sm text-red-600 hover:bg-red-50 px-3 py-2 rounded-lg"
         >
           <X className="w-4 h-4" />
-          Cancelar campaña
+          {t.actions.cancelButton}
         </button>
       )}
     </div>
