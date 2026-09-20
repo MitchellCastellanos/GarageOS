@@ -83,6 +83,10 @@ export interface QuotesDictionary {
     viewWorkOrder: (orderNumber: string) => string;
     cancel: string;
     delete: string;
+    smsSent: (phone: string) => string;
+    smsResent: (phone: string) => string;
+    smsSendButton: string;
+    smsResendButton: string;
   };
   sendDialog: {
     maxAttachments: string;
@@ -184,6 +188,10 @@ export const QUOTES_DICT: Record<AdminLocale, QuotesDictionary> = {
       viewWorkOrder: (orderNumber) => `Ver orden ${orderNumber}`,
       cancel: "Anular",
       delete: "Eliminar",
+      smsSent: (phone) => `Cotización enviada por SMS a ${phone}`,
+      smsResent: (phone) => `Cotización reenviada por SMS a ${phone}`,
+      smsSendButton: "Enviar por SMS",
+      smsResendButton: "Reenviar por SMS",
     },
     sendDialog: {
       maxAttachments: "Máximo 5 archivos adjuntos",
@@ -284,6 +292,10 @@ export const QUOTES_DICT: Record<AdminLocale, QuotesDictionary> = {
       viewWorkOrder: (orderNumber) => `View order ${orderNumber}`,
       cancel: "Void",
       delete: "Delete",
+      smsSent: (phone) => `Quote sent by SMS to ${phone}`,
+      smsResent: (phone) => `Quote resent by SMS to ${phone}`,
+      smsSendButton: "Send by SMS",
+      smsResendButton: "Resend by SMS",
     },
     sendDialog: {
       maxAttachments: "Maximum 5 attached files",
@@ -384,6 +396,10 @@ export const QUOTES_DICT: Record<AdminLocale, QuotesDictionary> = {
       viewWorkOrder: (orderNumber) => `Voir l'ordre ${orderNumber}`,
       cancel: "Annuler",
       delete: "Supprimer",
+      smsSent: (phone) => `Soumission envoyée par SMS à ${phone}`,
+      smsResent: (phone) => `Soumission renvoyée par SMS à ${phone}`,
+      smsSendButton: "Envoyer par SMS",
+      smsResendButton: "Renvoyer par SMS",
     },
     sendDialog: {
       maxAttachments: "Maximum 5 fichiers joints",

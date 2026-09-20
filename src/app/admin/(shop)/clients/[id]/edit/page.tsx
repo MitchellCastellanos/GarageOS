@@ -22,7 +22,7 @@ export default async function EditClientPage({ params }: Props) {
     lastName: client.lastName ?? "",
     email: client.email ?? "",
     phone: client.phone ?? "",
-    language: client.language,
+    language: (client.language === "FR" ? "FR" : "EN") as "EN" | "FR",
     address: client.address ?? "",
     notes: client.notes ?? "",
   };

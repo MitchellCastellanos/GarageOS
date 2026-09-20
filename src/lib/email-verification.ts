@@ -6,6 +6,16 @@ import React from "react";
 import { db } from "@/lib/db";
 import { APP_NAME, getAppUrl } from "@/config/app";
 import { VerifyEmailAddressEmail } from "@/emails/VerifyEmailAddressEmail";
+import { resolveShopEmailLanguage, type PlatformEmailLanguage } from "@/lib/platform/locale";
+
+const VERIFY_SUBJECT: Record<PlatformEmailLanguage, string> = {
+  EN: `Confirm your email — ${APP_NAME}`,
+  FR: `Confirmez votre courriel — ${APP_NAME}`,
+};
+const VERIFY_SHOP_SUBJECT: Record<PlatformEmailLanguage, string> = {
+  EN: `Confirm your shop's main email — ${APP_NAME}`,
+  FR: `Confirmez le courriel principal de votre atelier — ${APP_NAME}`,
+};
 
 const TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -27,8 +37,8 @@ function fromAddress(): string {
  * estándar de NextAuth: identifier/token/expires), que ya existía en el
  * schema sin ningún flujo que lo usara todavía.
  */
-export async function sendVerificationEmail(params: { email: string; name: string }): Promise<void> {
-  const { email, name } = params;
+export async function sendVerificationEmail(params: { email: string; name: string; language?: PlatformEmailLanguage }): Promise<void> {
+  const { email, name, language = "EN" } = params;
 
   // Un solo token vigente por email — cualquier link viejo deja de servir.
   await db.verificationToken.deleteMany({ where: { identifier: email } });
@@ -45,11 +55,11 @@ export async function sendVerificationEmail(params: { email: string; name: strin
     return;
   }
 
-  const html = await render(React.createElement(VerifyEmailAddressEmail, { name, verifyUrl }));
+  const html = await render(React.createElement(VerifyEmailAddressEmail, { name, verifyUrl, language }));
   const { error } = await resend.emails.send({
     from: fromAddress(),
     to: email,
-    subject: `Confirma tu correo — ${APP_NAME}`,
+    subject: VERIFY_SUBJECT[language],
     html,
   });
   if (error) {
@@ -105,11 +115,12 @@ export async function sendShopEmailVerification(params: { shopId: string; email:
     return;
   }
 
-  const html = await render(React.createElement(VerifyEmailAddressEmail, { name: shopName, verifyUrl }));
+  const language = await resolveShopEmailLanguage(shopId);
+  const html = await render(React.createElement(VerifyEmailAddressEmail, { name: shopName, verifyUrl, language }));
   const { error } = await resend.emails.send({
     from: fromAddress(),
     to: email,
-    subject: `Confirma el correo principal de tu taller — ${APP_NAME}`,
+    subject: VERIFY_SHOP_SUBJECT[language],
     html,
   });
   if (error) {

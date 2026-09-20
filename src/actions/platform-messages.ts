@@ -60,7 +60,12 @@ export async function sendPlatformReply(conversationId: string, content: string)
   await publishPlatformConversationUpdate(conversationId);
 
   if (conversation.shop.email) {
-    await notifySupportReply({ to: conversation.shop.email, shopName: conversation.shop.name, reply: trimmed }).catch((err) =>
+    await notifySupportReply({
+      to: conversation.shop.email,
+      shopId: conversation.shop.id,
+      shopName: conversation.shop.name,
+      reply: trimmed,
+    }).catch((err) =>
       console.error("[platform-messages] notifySupportReply falló:", err)
     );
   }

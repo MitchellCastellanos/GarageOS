@@ -6,10 +6,14 @@ import { toast } from "sonner";
 import { Loader2, Users } from "lucide-react";
 import { createCampaignAction, previewAudienceAction } from "@/actions/campaigns";
 import { adminPath } from "@/lib/routes";
+import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
+import { CAMPAIGNS_DICT } from "@/lib/admin-locale/campaigns";
 
 type SegmentType = "ALL_CONSENTED" | "LANGUAGE" | "INACTIVE_MONTHS" | "MANUAL";
 
 export function CampaignForm() {
+  const locale = useAdminLocale();
+  const t = CAMPAIGNS_DICT[locale];
   const router = useRouter();
   const [segmentType, setSegmentType] = useState<SegmentType>("ALL_CONSENTED");
   const [pending, startTransition] = useTransition();
@@ -32,7 +36,7 @@ export function CampaignForm() {
         toast.error(result.error);
         return;
       }
-      toast.success("Campaña guardada como borrador");
+      toast.success(t.form.toastSavedAsDraft);
       if (result?.campaignId) router.push(adminPath(`/campaigns/${result.campaignId}`));
     });
   }
@@ -40,42 +44,39 @@ export function CampaignForm() {
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1.5">Nombre interno</label>
+        <label className="block text-sm font-medium text-slate-700 mb-1.5">{t.form.nameLabel}</label>
         <input
           name="name"
           required
-          placeholder="Promoción de invierno 2026"
+          placeholder={t.form.namePlaceholder}
           className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1.5">Asunto del correo</label>
+        <label className="block text-sm font-medium text-slate-700 mb-1.5">{t.form.subjectLabel}</label>
         <input
           name="subject"
           required
-          placeholder="¡Prepara tu auto para el invierno!"
+          placeholder={t.form.subjectPlaceholder}
           className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1.5">Mensaje</label>
+        <label className="block text-sm font-medium text-slate-700 mb-1.5">{t.form.messageLabel}</label>
         <textarea
           name="body"
           required
           rows={8}
-          placeholder="Escribe el mensaje de la campaña…"
+          placeholder={t.form.messagePlaceholder}
           className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
         />
-        <p className="text-xs text-slate-400 mt-1">
-          Se envía como texto simple dentro de la plantilla de marca del taller, con enlace de baja
-          incluido automáticamente.
-        </p>
+        <p className="text-xs text-slate-400 mt-1">{t.form.messageHint}</p>
       </div>
 
       <div className="border-t border-slate-100 pt-4">
-        <label className="block text-sm font-medium text-slate-700 mb-2">Audiencia</label>
+        <label className="block text-sm font-medium text-slate-700 mb-2">{t.form.audienceLabel}</label>
         <select
           name="segmentType"
           value={segmentType}
@@ -85,17 +86,16 @@ export function CampaignForm() {
           }}
           className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm mb-2"
         >
-          <option value="ALL_CONSENTED">Todos los clientes con consentimiento</option>
-          <option value="LANGUAGE">Por idioma</option>
-          <option value="INACTIVE_MONTHS">Inactivos hace X meses</option>
-          <option value="MANUAL">IDs de cliente específicos</option>
+          <option value="ALL_CONSENTED">{t.form.segmentOptions.ALL_CONSENTED}</option>
+          <option value="LANGUAGE">{t.form.segmentOptions.LANGUAGE}</option>
+          <option value="INACTIVE_MONTHS">{t.form.segmentOptions.INACTIVE_MONTHS}</option>
+          <option value="MANUAL">{t.form.segmentOptions.MANUAL}</option>
         </select>
 
         {segmentType === "LANGUAGE" && (
           <select name="language" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm mb-2">
-            <option value="ES">Español</option>
-            <option value="EN">English</option>
-            <option value="FR">Français</option>
+            <option value="EN">{t.form.languageOptions.EN}</option>
+            <option value="FR">{t.form.languageOptions.FR}</option>
           </select>
         )}
         {segmentType === "INACTIVE_MONTHS" && (
@@ -110,7 +110,7 @@ export function CampaignForm() {
         {segmentType === "MANUAL" && (
           <input
             name="clientIds"
-            placeholder="id1, id2, id3"
+            placeholder={t.form.manualPlaceholder}
             className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm mb-2"
           />
         )}
@@ -122,16 +122,15 @@ export function CampaignForm() {
           className="flex items-center gap-2 text-sm text-blue-600 hover:underline"
         >
           {previewing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Users className="w-3.5 h-3.5" />}
-          Ver audiencia
+          {t.form.viewAudienceButton}
         </button>
 
         {preview && (
           <p className="text-sm text-slate-600 mt-2">
-            {preview.count} destinatario{preview.count !== 1 ? "s" : ""}
+            {t.form.recipientCountLabel(preview.count)}
             {preview.sample.length > 0 && (
               <span className="text-slate-400">
-                {" "}
-                — ej. {preview.sample.map((c) => c.name || c.email).join(", ")}
+                {t.form.sampleSuffix(preview.sample.map((c) => c.name || c.email).join(", "))}
               </span>
             )}
           </p>
@@ -145,7 +144,7 @@ export function CampaignForm() {
           className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium px-5 py-2.5 rounded-lg"
         >
           {pending && <Loader2 className="w-4 h-4 animate-spin" />}
-          Guardar borrador
+          {t.form.saveDraftButton}
         </button>
       </div>
     </form>

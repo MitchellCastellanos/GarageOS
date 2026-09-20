@@ -73,14 +73,14 @@ export function PlainMessageEmail({
   shopName,
   bodyText,
   bodyRich,
-  headerSubtitle = "Mensaje",
+  headerSubtitle = "Message",
   signatureName,
   signatureTitle,
   footerText,
   poweredByText,
   showPoweredBy = true,
   unsubscribeUrl,
-  lang = "es",
+  lang = "en",
 }: PlainMessageEmailProps) {
   return (
     <ShopEmailLayout

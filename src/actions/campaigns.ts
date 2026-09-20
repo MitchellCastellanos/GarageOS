@@ -37,7 +37,7 @@ export async function getCampaignDetail(id: string) {
 function parseSegmentFromForm(formData: FormData): SegmentDefinition {
   const type = formData.get("segmentType") as string;
   if (type === "LANGUAGE") {
-    const language = (formData.get("language") as string) || "ES";
+    const language = (formData.get("language") as string) || "EN";
     return { type: "LANGUAGE", language: language as InvoiceLanguage };
   }
   if (type === "INACTIVE_MONTHS") {
@@ -77,10 +77,10 @@ export async function createCampaignAction(formData: FormData) {
   const name = (formData.get("name") as string)?.trim();
   const subject = (formData.get("subject") as string)?.trim();
   const body = (formData.get("body") as string)?.trim();
-  if (!name || !subject || !body) return { error: "Nombre, asunto y mensaje son requeridos" };
+  if (!name || !subject || !body) return { error: "Name, subject, and message are required" };
 
   const segment = parseSegmentFromForm(formData);
-  if (!isValidSegmentDefinition(segment)) return { error: "Segmento inválido" };
+  if (!isValidSegmentDefinition(segment)) return { error: "Invalid segment" };
 
   const campaign = await db.campaign.create({
     data: {
@@ -102,16 +102,16 @@ export async function sendTestEmailAction(campaignId: string) {
   const session = await requireOwner();
   const shopId = session.user.shopId!;
   const testEmail = session.user.email;
-  if (!testEmail) return { error: "Tu usuario no tiene email" };
+  if (!testEmail) return { error: "Your account has no email address" };
 
   const campaign = await db.campaign.findFirst({ where: { id: campaignId, shopId } });
-  if (!campaign) return { error: "Campaña no encontrada" };
+  if (!campaign) return { error: "Campaign not found" };
   const shop = await db.shop.findUniqueOrThrow({ where: { id: shopId } });
 
   try {
     await sendCampaignEmail({ shop, campaign, client: null, address: testEmail });
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Error enviando prueba" };
+    return { error: err instanceof Error ? err.message : "Error sending test email" };
   }
 
   return { success: true };
@@ -125,12 +125,12 @@ async function scheduleCampaign(campaignId: string, scheduledFor: Date) {
   if (entitlementError) return { error: entitlementError };
 
   const campaign = await db.campaign.findFirst({ where: { id: campaignId, shopId } });
-  if (!campaign) return { error: "Campaña no encontrada" };
-  if (campaign.status !== "DRAFT") return { error: "Solo se puede programar un borrador" };
+  if (!campaign) return { error: "Campaign not found" };
+  if (campaign.status !== "DRAFT") return { error: "Only a draft can be scheduled" };
 
   const segment = campaign.segment as unknown as SegmentDefinition;
   const clients = await resolveSegmentClients(shopId, segment);
-  if (clients.length === 0) return { error: "El segmento elegido no tiene destinatarios con consentimiento" };
+  if (clients.length === 0) return { error: "The selected segment has no recipients with consent" };
 
   await db.$transaction([
     db.campaignRecipient.createMany({
@@ -150,7 +150,7 @@ async function scheduleCampaign(campaignId: string, scheduledFor: Date) {
 export async function scheduleCampaignAction(campaignId: string, formData: FormData) {
   const raw = formData.get("scheduledFor") as string;
   const scheduledFor = raw ? new Date(raw) : new Date();
-  if (Number.isNaN(scheduledFor.getTime())) return { error: "Fecha inválida" };
+  if (Number.isNaN(scheduledFor.getTime())) return { error: "Invalid date" };
   return scheduleCampaign(campaignId, scheduledFor);
 }
 

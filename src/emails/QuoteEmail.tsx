@@ -22,14 +22,10 @@ export interface QuoteEmailProps {
 }
 
 function quoteSubject(num: string, shop: string, lang: InvoiceLanguage | string, isResend: boolean) {
-  const l = (lang ?? "ES") as InvoiceLanguage;
-  if (l === "EN") {
-    return isResend ? `Resend: Quote ${num} — ${shop}` : `Quote ${num} — ${shop}`;
-  }
-  if (l === "FR") {
+  if (lang === "FR") {
     return isResend ? `Renvoi : Soumission ${num} — ${shop}` : `Soumission ${num} — ${shop}`;
   }
-  return isResend ? `Reenvío: Cotización ${num} — ${shop}` : `Cotización ${num} — ${shop}`;
+  return isResend ? `Resend: Quote ${num} — ${shop}` : `Quote ${num} — ${shop}`;
 }
 
 export function QuoteEmail({

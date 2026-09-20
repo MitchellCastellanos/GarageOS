@@ -59,13 +59,13 @@ export async function markSupportConversationRead() {
 
 export async function sendSupportMessage(content: string) {
   const session = await requireSession();
-  if (!session.user.shopId) return { error: "No autorizado" };
+  if (!session.user.shopId) return { error: "Not authorized" };
 
   const trimmed = content.trim();
-  if (!trimmed) return { error: "Escribe un mensaje" };
+  if (!trimmed) return { error: "Write a message" };
 
   const shop = await db.shop.findUnique({ where: { id: session.user.shopId }, select: { id: true, name: true, email: true } });
-  if (!shop) return { error: "Taller no encontrado" };
+  if (!shop) return { error: "Shop not found" };
 
   let conversation = await db.platformConversation.findFirst({
     where: { shopId: shop.id, status: { not: "CLOSED" } },
@@ -92,7 +92,7 @@ export async function sendSupportMessage(content: string) {
   await publishPlatformConversationUpdate(conversation.id);
 
   if (isNewConversation && shop.email) {
-    await notifySupportMessageReceived({ to: shop.email, shopName: shop.name, message: trimmed }).catch((err) =>
+    await notifySupportMessageReceived({ to: shop.email, shopId: shop.id, shopName: shop.name, message: trimmed }).catch((err) =>
       console.error("[support] notifySupportMessageReceived falló:", err)
     );
   }

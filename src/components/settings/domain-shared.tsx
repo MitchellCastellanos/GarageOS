@@ -1,4 +1,8 @@
+"use client";
+
 import type { DnsRecordRow } from "@/lib/domains/types";
+import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
+import { SETTINGS_DICT } from "@/lib/admin-locale/settings";
 
 export interface DomainInfo {
   domain: string;
@@ -13,13 +17,14 @@ const STATUS_STYLES: Record<DomainInfo["status"], string> = {
   FAILED: "bg-red-100 text-red-700",
 };
 
-const STATUS_LABELS: Record<DomainInfo["status"], string> = {
-  VERIFIED: "Verificado",
-  PENDING: "Pendiente",
-  FAILED: "Falló",
-};
-
 export function StatusBadge({ status }: { status: DomainInfo["status"] }) {
+  const locale = useAdminLocale();
+  const t = SETTINGS_DICT[locale].domain.shared;
+  const STATUS_LABELS: Record<DomainInfo["status"], string> = {
+    VERIFIED: t.statusVerified,
+    PENDING: t.statusPending,
+    FAILED: t.statusFailed,
+  };
   return (
     <span
       className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_STYLES[status]}`}
@@ -30,15 +35,17 @@ export function StatusBadge({ status }: { status: DomainInfo["status"] }) {
 }
 
 export function DnsRecordsTable({ records }: { records: DnsRecordRow[] }) {
+  const locale = useAdminLocale();
+  const t = SETTINGS_DICT[locale].domain.shared;
   if (records.length === 0) return null;
   return (
     <div className="overflow-x-auto rounded-lg border border-slate-200">
       <table className="w-full text-xs">
         <thead>
           <tr className="bg-slate-50 text-left uppercase tracking-wide text-slate-500">
-            <th className="px-3 py-2 font-semibold">Tipo</th>
-            <th className="px-3 py-2 font-semibold">Nombre</th>
-            <th className="px-3 py-2 font-semibold">Valor</th>
+            <th className="px-3 py-2 font-semibold">{t.dnsType}</th>
+            <th className="px-3 py-2 font-semibold">{t.dnsName}</th>
+            <th className="px-3 py-2 font-semibold">{t.dnsValue}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">

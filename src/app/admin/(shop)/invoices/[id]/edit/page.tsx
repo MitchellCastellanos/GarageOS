@@ -30,7 +30,7 @@ export default async function EditInvoicePage({ params }: PageProps) {
   const initialValues: Partial<InvoiceFormData> = {
     clientId: invoice.clientId,
     taxRate: Number(invoice.taxRate),
-    language: invoice.language as "ES" | "EN" | "FR",
+    language: invoice.language === "FR" ? "FR" : "EN",
     notes: invoice.notes ?? "",
     dueAt: invoice.dueAt ? invoice.dueAt.toISOString().split("T")[0] : "",
     vehicles: invoice.vehicles.map((iv) => ({

@@ -121,7 +121,7 @@ export async function resetTeamMemberPassword(formData: FormData) {
     where: { id: userId, shopId: session.user.shopId },
   });
 
-  if (!target) return { error: "Usuario no encontrado" };
+  if (!target) return { error: "User not found" };
 
   const passwordHash = await bcrypt.hash(newPassword, 12);
   await db.user.update({ where: { id: userId }, data: { passwordHash } });
@@ -139,15 +139,15 @@ export async function updateTeamMemberRole(formData: FormData) {
   const role = formData.get("role") as string;
 
   const parsedRole = roleSchema.safeParse(role);
-  if (!userId || !parsedRole.success) return { error: "Datos inválidos" };
+  if (!userId || !parsedRole.success) return { error: "Invalid data" };
 
   const target = await db.user.findFirst({
     where: { id: userId, shopId: session.user.shopId },
   });
-  if (!target) return { error: "Usuario no encontrado" };
+  if (!target) return { error: "User not found" };
 
   if (target.id === session.user.id && parsedRole.data !== "OWNER") {
-    return { error: "No puedes quitarte el rol de dueño a ti mismo" };
+    return { error: "You can't remove your own owner role" };
   }
 
   if (target.role === "OWNER" && parsedRole.data !== "OWNER") {
@@ -155,7 +155,7 @@ export async function updateTeamMemberRole(formData: FormData) {
       where: { shopId: session.user.shopId, role: "OWNER" },
     });
     if (ownerCount <= 1) {
-      return { error: "Debe haber al menos un dueño en el taller" };
+      return { error: "There must be at least one owner in the shop" };
     }
   }
 
@@ -170,20 +170,20 @@ export async function deleteTeamMember(userId: string) {
   const session = await requireOwner();
 
   if (userId === session.user.id) {
-    return { error: "No puedes eliminar tu propia cuenta" };
+    return { error: "You can't delete your own account" };
   }
 
   const target = await db.user.findFirst({
     where: { id: userId, shopId: session.user.shopId },
   });
-  if (!target) return { error: "Usuario no encontrado" };
+  if (!target) return { error: "User not found" };
 
   if (target.role === "OWNER") {
     const ownerCount = await db.user.count({
       where: { shopId: session.user.shopId, role: "OWNER" },
     });
     if (ownerCount <= 1) {
-      return { error: "No puedes eliminar al único dueño del taller" };
+      return { error: "You can't delete the shop's only owner" };
     }
   }
 
@@ -219,8 +219,8 @@ export async function resendMyVerificationEmail() {
     where: { id: session.user.id },
     select: { email: true, name: true, emailVerified: true },
   });
-  if (!user) return { error: "Usuario no encontrado" };
-  if (user.emailVerified) return { error: "Este correo ya está confirmado" };
+  if (!user) return { error: "User not found" };
+  if (user.emailVerified) return { error: "This email is already confirmed" };
 
   await sendVerificationEmail({ email: user.email, name: user.name });
   return { success: true };
@@ -234,8 +234,8 @@ export async function resendTeamMemberVerification(userId: string) {
     where: { id: userId, shopId: session.user.shopId },
     select: { email: true, name: true, emailVerified: true },
   });
-  if (!target) return { error: "Usuario no encontrado" };
-  if (target.emailVerified) return { error: "Este correo ya está confirmado" };
+  if (!target) return { error: "User not found" };
+  if (target.emailVerified) return { error: "This email is already confirmed" };
 
   await sendVerificationEmail({ email: target.email, name: target.name });
   return { success: true };
@@ -254,7 +254,7 @@ export async function updateOwnerBillingNotification(userId: string, receive: bo
   const target = await db.user.findFirst({
     where: { id: userId, shopId: session.user.shopId, role: "OWNER" },
   });
-  if (!target) return { error: "Usuario no encontrado" };
+  if (!target) return { error: "User not found" };
 
   await db.user.update({ where: { id: userId }, data: { receiveBillingNotifications: receive } });
   revalidatePath(ADMIN.settings);

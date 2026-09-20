@@ -6,23 +6,27 @@ import { formatClientName } from "@/lib/client-name";
 import { ComposeButton } from "@/components/inbox/ComposeButton";
 import { db } from "@/lib/db";
 import { getShopId } from "@/lib/shop-context";
+import { getAdminLocale } from "@/lib/get-admin-locale";
+import { INBOX_DICT, type InboxDictionary } from "@/lib/admin-locale/inbox";
 
 interface PageProps { searchParams: Promise<{ status?: string }>; }
-const TABS = [{ value: "OPEN", label: "Abiertas" }, { value: "ARCHIVED", label: "Archivadas" }] as const;
 
-function formatRelative(date: Date): string {
+function formatRelative(date: Date, t: InboxDictionary["list"]["relative"]): string {
   const diffMs = Date.now() - new Date(date).getTime();
   const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return "ahora";
-  if (diffMin < 60) return `hace ${diffMin} min`;
+  if (diffMin < 1) return t.now;
+  if (diffMin < 60) return t.minutesAgo(diffMin);
   const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) return `hace ${diffHr} h`;
-  return `hace ${Math.floor(diffHr / 24)} d`;
+  if (diffHr < 24) return t.hoursAgo(diffHr);
+  return t.daysAgo(Math.floor(diffHr / 24));
 }
 
 export default async function InboxPage({ searchParams }: PageProps) {
+  const locale = await getAdminLocale();
+  const t = INBOX_DICT[locale];
   const { status } = await searchParams;
   const activeTab = status === "ARCHIVED" ? "ARCHIVED" : "OPEN";
+  const TABS = [{ value: "OPEN", label: t.list.tabs.open }, { value: "ARCHIVED", label: t.list.tabs.archived }] as const;
   const [threads, shop, senderOptions] = await Promise.all([
     listThreads(activeTab),
     getShopId().then((shopId) => db.shop.findUniqueOrThrow({ where: { id: shopId }, select: { name: true } })),
@@ -32,7 +36,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div><h1 className="text-2xl font-bold text-slate-900">Bandeja de entrada</h1><p className="text-slate-500 text-sm mt-1">{threads.length} conversación{threads.length !== 1 ? "es" : ""}</p></div>
+        <div><h1 className="text-2xl font-bold text-slate-900">{t.list.pageTitle}</h1><p className="text-slate-500 text-sm mt-1">{t.list.countLabel(threads.length)}</p></div>
         <ComposeButton shopName={shop.name} senderOptions={senderOptions.options} defaultSenderId={senderOptions.defaultId} />
       </div>
 
@@ -41,15 +45,15 @@ export default async function InboxPage({ searchParams }: PageProps) {
       </div>
 
       {threads.length === 0 ? (
-        <div className="bg-white rounded-xl border border-slate-200 p-12 text-center"><InboxIcon className="w-12 h-12 text-slate-300 mx-auto mb-3" /><p className="text-slate-500 font-medium">{activeTab === "OPEN" ? "No hay conversaciones abiertas" : "No hay conversaciones archivadas"}</p></div>
+        <div className="bg-white rounded-xl border border-slate-200 p-12 text-center"><InboxIcon className="w-12 h-12 text-slate-300 mx-auto mb-3" /><p className="text-slate-500 font-medium">{activeTab === "OPEN" ? t.list.emptyOpen : t.list.emptyArchived}</p></div>
       ) : (
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden"><div className="divide-y divide-slate-100">
           {threads.map((thread) => {
             const last = thread.messages[0];
             return <Link key={thread.id} href={adminPath(`/inbox/${thread.id}`)} className="flex items-center gap-4 px-5 py-4 hover:bg-slate-50 transition-colors">
               <div className="flex-shrink-0">{last?.direction === "INBOUND" ? <ArrowDownLeft className="w-4 h-4 text-emerald-600" /> : <ArrowUpRight className="w-4 h-4 text-slate-400" />}</div>
-              <div className="flex-1 min-w-0"><p className="font-medium text-slate-900 text-sm truncate">{thread.client ? formatClientName(thread.client) : thread.subject || "Sin asunto"}</p><p className="text-slate-500 text-sm truncate">{last?.subject || thread.subject || "Sin asunto"}</p></div>
-              {last && <span className="flex-shrink-0 text-xs text-slate-400">{formatRelative(thread.lastMessageAt)}</span>}
+              <div className="flex-1 min-w-0"><p className="font-medium text-slate-900 text-sm truncate">{thread.client ? formatClientName(thread.client) : thread.subject || t.list.noSubject}</p><p className="text-slate-500 text-sm truncate">{last?.subject || thread.subject || t.list.noSubject}</p></div>
+              {last && <span className="flex-shrink-0 text-xs text-slate-400">{formatRelative(thread.lastMessageAt, t.list.relative)}</span>}
             </Link>;
           })}
         </div></div>

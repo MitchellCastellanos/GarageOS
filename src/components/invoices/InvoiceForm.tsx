@@ -105,7 +105,7 @@ export function InvoiceForm({
     defaultValues: {
       clientId: "",
       taxRate: TAX_RATE,
-      language: "ES",
+      language: "EN",
       notes: "",
       dueAt: "",
       vehicles: [{ ...EMPTY_VEHICLE_ENTRY, lineItems: [{ ...EMPTY_LINE_ITEM }] }],

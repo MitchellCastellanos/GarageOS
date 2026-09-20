@@ -47,7 +47,7 @@ export function ClientForm({
       lastName: "",
       phone: "",
       email: "",
-      language: "ES",
+      language: "EN",
       address: "",
       notes: "",
     },

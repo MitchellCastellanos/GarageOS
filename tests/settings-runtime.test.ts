@@ -84,7 +84,7 @@ test("createSenderIdentity rejects a domain that is neither the managed domain n
 
   await assert.rejects(
     createSenderIdentity({ shopId: "shop", channel: "EMAIL", address: "garagetremblay@gmail.com" }),
-    /conectarlo y verificarlo/
+    /connect and verify it/
   );
 });
 
@@ -97,7 +97,7 @@ test("createSenderIdentity rejects a managed-domain address that doesn't start w
 
   await assert.rejects(
     createSenderIdentity({ shopId: "shop", channel: "EMAIL", address: "otro-taller@garage-os.ca" }),
-    /debe empezar con "garage-tremblay"/
+    /must start with "garage-tremblay"/
   );
 });
 

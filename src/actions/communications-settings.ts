@@ -47,7 +47,7 @@ export async function createSenderIdentityAction(formData: FormData) {
   const domain = (formData.get("domain") as string)?.trim();
   const displayName = (formData.get("displayName") as string) || null;
 
-  if (!localPart || !domain) return { error: "La dirección es requerida" };
+  if (!localPart || !domain) return { error: "Address is required" };
   const address = `${localPart}@${domain}`;
 
   try {
@@ -58,7 +58,7 @@ export async function createSenderIdentityAction(formData: FormData) {
   } catch (err) {
     if (err instanceof SenderIdentityError) return { error: err.message };
     console.error("[communications] createSenderIdentityAction:", err);
-    return { error: "Error al crear la identidad" };
+    return { error: "Could not create the identity" };
   }
 }
 
@@ -70,7 +70,7 @@ export async function updateCommunicationRouteAction(formData: FormData) {
   const channel = (formData.get("channel") as string) === "SMS" ? "SMS" : "EMAIL";
   const senderIdentityId = formData.get("senderIdentityId") as string;
 
-  if (!purpose || !senderIdentityId) return { error: "Datos incompletos" };
+  if (!purpose || !senderIdentityId) return { error: "Incomplete data" };
 
   try {
     await setCommunicationRoute({
@@ -83,7 +83,7 @@ export async function updateCommunicationRouteAction(formData: FormData) {
   } catch (err) {
     if (err instanceof SenderIdentityError) return { error: err.message };
     console.error("[communications] updateCommunicationRouteAction:", err);
-    return { error: "Error al actualizar la ruta" };
+    return { error: "Could not update the route" };
   }
 
   revalidatePath(ADMIN.notifications);

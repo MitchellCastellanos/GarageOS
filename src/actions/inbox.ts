@@ -93,15 +93,15 @@ export async function replyToThreadAction(threadId: string, formData: FormData) 
   const shopId = session.user.shopId!;
 
   const thread = await db.communicationThread.findFirst({ where: { id: threadId, shopId } });
-  if (!thread) return { error: "Conversación no encontrada" };
+  if (!thread) return { error: "Conversation not found" };
 
   const to = splitAddresses(formData.get("to"));
-  if (to.length === 0) return { error: "Agrega al menos un destinatario" };
+  if (to.length === 0) return { error: "Add at least one recipient" };
 
   const { bodyRich, bodyText } = getMessageBody(formData);
-  if (!bodyText) return { error: "El mensaje no puede estar vacío" };
+  if (!bodyText) return { error: "The message cannot be empty" };
 
-  const subject = (formData.get("subject") as string)?.trim() || thread.subject || "Mensaje";
+  const subject = (formData.get("subject") as string)?.trim() || thread.subject || "Message";
   const attachmentResult = await parseEmailAttachments(formData);
   if ("error" in attachmentResult) return { error: attachmentResult.error };
   const shop = await db.shop.findUniqueOrThrow({ where: { id: shopId } });
@@ -123,8 +123,8 @@ export async function replyToThreadAction(threadId: string, formData: FormData) 
       senderIdentityId: readSenderIdentityId(formData),
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Error desconocido";
-    console.error(`Error respondiendo thread ${threadId}:`, err);
+    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error(`Error replying to thread ${threadId}:`, err);
     return { error: message };
   }
 
@@ -138,13 +138,13 @@ export async function composeMessageAction(formData: FormData) {
   const shopId = session.user.shopId!;
 
   const to = splitAddresses(formData.get("to"));
-  if (to.length === 0) return { error: "Agrega al menos un destinatario" };
+  if (to.length === 0) return { error: "Add at least one recipient" };
 
   const { bodyRich, bodyText } = getMessageBody(formData);
-  if (!bodyText) return { error: "El mensaje no puede estar vacío" };
+  if (!bodyText) return { error: "The message cannot be empty" };
 
   const subject = (formData.get("subject") as string)?.trim();
-  if (!subject) return { error: "El asunto es requerido" };
+  if (!subject) return { error: "Subject is required" };
   const clientId = (formData.get("clientId") as string) || null;
   const attachmentResult = await parseEmailAttachments(formData);
   if ("error" in attachmentResult) return { error: attachmentResult.error };
@@ -168,8 +168,8 @@ export async function composeMessageAction(formData: FormData) {
     });
     threadId = result.threadId;
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Error desconocido";
-    console.error("Error componiendo mensaje:", err);
+    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error("Error composing message:", err);
     return { error: message };
   }
 

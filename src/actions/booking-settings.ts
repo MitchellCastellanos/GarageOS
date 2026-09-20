@@ -135,7 +135,7 @@ export async function updateAppointmentBookingSettings(formData: FormData) {
 export async function updateWebBookingEnabled(enabled: boolean) {
   const session = await requireOwner();
   const parsed = z.boolean().safeParse(enabled);
-  if (!parsed.success) return { error: "Valor de reservas inválido" };
+  if (!parsed.success) return { error: "Invalid booking value" };
 
   const shop = await db.shop.update({
     where: { id: session.user.shopId! },
@@ -200,7 +200,7 @@ export async function updateMechanicBookable(userId: string, bookable: boolean) 
     },
   });
 
-  if (!user) return { error: "Mecánico no encontrado" };
+  if (!user) return { error: "Mechanic not found" };
 
   await db.user.update({ where: { id: userId }, data: { bookable } });
   revalidatePath(ADMIN.settings);
@@ -266,7 +266,7 @@ export async function resetMechanicWorkingHours(userId: string) {
   const shopId = session.user.shopId!;
 
   const mechanic = await findShopMechanic(userId, shopId);
-  if (!mechanic) return { error: "Mecánico no encontrado" };
+  if (!mechanic) return { error: "Mechanic not found" };
 
   await db.mechanicWorkingHours.deleteMany({ where: { userId } });
   revalidatePath(ADMIN.settings);

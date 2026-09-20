@@ -6,8 +6,13 @@ import { Loader2, RefreshCw, Trash2 } from "lucide-react";
 import { StatusBadge, DnsRecordsTable, type DomainInfo } from "./domain-shared";
 import { setEmailDomain, verifyEmailDomainAction, removeEmailDomainAction } from "@/actions/domains";
 import { UpgradeCTA } from "@/components/billing/UpgradeCTA";
+import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
+import { SETTINGS_DICT } from "@/lib/admin-locale/settings";
 
 export function EmailDomainCard({ email, entitled }: { email: DomainInfo | null; entitled: boolean }) {
+  const locale = useAdminLocale();
+  const t = SETTINGS_DICT[locale].domain.email;
+  const tShared = SETTINGS_DICT[locale].domain.shared;
   const [pending, startTransition] = useTransition();
   const [domain, setDomain] = useState(email?.domain ?? "");
 
@@ -16,8 +21,8 @@ export function EmailDomainCard({ email, entitled }: { email: DomainInfo | null;
     const formData = new FormData(e.currentTarget);
     startTransition(async () => {
       const result = await setEmailDomain(formData);
-      if (result?.success) toast.success("Dominio registrado — agrega los registros DNS");
-      else toast.error(result?.error ?? "Error al registrar el dominio");
+      if (result?.success) toast.success(t.savedToast);
+      else toast.error(result?.error ?? t.saveErrorToast);
     });
   }
 
@@ -25,9 +30,9 @@ export function EmailDomainCard({ email, entitled }: { email: DomainInfo | null;
     startTransition(async () => {
       const result = await verifyEmailDomainAction();
       if (result?.success) {
-        if (result.status === "VERIFIED") toast.success("Dominio verificado");
-        else toast.error("Todavía no verifica — revisa los registros DNS");
-      } else toast.error(result?.error ?? "Error al verificar");
+        if (result.status === "VERIFIED") toast.success(t.verifiedToast);
+        else toast.error(t.notVerifiedToast);
+      } else toast.error(result?.error ?? t.verifyErrorToast);
     });
   }
 
@@ -35,29 +40,24 @@ export function EmailDomainCard({ email, entitled }: { email: DomainInfo | null;
     startTransition(async () => {
       const result = await removeEmailDomainAction();
       if (result?.success) {
-        toast.success("Dominio eliminado");
+        toast.success(t.removedToast);
         setDomain("");
-      } else toast.error("Error al eliminar");
+      } else toast.error(t.removeErrorToast);
     });
   }
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
       <div>
-        <h2 className="font-semibold text-slate-900">Dominio propio para tus correos</h2>
-        <p className="text-sm text-slate-500 mt-1">
-          Verifica tu dominio para que las confirmaciones de citas, facturas y cotizaciones
-          salgan desde tu propia dirección (ej. citas@tudominio.com) en vez de la de GarageOS.
-          Si no lo configuras, seguimos usando el remitente compartido de GarageOS con tu
-          nombre de taller.
-        </p>
+        <h2 className="font-semibold text-slate-900">{t.title}</h2>
+        <p className="text-sm text-slate-500 mt-1">{t.description}</p>
       </div>
 
       {!entitled && !email && (
         <UpgradeCTA
           requiredPlan="PRO"
-          title="Dominio propio de correo"
-          description="Disponible en Pro y Complete."
+          title={t.upgradeTitle}
+          description={t.upgradeDescription}
           compact
         />
       )}
@@ -66,7 +66,7 @@ export function EmailDomainCard({ email, entitled }: { email: DomainInfo | null;
         <form onSubmit={handleSubmit} className="flex flex-wrap gap-2">
           <input
             name="domain"
-            placeholder="tudominio.com"
+            placeholder={t.domainPlaceholder}
             value={domain}
             onChange={(e) => setDomain(e.target.value)}
             disabled={!entitled}
@@ -78,15 +78,12 @@ export function EmailDomainCard({ email, entitled }: { email: DomainInfo | null;
             className="flex items-center gap-2 bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg"
           >
             {pending && <Loader2 className="w-4 h-4 animate-spin" />}
-            {email ? "Actualizar" : "Registrar dominio"}
+            {email ? t.updateButton : t.registerButton}
           </button>
         </form>
       )}
       {!entitled && email && (
-        <p className="text-xs text-amber-600">
-          Tu plan ya no incluye dominio propio de correo — este dominio se mantiene activo, pero
-          no puedes editarlo ni agregar uno nuevo hasta actualizar tu plan.
-        </p>
+        <p className="text-xs text-amber-600">{t.downgradedHint}</p>
       )}
 
       {email && (
@@ -98,9 +95,7 @@ export function EmailDomainCard({ email, entitled }: { email: DomainInfo | null;
 
           {email.status !== "VERIFIED" && (
             <>
-              <p className="text-xs text-slate-500">
-                Agrega estos registros en el DNS de tu dominio, luego verifica:
-              </p>
+              <p className="text-xs text-slate-500">{t.dnsInstructionsHint}</p>
               <DnsRecordsTable records={email.dnsRecords} />
             </>
           )}
@@ -113,7 +108,7 @@ export function EmailDomainCard({ email, entitled }: { email: DomainInfo | null;
               className="flex items-center gap-1.5 text-sm font-medium text-teal-700 hover:bg-teal-50 px-3 py-1.5 rounded-lg"
             >
               <RefreshCw className="w-3.5 h-3.5" />
-              Verificar
+              {tShared.verifyButton}
             </button>
             <button
               type="button"
@@ -122,7 +117,7 @@ export function EmailDomainCard({ email, entitled }: { email: DomainInfo | null;
               className="flex items-center gap-1.5 text-sm font-medium text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg"
             >
               <Trash2 className="w-3.5 h-3.5" />
-              Quitar
+              {tShared.removeButton}
             </button>
           </div>
         </div>

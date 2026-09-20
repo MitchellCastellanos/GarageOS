@@ -360,11 +360,11 @@ export async function createSenderIdentity(params: {
   const address = params.address.trim().toLowerCase();
 
   if (params.channel === "EMAIL" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) {
-    throw new SenderIdentityError("Dirección de correo inválida");
+    throw new SenderIdentityError("Invalid email address");
   }
 
   if (RESERVED_LOCAL_PARTS.has(localPartOf(address))) {
-    throw new SenderIdentityError("Ese nombre de remitente está reservado");
+    throw new SenderIdentityError("That sender name is reserved");
   }
 
   let type: "GARAGEOS_MANAGED" | "CUSTOM_DOMAIN" = "GARAGEOS_MANAGED";
@@ -384,13 +384,13 @@ export async function createSenderIdentity(params: {
       const slug = shop?.slug?.trim().toLowerCase();
       if (!slug) {
         throw new SenderIdentityError(
-          `Configura primero el identificador (slug) de tu taller en Configuración antes de crear una dirección @${managedDomain}`
+          `Set up your shop's identifier (slug) in Settings first, before creating an @${managedDomain} address`
         );
       }
       const localPart = localPartOf(address);
       if (localPart !== slug && !localPart.startsWith(`${slug}-`)) {
         throw new SenderIdentityError(
-          `La dirección debe empezar con "${slug}" (tu identificador) para usar @${managedDomain} — ej. ${slug}@${managedDomain} o ${slug}-citas@${managedDomain}`
+          `The address must start with "${slug}" (your identifier) to use @${managedDomain} — e.g. ${slug}@${managedDomain} or ${slug}-appointments@${managedDomain}`
         );
       }
       // El slug es único por taller, pero un slug que es prefijo de otro (ej. "garage" y
@@ -401,7 +401,7 @@ export async function createSenderIdentity(params: {
         where: { channel: params.channel, address, shopId: { not: params.shopId } },
       });
       if (takenByOtherShop) {
-        throw new SenderIdentityError("Esa dirección ya está en uso por otro taller");
+        throw new SenderIdentityError("That address is already in use by another shop");
       }
 
       type = "GARAGEOS_MANAGED";
@@ -412,7 +412,7 @@ export async function createSenderIdentity(params: {
       });
       if (!verifiedDomain) {
         throw new SenderIdentityError(
-          `Para usar @${domain} primero debes conectarlo y verificarlo en Configuración → Dominios`
+          `To use @${domain}, first connect and verify it under Settings → Domains`
         );
       }
       type = "CUSTOM_DOMAIN";
@@ -425,14 +425,14 @@ export async function createSenderIdentity(params: {
   const count = await db.senderIdentity.count({ where: { shopId: params.shopId } });
   if (count >= MAX_IDENTITIES_PER_SHOP) {
     throw new SenderIdentityError(
-      `Este taller ya tiene el máximo de ${MAX_IDENTITIES_PER_SHOP} identidades de envío`
+      `This shop already has the maximum of ${MAX_IDENTITIES_PER_SHOP} sender identities`
     );
   }
 
   const existing = await db.senderIdentity.findUnique({
     where: { shopId_channel_address: { shopId: params.shopId, channel: params.channel, address } },
   });
-  if (existing) throw new SenderIdentityError("Ya existe una identidad con esa dirección");
+  if (existing) throw new SenderIdentityError("An identity with that address already exists");
 
   const identity = await db.senderIdentity.create({
     data: {
@@ -481,9 +481,9 @@ export async function setCommunicationRoute(params: {
   const identity = await db.senderIdentity.findFirst({
     where: { id: params.senderIdentityId, shopId: params.shopId },
   });
-  if (!identity) throw new SenderIdentityError("Identidad no encontrada para este taller");
+  if (!identity) throw new SenderIdentityError("Identity not found for this shop");
   if (identity.status !== "ACTIVE") {
-    throw new SenderIdentityError("Esa identidad no está activa");
+    throw new SenderIdentityError("That identity is not active");
   }
 
   await db.communicationRoute.upsert({

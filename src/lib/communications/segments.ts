@@ -18,7 +18,7 @@ export function isValidSegmentDefinition(value: unknown): value is SegmentDefini
     case "ALL_CONSENTED":
       return true;
     case "LANGUAGE":
-      return v.language === "ES" || v.language === "EN" || v.language === "FR";
+      return v.language === "EN" || v.language === "FR";
     case "INACTIVE_MONTHS":
       return typeof v.months === "number" && v.months > 0;
     case "MANUAL":

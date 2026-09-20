@@ -225,6 +225,16 @@ export interface SettingsDictionary {
     roleUpdated: string;
     userDeleted: string;
     confirmDelete: (name: string) => string;
+    verifyEmailSuccess: string;
+    verifyEmailExpired: string;
+    verifyEmailInvalid: string;
+    resendVerificationSuccess: (name: string) => string;
+    resendVerificationError: string;
+    billingNotifToggleError: string;
+    emailConfirmedTooltip: string;
+    emailUnconfirmedTooltip: string;
+    unconfirmedResendLabel: string;
+    receivesBillingEmails: string;
   };
   locations: {
     title: string;
@@ -258,6 +268,107 @@ export interface SettingsDictionary {
     seatLimitDescription: (limit: number) => string;
     multiLocationTitle: string;
     multiLocationDescription: string;
+  };
+  shopEmailVerification: {
+    mainConfirmed: string;
+    linkExpired: string;
+    linkInvalid: string;
+    useLoginEmailButton: (email: string) => string;
+    useLoginEmailSuccess: string;
+    useLoginEmailError: string;
+    confirmedTooltip: string;
+    unconfirmedLabel: string;
+    unconfirmedPrefix: string;
+    unconfirmedFallbackContact: string;
+    unconfirmedSuffix: string;
+    resendButton: string;
+    resendSentLabel: string;
+    resendSuccess: string;
+    resendError: string;
+  };
+  senderIdentities: {
+    title: string;
+    subtitle: string;
+    customDomainBadge: string;
+    defaultDomainBadge: string;
+    upgradeTitle: string;
+    upgradeDescription: string;
+    newAddressButton: string;
+    noDomainsAvailable: string;
+    noDomainsSlugHint: string;
+    noDomainsVerifyHint: string;
+    localPartPlaceholder: string;
+    displayNamePlaceholder: string;
+    createButton: string;
+    createSuccess: string;
+    createError: string;
+    slugHint: (slug: string) => string;
+  };
+  senderRoutes: {
+    title: string;
+    subtitle: string;
+    channelEmail: string;
+    channelSms: string;
+    updateSuccess: string;
+    updateError: string;
+    singleAddressPrefix: (channelLabel: string) => string;
+    singleAddressSuffix: string;
+    noAddressConfigured: string;
+    customizeButton: (channelLabel: string) => string;
+    messageTypeHeader: string;
+    addressHeader: string;
+    chooseAddressOption: string;
+  };
+  domain: {
+    booking: {
+      title: string;
+      subtitleWithSlug: string;
+      subtitleNoSlug: string;
+      shorterUrlLabel: string;
+      shortUrlNotEnabled: string;
+      upgradeTitle: string;
+      upgradeDescription: string;
+      domainPlaceholder: string;
+      updateButton: string;
+      useMyDomainButton: string;
+      subdomainOnlyHint: string;
+      downgradedHint: string;
+      savedToast: string;
+      saveErrorToast: string;
+      verifiedToast: string;
+      notVerifiedToast: string;
+      verifyErrorToast: string;
+      removedToast: string;
+      removeErrorToast: string;
+    };
+    email: {
+      title: string;
+      description: string;
+      upgradeTitle: string;
+      upgradeDescription: string;
+      domainPlaceholder: string;
+      updateButton: string;
+      registerButton: string;
+      downgradedHint: string;
+      dnsInstructionsHint: string;
+      savedToast: string;
+      saveErrorToast: string;
+      verifiedToast: string;
+      notVerifiedToast: string;
+      verifyErrorToast: string;
+      removedToast: string;
+      removeErrorToast: string;
+    };
+    shared: {
+      verifyButton: string;
+      removeButton: string;
+      statusVerified: string;
+      statusPending: string;
+      statusFailed: string;
+      dnsType: string;
+      dnsName: string;
+      dnsValue: string;
+    };
   };
 }
 
@@ -495,6 +606,16 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       roleUpdated: "Rol actualizado",
       userDeleted: "Usuario eliminado",
       confirmDelete: (name) => `¿Eliminar la cuenta de ${name}? Esta acción no se puede deshacer.`,
+      verifyEmailSuccess: "Correo confirmado",
+      verifyEmailExpired: "Ese link de confirmación venció — pide que te reenvíen uno",
+      verifyEmailInvalid: "Ese link de confirmación no es válido",
+      resendVerificationSuccess: (name) => `Correo de confirmación reenviado a ${name}`,
+      resendVerificationError: "No se pudo reenviar el correo",
+      billingNotifToggleError: "No se pudo actualizar",
+      emailConfirmedTooltip: "Correo confirmado",
+      emailUnconfirmedTooltip: "Correo sin confirmar — clic para reenviar",
+      unconfirmedResendLabel: "Sin confirmar · reenviar",
+      receivesBillingEmails: "Recibe correos de facturación/plan",
     },
     locations: {
       title: "Ubicaciones",
@@ -528,6 +649,115 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       multiLocationTitle: "Multi-sucursal es una función Complete",
       multiLocationDescription:
         "Agregar más de una ubicación requiere el plan Complete — incluye administración centralizada y reportes consolidados.",
+    },
+    shopEmailVerification: {
+      mainConfirmed: "Correo principal confirmado",
+      linkExpired: "Ese link venció — pide que se reenvíe la confirmación",
+      linkInvalid: "Ese link de confirmación no es válido",
+      useLoginEmailButton: (email) =>
+        `Usar mi correo de acceso (${email}) — queda confirmado al instante`,
+      useLoginEmailSuccess: "Listo — tu correo de acceso ya es el email principal, confirmado",
+      useLoginEmailError: "No se pudo actualizar",
+      confirmedTooltip: "Confirmado",
+      unconfirmedLabel: "Sin confirmar",
+      unconfirmedPrefix: "Mientras no se confirme, tus clientes verán/contestarán a",
+      unconfirmedFallbackContact: "el correo del dueño del taller",
+      unconfirmedSuffix: "en su lugar — nada se pierde.",
+      resendButton: "Reenviar confirmación",
+      resendSentLabel: "Confirmación reenviada",
+      resendSuccess: "Confirmación reenviada",
+      resendError: "No se pudo reenviar",
+    },
+    senderIdentities: {
+      title: "Tus direcciones",
+      subtitle:
+        "Direcciones desde las que puede salir tu correo. Con más de una, podrás elegir cuál usar al redactar en la Bandeja de entrada.",
+      customDomainBadge: "Dominio propio",
+      defaultDomainBadge: "GarageOS",
+      upgradeTitle: "Direcciones de envío adicionales",
+      upgradeDescription:
+        "Agregar remitentes propios (más allá de los de GarageOS) está disponible en Pro y Complete.",
+      newAddressButton: "Nueva dirección",
+      noDomainsAvailable: "Todavía no hay ningún dominio disponible para crear direcciones nuevas.",
+      noDomainsSlugHint: " Configura primero el identificador (slug) de tu taller en Configuración.",
+      noDomainsVerifyHint: " Conecta y verifica tu dominio arriba.",
+      localPartPlaceholder: "ventas",
+      displayNamePlaceholder: "Nombre a mostrar (opcional)",
+      createButton: "Crear",
+      createSuccess: "Dirección creada",
+      createError: "Error al crear la dirección",
+      slugHint: (slug) =>
+        `Debe empezar con "${slug}" (ej. ${slug} o ${slug}-citas) — así no choca con otros talleres que comparten este dominio. Las respuestas de tus clientes llegarán a tu correo de contacto configurado en Datos del taller.`,
+    },
+    senderRoutes: {
+      title: "Reglas automáticas",
+      subtitle: "Qué dirección usa cada tipo de correo o SMS automático (facturas, citas, recordatorios...).",
+      channelEmail: "correo",
+      channelSms: "SMS",
+      updateSuccess: "Regla actualizada",
+      updateError: "Error al actualizar la regla",
+      singleAddressPrefix: (channelLabel) => `Todo tu ${channelLabel} automático sale de`,
+      singleAddressSuffix: ".",
+      noAddressConfigured: "— sin dirección configurada —",
+      customizeButton: (channelLabel) => `Personalizar por tipo (${channelLabel})`,
+      messageTypeHeader: "Tipo de mensaje",
+      addressHeader: "Dirección",
+      chooseAddressOption: "Elegir dirección",
+    },
+    domain: {
+      booking: {
+        title: "Dominio propio para tu landing de citas",
+        subtitleWithSlug: "Sin dominio propio, tu landing pública ya funciona en:",
+        subtitleNoSlug: "Activa un slug de taller en Configuración para tener una landing pública.",
+        shorterUrlLabel: "O con una URL más corta:",
+        shortUrlNotEnabled: "(la URL corta {taller}.garageos.com aún no está activada en este servidor)",
+        upgradeTitle: "Dominio propio para tu landing",
+        upgradeDescription: "Disponible en Pro y Complete.",
+        domainPlaceholder: "citas.tudominio.com",
+        updateButton: "Actualizar",
+        useMyDomainButton: "Usar mi dominio",
+        subdomainOnlyHint:
+          "Solo soportamos subdominios (ej. citas.tudominio.com) — un dominio raíz necesita un tipo de registro que la mayoría de proveedores DNS no ofrece.",
+        downgradedHint:
+          "Tu plan ya no incluye dominio propio — este dominio se mantiene activo, pero no puedes editarlo ni agregar uno nuevo hasta actualizar tu plan.",
+        savedToast: "Dominio guardado — agrega el registro DNS",
+        saveErrorToast: "Error al guardar el dominio",
+        verifiedToast: "Dominio verificado",
+        notVerifiedToast: "Todavía no verifica — revisa el registro CNAME",
+        verifyErrorToast: "Error al verificar",
+        removedToast: "Dominio eliminado",
+        removeErrorToast: "Error al eliminar",
+      },
+      email: {
+        title: "Dominio propio para tus correos",
+        description:
+          "Verifica tu dominio para que las confirmaciones de citas, facturas y cotizaciones salgan desde tu propia dirección (ej. citas@tudominio.com) en vez de la de GarageOS. Si no lo configuras, seguimos usando el remitente compartido de GarageOS con tu nombre de taller.",
+        upgradeTitle: "Dominio propio de correo",
+        upgradeDescription: "Disponible en Pro y Complete.",
+        domainPlaceholder: "tudominio.com",
+        updateButton: "Actualizar",
+        registerButton: "Registrar dominio",
+        downgradedHint:
+          "Tu plan ya no incluye dominio propio de correo — este dominio se mantiene activo, pero no puedes editarlo ni agregar uno nuevo hasta actualizar tu plan.",
+        dnsInstructionsHint: "Agrega estos registros en el DNS de tu dominio, luego verifica:",
+        savedToast: "Dominio registrado — agrega los registros DNS",
+        saveErrorToast: "Error al registrar el dominio",
+        verifiedToast: "Dominio verificado",
+        notVerifiedToast: "Todavía no verifica — revisa los registros DNS",
+        verifyErrorToast: "Error al verificar",
+        removedToast: "Dominio eliminado",
+        removeErrorToast: "Error al eliminar",
+      },
+      shared: {
+        verifyButton: "Verificar",
+        removeButton: "Quitar",
+        statusVerified: "Verificado",
+        statusPending: "Pendiente",
+        statusFailed: "Falló",
+        dnsType: "Tipo",
+        dnsName: "Nombre",
+        dnsValue: "Valor",
+      },
     },
   },
   en: {
@@ -763,6 +993,16 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       roleUpdated: "Role updated",
       userDeleted: "User deleted",
       confirmDelete: (name) => `Delete ${name}'s account? This cannot be undone.`,
+      verifyEmailSuccess: "Email confirmed",
+      verifyEmailExpired: "That confirmation link expired — ask for a new one",
+      verifyEmailInvalid: "That confirmation link isn't valid",
+      resendVerificationSuccess: (name) => `Confirmation email resent to ${name}`,
+      resendVerificationError: "Could not resend the email",
+      billingNotifToggleError: "Could not update",
+      emailConfirmedTooltip: "Email confirmed",
+      emailUnconfirmedTooltip: "Email not confirmed — click to resend",
+      unconfirmedResendLabel: "Unconfirmed · resend",
+      receivesBillingEmails: "Receives billing/plan emails",
     },
     locations: {
       title: "Locations",
@@ -796,6 +1036,113 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       multiLocationTitle: "Multi-location is a Complete feature",
       multiLocationDescription:
         "Adding more than one location requires the Complete plan — includes centralized administration and consolidated reporting.",
+    },
+    shopEmailVerification: {
+      mainConfirmed: "Main email confirmed",
+      linkExpired: "That link expired — ask for the confirmation to be resent",
+      linkInvalid: "That confirmation link isn't valid",
+      useLoginEmailButton: (email) => `Use my login email (${email}) — confirmed instantly`,
+      useLoginEmailSuccess: "Done — your login email is now the main email, confirmed",
+      useLoginEmailError: "Could not update",
+      confirmedTooltip: "Confirmed",
+      unconfirmedLabel: "Unconfirmed",
+      unconfirmedPrefix: "Until it's confirmed, your clients will see and reply to",
+      unconfirmedFallbackContact: "the shop owner's email",
+      unconfirmedSuffix: "instead — nothing is lost.",
+      resendButton: "Resend confirmation",
+      resendSentLabel: "Confirmation resent",
+      resendSuccess: "Confirmation resent",
+      resendError: "Could not resend",
+    },
+    senderIdentities: {
+      title: "Your addresses",
+      subtitle:
+        "Addresses your email can be sent from. With more than one, you'll be able to choose which one to use when writing from the Inbox.",
+      customDomainBadge: "Custom domain",
+      defaultDomainBadge: "GarageOS",
+      upgradeTitle: "Additional sending addresses",
+      upgradeDescription: "Adding your own senders (beyond GarageOS's) is available on Pro and Complete.",
+      newAddressButton: "New address",
+      noDomainsAvailable: "There's no domain available yet to create new addresses.",
+      noDomainsSlugHint: " First set your shop's identifier (slug) in Settings.",
+      noDomainsVerifyHint: " Connect and verify your domain above.",
+      localPartPlaceholder: "sales",
+      displayNamePlaceholder: "Display name (optional)",
+      createButton: "Create",
+      createSuccess: "Address created",
+      createError: "Could not create the address",
+      slugHint: (slug) =>
+        `Must start with "${slug}" (e.g. ${slug} or ${slug}-booking) — so it doesn't clash with other shops sharing this domain. Your clients' replies will land in the contact email set in Shop details.`,
+    },
+    senderRoutes: {
+      title: "Automatic rules",
+      subtitle: "Which address each type of automatic email or SMS uses (invoices, appointments, reminders...).",
+      channelEmail: "email",
+      channelSms: "SMS",
+      updateSuccess: "Rule updated",
+      updateError: "Could not update the rule",
+      singleAddressPrefix: (channelLabel) => `All your automatic ${channelLabel} goes out from`,
+      singleAddressSuffix: ".",
+      noAddressConfigured: "— no address configured —",
+      customizeButton: (channelLabel) => `Customize by type (${channelLabel})`,
+      messageTypeHeader: "Message type",
+      addressHeader: "Address",
+      chooseAddressOption: "Choose an address",
+    },
+    domain: {
+      booking: {
+        title: "Custom domain for your booking landing page",
+        subtitleWithSlug: "Without a custom domain, your public landing page already works at:",
+        subtitleNoSlug: "Turn on a shop slug in Settings to get a public landing page.",
+        shorterUrlLabel: "Or with a shorter URL:",
+        shortUrlNotEnabled: "(the short URL {shop}.garageos.com isn't enabled on this server yet)",
+        upgradeTitle: "Custom domain for your landing page",
+        upgradeDescription: "Available on Pro and Complete.",
+        domainPlaceholder: "booking.yourdomain.com",
+        updateButton: "Update",
+        useMyDomainButton: "Use my domain",
+        subdomainOnlyHint:
+          "We only support subdomains (e.g. booking.yourdomain.com) — a root domain needs a record type most DNS providers don't offer.",
+        downgradedHint:
+          "Your plan no longer includes a custom domain — this domain stays active, but you can't edit it or add a new one until you upgrade your plan.",
+        savedToast: "Domain saved — add the DNS record",
+        saveErrorToast: "Could not save the domain",
+        verifiedToast: "Domain verified",
+        notVerifiedToast: "Not verified yet — check the CNAME record",
+        verifyErrorToast: "Could not verify",
+        removedToast: "Domain removed",
+        removeErrorToast: "Could not remove it",
+      },
+      email: {
+        title: "Custom domain for your emails",
+        description:
+          "Verify your domain so appointment confirmations, invoices, and quotes go out from your own address (e.g. booking@yourdomain.com) instead of GarageOS's. If you don't set it up, we keep using GarageOS's shared sender with your shop's name.",
+        upgradeTitle: "Custom email domain",
+        upgradeDescription: "Available on Pro and Complete.",
+        domainPlaceholder: "yourdomain.com",
+        updateButton: "Update",
+        registerButton: "Register domain",
+        downgradedHint:
+          "Your plan no longer includes a custom email domain — this domain stays active, but you can't edit it or add a new one until you upgrade your plan.",
+        dnsInstructionsHint: "Add these records to your domain's DNS, then verify:",
+        savedToast: "Domain registered — add the DNS records",
+        saveErrorToast: "Could not register the domain",
+        verifiedToast: "Domain verified",
+        notVerifiedToast: "Not verified yet — check the DNS records",
+        verifyErrorToast: "Could not verify",
+        removedToast: "Domain removed",
+        removeErrorToast: "Could not remove it",
+      },
+      shared: {
+        verifyButton: "Verify",
+        removeButton: "Remove",
+        statusVerified: "Verified",
+        statusPending: "Pending",
+        statusFailed: "Failed",
+        dnsType: "Type",
+        dnsName: "Name",
+        dnsValue: "Value",
+      },
     },
   },
   fr: {
@@ -1031,6 +1378,16 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       roleUpdated: "Rôle mis à jour",
       userDeleted: "Utilisateur supprimé",
       confirmDelete: (name) => `Supprimer le compte de ${name}? Cette action est irréversible.`,
+      verifyEmailSuccess: "Courriel confirmé",
+      verifyEmailExpired: "Ce lien de confirmation a expiré — demandez-en un nouveau",
+      verifyEmailInvalid: "Ce lien de confirmation n'est pas valide",
+      resendVerificationSuccess: (name) => `Courriel de confirmation renvoyé à ${name}`,
+      resendVerificationError: "Impossible de renvoyer le courriel",
+      billingNotifToggleError: "Impossible de mettre à jour",
+      emailConfirmedTooltip: "Courriel confirmé",
+      emailUnconfirmedTooltip: "Courriel non confirmé — cliquez pour renvoyer",
+      unconfirmedResendLabel: "Non confirmé · renvoyer",
+      receivesBillingEmails: "Reçoit les courriels de facturation/forfait",
     },
     locations: {
       title: "Emplacements",
@@ -1064,6 +1421,114 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       multiLocationTitle: "Le multi-établissement est une fonction Complete",
       multiLocationDescription:
         "Ajouter plus d’un établissement nécessite le plan Complete — inclut l’administration centralisée et les rapports consolidés.",
+    },
+    shopEmailVerification: {
+      mainConfirmed: "Courriel principal confirmé",
+      linkExpired: "Ce lien a expiré — demandez que la confirmation soit renvoyée",
+      linkInvalid: "Ce lien de confirmation n'est pas valide",
+      useLoginEmailButton: (email) => `Utiliser mon courriel de connexion (${email}) — confirmé instantanément`,
+      useLoginEmailSuccess: "C'est fait — votre courriel de connexion est maintenant le courriel principal, confirmé",
+      useLoginEmailError: "Impossible de mettre à jour",
+      confirmedTooltip: "Confirmé",
+      unconfirmedLabel: "Non confirmé",
+      unconfirmedPrefix: "Tant qu'il n'est pas confirmé, vos clients verront et répondront à",
+      unconfirmedFallbackContact: "le courriel du propriétaire du garage",
+      unconfirmedSuffix: "à sa place — rien n'est perdu.",
+      resendButton: "Renvoyer la confirmation",
+      resendSentLabel: "Confirmation renvoyée",
+      resendSuccess: "Confirmation renvoyée",
+      resendError: "Impossible de renvoyer",
+    },
+    senderIdentities: {
+      title: "Vos adresses",
+      subtitle:
+        "Adresses depuis lesquelles vos courriels peuvent être envoyés. Avec plus d'une, vous pourrez choisir laquelle utiliser en écrivant depuis la Boîte de réception.",
+      customDomainBadge: "Domaine propre",
+      defaultDomainBadge: "GarageOS",
+      upgradeTitle: "Adresses d'envoi supplémentaires",
+      upgradeDescription:
+        "Ajouter vos propres expéditeurs (au-delà de ceux de GarageOS) est disponible sur Pro et Complete.",
+      newAddressButton: "Nouvelle adresse",
+      noDomainsAvailable: "Aucun domaine n'est encore disponible pour créer de nouvelles adresses.",
+      noDomainsSlugHint: " Définissez d'abord l'identifiant (slug) de votre garage dans Configuration.",
+      noDomainsVerifyHint: " Connectez et vérifiez votre domaine ci-dessus.",
+      localPartPlaceholder: "ventes",
+      displayNamePlaceholder: "Nom à afficher (optionnel)",
+      createButton: "Créer",
+      createSuccess: "Adresse créée",
+      createError: "Impossible de créer l'adresse",
+      slugHint: (slug) =>
+        `Doit commencer par « ${slug} » (ex. ${slug} ou ${slug}-rdv) — pour ne pas entrer en conflit avec d'autres garages qui partagent ce domaine. Les réponses de vos clients arriveront à votre courriel de contact configuré dans Informations du garage.`,
+    },
+    senderRoutes: {
+      title: "Règles automatiques",
+      subtitle: "Quelle adresse utilise chaque type de courriel ou SMS automatique (factures, rendez-vous, rappels...).",
+      channelEmail: "courriel",
+      channelSms: "SMS",
+      updateSuccess: "Règle mise à jour",
+      updateError: "Impossible de mettre à jour la règle",
+      singleAddressPrefix: (channelLabel) => `Tout votre ${channelLabel} automatique sort de`,
+      singleAddressSuffix: ".",
+      noAddressConfigured: "— aucune adresse configurée —",
+      customizeButton: (channelLabel) => `Personnaliser par type (${channelLabel})`,
+      messageTypeHeader: "Type de message",
+      addressHeader: "Adresse",
+      chooseAddressOption: "Choisir une adresse",
+    },
+    domain: {
+      booking: {
+        title: "Domaine propre pour votre page de rendez-vous",
+        subtitleWithSlug: "Sans domaine propre, votre page publique fonctionne déjà à :",
+        subtitleNoSlug: "Activez un slug de garage dans Configuration pour avoir une page publique.",
+        shorterUrlLabel: "Ou avec une URL plus courte :",
+        shortUrlNotEnabled: "(l'URL courte {garage}.garageos.com n'est pas encore activée sur ce serveur)",
+        upgradeTitle: "Domaine propre pour votre page",
+        upgradeDescription: "Disponible sur Pro et Complete.",
+        domainPlaceholder: "rdv.votredomaine.com",
+        updateButton: "Mettre à jour",
+        useMyDomainButton: "Utiliser mon domaine",
+        subdomainOnlyHint:
+          "Nous ne prenons en charge que les sous-domaines (ex. rdv.votredomaine.com) — un domaine racine nécessite un type d'enregistrement que la plupart des fournisseurs DNS n'offrent pas.",
+        downgradedHint:
+          "Votre forfait n'inclut plus de domaine propre — ce domaine reste actif, mais vous ne pouvez pas le modifier ni en ajouter un nouveau avant de mettre à niveau votre forfait.",
+        savedToast: "Domaine enregistré — ajoutez l'enregistrement DNS",
+        saveErrorToast: "Impossible d'enregistrer le domaine",
+        verifiedToast: "Domaine vérifié",
+        notVerifiedToast: "Pas encore vérifié — vérifiez l'enregistrement CNAME",
+        verifyErrorToast: "Impossible de vérifier",
+        removedToast: "Domaine supprimé",
+        removeErrorToast: "Impossible de supprimer",
+      },
+      email: {
+        title: "Domaine propre pour vos courriels",
+        description:
+          "Vérifiez votre domaine pour que les confirmations de rendez-vous, factures et soumissions soient envoyées depuis votre propre adresse (ex. rdv@votredomaine.com) au lieu de celle de GarageOS. Si vous ne le configurez pas, nous continuons à utiliser l'expéditeur partagé de GarageOS avec le nom de votre garage.",
+        upgradeTitle: "Domaine de courriel propre",
+        upgradeDescription: "Disponible sur Pro et Complete.",
+        domainPlaceholder: "votredomaine.com",
+        updateButton: "Mettre à jour",
+        registerButton: "Enregistrer le domaine",
+        downgradedHint:
+          "Votre forfait n'inclut plus de domaine de courriel propre — ce domaine reste actif, mais vous ne pouvez pas le modifier ni en ajouter un nouveau avant de mettre à niveau votre forfait.",
+        dnsInstructionsHint: "Ajoutez ces enregistrements au DNS de votre domaine, puis vérifiez :",
+        savedToast: "Domaine enregistré — ajoutez les enregistrements DNS",
+        saveErrorToast: "Impossible d'enregistrer le domaine",
+        verifiedToast: "Domaine vérifié",
+        notVerifiedToast: "Pas encore vérifié — vérifiez les enregistrements DNS",
+        verifyErrorToast: "Impossible de vérifier",
+        removedToast: "Domaine supprimé",
+        removeErrorToast: "Impossible de supprimer",
+      },
+      shared: {
+        verifyButton: "Vérifier",
+        removeButton: "Retirer",
+        statusVerified: "Vérifié",
+        statusPending: "En attente",
+        statusFailed: "Échoué",
+        dnsType: "Type",
+        dnsName: "Nom",
+        dnsValue: "Valeur",
+      },
     },
   },
 };

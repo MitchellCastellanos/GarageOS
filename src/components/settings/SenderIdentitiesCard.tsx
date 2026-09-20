@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { Loader2, Plus, Mail } from "lucide-react";
 import { createSenderIdentityAction, type CommunicationSettingsData } from "@/actions/communications-settings";
 import { UpgradeCTA } from "@/components/billing/UpgradeCTA";
+import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
+import { SETTINGS_DICT } from "@/lib/admin-locale/settings";
 
 type Identity = CommunicationSettingsData["identities"][number];
 
@@ -21,6 +23,8 @@ export function SenderIdentitiesCard({
   canCreateIdentity,
   onIdentityCreated,
 }: SenderIdentitiesCardProps) {
+  const locale = useAdminLocale();
+  const t = SETTINGS_DICT[locale].senderIdentities;
   const [pending, startTransition] = useTransition();
   const [showNew, setShowNew] = useState(false);
 
@@ -40,11 +44,11 @@ export function SenderIdentitiesCard({
     startTransition(async () => {
       const result = await createSenderIdentityAction(formData);
       if (result?.success) {
-        toast.success("Dirección creada");
+        toast.success(t.createSuccess);
         setShowNew(false);
         onIdentityCreated(result.identity);
       } else {
-        toast.error(result?.error ?? "Error al crear la dirección");
+        toast.error(result?.error ?? t.createError);
       }
     });
   }
@@ -52,11 +56,8 @@ export function SenderIdentitiesCard({
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
       <div>
-        <h2 className="font-semibold text-slate-900">Tus direcciones</h2>
-        <p className="text-sm text-slate-500 mt-1">
-          Direcciones desde las que puede salir tu correo. Con más de una, podrás elegir cuál
-          usar al redactar en la Bandeja de entrada.
-        </p>
+        <h2 className="font-semibold text-slate-900">{t.title}</h2>
+        <p className="text-sm text-slate-500 mt-1">{t.subtitle}</p>
       </div>
 
       {emailIdentities.length > 0 && (
@@ -67,7 +68,7 @@ export function SenderIdentitiesCard({
               <span className="text-slate-900">{identity.address}</span>
               {identity.displayName && <span className="text-slate-400">— {identity.displayName}</span>}
               <span className="ml-auto text-xs text-slate-400">
-                {identity.type === "CUSTOM_DOMAIN" ? "Dominio propio" : "GarageOS"}
+                {identity.type === "CUSTOM_DOMAIN" ? t.customDomainBadge : t.defaultDomainBadge}
               </span>
             </li>
           ))}
@@ -77,8 +78,8 @@ export function SenderIdentitiesCard({
       {!canCreateIdentity && (
         <UpgradeCTA
           requiredPlan="PRO"
-          title="Direcciones de envío adicionales"
-          description="Agregar remitentes propios (más allá de los de GarageOS) está disponible en Pro y Complete."
+          title={t.upgradeTitle}
+          description={t.upgradeDescription}
           compact
         />
       )}
@@ -90,17 +91,15 @@ export function SenderIdentitiesCard({
           className="flex items-center gap-1.5 text-sm font-medium text-teal-700 hover:bg-teal-50 px-3 py-1.5 rounded-lg"
         >
           <Plus className="w-3.5 h-3.5" />
-          Nueva dirección
+          {t.newAddressButton}
         </button>
       )}
 
       {canCreateIdentity && showNew && (
         domainChoices.length === 0 ? (
           <p className="text-sm text-slate-500">
-            Todavía no hay ningún dominio disponible para crear direcciones nuevas.
-            {managedDomain && !slug
-              ? " Configura primero el identificador (slug) de tu taller en Configuración."
-              : " Conecta y verifica tu dominio arriba."}
+            {t.noDomainsAvailable}
+            {managedDomain && !slug ? t.noDomainsSlugHint : t.noDomainsVerifyHint}
           </p>
         ) : (
           <form onSubmit={handleCreate} className="flex flex-wrap gap-2 items-start">
@@ -110,7 +109,7 @@ export function SenderIdentitiesCard({
               type="text"
               required
               pattern="[a-z0-9][a-z0-9.\-]*"
-              placeholder={selectedDomain === managedDomain && slug ? slug : "ventas"}
+              placeholder={selectedDomain === managedDomain && slug ? slug : t.localPartPlaceholder}
               className="min-w-[140px] px-3 py-2 border border-slate-300 rounded-lg text-sm"
             />
             <span className="self-center text-slate-500">@</span>
@@ -128,7 +127,7 @@ export function SenderIdentitiesCard({
             </select>
             <input
               name="displayName"
-              placeholder="Nombre a mostrar (opcional)"
+              placeholder={t.displayNamePlaceholder}
               className="flex-1 min-w-[180px] px-3 py-2 border border-slate-300 rounded-lg text-sm"
             />
             <button
@@ -137,14 +136,10 @@ export function SenderIdentitiesCard({
               className="flex items-center gap-2 bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg"
             >
               {pending && <Loader2 className="w-4 h-4 animate-spin" />}
-              Crear
+              {t.createButton}
             </button>
             {selectedDomain === managedDomain && slug && (
-              <p className="w-full text-xs text-slate-400">
-                Debe empezar con &quot;{slug}&quot; (ej. {slug} o {slug}-citas) — así no choca con otros
-                talleres que comparten este dominio. Las respuestas de tus clientes llegarán a tu correo
-                de contacto configurado en Datos del taller.
-              </p>
+              <p className="w-full text-xs text-slate-400">{t.slugHint(slug)}</p>
             )}
           </form>
         )

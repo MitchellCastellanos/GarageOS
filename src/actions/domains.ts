@@ -124,7 +124,7 @@ export async function verifyEmailDomainAction() {
   const row = await db.shopDomain.findUnique({
     where: { shopId_purpose: { shopId, purpose: "EMAIL" } },
   });
-  if (!row?.providerId) return { error: "No hay dominio de correo configurado" };
+  if (!row?.providerId) return { error: "No email domain is configured" };
 
   let result;
   try {
@@ -220,7 +220,7 @@ export async function verifyLandingDomainAction() {
   const row = await db.shopDomain.findUnique({
     where: { shopId_purpose: { shopId, purpose: "LANDING" } },
   });
-  if (!row) return { error: "No hay dominio de landing configurado" };
+  if (!row) return { error: "No landing domain is configured" };
 
   const ok = await checkLandingDnsRecord(row.domain);
 

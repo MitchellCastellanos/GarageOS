@@ -19,7 +19,7 @@ export async function requireSuperAdmin() {
 export async function requireOwner() {
   const session = await requireSession();
   if (session.user.role !== "OWNER") {
-    throw new Error("Solo el dueño del taller puede realizar esta acción");
+    throw new Error("Only the shop owner can perform this action");
   }
   if (!session.user.shopId) redirect(ADMIN.login);
   return session;

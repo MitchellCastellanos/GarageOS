@@ -126,7 +126,7 @@ export async function recordAndSend(params: RecordAndSendParams): Promise<Record
     select: { communicationsSuspendedAt: true },
   });
   if (shop?.communicationsSuspendedAt) {
-    throw new Error("Las comunicaciones de este taller están suspendidas por la plataforma.");
+    throw new Error("This shop's communications are suspended by the platform.");
   }
 
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
@@ -134,7 +134,7 @@ export async function recordAndSend(params: RecordAndSendParams): Promise<Record
     where: { shopId: params.shopId, channel: params.channel, createdAt: { gte: oneHourAgo } },
   });
   if (recentCount >= HOURLY_RATE_LIMIT[params.channel]) {
-    throw new Error(`Límite de envíos por hora alcanzado para ${params.channel} — intenta más tarde.`);
+    throw new Error(`Hourly sending limit reached for ${params.channel} — try again later.`);
   }
 
   // Solo campañas se filtran por supresión — lo transaccional nunca se bloquea así
@@ -143,7 +143,7 @@ export async function recordAndSend(params: RecordAndSendParams): Promise<Record
   if (params.messageType === "CAMPAIGN" && params.to[0]) {
     const suppressed = await isSuppressed(params.shopId, params.channel, params.to[0]);
     if (suppressed) {
-      throw new Error(`Dirección suprimida: ${params.to[0]}`);
+      throw new Error(`Suppressed address: ${params.to[0]}`);
     }
   }
 

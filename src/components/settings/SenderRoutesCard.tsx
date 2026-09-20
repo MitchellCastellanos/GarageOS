@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { updateCommunicationRouteAction, type CommunicationSettingsData } from "@/actions/communications-settings";
 import type { CommChannel } from "@prisma/client";
+import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
+import { SETTINGS_DICT } from "@/lib/admin-locale/settings";
 
 type Identity = CommunicationSettingsData["identities"][number];
 type RouteRow = CommunicationSettingsData["routes"][number];
@@ -17,9 +19,10 @@ interface SenderRoutesCardProps {
   onRouteChange: (purpose: string, channel: CommChannel, senderIdentityId: string) => void;
 }
 
-const CHANNEL_LABEL: Record<CommChannel, string> = { EMAIL: "correo", SMS: "SMS" };
-
 export function SenderRoutesCard({ identities, routes, purposes, onRouteChange }: SenderRoutesCardProps) {
+  const locale = useAdminLocale();
+  const t = SETTINGS_DICT[locale].senderRoutes;
+  const CHANNEL_LABEL: Record<CommChannel, string> = { EMAIL: t.channelEmail, SMS: t.channelSms };
   const [pending, startTransition] = useTransition();
   const [expanded, setExpanded] = useState<Set<CommChannel>>(new Set());
 
@@ -47,9 +50,9 @@ export function SenderRoutesCard({ identities, routes, purposes, onRouteChange }
       const result = await updateCommunicationRouteAction(formData);
       if (result?.success) {
         onRouteChange(purpose, channel, senderIdentityId);
-        toast.success("Regla actualizada");
+        toast.success(t.updateSuccess);
       } else {
-        toast.error(result?.error ?? "Error al actualizar la regla");
+        toast.error(result?.error ?? t.updateError);
       }
     });
   }
@@ -59,10 +62,8 @@ export function SenderRoutesCard({ identities, routes, purposes, onRouteChange }
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
       <div>
-        <h2 className="font-semibold text-slate-900">Reglas automáticas</h2>
-        <p className="text-sm text-slate-500 mt-1">
-          Qué dirección usa cada tipo de correo o SMS automático (facturas, citas, recordatorios...).
-        </p>
+        <h2 className="font-semibold text-slate-900">{t.title}</h2>
+        <p className="text-sm text-slate-500 mt-1">{t.subtitle}</p>
       </div>
 
       {channels.map((channel) => {
@@ -71,15 +72,15 @@ export function SenderRoutesCard({ identities, routes, purposes, onRouteChange }
         const isOpen = expanded.has(channel);
         const channelLabel = CHANNEL_LABEL[channel];
 
-        // Con 0 o 1 dirección no hay nada que personalizar — una sola línea y ya.
+        // With 0 or 1 address there's nothing to customize — a single line and done.
         if (options.length <= 1) {
           return (
             <p key={channel} className="text-sm text-slate-600">
-              Todo tu {channelLabel} automático sale de{" "}
+              {t.singleAddressPrefix(channelLabel)}{" "}
               <span className="font-medium text-slate-900">
-                {options[0]?.address ?? "— sin dirección configurada —"}
+                {options[0]?.address ?? t.noAddressConfigured}
               </span>
-              .
+              {t.singleAddressSuffix}
             </p>
           );
         }
@@ -92,7 +93,7 @@ export function SenderRoutesCard({ identities, routes, purposes, onRouteChange }
               className="flex items-center gap-1.5 text-sm font-medium text-teal-700 hover:bg-teal-50 px-2 py-1 -ml-2 rounded-lg"
             >
               {isOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-              Personalizar por tipo ({channelLabel})
+              {t.customizeButton(channelLabel)}
             </button>
 
             {isOpen && (
@@ -100,8 +101,8 @@ export function SenderRoutesCard({ identities, routes, purposes, onRouteChange }
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
-                      <th className="px-4 py-3 font-semibold">Tipo de mensaje</th>
-                      <th className="px-4 py-3 font-semibold">Dirección</th>
+                      <th className="px-4 py-3 font-semibold">{t.messageTypeHeader}</th>
+                      <th className="px-4 py-3 font-semibold">{t.addressHeader}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -118,7 +119,7 @@ export function SenderRoutesCard({ identities, routes, purposes, onRouteChange }
                               className="text-sm border border-slate-300 rounded-lg px-2 py-1.5 min-w-[220px]"
                             >
                               <option value="" disabled>
-                                Elegir dirección
+                                {t.chooseAddressOption}
                               </option>
                               {options.map((identity) => (
                                 <option key={identity.id} value={identity.id}>

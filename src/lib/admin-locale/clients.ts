@@ -43,6 +43,13 @@ export interface ClientsDictionary {
     recentInvoicesTitle: string;
     viewAllArrow: string;
   };
+  marketingConsent: {
+    label: string;
+    hintWithEmail: string;
+    hintNoEmail: string;
+    toastIncluded: string;
+    toastExcluded: string;
+  };
   edit: {
     title: string;
     subtitle: (name: string) => string;
@@ -155,6 +162,13 @@ export const CLIENTS_DICT: Record<AdminLocale, ClientsDictionary> = {
       recentInvoicesTitle: "Últimas facturas",
       viewAllArrow: "Ver todas →",
     },
+    marketingConsent: {
+      label: "Recibir campañas por email",
+      hintWithEmail: "Marca solo si el cliente dio su consentimiento.",
+      hintNoEmail: "El cliente no tiene email registrado.",
+      toastIncluded: "Cliente incluido en campañas",
+      toastExcluded: "Cliente excluido de campañas",
+    },
     edit: {
       title: "Editar cliente",
       subtitle: (name) => `Actualiza los datos de ${name}.`,
@@ -266,6 +280,13 @@ export const CLIENTS_DICT: Record<AdminLocale, ClientsDictionary> = {
       recentInvoicesTitle: "Recent invoices",
       viewAllArrow: "View all →",
     },
+    marketingConsent: {
+      label: "Receive email campaigns",
+      hintWithEmail: "Only check this if the client gave their consent.",
+      hintNoEmail: "The client has no email on file.",
+      toastIncluded: "Client included in campaigns",
+      toastExcluded: "Client excluded from campaigns",
+    },
     edit: {
       title: "Edit client",
       subtitle: (name) => `Update ${name}'s details.`,
@@ -376,6 +397,13 @@ export const CLIENTS_DICT: Record<AdminLocale, ClientsDictionary> = {
       addVehicleArrow: "Ajouter un véhicule →",
       recentInvoicesTitle: "Factures récentes",
       viewAllArrow: "Voir toutes →",
+    },
+    marketingConsent: {
+      label: "Recevoir les campagnes par courriel",
+      hintWithEmail: "Cochez seulement si le client a donné son consentement.",
+      hintNoEmail: "Le client n'a pas de courriel enregistré.",
+      toastIncluded: "Client inclus dans les campagnes",
+      toastExcluded: "Client exclu des campagnes",
     },
     edit: {
       title: "Modifier le client",

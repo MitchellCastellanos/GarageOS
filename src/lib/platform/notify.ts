@@ -9,6 +9,7 @@ import { SupportReplyEmail } from "@/emails/SupportReplyEmail";
 import { InternalSupportAlertEmail } from "@/emails/InternalSupportAlertEmail";
 import type { Plan } from "@/config/entitlements";
 import { APP_NAME, getAppUrl } from "@/config/app";
+import { resolveShopEmailLanguage, type PlatformEmailLanguage } from "@/lib/platform/locale";
 
 /**
  * Correos de GarageOS→taller sobre la cuenta del taller con GarageOS (plan,
@@ -45,21 +46,29 @@ async function sendPlatformEmail(to: string | string[], subject: string, react: 
   }
 }
 
+const PLAN_CHANGED_SUBJECT: Record<PlatformEmailLanguage, (plan: Plan) => string> = {
+  EN: (plan) => `Your plan changed to ${plan} — ${APP_NAME}`,
+  FR: (plan) => `Votre forfait a changé pour ${plan} — ${APP_NAME}`,
+};
+
 export async function notifyPlanChanged(params: {
   to: string | string[];
+  shopId: string;
   shopName: string;
   previousPlan: Plan;
   newPlan: Plan;
   reason: string;
 }): Promise<void> {
+  const language = await resolveShopEmailLanguage(params.shopId);
   await sendPlatformEmail(
     params.to,
-    `Tu plan cambió a ${params.newPlan} — ${APP_NAME}`,
+    PLAN_CHANGED_SUBJECT[language](params.newPlan),
     React.createElement(PlanChangedEmail, {
       shopName: params.shopName,
       previousPlan: params.previousPlan,
       newPlan: params.newPlan,
       reason: params.reason,
+      language,
     })
   );
 }
@@ -69,21 +78,42 @@ function preview(text: string, max = 240): string {
   return trimmed.length > max ? `${trimmed.slice(0, max)}…` : trimmed;
 }
 
+const SUPPORT_RECEIVED_SUBJECT: Record<PlatformEmailLanguage, string> = {
+  EN: `We received your message — ${APP_NAME}`,
+  FR: `Nous avons reçu votre message — ${APP_NAME}`,
+};
+
 /** Confirmación al taller de que su mensaje llegó — mismo patrón que MSC (confirmación inmediata + respuesta luego). */
-export async function notifySupportMessageReceived(params: { to: string; shopName: string; message: string }): Promise<void> {
+export async function notifySupportMessageReceived(params: {
+  to: string;
+  shopId: string;
+  shopName: string;
+  message: string;
+}): Promise<void> {
+  const language = await resolveShopEmailLanguage(params.shopId);
   await sendPlatformEmail(
     params.to,
-    `Recibimos tu mensaje — ${APP_NAME}`,
-    React.createElement(SupportMessageReceivedEmail, { shopName: params.shopName, messagePreview: preview(params.message) })
+    SUPPORT_RECEIVED_SUBJECT[language],
+    React.createElement(SupportMessageReceivedEmail, {
+      shopName: params.shopName,
+      messagePreview: preview(params.message),
+      language,
+    })
   );
 }
 
+const SUPPORT_REPLY_SUBJECT: Record<PlatformEmailLanguage, string> = {
+  EN: `New reply from ${APP_NAME}`,
+  FR: `Nouvelle réponse de ${APP_NAME}`,
+};
+
 /** Confirmación al taller cuando el super admin responde desde /platform/messages. */
-export async function notifySupportReply(params: { to: string; shopName: string; reply: string }): Promise<void> {
+export async function notifySupportReply(params: { to: string; shopId: string; shopName: string; reply: string }): Promise<void> {
+  const language = await resolveShopEmailLanguage(params.shopId);
   await sendPlatformEmail(
     params.to,
-    `Nueva respuesta de ${APP_NAME}`,
-    React.createElement(SupportReplyEmail, { shopName: params.shopName, replyPreview: preview(params.reply) })
+    SUPPORT_REPLY_SUBJECT[language],
+    React.createElement(SupportReplyEmail, { shopName: params.shopName, replyPreview: preview(params.reply), language })
   );
 }
 
@@ -102,21 +132,34 @@ export async function notifyAdminNewSupportMessage(params: { shopName: string; m
   );
 }
 
+const SUBSCRIPTION_CANCELED_SUBJECT: Record<PlatformEmailLanguage, string> = {
+  EN: `Your subscription cancellation — ${APP_NAME}`,
+  FR: `Annulation de votre abonnement — ${APP_NAME}`,
+};
+const DATE_LOCALE: Record<PlatformEmailLanguage, string> = { EN: "en-CA", FR: "fr-CA" };
+
 export async function notifySubscriptionCanceled(params: {
   to: string | string[];
+  shopId: string;
   shopName: string;
   reason: string;
   initiatedBySuperAdmin: boolean;
   effectiveAt: Date;
 }): Promise<void> {
+  const language = await resolveShopEmailLanguage(params.shopId);
   await sendPlatformEmail(
     params.to,
-    `Cancelación de tu suscripción — ${APP_NAME}`,
+    SUBSCRIPTION_CANCELED_SUBJECT[language],
     React.createElement(SubscriptionCanceledEmail, {
       shopName: params.shopName,
       reason: params.reason,
       initiatedBySuperAdmin: params.initiatedBySuperAdmin,
-      effectiveAtFormatted: params.effectiveAt.toLocaleDateString("es-CA", { year: "numeric", month: "long", day: "numeric" }),
+      effectiveAtFormatted: params.effectiveAt.toLocaleDateString(DATE_LOCALE[language], {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      }),
+      language,
     })
   );
 }
