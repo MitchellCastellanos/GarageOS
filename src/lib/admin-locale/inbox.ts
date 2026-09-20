@@ -52,6 +52,22 @@ export interface InboxDictionary {
     toastReplySent: string;
     toastArchived: string;
   };
+  editor: {
+    bold: string;
+    italic: string;
+    list: string;
+    orderedList: string;
+    undo: string;
+    redo: string;
+    preview: string;
+    edit: string;
+    defaultPlaceholder: string;
+    emptyPreview: string;
+    previewHeader: string;
+    sentBy: (shop: string) => string;
+    poweredBy: string;
+    bodyAriaLabel: string;
+  };
 }
 
 export const INBOX_DICT: Record<AdminLocale, InboxDictionary> = {
@@ -107,6 +123,22 @@ export const INBOX_DICT: Record<AdminLocale, InboxDictionary> = {
       toastReplySent: "Respuesta enviada",
       toastArchived: "Conversación archivada",
     },
+    editor: {
+      bold: "Negrita",
+      italic: "Cursiva",
+      list: "Lista",
+      orderedList: "Lista numerada",
+      undo: "Deshacer",
+      redo: "Rehacer",
+      preview: "Vista previa",
+      edit: "Editar",
+      defaultPlaceholder: "Escribe tu mensaje…",
+      emptyPreview: "Tu mensaje aparecerá aquí.",
+      previewHeader: "Mensaje",
+      sentBy: (shop) => `Este correo fue enviado por ${shop}.`,
+      poweredBy: "Enviado con GarageOS",
+      bodyAriaLabel: "Cuerpo del correo",
+    },
   },
   en: {
     list: {
@@ -160,6 +192,22 @@ export const INBOX_DICT: Record<AdminLocale, InboxDictionary> = {
       toastReplySent: "Reply sent",
       toastArchived: "Conversation archived",
     },
+    editor: {
+      bold: "Bold",
+      italic: "Italic",
+      list: "List",
+      orderedList: "Numbered list",
+      undo: "Undo",
+      redo: "Redo",
+      preview: "Preview",
+      edit: "Edit",
+      defaultPlaceholder: "Write your message…",
+      emptyPreview: "Your message will appear here.",
+      previewHeader: "Message",
+      sentBy: (shop) => `This email was sent by ${shop}.`,
+      poweredBy: "Sent with GarageOS",
+      bodyAriaLabel: "Email body",
+    },
   },
   fr: {
     list: {
@@ -212,6 +260,22 @@ export const INBOX_DICT: Record<AdminLocale, InboxDictionary> = {
       maxAttachments: (max) => `Maximum ${max} pièces jointes`,
       toastReplySent: "Réponse envoyée",
       toastArchived: "Conversation archivée",
+    },
+    editor: {
+      bold: "Gras",
+      italic: "Italique",
+      list: "Liste",
+      orderedList: "Liste numérotée",
+      undo: "Annuler",
+      redo: "Rétablir",
+      preview: "Aperçu",
+      edit: "Modifier",
+      defaultPlaceholder: "Écrivez votre message…",
+      emptyPreview: "Votre message apparaîtra ici.",
+      previewHeader: "Message",
+      sentBy: (shop) => `Ce courriel a été envoyé par ${shop}.`,
+      poweredBy: "Envoyé avec GarageOS",
+      bodyAriaLabel: "Corps du courriel",
     },
   },
 };

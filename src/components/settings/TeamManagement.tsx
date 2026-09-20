@@ -50,24 +50,24 @@ export function TeamManagement({ members, currentUserId, seatLimit }: TeamManage
 
   useEffect(() => {
     const verifyEmail = searchParams.get("verifyEmail");
-    if (verifyEmail === "success") toast.success("Correo confirmado");
-    else if (verifyEmail === "expired") toast.error("Ese link de confirmación venció — pide que te reenvíen uno");
-    else if (verifyEmail === "invalid") toast.error("Ese link de confirmación no es válido");
+    if (verifyEmail === "success") toast.success(t.team.verifyEmailSuccess);
+    else if (verifyEmail === "expired") toast.error(t.team.verifyEmailExpired);
+    else if (verifyEmail === "invalid") toast.error(t.team.verifyEmailInvalid);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function handleResendVerification(userId: string, name: string) {
     startTransition(async () => {
       const result = await resendTeamMemberVerification(userId);
-      if (result?.success) toast.success(`Correo de confirmación reenviado a ${name}`);
-      else toast.error(result?.error ?? "No se pudo reenviar el correo");
+      if (result?.success) toast.success(t.team.resendVerificationSuccess(name));
+      else toast.error(result?.error ?? t.team.resendVerificationError);
     });
   }
 
   function handleBillingNotificationToggle(userId: string, receive: boolean) {
     startTransition(async () => {
       const result = await updateOwnerBillingNotification(userId, receive);
-      if (!result?.success) toast.error(result?.error ?? "No se pudo actualizar");
+      if (!result?.success) toast.error(result?.error ?? t.team.billingNotifToggleError);
     });
   }
 
@@ -206,7 +206,7 @@ export function TeamManagement({ members, currentUserId, seatLimit }: TeamManage
                 <p className="text-sm text-slate-500 flex items-center gap-1.5">
                   {member.email}
                   {member.emailVerified ? (
-                    <span title="Correo confirmado">
+                    <span title={t.team.emailConfirmedTooltip}>
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
                     </span>
                   ) : (
@@ -214,11 +214,11 @@ export function TeamManagement({ members, currentUserId, seatLimit }: TeamManage
                       type="button"
                       disabled={pending}
                       onClick={() => handleResendVerification(member.id, member.name)}
-                      title="Correo sin confirmar — clic para reenviar"
+                      title={t.team.emailUnconfirmedTooltip}
                       className="flex items-center gap-1 text-amber-600 hover:text-amber-700 disabled:opacity-50"
                     >
                       <MailWarning className="w-3.5 h-3.5" />
-                      <span className="text-xs">Sin confirmar · reenviar</span>
+                      <span className="text-xs">{t.team.unconfirmedResendLabel}</span>
                     </button>
                   )}
                 </p>
@@ -231,7 +231,7 @@ export function TeamManagement({ members, currentUserId, seatLimit }: TeamManage
                       onChange={(e) => handleBillingNotificationToggle(member.id, e.target.checked)}
                       className="rounded border-slate-300"
                     />
-                    Recibe correos de facturación/plan
+                    {t.team.receivesBillingEmails}
                   </label>
                 )}
               </div>
