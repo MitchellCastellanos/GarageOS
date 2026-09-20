@@ -35,7 +35,7 @@ export async function sendCampaignEmail(params: {
 }): Promise<SendCampaignEmailResult> {
   const identity = await resolveSenderIdentity(params.shop.id, "CAMPAIGN", "EMAIL");
   if (!identity) {
-    throw new Error("No hay un remitente configurado para Campañas.");
+    throw new Error("No sender is configured for Campaigns.");
   }
 
   const from = formatFromHeader(params.shop.name, identity.address);

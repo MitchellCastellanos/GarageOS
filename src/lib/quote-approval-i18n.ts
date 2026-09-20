@@ -23,6 +23,12 @@ export interface QuoteApprovalStrings {
     acceptButton: string;
     rejectButton: string;
   };
+  errors: {
+    nameRequired: string;
+    linkInvalid: string;
+    alreadyUsed: string;
+    genericFailure: string;
+  };
 }
 
 const EN: QuoteApprovalStrings = {
@@ -48,6 +54,12 @@ const EN: QuoteApprovalStrings = {
     acceptButton: "Accept quote",
     rejectButton: "Reject",
   },
+  errors: {
+    nameRequired: "Enter your name to record the decision.",
+    linkInvalid: "This link is no longer valid or the quote is no longer available.",
+    alreadyUsed: "This link has already been used.",
+    genericFailure: "We couldn't record your decision. Please try again.",
+  },
 };
 
 const FR: QuoteApprovalStrings = {
@@ -72,6 +84,12 @@ const FR: QuoteApprovalStrings = {
     namePlaceholder: "Votre nom complet",
     acceptButton: "Accepter la soumission",
     rejectButton: "Refuser",
+  },
+  errors: {
+    nameRequired: "Écrivez votre nom pour enregistrer la décision.",
+    linkInvalid: "Ce lien n'est plus valide ou la soumission n'est plus disponible.",
+    alreadyUsed: "Ce lien a déjà été utilisé.",
+    genericFailure: "Nous n'avons pas pu enregistrer votre décision. Veuillez réessayer.",
   },
 };
 

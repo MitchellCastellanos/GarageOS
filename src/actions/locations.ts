@@ -208,7 +208,7 @@ export async function revokeLocationAccess(userId: string, shopId: string) {
   });
   const targetShop = await db.shop.findUnique({ where: { id: shopId }, select: { organizationId: true } });
   if (!ownerShop?.organizationId || targetShop?.organizationId !== ownerShop.organizationId) {
-    return { error: "No autorizado" };
+    return { error: "Not authorized" };
   }
 
   await db.userShopAccess.deleteMany({ where: { userId, shopId } });

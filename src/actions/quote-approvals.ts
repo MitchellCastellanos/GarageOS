@@ -7,18 +7,21 @@ import {
   getQuoteForApproval,
   hashQuoteApprovalSnapshot,
 } from "@/lib/quote-approval";
+import { getQuoteApprovalStrings } from "@/lib/quote-approval-i18n";
 
 export async function decideQuoteApproval(
   token: string,
   decision: "ACCEPTED" | "REJECTED",
   actorName: string,
 ) {
-  const name = actorName.trim().slice(0, 120);
-  if (!name) return { error: "Escribe tu nombre para registrar la decisión." };
-
   const quote = await getQuoteForApproval(token);
+  const t = getQuoteApprovalStrings(quote?.language).errors;
+
+  const name = actorName.trim().slice(0, 120);
+  if (!name) return { error: t.nameRequired };
+
   if (!quote || !["SENT", "DRAFT"].includes(quote.status)) {
-    return { error: "Este enlace ya no es válido o la cotización ya no está disponible." };
+    return { error: t.linkInvalid };
   }
 
   const snapshot = buildQuoteApprovalSnapshot(quote);
@@ -54,10 +57,10 @@ export async function decideQuoteApproval(
     });
   } catch (error) {
     if (error instanceof Error && error.message === "APPROVAL_ALREADY_CONSUMED") {
-      return { error: "Este enlace ya fue utilizado." };
+      return { error: t.alreadyUsed };
     }
     console.error("Error registrando aprobación de cotización:", error);
-    return { error: "No pudimos registrar tu decisión. Intenta de nuevo." };
+    return { error: t.genericFailure };
   }
 
   revalidatePath(`/quote/${token}`);

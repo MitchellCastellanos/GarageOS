@@ -111,7 +111,7 @@ export async function updateShopSettings(formData: FormData) {
 export async function setShopContactToLoginEmail() {
   const session = await requireShopSession();
   if (session.user.role !== "OWNER" || !session.user.email) {
-    return { error: "No autorizado" };
+    return { error: "Not authorized" };
   }
 
   const shopId = session.user.shopId!;
@@ -137,8 +137,8 @@ export async function resendShopEmailVerification() {
   const shopId = session.user.shopId!;
 
   const shop = await db.shop.findUnique({ where: { id: shopId }, select: { email: true, name: true, emailVerified: true } });
-  if (!shop?.email) return { error: "No hay un correo principal configurado" };
-  if (shop.emailVerified) return { error: "Este correo ya está confirmado" };
+  if (!shop?.email) return { error: "No main email is configured" };
+  if (shop.emailVerified) return { error: "This email is already confirmed" };
 
   await sendShopEmailVerification({ shopId, email: shop.email, shopName: shop.name });
   return { success: true };

@@ -40,6 +40,12 @@ const QUOTE_NOT_FOUND: Record<AdminLocale, string> = {
   fr: "Soumission introuvable",
 };
 
+const QUOTE_NO_CLIENT_PHONE: Record<AdminLocale, string> = {
+  es: "El cliente no tiene teléfono. Agrégalo en su ficha antes de enviar la cotización.",
+  en: "The client has no phone number. Add one on their profile before sending the quote.",
+  fr: "Le client n'a pas de numéro de téléphone. Ajoutez-en un dans sa fiche avant d'envoyer la soumission.",
+};
+
 const QUOTE_CANNOT_SEND: Record<AdminLocale, string> = {
   es: "No se puede enviar esta cotización",
   en: "This quote cannot be sent",
@@ -404,7 +410,7 @@ export async function sendQuoteBySms(id: string) {
   }
   const clientPhone = quote.client.phone?.trim();
   if (!clientPhone) {
-    return { error: "El cliente no tiene teléfono. Agrégalo en su ficha antes de enviar la cotización." };
+    return { error: QUOTE_NO_CLIENT_PHONE[locale] };
   }
 
   const isResend = quote.smsSendCount > 0;
