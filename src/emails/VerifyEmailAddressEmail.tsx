@@ -55,7 +55,7 @@ export function VerifyEmailAddressEmail({ name, verifyUrl, language }: VerifyEma
           href={verifyUrl}
           style={{
             display: "inline-block",
-            backgroundColor: "#0f172a",
+            backgroundColor: "#1769ff",
             color: "#ffffff",
             fontWeight: 600,
             padding: "10px 20px",

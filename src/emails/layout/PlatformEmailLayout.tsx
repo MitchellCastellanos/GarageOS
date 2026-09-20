@@ -4,9 +4,9 @@
 // docs/super-admin-todo.md: esta es la relación comercial GarageOS↔taller,
 // nunca la del taller con sus propios clientes.
 
-import { Body, Container, Head, Heading, Html, Preview, Section, Text } from "@react-email/components";
+import { Body, Container, Head, Img, Html, Preview, Section, Text } from "@react-email/components";
 import React from "react";
-import { APP_NAME } from "@/config/app";
+import { APP_NAME, getAppUrl } from "@/config/app";
 
 export interface PlatformEmailLayoutProps {
   /** Código de idioma para el atributo lang del <html> (ej. "en", "fr") — ver resolveShopEmailLanguage. */
@@ -18,6 +18,8 @@ export interface PlatformEmailLayoutProps {
 }
 
 const HEADER_COLOR = "#0f172a";
+/** Acento de marca (--brand-blue en globals.css) — el logo del header ya lo trae integrado. */
+const BRAND_BLUE = "#1769ff";
 
 export function PlatformEmailLayout({ lang = "en", previewText, headerSubtitle, footerText, children }: PlatformEmailLayoutProps) {
   return (
@@ -27,7 +29,13 @@ export function PlatformEmailLayout({ lang = "en", previewText, headerSubtitle, 
       <Body style={styles.body}>
         <Container style={styles.container}>
           <Section style={styles.header}>
-            <Heading style={styles.appName}>{APP_NAME}</Heading>
+            <Img
+              src={`${getAppUrl()}/brand/logo-monochrome-white.png`}
+              alt={APP_NAME}
+              width="140"
+              height="47"
+              style={styles.logo}
+            />
             <Text style={styles.headerSubtitle}>{headerSubtitle}</Text>
           </Section>
           <Section style={styles.content}>{children}</Section>
@@ -67,9 +75,16 @@ const styles = {
     margin: "0",
     padding: "20px 0",
   },
-  container: { backgroundColor: "#ffffff", borderRadius: "12px", maxWidth: "560px", margin: "0 auto", overflow: "hidden" },
+  container: {
+    backgroundColor: "#ffffff",
+    borderRadius: "12px",
+    maxWidth: "560px",
+    margin: "0 auto",
+    overflow: "hidden",
+    borderTop: `3px solid ${BRAND_BLUE}`,
+  },
   header: { backgroundColor: HEADER_COLOR, padding: "28px 40px" },
-  appName: { color: "#ffffff", fontSize: "20px", fontWeight: "700", margin: "0 0 4px 0" },
+  logo: { display: "block", margin: "0 0 10px 0" },
   headerSubtitle: { color: "#cbd5e1", fontSize: "14px", margin: "0" },
   content: { padding: "32px 40px" },
   footer: { backgroundColor: "#f8fafc", borderTop: "1px solid #e2e8f0", padding: "16px 40px" },
