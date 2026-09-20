@@ -92,7 +92,7 @@ export async function sendSupportMessage(content: string) {
   await publishPlatformConversationUpdate(conversation.id);
 
   if (isNewConversation && shop.email) {
-    await notifySupportMessageReceived({ to: shop.email, shopName: shop.name, message: trimmed }).catch((err) =>
+    await notifySupportMessageReceived({ to: shop.email, shopId: shop.id, shopName: shop.name, message: trimmed }).catch((err) =>
       console.error("[support] notifySupportMessageReceived falló:", err)
     );
   }

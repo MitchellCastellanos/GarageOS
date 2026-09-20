@@ -276,7 +276,7 @@ export async function createShopOwner(formData: FormData) {
     },
   });
 
-  await sendVerificationEmail({ email: normalizedEmail, name }).catch((err) =>
+  await sendVerificationEmail({ email: normalizedEmail, name, language: shop.defaultLanguage === "FR" ? "FR" : "EN" }).catch((err) =>
     console.error("[createShopOwner] sendVerificationEmail falló:", err)
   );
 
@@ -472,7 +472,7 @@ export async function changeShopPlan(shopId: string, newPlan: Plan, reason: stri
 
   const billingTo = await resolveBillingNotificationRecipients(shopId);
   if (billingTo.length > 0) {
-    await notifyPlanChanged({ to: billingTo, shopName: shop.name, previousPlan, newPlan, reason: trimmedReason }).catch((err) =>
+    await notifyPlanChanged({ to: billingTo, shopId, shopName: shop.name, previousPlan, newPlan, reason: trimmedReason }).catch((err) =>
       console.error("[platform] notifyPlanChanged falló:", err)
     );
   }
@@ -573,6 +573,7 @@ export async function cancelShopSubscription(shopId: string, reason: string) {
   if (billingTo.length > 0) {
     await notifySubscriptionCanceled({
       to: billingTo,
+      shopId,
       shopName: shop.name,
       reason: trimmedReason,
       initiatedBySuperAdmin: true,

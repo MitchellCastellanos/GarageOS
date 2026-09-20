@@ -6,10 +6,14 @@ import { toast } from "sonner";
 import { Loader2, Users } from "lucide-react";
 import { createCampaignAction, previewAudienceAction } from "@/actions/campaigns";
 import { adminPath } from "@/lib/routes";
+import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
+import { CAMPAIGNS_DICT } from "@/lib/admin-locale/campaigns";
 
 type SegmentType = "ALL_CONSENTED" | "LANGUAGE" | "INACTIVE_MONTHS" | "MANUAL";
 
 export function CampaignForm() {
+  const locale = useAdminLocale();
+  const t = CAMPAIGNS_DICT[locale];
   const router = useRouter();
   const [segmentType, setSegmentType] = useState<SegmentType>("ALL_CONSENTED");
   const [pending, startTransition] = useTransition();
@@ -32,7 +36,7 @@ export function CampaignForm() {
         toast.error(result.error);
         return;
       }
-      toast.success("Campaña guardada como borrador");
+      toast.success(t.form.toastSavedAsDraft);
       if (result?.campaignId) router.push(adminPath(`/campaigns/${result.campaignId}`));
     });
   }

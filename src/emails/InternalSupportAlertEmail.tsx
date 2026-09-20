@@ -10,7 +10,12 @@ export interface InternalSupportAlertEmailProps {
 
 export function InternalSupportAlertEmail({ shopName, messagePreview, adminUrl }: InternalSupportAlertEmailProps) {
   return (
-    <PlatformEmailLayout previewText={`Mensaje nuevo de ${shopName}`} headerSubtitle="Nuevo mensaje de soporte">
+    <PlatformEmailLayout
+      lang="es"
+      previewText={`Mensaje nuevo de ${shopName}`}
+      headerSubtitle="Nuevo mensaje de soporte"
+      footerText="Este correo es una alerta interna de GarageOS."
+    >
       <Text style={s.bodyText}>
         <strong>{shopName}</strong> mandó un mensaje y espera respuesta:
       </Text>

@@ -9,16 +9,19 @@ import React from "react";
 import { APP_NAME } from "@/config/app";
 
 export interface PlatformEmailLayoutProps {
+  /** Código de idioma para el atributo lang del <html> (ej. "en", "fr") — ver resolveShopEmailLanguage. */
+  lang?: string;
   previewText: string;
   headerSubtitle: string;
+  footerText: string;
   children: React.ReactNode;
 }
 
 const HEADER_COLOR = "#0f172a";
 
-export function PlatformEmailLayout({ previewText, headerSubtitle, children }: PlatformEmailLayoutProps) {
+export function PlatformEmailLayout({ lang = "en", previewText, headerSubtitle, footerText, children }: PlatformEmailLayoutProps) {
   return (
-    <Html lang="es">
+    <Html lang={lang}>
       <Head />
       <Preview>{previewText}</Preview>
       <Body style={styles.body}>
@@ -29,7 +32,7 @@ export function PlatformEmailLayout({ previewText, headerSubtitle, children }: P
           </Section>
           <Section style={styles.content}>{children}</Section>
           <Section style={styles.footer}>
-            <Text style={styles.footerText}>Este correo lo envía {APP_NAME} sobre tu cuenta de plataforma.</Text>
+            <Text style={styles.footerText}>{footerText}</Text>
           </Section>
         </Container>
       </Body>

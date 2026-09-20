@@ -56,12 +56,17 @@ export async function sendInboxMessage(params: SendInboxMessageParams): Promise<
     : await resolveSenderIdentity(params.shopId, "INBOX", "EMAIL");
   if (!identity) {
     throw new Error(
-      "No hay un remitente configurado para la Bandeja. Configura uno en Configuración → Rutas de comunicación."
+      "No sender is configured for the Inbox. Set one up under Settings → Communication routes."
     );
   }
 
   const from = formatFromHeader(params.shopName, identity.address);
   const replyTo = identity.replyTo ?? identity.address;
+
+  const client = params.clientId
+    ? await db.client.findUnique({ where: { id: params.clientId }, select: { language: true } })
+    : null;
+  const lang = client?.language === "FR" ? "fr" : "en";
 
   const thread = params.threadId
     ? await db.communicationThread.findFirstOrThrow({ where: { id: params.threadId, shopId: params.shopId } })
@@ -78,7 +83,9 @@ export async function sendInboxMessage(params: SendInboxMessageParams): Promise<
     shopName: params.shopName,
     bodyText: params.bodyText,
     bodyRich: params.bodyRich,
-    footerText: `Este correo fue enviado por ${params.shopName}.`,
+    footerText:
+      lang === "fr" ? `Ce courriel a été envoyé par ${params.shopName}.` : `This email was sent by ${params.shopName}.`,
+    lang,
   });
   const html = await render(element);
 

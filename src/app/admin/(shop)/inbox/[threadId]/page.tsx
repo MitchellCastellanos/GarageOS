@@ -7,17 +7,19 @@ import { signedUrlForCommunicationAttachment } from "@/lib/storage";
 import { ReplyBox } from "@/components/inbox/ReplyBox";
 import { db } from "@/lib/db";
 import { getShopId } from "@/lib/shop-context";
+import { getAdminLocale } from "@/lib/get-admin-locale";
+import { INBOX_DICT } from "@/lib/admin-locale/inbox";
 
 interface PageProps { params: Promise<{ threadId: string }>; }
 type ThreadDetail = NonNullable<Awaited<ReturnType<typeof getThreadDetail>>>;
 type ThreadMessage = ThreadDetail["thread"]["messages"][number];
 
-async function MessageRow({ message }: { message: ThreadMessage }) {
+async function MessageRow({ message, youTo }: { message: ThreadMessage; youTo: (to: string) => string }) {
   return (
     <div className="p-5">
       <div className="flex items-center gap-2 mb-2">
         {message.direction === "INBOUND" ? <ArrowDownLeft className="w-4 h-4 text-emerald-600" /> : <ArrowUpRight className="w-4 h-4 text-slate-400" />}
-        <span className="text-sm font-medium text-slate-900">{message.direction === "INBOUND" ? message.from : `Tú → ${message.to.join(", ")}`}</span>
+        <span className="text-sm font-medium text-slate-900">{message.direction === "INBOUND" ? message.from : youTo(message.to.join(", "))}</span>
         <span className="text-xs text-slate-400 ml-auto">{formatDate(message.createdAt)}</span>
       </div>
       {message.subject && <p className="text-sm font-medium text-slate-700 mb-1">{message.subject}</p>}

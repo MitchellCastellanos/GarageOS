@@ -3,6 +3,11 @@ import { getQuoteForApproval } from "@/lib/quote-approval";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { formatClientName } from "@/lib/client-name";
 import { QuoteApprovalForm } from "@/components/quotes/QuoteApprovalForm";
+import { getQuoteApprovalStrings, type QuoteApprovalLanguage } from "@/lib/quote-approval-i18n";
+
+function resolveLanguage(language: string | null | undefined): QuoteApprovalLanguage {
+  return language === "FR" ? "FR" : "EN";
+}
 
 export default async function PublicQuoteApprovalPage({
   params,
@@ -13,27 +18,28 @@ export default async function PublicQuoteApprovalPage({
   const quote = await getQuoteForApproval(token);
   if (!quote) notFound();
 
+  const language = resolveLanguage(quote.language);
+  const t = getQuoteApprovalStrings(language);
+
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8 sm:py-12">
       <div className="mx-auto max-w-2xl space-y-5">
         <header className="rounded-2xl bg-slate-900 px-6 py-7 text-white shadow-sm sm:px-8">
           <p className="text-sm font-medium text-blue-200">{quote.shop.name}</p>
-          <h1 className="mt-2 text-2xl font-bold sm:text-3xl">Cotización {quote.quoteNumber}</h1>
-          <p className="mt-2 text-sm text-slate-300">
-            Revisa el detalle y responde directamente desde este enlace seguro.
-          </p>
+          <h1 className="mt-2 text-2xl font-bold sm:text-3xl">{t.title(quote.quoteNumber)}</h1>
+          <p className="mt-2 text-sm text-slate-300">{t.intro}</p>
         </header>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
           <div className="flex flex-wrap justify-between gap-4 border-b border-slate-100 pb-5">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Cliente</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.client}</p>
               <p className="mt-1 font-semibold text-slate-900">{formatClientName(quote.client)}</p>
             </div>
             <div className="text-left sm:text-right">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Válida hasta</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t.validUntil}</p>
               <p className="mt-1 font-semibold text-slate-900">
-                {quote.validUntil ? formatDate(quote.validUntil) : "Sin fecha de vencimiento"}
+                {quote.validUntil ? formatDate(quote.validUntil) : t.noExpiry}
               </p>
             </div>
           </div>

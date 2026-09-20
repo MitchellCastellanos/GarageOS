@@ -190,7 +190,7 @@ model User {
   passwordHash    String?
   role            Role            @default(MECHANIC)
   bookable        Boolean         @default(true)
-  preferredLocale InvoiceLanguage @default(ES)
+  preferredLocale InvoiceLanguage @default(EN)
   // Solo aplica a role OWNER — si un taller tiene varios dueños, cada uno
   // decide si quiere recibir los correos de facturación/cambios de plan.
   receiveBillingNotifications Boolean @default(true)
