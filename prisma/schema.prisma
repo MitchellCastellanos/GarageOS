@@ -36,6 +36,12 @@ model Shop {
   etransferEmail            String?
   taxId                     String?
   currency                  String        @default("CAD")
+  // Impuestos configurables por taller: lista de líneas {name, rate} (rate
+  // como string decimal, ej. "0.05"). La suma de rates es la tasa combinada
+  // por defecto para facturas/cotizaciones nuevas. Reemplaza el TPS+TVQ de
+  // Quebec hardcodeado — cada taller define sus propios impuestos (uno, dos,
+  // o ninguno). Ver src/lib/taxes.ts.
+  taxLines                  Json          @default("[{\"name\":\"GST\",\"rate\":\"0.05\"},{\"name\":\"QST\",\"rate\":\"0.09975\"}]")
   appointmentReminderHours  Int           @default(24)
   appointmentEmailsEnabled  Boolean       @default(true)
   appointmentSmsEnabled     Boolean       @default(true)
@@ -663,8 +669,6 @@ model AccountingDocument {
   category      DocCategory
   fileName      String
   storagePath   String
-  driveFileId   String?
-  driveFolderId String?
   uploadedAt    DateTime    @default(now())
   uploadedById  String?
   notes         String?

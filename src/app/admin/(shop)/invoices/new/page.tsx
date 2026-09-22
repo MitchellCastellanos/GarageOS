@@ -6,9 +6,10 @@ import { getInvoiceFormData } from "@/actions/invoices";
 import { type InvoiceFormData } from "@/lib/validations";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import { INVOICES_DICT } from "@/lib/admin-locale/invoices";
+import { parseShopTaxLines } from "@/lib/taxes";
 
 export default async function NewInvoicePage() {
-  const { clients } = await getInvoiceFormData();
+  const { clients, shop } = await getInvoiceFormData();
   const locale = await getAdminLocale();
   const t = INVOICES_DICT[locale].form;
 
@@ -27,6 +28,7 @@ export default async function NewInvoicePage() {
 
       <InvoiceForm
         clients={clients}
+        taxLines={parseShopTaxLines(shop?.taxLines)}
         onSubmit={async (data: InvoiceFormData) => {
           "use server";
           return createInvoice(data);

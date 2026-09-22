@@ -5,9 +5,10 @@ import { createQuote, getQuoteFormData } from "@/actions/quotes";
 import { type QuoteFormData } from "@/lib/validations";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import { QUOTES_DICT } from "@/lib/admin-locale/quotes";
+import { parseShopTaxLines } from "@/lib/taxes";
 
 export default async function NewQuotePage() {
-  const { clients } = await getQuoteFormData();
+  const { clients, shop } = await getQuoteFormData();
 
   if (clients.length === 0) {
     redirect(`${ADMIN.clients}/new?hint=quote`);
@@ -28,6 +29,7 @@ export default async function NewQuotePage() {
       <InvoiceForm
         variant="quote"
         clients={clients}
+        taxLines={parseShopTaxLines(shop?.taxLines)}
         onSubmit={async (data: QuoteFormData) => {
           "use server";
           return createQuote(data);

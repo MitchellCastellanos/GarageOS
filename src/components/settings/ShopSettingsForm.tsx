@@ -8,17 +8,21 @@ import {
   updateShopSlug,
   updateShopBrandColor,
   updateEtransferSettings,
+  updateShopTaxLines,
   uploadShopLogo,
   changePassword,
   setShopContactToLoginEmail,
   resendShopEmailVerification,
 } from "@/actions/settings";
 import { validateLogo } from "@/lib/logo-upload";
-import { Upload, Loader2, Info, CheckCircle2, MailWarning } from "lucide-react";
+import { Upload, Loader2, Info, CheckCircle2, MailWarning, Plus, Trash2 } from "lucide-react";
 import Image from "next/image";
 import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
 import { SETTINGS_DICT } from "@/lib/admin-locale/settings";
 import { DEFAULT_BRAND_COLOR, toSafeDarkBrandColor } from "@/lib/brand-color";
+import { parseShopTaxLines } from "@/lib/taxes";
+import { CANADA_TAX_PRESETS } from "@/lib/tax-presets";
+import Decimal from "decimal.js";
 
 interface Shop {
   id: string;
@@ -33,6 +37,14 @@ interface Shop {
   brandColor: string | null;
   etransferEnabled: boolean;
   etransferEmail: string | null;
+  taxLines: unknown;
+}
+
+interface TaxLineDraft {
+  id: string;
+  name: string;
+  /** Porcentaje como string para el input, ej. "5" (no decimal — 5% = 0.05) */
+  pct: string;
 }
 
 interface ShopSettingsFormProps {
@@ -96,6 +108,14 @@ export function ShopSettingsForm({ shop, slugUrlPrefix, canUseLoginEmail, loginE
   const [pwPending, startPwTransition] = useTransition();
   const [etransferPending, startEtransferTransition] = useTransition();
   const [etransferEnabled, setEtransferEnabled] = useState(shop.etransferEnabled);
+  const [taxPending, startTaxTransition] = useTransition();
+  const [taxLines, setTaxLines] = useState<TaxLineDraft[]>(() =>
+    parseShopTaxLines(shop.taxLines).map((l, i) => ({
+      id: `${i}-${l.name}`,
+      name: l.name,
+      pct: new Decimal(l.rate).times(100).toString(),
+    }))
+  );
   const logoInputRef = useRef<HTMLInputElement>(null);
   const pwFormRef = useRef<HTMLFormElement>(null);
 
@@ -163,6 +183,50 @@ export function ShopSettingsForm({ shop, slugUrlPrefix, canUseLoginEmail, loginE
       } else if (result?.error) {
         const msg = Object.values(result.error).flat()[0];
         toast.error(typeof msg === "string" ? msg : t.etransfer.saved);
+      }
+    });
+  }
+
+  function addTaxLine() {
+    setTaxLines((prev) => [...prev, { id: `${Date.now()}`, name: "", pct: "0" }]);
+  }
+
+  function removeTaxLine(id: string) {
+    setTaxLines((prev) => prev.filter((l) => l.id !== id));
+  }
+
+  function updateTaxLine(id: string, patch: Partial<Pick<TaxLineDraft, "name" | "pct">>) {
+    setTaxLines((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch } : l)));
+  }
+
+  function applyTaxPreset(code: string) {
+    const preset = CANADA_TAX_PRESETS.find((p) => p.code === code);
+    if (!preset) return;
+    setTaxLines(
+      preset.lines.map((l, i) => ({
+        id: `${Date.now()}-${i}`,
+        name: l.name,
+        pct: new Decimal(l.rate).times(100).toString(),
+      }))
+    );
+  }
+
+  function handleTaxSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const payload = taxLines
+      .filter((l) => l.name.trim())
+      .map((l) => ({
+        name: l.name.trim(),
+        rate: new Decimal(l.pct || 0).div(100).toNumber(),
+      }));
+    const formData = new FormData();
+    formData.set("taxLines", JSON.stringify(payload));
+    startTaxTransition(async () => {
+      const result = await updateShopTaxLines(formData);
+      if (result?.success) {
+        toast.success(t.taxes.saved);
+      } else {
+        toast.error(typeof result?.error === "string" ? result.error : t.taxes.saved);
       }
     });
   }
@@ -429,6 +493,103 @@ export function ShopSettingsForm({ shop, slugUrlPrefix, canUseLoginEmail, loginE
           >
             {etransferPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
             {etransferPending ? t.etransfer.saving : t.etransfer.save}
+          </button>
+        </div>
+      </form>
+
+      {/* ── Impuestos ── */}
+      <form onSubmit={handleTaxSubmit} className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
+        <div>
+          <h2 className="font-semibold text-slate-900">{t.taxes.title}</h2>
+          <p className="text-sm text-slate-500 mt-1">{t.taxes.subtitle}</p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">
+            {t.taxes.presetLabel}
+          </label>
+          <select
+            defaultValue=""
+            onChange={(e) => {
+              if (e.target.value) applyTaxPreset(e.target.value);
+              e.target.value = "";
+            }}
+            className={inputClass}
+          >
+            <option value="">{t.taxes.presetPlaceholder}</option>
+            {CANADA_TAX_PRESETS.map((preset) => (
+              <option key={preset.code} value={preset.code}>
+                {preset.label[locale]}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-slate-400 mt-1">{t.taxes.presetHint}</p>
+        </div>
+
+        {taxLines.length === 0 && (
+          <p className="text-xs text-slate-400">{t.taxes.empty}</p>
+        )}
+
+        <div className="space-y-2">
+          {taxLines.map((line) => (
+            <div key={line.id} className="flex items-center gap-2">
+              <input
+                type="text"
+                value={line.name}
+                onChange={(e) => updateTaxLine(line.id, { name: e.target.value })}
+                placeholder={t.taxes.namePlaceholder}
+                maxLength={30}
+                className={`${inputClass} flex-1`}
+              />
+              <div className="relative w-28 flex-shrink-0">
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step="0.001"
+                  value={line.pct}
+                  onChange={(e) => updateTaxLine(line.id, { pct: e.target.value })}
+                  className={`${inputClass} pr-7 text-right`}
+                />
+                <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">
+                  %
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => removeTaxLine(line.id)}
+                className="p-2 text-slate-400 hover:text-red-500 flex-shrink-0"
+                title={t.taxes.remove}
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          onClick={addTaxLine}
+          disabled={taxLines.length >= 5}
+          className="flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 disabled:opacity-40"
+        >
+          <Plus className="w-4 h-4" />
+          {t.taxes.addLine}
+        </button>
+
+        <div className="flex items-start gap-2.5 bg-blue-50 border border-blue-100 rounded-lg px-3.5 py-3">
+          <Info className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
+          <p className="text-xs text-blue-800 leading-relaxed">{t.taxes.infoNote}</p>
+        </div>
+
+        <div className="flex justify-end pt-2">
+          <button
+            type="submit"
+            disabled={taxPending}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium px-5 py-2 rounded-lg text-sm transition-colors"
+          >
+            {taxPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+            {taxPending ? t.taxes.saving : t.taxes.save}
           </button>
         </div>
       </form>

@@ -77,6 +77,21 @@ export interface SettingsDictionary {
     saving: string;
     saved: string;
   };
+  taxes: {
+    title: string;
+    subtitle: string;
+    presetLabel: string;
+    presetPlaceholder: string;
+    presetHint: string;
+    empty: string;
+    namePlaceholder: string;
+    addLine: string;
+    remove: string;
+    infoNote: string;
+    save: string;
+    saving: string;
+    saved: string;
+  };
   shopSlug: {
     title: string;
     subtitle: string;
@@ -432,6 +447,21 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       save: "Guardar cambios",
       saving: "Guardando...",
       saved: "Configuración guardada",
+    },
+    taxes: {
+      title: "Impuestos",
+      subtitle: "Define los impuestos que aplicas en tus facturas y cotizaciones — uno, varios, o ninguno.",
+      presetLabel: "Preset por provincia (opcional)",
+      presetPlaceholder: "— Selecciona tu provincia —",
+      presetHint: "Solo para talleres en Canadá — precarga las líneas de abajo, que puedes editar antes de guardar. Confirma las tasas con tu contador(a), pueden cambiar.",
+      empty: "Sin impuestos configurados — tus facturas se emitirán sin impuestos.",
+      namePlaceholder: "Ej. IVA, GST, Sales Tax",
+      addLine: "Agregar impuesto",
+      remove: "Eliminar",
+      infoNote: "Esta es la tasa por defecto para facturas y cotizaciones nuevas — puedes ajustarla en cada documento si un cliente está exento.",
+      save: "Guardar cambios",
+      saving: "Guardando...",
+      saved: "Impuestos guardados",
     },
     shopSlug: {
       title: "Enlace público de reservas",
@@ -820,6 +850,21 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       saving: "Saving...",
       saved: "Settings saved",
     },
+    taxes: {
+      title: "Taxes",
+      subtitle: "Set the tax(es) you apply on your invoices and quotes — one, several, or none.",
+      presetLabel: "Province preset (optional)",
+      presetPlaceholder: "— Select your province —",
+      presetHint: "For Canadian shops only — prefills the lines below, which you can edit before saving. Confirm rates with your accountant, they can change.",
+      empty: "No taxes configured — your invoices will be issued tax-free.",
+      namePlaceholder: "E.g. VAT, GST, Sales Tax",
+      addLine: "Add tax",
+      remove: "Remove",
+      infoNote: "This is the default rate for new invoices and quotes — you can adjust it on any document if a client is tax-exempt.",
+      save: "Save changes",
+      saving: "Saving...",
+      saved: "Taxes saved",
+    },
     shopSlug: {
       title: "Public booking link",
       subtitle: "This identifier sets the URL where clients book appointments online, and unlocks sharing the link, the website button, and the embedded widget in the Calendar & Hours tab.",
@@ -1204,6 +1249,21 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       save: "Enregistrer les changements",
       saving: "Enregistrement...",
       saved: "Configuration enregistrée",
+    },
+    taxes: {
+      title: "Taxes",
+      subtitle: "Définissez la ou les taxes appliquées sur vos factures et soumissions — une, plusieurs, ou aucune.",
+      presetLabel: "Préréglage par province (optionnel)",
+      presetPlaceholder: "— Sélectionnez votre province —",
+      presetHint: "Pour les garages au Canada seulement — préremplit les lignes ci-dessous, que vous pouvez modifier avant d'enregistrer. Confirmez les taux avec votre comptable, ils peuvent changer.",
+      empty: "Aucune taxe configurée — vos factures seront émises sans taxes.",
+      namePlaceholder: "Ex. TPS, TVQ, TVH",
+      addLine: "Ajouter une taxe",
+      remove: "Supprimer",
+      infoNote: "C'est le taux par défaut pour les nouvelles factures et soumissions — vous pouvez l'ajuster sur chaque document si un client est exonéré.",
+      save: "Enregistrer les changements",
+      saving: "Enregistrement...",
+      saved: "Taxes enregistrées",
     },
     shopSlug: {
       title: "Lien public de réservation",

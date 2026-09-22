@@ -1,6 +1,9 @@
+import { ADMIN } from "@/lib/routes";
 import { getAccountingPageData } from "@/actions/documents";
 import { DOC_CATEGORIES } from "@/lib/validations";
 import { AccountingClient } from "@/components/accounting/AccountingClient";
+import { InvoiceHistoryPanel } from "@/components/accounting/InvoiceHistoryPanel";
+import { Tabs, type TabItem } from "@/components/ui/Tabs";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import { CAJA_DICT } from "@/lib/admin-locale/caja";
 
@@ -10,6 +13,19 @@ export default async function AccountingPage() {
   const locale = await getAdminLocale();
   const t = CAJA_DICT[locale].accountingPage;
 
+  const tabs: TabItem[] = [
+    {
+      id: "history",
+      label: t.tabs.history,
+      content: <InvoiceHistoryPanel />,
+    },
+    {
+      id: "documents",
+      label: t.tabs.documents,
+      content: <AccountingClient initialDocs={documents} categories={DOC_CATEGORIES} />,
+    },
+  ];
+
   return (
     <div className="space-y-6">
       <div>
@@ -17,7 +33,7 @@ export default async function AccountingPage() {
         <p className="text-slate-500 text-sm mt-1">{t.subtitle}</p>
       </div>
 
-      <AccountingClient initialDocs={documents} categories={DOC_CATEGORIES} />
+      <Tabs tabs={tabs} basePath={ADMIN.accounting} />
     </div>
   );
 }

@@ -62,8 +62,7 @@ export interface QuotesDictionary {
     notes: string;
     summary: string;
     subtotal: string;
-    gstLabel: (pct: string) => string;
-    qstLabel: (pct: string) => string;
+    taxLine: (name: string, pct: string) => string;
     totalCad: string;
   };
   actions: {
@@ -167,8 +166,7 @@ export const QUOTES_DICT: Record<AdminLocale, QuotesDictionary> = {
       notes: "Notas",
       summary: "Resumen",
       subtotal: "Subtotal",
-      gstLabel: (pct) => `TPS (${pct}%)`,
-      qstLabel: (pct) => `TVQ (${pct}%)`,
+      taxLine: (name, pct) => `${name} (${pct}%)`,
       totalCad: "Total CAD",
     },
     actions: {
@@ -271,8 +269,7 @@ export const QUOTES_DICT: Record<AdminLocale, QuotesDictionary> = {
       notes: "Notes",
       summary: "Summary",
       subtotal: "Subtotal",
-      gstLabel: (pct) => `GST (${pct}%)`,
-      qstLabel: (pct) => `QST (${pct}%)`,
+      taxLine: (name, pct) => `${name} (${pct}%)`,
       totalCad: "Total CAD",
     },
     actions: {
@@ -375,8 +372,7 @@ export const QUOTES_DICT: Record<AdminLocale, QuotesDictionary> = {
       notes: "Notes",
       summary: "Résumé",
       subtotal: "Sous-total",
-      gstLabel: (pct) => `TPS (${pct} %)`,
-      qstLabel: (pct) => `TVQ (${pct} %)`,
+      taxLine: (name, pct) => `${name} (${pct} %)`,
       totalCad: "Total CAD",
     },
     actions: {

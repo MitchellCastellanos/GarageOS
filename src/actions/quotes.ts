@@ -13,7 +13,7 @@ import {
   allocateNextQuoteNumber,
   isUniqueConstraintError,
 } from "@/lib/invoice-number";
-import { calculateTaxBreakdown, roundTaxRate } from "@/lib/taxes";
+import { calculateTaxAmount, roundTaxRate } from "@/lib/taxes";
 import { serializeQuoteForPdf } from "@/lib/quote-serialize";
 import { generateQuotePdf } from "@/lib/pdf";
 import { sendQuoteEmail } from "@/lib/email";
@@ -156,7 +156,7 @@ export async function createQuote(formData: QuoteFormData) {
     return sum.plus(new Decimal(item.quantity).times(item.unitPrice));
   }, new Decimal(0));
 
-  const { taxAmount } = calculateTaxBreakdown(subtotal, taxRate);
+  const taxAmount = calculateTaxAmount(subtotal, taxRate);
   const total = subtotal.plus(taxAmount);
 
   const quote = await db.$transaction(async (tx) => {
@@ -231,7 +231,7 @@ export async function updateQuote(id: string, formData: QuoteFormData) {
     return sum.plus(new Decimal(item.quantity).times(item.unitPrice));
   }, new Decimal(0));
 
-  const { taxAmount } = calculateTaxBreakdown(subtotal, taxRate);
+  const taxAmount = calculateTaxAmount(subtotal, taxRate);
   const total = subtotal.plus(taxAmount);
 
   await db.$transaction(async (tx) => {
