@@ -317,6 +317,7 @@ export async function updateAppointment(id: string, formData: AppointmentEditFor
 
   const startsAt = parseStartsAt(date, time, timeZone);
   const endsAt = new Date(startsAt.getTime() + durationMinutes * 60_000);
+  const timeChanged = startsAt.getTime() !== existing.startsAt.getTime();
 
   try {
     await db.$transaction(
@@ -357,6 +358,23 @@ export async function updateAppointment(id: string, formData: AppointmentEditFor
       return { error: { mechanicId: [MECHANIC_CONFLICT[locale]] } };
     }
     throw err;
+  }
+
+  // Avisa al cliente del cambio: cancelación si el admin la canceló desde este
+  // mismo formulario, o confirmación si reprogramó la fecha/hora (mismo mecanismo
+  // que el botón manual y la reserva pública). Best-effort — nunca bloquea el guardado.
+  if (status === "CANCELLED" && existing.status !== "CANCELLED") {
+    try {
+      await sendAppointmentCancellation(id);
+    } catch (err) {
+      console.error(`Error enviando cancelación de cita ${id}:`, err);
+    }
+  } else if (timeChanged && status !== "CANCELLED" && status !== "NO_SHOW") {
+    try {
+      await sendAppointmentConfirmation(id);
+    } catch (err) {
+      console.error(`Error enviando confirmación de cita ${id}:`, err);
+    }
   }
 
   revalidatePath(ADMIN.appointments);
