@@ -16,6 +16,7 @@ import bcrypt from "bcryptjs";
 import sharp from "sharp";
 import { validateLogo } from "@/lib/logo-upload";
 import { adminLocaleToDb, type AdminLocale } from "@/lib/admin-locale";
+import Decimal from "decimal.js";
 
 async function trimLogo(buffer: Buffer, contentType: string): Promise<Buffer> {
   if (contentType === "image/svg+xml") return buffer;
@@ -174,6 +175,44 @@ export async function updateEtransferSettings(formData: FormData) {
       etransferEmail: etransferEmail || null,
     },
   });
+
+  revalidatePath(ADMIN.settings);
+  return { success: true };
+}
+
+const taxLinesSchema = z
+  .array(
+    z.object({
+      name: z.string().trim().min(1).max(30),
+      rate: z
+        .number()
+        .min(0, "Rate cannot be negative")
+        .max(1, "Rate cannot exceed 100%"),
+    })
+  )
+  .max(5, "Maximum 5 tax lines");
+
+export async function updateShopTaxLines(formData: FormData) {
+  const shopId = await getShopId();
+
+  let raw: unknown;
+  try {
+    raw = JSON.parse(String(formData.get("taxLines") ?? "[]"));
+  } catch {
+    return { error: "Invalid tax data" };
+  }
+
+  const parsed = taxLinesSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { error: parsed.error.flatten().formErrors[0] ?? "Invalid tax data" };
+  }
+
+  const taxLines = parsed.data.map((line) => ({
+    name: line.name,
+    rate: new Decimal(line.rate).toDecimalPlaces(5, Decimal.ROUND_HALF_UP).toString(),
+  }));
+
+  await db.shop.update({ where: { id: shopId }, data: { taxLines } });
 
   revalidatePath(ADMIN.settings);
   return { success: true };

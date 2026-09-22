@@ -1,5 +1,5 @@
-// Wrapper para Supabase Storage
-// Se usa como backup de los archivos antes de subirlos a Google Drive.
+// Wrapper para Supabase Storage — almacén de documentos de contabilidad,
+// aislado por shopId (bucket "accounting", carpeta {shopId}/{categoria}/...).
 // El cliente de servidor usa la SERVICE_ROLE_KEY para bypass de RLS.
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";

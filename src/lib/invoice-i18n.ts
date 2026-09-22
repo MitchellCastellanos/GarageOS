@@ -34,8 +34,7 @@ type Strings = {
   colUnitPrice: string;
   colTotal: string;
   subtotal: string;
-  tps: (pct: string) => string;
-  tvq: (pct: string) => string;
+  taxLine: (name: string, pct: string) => string;
   taxesTotal: string;
   grandTotal: string;
   etransfer: string;
@@ -97,8 +96,7 @@ const EN: Strings = {
   colUnitPrice: "Unit price",
   colTotal: "Amount",
   subtotal: "Subtotal",
-  tps: (pct) => `GST (${pct}%)`,
-  tvq: (pct) => `QST (${pct}%)`,
+  taxLine: (name, pct) => `${name} (${pct}%)`,
   taxesTotal: "Total tax",
   grandTotal: "AMOUNT DUE",
   etransfer: "Email for e-transfers (Interac)",
@@ -172,8 +170,7 @@ const FR: Strings = {
   colUnitPrice: "P. unit.",
   colTotal: "Montant",
   subtotal: "Sous-total",
-  tps: (pct) => `TPS (${pct}%)`,
-  tvq: (pct) => `TVQ (${pct}%)`,
+  taxLine: (name, pct) => `${name} (${pct}%)`,
   taxesTotal: "Total taxes",
   grandTotal: "TOTAL À PAYER",
   etransfer: "Courriel pour virements Interac",

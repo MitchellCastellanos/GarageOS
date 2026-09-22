@@ -4,10 +4,9 @@ import { ArrowLeft, Download, Pencil } from "lucide-react";
 import { getQuoteById } from "@/actions/quotes";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { formatClientName } from "@/lib/client-name";
-import { calculateTaxBreakdown, TPS_RATE, TVQ_RATE } from "@/lib/taxes";
+import { calculateTaxBreakdown, parseShopTaxLines } from "@/lib/taxes";
 import { INVOICE_LANGUAGES } from "@/lib/invoice-i18n";
 import { QuoteActions } from "@/components/quotes/QuoteActions";
-import Decimal from "decimal.js";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import { QUOTES_DICT } from "@/lib/admin-locale/quotes";
 
@@ -31,13 +30,11 @@ export default async function QuoteDetailPage({ params }: PageProps) {
   const locale = await getAdminLocale();
   const t = QUOTES_DICT[locale];
 
-  const { tpsAmount, tvqAmount } = calculateTaxBreakdown(
+  const { lines: taxLineAmounts } = calculateTaxBreakdown(
     quote.subtotal.toString(),
-    quote.taxRate.toString()
+    quote.taxRate.toString(),
+    parseShopTaxLines(quote.shop.taxLines)
   );
-  const factor = new Decimal(quote.taxRate.toString()).div(TPS_RATE + TVQ_RATE);
-  const tpsPct = new Decimal(TPS_RATE).times(factor).times(100).toFixed(2);
-  const tvqPct = new Decimal(TVQ_RATE).times(factor).times(100).toFixed(2);
   const langLabel =
     INVOICE_LANGUAGES.find((l) => l.value === quote.language)?.label ?? quote.language;
 
@@ -200,14 +197,12 @@ export default async function QuoteDetailPage({ params }: PageProps) {
               <span className="text-slate-600">{t.detail.subtotal}</span>
               <span className="text-slate-900">{formatCurrency(Number(quote.subtotal))}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-slate-600">{t.detail.gstLabel(tpsPct)}</span>
-              <span className="text-slate-900">{formatCurrency(Number(tpsAmount))}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-600">{t.detail.qstLabel(tvqPct)}</span>
-              <span className="text-slate-900">{formatCurrency(Number(tvqAmount))}</span>
-            </div>
+            {taxLineAmounts.map((line) => (
+              <div className="flex justify-between" key={line.name}>
+                <span className="text-slate-600">{t.detail.taxLine(line.name, line.pct)}</span>
+                <span className="text-slate-900">{formatCurrency(Number(line.amount))}</span>
+              </div>
+            ))}
             <div className="flex justify-between items-center border-t border-slate-200 pt-3 mt-3">
               <span className="font-semibold text-slate-900">{t.detail.totalCad}</span>
               <span className="text-xl font-bold text-blue-600">

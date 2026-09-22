@@ -13,7 +13,7 @@ import {
 } from "@/lib/validations";
 import { INSPECTION_CHECKLIST_CATEGORIES, isFinding } from "@/domain/inspection";
 import { allocateNextQuoteNumber } from "@/lib/invoice-number";
-import { calculateTaxBreakdown, roundTaxRate, DEFAULT_COMBINED_TAX_RATE } from "@/lib/taxes";
+import { calculateTaxAmount, roundTaxRate, sumTaxLineRates, parseShopTaxLines } from "@/lib/taxes";
 import { uploadToStorage } from "@/lib/storage";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import type { AdminLocale } from "@/lib/admin-locale";
@@ -298,9 +298,12 @@ export async function createQuoteFromInspection(inspectionId: string) {
   const findings = inspection.items.filter((item) => isFinding(item.condition));
   if (findings.length === 0) return { error: NO_FINDINGS[locale] };
 
+  const shop = await db.shop.findUnique({ where: { id: shopId }, select: { taxLines: true } });
+  const defaultTaxRate = sumTaxLineRates(parseShopTaxLines(shop?.taxLines));
+
   const quote = await db.$transaction(async (tx) => {
     const quoteNumber = await allocateNextQuoteNumber(tx, shopId);
-    const { taxAmount } = calculateTaxBreakdown(new Decimal(0), DEFAULT_COMBINED_TAX_RATE);
+    const taxAmount = calculateTaxAmount(new Decimal(0), defaultTaxRate);
 
     return tx.quote.create({
       data: {
@@ -309,7 +312,7 @@ export async function createQuoteFromInspection(inspectionId: string) {
         quoteNumber,
         status: "DRAFT",
         subtotal: "0.00",
-        taxRate: roundTaxRate(DEFAULT_COMBINED_TAX_RATE),
+        taxRate: roundTaxRate(defaultTaxRate),
         taxAmount: taxAmount.toFixed(2),
         total: taxAmount.toFixed(2),
         vehicles: {

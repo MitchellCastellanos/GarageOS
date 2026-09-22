@@ -16,12 +16,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useTransition, useMemo } from "react";
 import { invoiceSchema, type InvoiceFormData } from "@/lib/validations";
 import { formatClientName } from "@/lib/client-name";
-import {
-  calculateTaxBreakdown,
-  DEFAULT_COMBINED_TAX_RATE,
-  TPS_RATE,
-  TVQ_RATE,
-} from "@/lib/taxes";
+import { calculateTaxBreakdown, sumTaxLineRates, type ShopTaxLine } from "@/lib/taxes";
 import { INVOICE_LANGUAGES } from "@/lib/invoice-i18n";
 import { Plus, Trash2 } from "lucide-react";
 import { LineItemDescriptionInput } from "@/components/invoices/LineItemDescriptionInput";
@@ -54,9 +49,9 @@ interface InvoiceFormProps {
   initialValues?: Partial<InvoiceFormData>;
   mode?: "create" | "edit";
   variant?: "invoice" | "quote";
+  /** Impuestos configurados por el taller — ver Shop.taxLines. */
+  taxLines: ShopTaxLine[];
 }
-
-const TAX_RATE = DEFAULT_COMBINED_TAX_RATE;
 
 const EMPTY_LINE_ITEM = {
   description: "",
@@ -79,6 +74,7 @@ export function InvoiceForm({
   initialValues,
   mode = "create",
   variant = "invoice",
+  taxLines,
 }: InvoiceFormProps) {
   const isQuote = variant === "quote";
   const cancelHref = isQuote ? "/quotes" : "/invoices";
@@ -91,6 +87,7 @@ export function InvoiceForm({
     { value: "PART", label: itemTypeLabels.PART },
     { value: "OTHER", label: itemTypeLabels.OTHER },
   ];
+  const defaultTaxRate = sumTaxLineRates(taxLines).toNumber();
 
   const {
     register,
@@ -104,7 +101,7 @@ export function InvoiceForm({
     resolver: zodResolver(invoiceSchema),
     defaultValues: {
       clientId: "",
-      taxRate: TAX_RATE,
+      taxRate: defaultTaxRate,
       language: "EN",
       notes: "",
       dueAt: "",
@@ -139,7 +136,7 @@ export function InvoiceForm({
   const clientVehicles = selectedClient?.vehicles ?? [];
 
   // Calcular totales en tiempo real (suma de líneas de TODOS los vehículos)
-  const { subtotal, tpsAmount, tvqAmount, taxAmount, total } = useMemo(() => {
+  const { subtotal, taxLineAmounts, taxAmount, total } = useMemo(() => {
     const sub = (vehicleEntries ?? []).reduce((vSum, entry) => {
       const lines = entry?.lineItems ?? [];
       return lines.reduce((sum, item) => {
@@ -148,21 +145,17 @@ export function InvoiceForm({
         return sum.plus(new Decimal(qty).times(price));
       }, vSum);
     }, new Decimal(0));
-    const rate = taxRate ?? TAX_RATE;
-    const { tpsAmount: tps, tvqAmount: tvq, taxAmount: tax } = calculateTaxBreakdown(sub, rate);
+    const rate = taxRate ?? defaultTaxRate;
+    const { lines, taxAmount: tax } = calculateTaxBreakdown(sub, rate, taxLines);
     return {
       subtotal: sub,
-      tpsAmount: tps,
-      tvqAmount: tvq,
+      taxLineAmounts: lines,
       taxAmount: tax,
       total: sub.plus(tax),
     };
-  }, [vehicleEntries, taxRate]);
+  }, [vehicleEntries, taxRate, defaultTaxRate, taxLines]);
 
-  const effectiveRate = taxRate ?? TAX_RATE;
-  const taxFactor = new Decimal(effectiveRate).div(TPS_RATE + TVQ_RATE);
-  const tpsPct = new Decimal(TPS_RATE).times(taxFactor).times(100).toFixed(2);
-  const tvqPct = new Decimal(TVQ_RATE).times(taxFactor).times(100).toFixed(2);
+  const effectiveRate = taxRate ?? defaultTaxRate;
   const combinedPct = new Decimal(effectiveRate).times(100).toFixed(2);
 
   async function onValid(data: InvoiceFormData) {
@@ -322,18 +315,18 @@ export function InvoiceForm({
               <span className="text-slate-600">{t.subtotal}</span>
               <span className="text-slate-900">${subtotal.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-slate-600">{t.tps(tpsPct)}</span>
-              <span className="text-slate-900">${tpsAmount.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-600">{t.tvq(tvqPct)}</span>
-              <span className="text-slate-900">${tvqAmount.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-slate-500">
-              <span className="text-xs">{t.totalTaxes(combinedPct)}</span>
-              <span className="text-xs">${taxAmount.toFixed(2)}</span>
-            </div>
+            {taxLineAmounts.map((line) => (
+              <div className="flex justify-between" key={line.name}>
+                <span className="text-slate-600">{t.taxLine(line.name, line.pct)}</span>
+                <span className="text-slate-900">${line.amount.toFixed(2)}</span>
+              </div>
+            ))}
+            {taxLineAmounts.length > 1 && (
+              <div className="flex justify-between text-slate-500">
+                <span className="text-xs">{t.totalTaxes(combinedPct)}</span>
+                <span className="text-xs">${taxAmount.toFixed(2)}</span>
+              </div>
+            )}
             <div className="flex justify-between items-center border-t border-slate-200 pt-3 mt-3">
               <span className="font-semibold text-slate-900">{t.totalCad}</span>
               <span className="text-xl font-bold text-blue-600">

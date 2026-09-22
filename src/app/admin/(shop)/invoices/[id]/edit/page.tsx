@@ -8,6 +8,7 @@ import { type InvoiceFormData } from "@/lib/validations";
 import { isInvoicePending } from "@/lib/invoice-status";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import { INVOICES_DICT } from "@/lib/admin-locale/invoices";
+import { parseShopTaxLines } from "@/lib/taxes";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -16,7 +17,7 @@ interface PageProps {
 export default async function EditInvoicePage({ params }: PageProps) {
   const { id } = await params;
 
-  const [invoice, { clients }, locale] = await Promise.all([
+  const [invoice, { clients, shop }, locale] = await Promise.all([
     getInvoiceById(id),
     getInvoiceFormData(),
     getAdminLocale(),
@@ -68,6 +69,7 @@ export default async function EditInvoicePage({ params }: PageProps) {
 
       <InvoiceForm
         clients={clients}
+        taxLines={parseShopTaxLines(shop?.taxLines)}
         mode="edit"
         initialValues={initialValues}
         onSubmit={async (data: InvoiceFormData) => {
