@@ -1,6 +1,9 @@
 import twilio from "twilio";
 import { recordAndSend } from "@/lib/communications/outbox";
 import { resolveSenderIdentity } from "@/lib/communications/sender-identity";
+import { toE164 } from "@/lib/phone";
+
+export { toE164 };
 
 function getTwilioClient() {
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
@@ -9,14 +12,6 @@ function getTwilioClient() {
     throw new Error("Twilio is not configured (TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN)");
   }
   return twilio(accountSid, authToken);
-}
-
-export function toE164(phone: string): string | null {
-  const digits = phone.trim().replace(/[^\d+]/g, "");
-  if (digits.startsWith("+")) return digits;
-  if (digits.length === 10) return `+1${digits}`;
-  if (digits.length === 11 && digits.startsWith("1")) return `+${digits}`;
-  return null;
 }
 
 export interface SendSmsParams {
@@ -32,9 +27,10 @@ export interface SendSmsParams {
 
 export async function sendSms(params: SendSmsParams): Promise<void> {
   const identity = await resolveSenderIdentity(params.shopId, params.purpose, "SMS");
-  const from = identity?.address ?? process.env.TWILIO_FROM_NUMBER;
+  const rawFrom = identity?.address ?? process.env.TWILIO_FROM_NUMBER;
+  const from = rawFrom ? toE164(rawFrom) : null;
   if (!from) {
-    throw new Error("TWILIO_FROM_NUMBER is not configured");
+    throw new Error("TWILIO_FROM_NUMBER is not configured or invalid");
   }
 
   const e164 = toE164(params.to);

@@ -9,6 +9,7 @@
 // como base para el valor inicial que se le da a una SenderIdentity al crearla.
 
 import { db } from "@/lib/db";
+import { toE164 } from "@/lib/phone";
 import {
   EMAIL_CHANNEL_META,
   resolveEmailRoute,
@@ -122,7 +123,9 @@ export async function provisionDefaultSenderIdentities(shop: ProvisionableShop):
     // Sin dirección configurable todavía — se completa en el próximo backfill/guardado.
   }
 
-  const smsFrom = process.env.TWILIO_FROM_NUMBER?.trim();
+  const smsFrom = process.env.TWILIO_FROM_NUMBER?.trim()
+    ? toE164(process.env.TWILIO_FROM_NUMBER.trim())
+    : null;
   if (smsFrom) {
     for (const purpose of SMS_PURPOSES) {
       await upsertRoute(shop.id, purpose, "SMS", smsFrom, null, shop.name);
