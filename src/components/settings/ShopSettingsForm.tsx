@@ -21,6 +21,7 @@ import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
 import { SETTINGS_DICT } from "@/lib/admin-locale/settings";
 import { DEFAULT_BRAND_COLOR, toSafeDarkBrandColor } from "@/lib/brand-color";
 import { parseShopTaxLines } from "@/lib/taxes";
+import { CANADA_TAX_PRESETS } from "@/lib/tax-presets";
 import Decimal from "decimal.js";
 
 interface Shop {
@@ -196,6 +197,18 @@ export function ShopSettingsForm({ shop, slugUrlPrefix, canUseLoginEmail, loginE
 
   function updateTaxLine(id: string, patch: Partial<Pick<TaxLineDraft, "name" | "pct">>) {
     setTaxLines((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch } : l)));
+  }
+
+  function applyTaxPreset(code: string) {
+    const preset = CANADA_TAX_PRESETS.find((p) => p.code === code);
+    if (!preset) return;
+    setTaxLines(
+      preset.lines.map((l, i) => ({
+        id: `${Date.now()}-${i}`,
+        name: l.name,
+        pct: new Decimal(l.rate).times(100).toString(),
+      }))
+    );
   }
 
   function handleTaxSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -489,6 +502,28 @@ export function ShopSettingsForm({ shop, slugUrlPrefix, canUseLoginEmail, loginE
         <div>
           <h2 className="font-semibold text-slate-900">{t.taxes.title}</h2>
           <p className="text-sm text-slate-500 mt-1">{t.taxes.subtitle}</p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">
+            {t.taxes.presetLabel}
+          </label>
+          <select
+            defaultValue=""
+            onChange={(e) => {
+              if (e.target.value) applyTaxPreset(e.target.value);
+              e.target.value = "";
+            }}
+            className={inputClass}
+          >
+            <option value="">{t.taxes.presetPlaceholder}</option>
+            {CANADA_TAX_PRESETS.map((preset) => (
+              <option key={preset.code} value={preset.code}>
+                {preset.label[locale]}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-slate-400 mt-1">{t.taxes.presetHint}</p>
         </div>
 
         {taxLines.length === 0 && (
