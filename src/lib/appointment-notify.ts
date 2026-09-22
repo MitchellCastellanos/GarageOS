@@ -1,12 +1,16 @@
-// Envío de notificaciones de citas: SMS (canal principal) + email (secundario).
-// Centraliza la lógica usada por acciones admin, reserva pública y el cron de recordatorios.
+// Envío de avisos de citas al cliente — un solo canal por aviso.
+// Política por defecto (decisión de producto): SMS primero si el taller lo tiene
+// activo y el cliente tiene teléfono; email solo si no hay SMS posible o el SMS
+// falla. Nunca los dos a la vez (antes el cliente con teléfono + email recibía
+// ambos en cada evento). Centraliza la lógica usada por acciones admin, reserva
+// pública y el cron de recordatorios.
 
 import { getAppUrl } from "@/lib/app-url";
 import { getPublicBookingUrl } from "@/lib/shop-slug";
 import { formatClientName } from "@/lib/client-name";
 import { formatShopDateTime } from "@/lib/shop-timezone";
 import { sendAppointmentEmail } from "@/lib/email";
-import { sendAppointmentSms, sendSms, type AppointmentSmsType } from "@/lib/sms";
+import { sendAppointmentSms, type AppointmentSmsType } from "@/lib/sms";
 import { shopToEmailConfig, type ShopEmailConfig } from "@/lib/email-config";
 
 export type AppointmentNotificationType = AppointmentSmsType;
@@ -32,17 +36,29 @@ export interface AppointmentNotifyClient {
 interface NotifyAppointmentEventParams {
   type: AppointmentNotificationType;
   shop: AppointmentNotifyShop;
-  client: AppointmentNotifyClient;
+  client: AppointmentNotifyClient & { id?: string };
   appointmentId: string;
   title: string;
   startsAt: Date;
   manageToken: string | null;
+  /**
+   * Identifica este aviso en particular (normalmente el id del AppointmentEvent
+   * que lo disparó) — entra en la idempotencyKey para que una reprogramación o un
+   * reenvío no se deduplique contra el aviso anterior del mismo tipo.
+   */
+  noticeKey?: string;
 }
+
+export type NotifyAppointmentSkipReason = "NO_CONTACT" | "DISABLED";
 
 export interface NotifyAppointmentEventResult {
   smsSent: boolean;
   emailSent: boolean;
   anySent: boolean;
+  smsMessageId: string | null;
+  emailMessageId: string | null;
+  /** Presente cuando no se intentó ningún canal (sin datos de contacto o canales apagados). */
+  skipped: NotifyAppointmentSkipReason | null;
 }
 
 /** Link público para que el cliente confirme/cancele su cita (null si el taller no tiene slug o no hay token). */
@@ -54,7 +70,7 @@ export function buildAppointmentManageUrl(
   return `${getAppUrl()}/book/${shop.slug}/manage/${manageToken}`;
 }
 
-/** Intenta SMS (principal) y email (secundario) de forma independiente; ninguno bloquea al otro. */
+/** SMS primero; email como respaldo si no hay SMS posible o si el SMS falló. */
 export async function notifyAppointmentEvent(
   params: NotifyAppointmentEventParams
 ): Promise<NotifyAppointmentEventResult> {
@@ -62,15 +78,34 @@ export async function notifyAppointmentEvent(
   const manageUrl = buildAppointmentManageUrl(params.shop, params.manageToken);
   const bookingUrl = params.shop.slug ? getPublicBookingUrl(params.shop.slug) : null;
 
-  let smsSent = false;
   const phone = params.client.phone?.trim();
-  if (params.shop.appointmentSmsEnabled && phone) {
+  const email = params.client.email?.trim();
+  const canSms = params.shop.appointmentSmsEnabled && Boolean(phone);
+  const canEmail = params.shop.appointmentEmailsEnabled && Boolean(email);
+
+  const result: NotifyAppointmentEventResult = {
+    smsSent: false,
+    emailSent: false,
+    anySent: false,
+    smsMessageId: null,
+    emailMessageId: null,
+    skipped: null,
+  };
+
+  if (!canSms && !canEmail) {
+    result.skipped = phone || email ? "DISABLED" : "NO_CONTACT";
+    return result;
+  }
+
+  if (canSms && phone) {
     try {
-      await sendAppointmentSms({
+      const sent = await sendAppointmentSms({
         type: params.type,
         to: phone,
         shopId: params.shop.id,
+        clientId: params.client.id,
         appointmentId: params.appointmentId,
+        noticeKey: params.noticeKey,
         shopName: params.shop.name,
         title: params.title,
         startsAtFormatted,
@@ -78,21 +113,22 @@ export async function notifyAppointmentEvent(
         manageUrl,
         bookingUrl,
       });
-      smsSent = true;
+      result.smsSent = true;
+      result.smsMessageId = sent.messageId;
     } catch (err) {
       console.error(`[appointment-sms] ${params.type} falló (${params.appointmentId}):`, err);
     }
   }
 
-  let emailSent = false;
-  const email = params.client.email?.trim();
-  if (params.shop.appointmentEmailsEnabled && email) {
+  if (!result.smsSent && canEmail && email) {
     try {
-      await sendAppointmentEmail({
+      const sent = await sendAppointmentEmail({
         shop: shopToEmailConfig(params.shop),
         to: email,
         type: params.type,
+        clientId: params.client.id,
         appointmentId: params.appointmentId,
+        noticeKey: params.noticeKey,
         clientName: formatClientName(params.client),
         title: params.title,
         startsAtFormatted,
@@ -101,47 +137,13 @@ export async function notifyAppointmentEvent(
         manageUrl,
         bookingUrl,
       });
-      emailSent = true;
+      result.emailSent = true;
+      result.emailMessageId = sent.messageId;
     } catch (err) {
       console.error(`[appointment-email] ${params.type} falló (${params.appointmentId}):`, err);
     }
   }
 
-  return { smsSent, emailSent, anySent: smsSent || emailSent };
-}
-
-/**
- * Avisa al taller (su propio teléfono) que entró una cita nueva desde el sitio web.
- * Solo para reservas públicas — cuando el admin agenda una cita a mano ya lo sabe,
- * no tiene sentido mandarle un SMS de aviso a sí mismo.
- */
-export async function notifyShopOfNewWebAppointment(params: {
-  shop: AppointmentNotifyShop;
-  client: AppointmentNotifyClient;
-  appointmentId: string;
-  title: string;
-  startsAt: Date;
-}): Promise<boolean> {
-  const shopPhone = params.shop.phone?.trim();
-  if (!params.shop.appointmentSmsEnabled || !shopPhone) return false;
-
-  const startsAtFormatted = formatShopDateTime(params.startsAt, params.shop.timezone);
-  const clientName = formatClientName(params.client);
-  const body = `${params.shop.name}: nueva cita web — ${clientName}, ${params.title}, ${startsAtFormatted}. Tel. cliente: ${params.client.phone ?? "N/D"}`;
-
-  try {
-    await sendSms({
-      to: shopPhone,
-      body,
-      shopId: params.shop.id,
-      purpose: "APPOINTMENT",
-      businessEntityType: "APPOINTMENT",
-      businessEntityId: params.appointmentId,
-      idempotencyKey: `appointment-sms:web-notify:${params.appointmentId}`,
-    });
-    return true;
-  } catch (err) {
-    console.error(`[appointment-sms] aviso al taller falló (${params.appointmentId}):`, err);
-    return false;
-  }
+  result.anySent = result.smsSent || result.emailSent;
+  return result;
 }

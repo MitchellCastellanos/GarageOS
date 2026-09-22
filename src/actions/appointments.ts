@@ -10,8 +10,15 @@ import { isTransactionConflictError } from "@/lib/db-errors";
 import { getShopId } from "@/lib/shop-context";
 import { appointmentSchema, appointmentEditSchema, type AppointmentEditFormData, type AppointmentFormData } from "@/lib/validations";
 import { generateAppointmentManageToken, ensureAppointmentManageToken } from "@/lib/appointment-token";
-import { notifyAppointmentEvent, type NotifyAppointmentEventResult } from "@/lib/appointment-notify";
-import { buildAppointmentManageUrl } from "@/lib/appointment-notify";
+import { buildAppointmentManageUrl, type NotifyAppointmentEventResult } from "@/lib/appointment-notify";
+import { decideAppointmentEditEvent, isActiveAppointmentStatus } from "@/domain/appointment-events";
+import {
+  diffAppointmentFields,
+  getAppointmentHistory,
+  recordAppointmentEvent,
+  type AppointmentActor,
+} from "@/lib/appointment-events";
+import { requireShopSession } from "@/lib/permissions";
 import { DEFAULT_TIMEZONE } from "@/config/app";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import type { AdminLocale } from "@/lib/admin-locale";
@@ -63,12 +70,6 @@ const CONFIRMATION_SEND_FAILED: Record<AdminLocale, string> = {
   es: "No se pudo enviar la confirmación (revisa la configuración de SMS/email)",
   en: "Could not send the confirmation (check your SMS/email setup)",
   fr: "Impossible d'envoyer la confirmation (vérifiez la configuration SMS/courriel)",
-};
-
-const CANCELLATION_SEND_FAILED: Record<AdminLocale, string> = {
-  es: "No se pudo enviar el aviso de cancelación",
-  en: "Could not send the cancellation notice",
-  fr: "Impossible d'envoyer l'avis d'annulation",
 };
 
 const REMINDER_SEND_FAILED: Record<AdminLocale, string> = {
@@ -231,12 +232,32 @@ export async function checkMechanicConflict(
   return Boolean(conflict);
 }
 
+// ── Historial + avisos ──────────────────────────────────────
+// Toda mutación de una cita queda en AppointmentEvent (quién, cuándo, qué cambió)
+// y, cuando corresponde, dispara el aviso al cliente atado a ese evento — ver
+// src/lib/appointment-events.ts. Creación, reprogramación, cambio de servicio,
+// cancelación y reapertura avisan siempre de forma automática.
+
+async function getStaffActor(): Promise<AppointmentActor> {
+  const session = await requireShopSession();
+  return { type: "STAFF", userId: session.user.id, name: session.user.name ?? session.user.email ?? null };
+}
+
+function loadAppointmentForEvent(id: string, shopId: string) {
+  return db.appointment.findFirst({
+    where: { id, shopId },
+    include: { client: true, shop: true },
+  });
+}
+
+
 // ── CREATE / UPDATE ─────────────────────────────────────────
 
 export async function createAppointment(formData: AppointmentFormData) {
   const shopId = await getShopId();
   const timeZone = await getShopTimezone(shopId);
   const locale = await getAdminLocale();
+  const actor = await getStaffActor();
 
   const parsed = appointmentSchema.safeParse(formData);
   if (!parsed.success) {
@@ -249,8 +270,9 @@ export async function createAppointment(formData: AppointmentFormData) {
   const startsAt = parseStartsAt(date, time, timeZone);
   const endsAt = new Date(startsAt.getTime() + durationMinutes * 60_000);
 
+  let createdId: string;
   try {
-    await db.$transaction(
+    createdId = await db.$transaction(
       async (tx) => {
         if (mechanicId) {
           const conflict = await tx.appointment.findFirst({
@@ -265,7 +287,7 @@ export async function createAppointment(formData: AppointmentFormData) {
           if (conflict) throw new Error("MECHANIC_CONFLICT");
         }
 
-        await tx.appointment.create({
+        const created = await tx.appointment.create({
           data: {
             shopId,
             clientId,
@@ -280,6 +302,7 @@ export async function createAppointment(formData: AppointmentFormData) {
             manageToken: generateAppointmentManageToken(),
           },
         });
+        return created.id;
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
     );
@@ -290,6 +313,18 @@ export async function createAppointment(formData: AppointmentFormData) {
     throw err;
   }
 
+  // Confirmación automática al cliente — igual que la reserva web. Best-effort:
+  // el resultado (enviado / falló / sin contacto) queda en el historial de la cita.
+  const created = await loadAppointmentForEvent(createdId, shopId);
+  if (created) {
+    await recordAppointmentEvent({
+      appointment: created,
+      type: "CREATED",
+      actor,
+      notice: "confirmation",
+    });
+  }
+
   revalidatePath(ADMIN.appointments);
   redirect(`${ADMIN.appointments}?view=day&date=${date}`);
 }
@@ -298,6 +333,7 @@ export async function updateAppointment(id: string, formData: AppointmentEditFor
   const shopId = await getShopId();
   const timeZone = await getShopTimezone(shopId);
   const locale = await getAdminLocale();
+  const actor = await getStaffActor();
 
   const existing = await db.appointment.findFirst({
     where: { id, shopId },
@@ -318,6 +354,19 @@ export async function updateAppointment(id: string, formData: AppointmentEditFor
   const startsAt = parseStartsAt(date, time, timeZone);
   const endsAt = new Date(startsAt.getTime() + durationMinutes * 60_000);
   const timeChanged = startsAt.getTime() !== existing.startsAt.getTime();
+  const reopening = existing.status === "CANCELLED" && isActiveAppointmentStatus(status);
+
+  const nextValues = {
+    clientId,
+    vehicleId: vehicleId || null,
+    mechanicId: mechanicId || null,
+    title,
+    startsAt,
+    endsAt,
+    durationMinutes,
+    notes: notes || null,
+    status,
+  };
 
   try {
     await db.$transaction(
@@ -339,15 +388,10 @@ export async function updateAppointment(id: string, formData: AppointmentEditFor
         await tx.appointment.update({
           where: { id },
           data: {
-            clientId,
-            vehicleId: vehicleId || null,
-            mechanicId: mechanicId || null,
-            title,
-            startsAt,
-            endsAt,
-            durationMinutes,
-            notes: notes || null,
-            status,
+            ...nextValues,
+            // Nueva fecha o cita reabierta → el recordatorio anterior ya no
+            // cuenta; el cron vuelve a mandarlo.
+            ...(timeChanged || reopening ? { reminderSentAt: null } : {}),
           },
         });
       },
@@ -360,20 +404,34 @@ export async function updateAppointment(id: string, formData: AppointmentEditFor
     throw err;
   }
 
-  // Avisa al cliente del cambio: cancelación si el admin la canceló desde este
-  // mismo formulario, o confirmación si reprogramó la fecha/hora (mismo mecanismo
-  // que el botón manual y la reserva pública). Best-effort — nunca bloquea el guardado.
-  if (status === "CANCELLED" && existing.status !== "CANCELLED") {
-    try {
-      await sendAppointmentCancellation(id);
-    } catch (err) {
-      console.error(`Error enviando cancelación de cita ${id}:`, err);
+  const changes = diffAppointmentFields(
+    {
+      clientId: existing.clientId,
+      vehicleId: existing.vehicleId,
+      mechanicId: existing.mechanicId,
+      title: existing.title,
+      startsAt: existing.startsAt,
+      durationMinutes: existing.durationMinutes,
+      notes: existing.notes,
+      status: existing.status,
+    },
+    {
+      clientId: nextValues.clientId,
+      vehicleId: nextValues.vehicleId,
+      mechanicId: nextValues.mechanicId,
+      title: nextValues.title,
+      startsAt: nextValues.startsAt,
+      durationMinutes: nextValues.durationMinutes,
+      notes: nextValues.notes,
+      status: nextValues.status,
     }
-  } else if (timeChanged && status !== "CANCELLED" && status !== "NO_SHOW") {
-    try {
-      await sendAppointmentConfirmation(id);
-    } catch (err) {
-      console.error(`Error enviando confirmación de cita ${id}:`, err);
+  );
+
+  if (Object.keys(changes).length > 0) {
+    const updated = await loadAppointmentForEvent(id, shopId);
+    if (updated) {
+      const { type, notice } = decideAppointmentEditEvent(existing.status, status, changes);
+      await recordAppointmentEvent({ appointment: updated, type, actor, changes, notice });
     }
   }
 
@@ -398,10 +456,31 @@ export async function updateAppointmentStatus(id: string, status: AppointmentEdi
     return { error: INVALID_STATUS[locale] };
   }
 
+  if (parsed.data === existing.status) return { success: true };
+  if (parsed.data === "CANCELLED") return cancelAppointment(id);
+
+  const actor = await getStaffActor();
+  const reopening = existing.status === "CANCELLED" && isActiveAppointmentStatus(parsed.data);
+
   await db.appointment.update({
     where: { id },
-    data: { status: parsed.data },
+    data: {
+      status: parsed.data,
+      // Reabrir una cita cancelada: el recordatorio vuelve a corresponder.
+      ...(reopening ? { reminderSentAt: null } : {}),
+    },
   });
+
+  const updated = await loadAppointmentForEvent(id, shopId);
+  if (updated) {
+    await recordAppointmentEvent({
+      appointment: updated,
+      type: reopening ? "REOPENED" : "STATUS_CHANGED",
+      actor,
+      changes: { status: { from: existing.status, to: parsed.data } },
+      notice: reopening ? "confirmation" : null,
+    });
+  }
 
   revalidatePath(ADMIN.appointments);
   return { success: true };
@@ -410,11 +489,9 @@ export async function updateAppointmentStatus(id: string, status: AppointmentEdi
 export async function cancelAppointment(id: string) {
   const shopId = await getShopId();
   const locale = await getAdminLocale();
+  const actor = await getStaffActor();
 
-  const appointment = await db.appointment.findFirst({
-    where: { id, shopId },
-    include: { client: true, shop: true },
-  });
+  const appointment = await loadAppointmentForEvent(id, shopId);
 
   if (!appointment) {
     return { error: APPOINTMENT_NOT_FOUND[locale] };
@@ -429,13 +506,13 @@ export async function cancelAppointment(id: string) {
     data: { status: "CANCELLED" },
   });
 
-  if (appointment.client.phone || appointment.client.email) {
-    try {
-      await sendAppointmentCancellation(id);
-    } catch (err) {
-      console.error(`Error enviando cancelación de cita ${id}:`, err);
-    }
-  }
+  await recordAppointmentEvent({
+    appointment: { ...appointment, status: "CANCELLED" },
+    type: "CANCELLED",
+    actor,
+    changes: { status: { from: appointment.status, to: "CANCELLED" } },
+    notice: "cancellation",
+  });
 
   revalidatePath(ADMIN.appointments);
   return { success: true };
@@ -459,16 +536,20 @@ export async function getAppointmentManageUrl(id: string) {
   return buildAppointmentManageUrl(appointment.shop, manageToken);
 }
 
-// ── Notificaciones (SMS principal, email secundario) ──────────
+
+export async function getAppointmentHistoryForAdmin(id: string) {
+  const shopId = await getShopId();
+  return getAppointmentHistory(shopId, id);
+}
+
+// ── Reenvíos manuales (SMS principal, email de respaldo) ──────
 
 export async function sendAppointmentConfirmation(id: string) {
   const shopId = await getShopId();
   const locale = await getAdminLocale();
+  const actor = await getStaffActor();
 
-  const appointment = await db.appointment.findFirst({
-    where: { id, shopId },
-    include: { client: true, shop: true },
-  });
+  const appointment = await loadAppointmentForEvent(id, shopId);
 
   if (!appointment) {
     return { error: APPOINTMENT_NOT_FOUND[locale] };
@@ -478,82 +559,31 @@ export async function sendAppointmentConfirmation(id: string) {
     return { error: NO_CONTACT_INFO[locale] };
   }
 
-  const manageToken = await ensureAppointmentManageToken(appointment.id, appointment.manageToken);
-
-  const result = await notifyAppointmentEvent({
-    type: "confirmation",
-    shop: appointment.shop,
-    client: appointment.client,
-    appointmentId: appointment.id,
-    title: appointment.title,
-    startsAt: appointment.startsAt,
-    manageToken,
+  const { notice } = await recordAppointmentEvent({
+    appointment,
+    type: "NOTICE_RESENT",
+    actor,
+    notice: "confirmation",
   });
 
-  if (!result.anySent) {
+  if (!notice?.anySent) {
     return { error: CONFIRMATION_SEND_FAILED[locale] };
   }
 
-  await db.appointment.update({
-    where: { id },
-    data: {
-      confirmationSentAt: new Date(),
-      status: appointment.status === "SCHEDULED" ? "CONFIRMED" : appointment.status,
-    },
-  });
+  if (appointment.status === "SCHEDULED") {
+    await db.appointment.update({ where: { id }, data: { status: "CONFIRMED" } });
+  }
 
   revalidatePath(ADMIN.appointments);
-  return { success: true, sentVia: describeChannels(result, locale) };
-}
-
-export async function sendAppointmentCancellation(id: string) {
-  const shopId = await getShopId();
-  const locale = await getAdminLocale();
-
-  const appointment = await db.appointment.findFirst({
-    where: { id, shopId },
-    include: { client: true, shop: true },
-  });
-
-  if (!appointment) {
-    return { error: APPOINTMENT_NOT_FOUND[locale] };
-  }
-
-  if (!appointment.client.phone?.trim() && !appointment.client.email?.trim()) {
-    return { error: NO_CONTACT_INFO[locale] };
-  }
-
-  const result = await notifyAppointmentEvent({
-    type: "cancellation",
-    shop: appointment.shop,
-    client: appointment.client,
-    appointmentId: appointment.id,
-    title: appointment.title,
-    startsAt: appointment.startsAt,
-    manageToken: appointment.manageToken,
-  });
-
-  if (!result.anySent) {
-    return { error: CANCELLATION_SEND_FAILED[locale] };
-  }
-
-  await db.appointment.update({
-    where: { id },
-    data: { cancellationSentAt: new Date() },
-  });
-
-  revalidatePath(ADMIN.appointments);
-  return { success: true, sentVia: describeChannels(result, locale) };
+  return { success: true, sentVia: describeChannels(notice, locale) };
 }
 
 export async function sendAppointmentReminder(id: string) {
   const shopId = await getShopId();
   const locale = await getAdminLocale();
+  const actor = await getStaffActor();
 
-  const appointment = await db.appointment.findFirst({
-    where: { id, shopId },
-    include: { client: true, shop: true },
-  });
+  const appointment = await loadAppointmentForEvent(id, shopId);
 
   if (!appointment) {
     return { error: APPOINTMENT_NOT_FOUND[locale] };
@@ -563,28 +593,18 @@ export async function sendAppointmentReminder(id: string) {
     return { error: NO_CONTACT_INFO[locale] };
   }
 
-  const manageToken = await ensureAppointmentManageToken(appointment.id, appointment.manageToken);
-
-  const result = await notifyAppointmentEvent({
-    type: "reminder",
-    shop: appointment.shop,
-    client: appointment.client,
-    appointmentId: appointment.id,
-    title: appointment.title,
-    startsAt: appointment.startsAt,
-    manageToken,
+  const { notice } = await recordAppointmentEvent({
+    appointment,
+    type: "REMINDER_SENT",
+    actor,
+    notice: "reminder",
   });
 
-  if (!result.anySent) {
+  if (!notice?.anySent) {
     return { error: REMINDER_SEND_FAILED[locale] };
   }
 
-  await db.appointment.update({
-    where: { id },
-    data: { reminderSentAt: new Date() },
-  });
-
-  return { success: true, sentVia: describeChannels(result, locale) };
+  return { success: true, sentVia: describeChannels(notice, locale) };
 }
 
 /** Para formulario de edición: fecha y hora en zona del taller */

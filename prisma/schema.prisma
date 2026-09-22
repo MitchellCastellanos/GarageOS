@@ -75,6 +75,7 @@ model Shop {
   commThreads               CommunicationThread[]
   suppressions              CommunicationSuppression[]
   campaigns                 Campaign[]
+  appointmentEvents         AppointmentEvent[]
   communicationsSuspendedAt DateTime?
   subscription              Subscription?
 
@@ -568,6 +569,64 @@ model Appointment {
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
 
+  events AppointmentEvent[]
+
+  @@schema("garageos")
+}
+
+enum AppointmentEventType {
+  CREATED
+  RESCHEDULED
+  UPDATED
+  CANCELLED
+  REOPENED
+  STATUS_CHANGED
+  CONFIRMED_BY_CLIENT
+  NOTICE_RESENT
+  REMINDER_SENT
+
+  @@schema("garageos")
+}
+
+enum AppointmentActorType {
+  STAFF
+  CLIENT
+  SYSTEM
+
+  @@schema("garageos")
+}
+
+/**
+ * Historial (paper trail) de una cita — quién hizo qué, cuándo, qué cambió y
+ * qué aviso se le mandó al cliente por ese cambio. Una fila por evento; nunca
+ * se edita salvo para adjuntar el resultado del aviso (noticeOutcome + ids de
+ * CommunicationMessage, que es donde vive el texto exacto y el estado de
+ * entrega). Ver src/lib/appointment-events.ts.
+ */
+model AppointmentEvent {
+  id             String               @id @default(cuid())
+  shopId         String
+  shop           Shop                 @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  appointmentId  String
+  appointment    Appointment          @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  type           AppointmentEventType
+  actorType      AppointmentActorType
+  actorUserId    String?
+  // Snapshot del nombre — el historial debe seguir legible aunque el usuario se borre.
+  actorName      String?
+  // { campo: { from, to } } para lo que cambió (startsAt, title, status, ...).
+  changes        Json                 @default("{}")
+  // Tipo de aviso al cliente disparado por este evento (confirmation, update,
+  // cancellation, reminder) — null si el evento no avisa al cliente.
+  notice         String?
+  // SENT | FAILED | SKIPPED_NO_CONTACT | SKIPPED_DISABLED | SKIPPED_PAST
+  noticeOutcome  String?
+  smsMessageId   String?
+  emailMessageId String?
+  createdAt      DateTime             @default(now())
+
+  @@index([appointmentId, createdAt])
+  @@index([shopId, createdAt])
   @@schema("garageos")
 }
 

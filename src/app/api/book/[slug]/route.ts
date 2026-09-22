@@ -5,13 +5,12 @@ import { isTransactionConflictError } from "@/lib/db-errors";
 import { findAvailableMechanic, getShopBySlug, getShopServiceDurations } from "@/lib/booking-slots";
 import { resolveServiceDuration } from "@/lib/service-catalog";
 import { parseShopDateTime } from "@/lib/shop-timezone";
+import { formatClientName } from "@/lib/client-name";
 import { publicBookingSchema } from "@/lib/validations";
 import { generateAppointmentManageToken } from "@/lib/appointment-token";
-import {
-  buildAppointmentManageUrl,
-  notifyAppointmentEvent,
-  notifyShopOfNewWebAppointment,
-} from "@/lib/appointment-notify";
+import { buildAppointmentManageUrl } from "@/lib/appointment-notify";
+import { CLIENT_ACTOR, recordAppointmentEvent } from "@/lib/appointment-events";
+import { alertStaffNewWebAppointment } from "@/lib/staff-alerts";
 
 /** Solo dígitos — para emparejar el mismo teléfono aunque venga con distinto formato. */
 function phoneDigits(phone: string): string {
@@ -184,30 +183,22 @@ export async function POST(
 
   const manageUrl = buildAppointmentManageUrl(shop, manageToken);
 
-  const notified = await notifyAppointmentEvent({
-    type: "confirmation",
-    shop,
-    client,
-    appointmentId: appointment.id,
-    title: appointment.title,
-    startsAt,
-    manageToken,
+  // Confirmación al cliente (SMS primero, email de respaldo) + historial.
+  await recordAppointmentEvent({
+    appointment,
+    type: "CREATED",
+    actor: { ...CLIENT_ACTOR, name: formatClientName(client) },
+    notice: "confirmation",
   });
 
-  if (notified.anySent) {
-    await db.appointment.update({
-      where: { id: appointment.id },
-      data: { confirmationSentAt: new Date() },
-    });
-  }
-
-  await notifyShopOfNewWebAppointment({
+  // Alerta interna al equipo del taller (email) — reemplaza el SMS que iba al
+  // teléfono público del taller.
+  await alertStaffNewWebAppointment({
     shop,
     client,
-    appointmentId: appointment.id,
     title: appointment.title,
     startsAt,
-  });
+  }).catch((err) => console.error(`[book] alerta al taller falló (${appointment.id}):`, err));
 
   return NextResponse.json({
     ok: true,

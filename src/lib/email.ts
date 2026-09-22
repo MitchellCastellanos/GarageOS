@@ -11,7 +11,7 @@ import {
 import { PlainMessageEmail } from "@/emails/PlainMessageEmail";
 import { type ShopEmailConfig, type EmailChannel } from "@/lib/email-config";
 import { getInvoiceStrings, type InvoiceLanguage } from "@/lib/invoice-i18n";
-import { recordAndSend } from "@/lib/communications/outbox";
+import { recordAndSend, type RecordAndSendResult } from "@/lib/communications/outbox";
 import { resolveActiveEmailRoute, resolveEffectiveShopContactEmail } from "@/lib/communications/sender-identity";
 import React from "react";
 
@@ -43,7 +43,7 @@ interface TransactionalSendOptions {
   idempotencyKey?: string;
 }
 
-async function sendTransactionalEmail(options: TransactionalSendOptions) {
+async function sendTransactionalEmail(options: TransactionalSendOptions): Promise<RecordAndSendResult> {
   const route = await resolveActiveEmailRoute(options.shop, options.channel);
 
   if (route.pipeline !== "resend") {
@@ -52,7 +52,7 @@ async function sendTransactionalEmail(options: TransactionalSendOptions) {
 
   const html = await render(options.react);
 
-  await recordAndSend({
+  return recordAndSend({
     shopId: options.shop.id,
     clientId: options.clientId,
     purpose: options.channel,
@@ -279,6 +279,8 @@ interface AppointmentEmailSendData {
   type: AppointmentEmailType;
   clientId?: string;
   appointmentId?: string;
+  /** Ver AppointmentSmsData.noticeKey en src/lib/sms.ts. */
+  noticeKey?: string;
   clientName: string;
   title: string;
   startsAtFormatted: string;
@@ -291,27 +293,19 @@ interface AppointmentEmailSendData {
 const APPOINTMENT_SUBJECTS: Record<"EN" | "FR", Record<AppointmentEmailType, (title: string, shop: string) => string>> = {
   EN: {
     confirmation: (title, shop) => `Appointment confirmed: ${title} — ${shop}`,
+    update: (title, shop) => `Appointment updated: ${title} — ${shop}`,
     reminder: (title, shop) => `Appointment reminder: ${title} — ${shop}`,
     cancellation: (title, shop) => `Appointment cancelled: ${title} — ${shop}`,
   },
   FR: {
     confirmation: (title, shop) => `Rendez-vous confirmé : ${title} — ${shop}`,
+    update: (title, shop) => `Rendez-vous modifié : ${title} — ${shop}`,
     reminder: (title, shop) => `Rappel de rendez-vous : ${title} — ${shop}`,
     cancellation: (title, shop) => `Rendez-vous annulé : ${title} — ${shop}`,
   },
 };
 
-async function resolveAppointmentAdminCc(
-  shop: ShopEmailConfig,
-  clientEmail: string
-): Promise<string | undefined> {
-  const adminEmail = await resolveEffectiveShopContactEmail(shop.id, shop.email);
-  if (!adminEmail) return undefined;
-  if (adminEmail.toLowerCase() === clientEmail.toLowerCase()) return undefined;
-  return adminEmail;
-}
-
-export async function sendAppointmentEmail(data: AppointmentEmailSendData) {
+export async function sendAppointmentEmail(data: AppointmentEmailSendData): Promise<RecordAndSendResult> {
   const route = await resolveActiveEmailRoute(data.shop, "APPOINTMENT");
   const lang: "EN" | "FR" = data.language === "FR" ? "FR" : "EN";
   const subject = APPOINTMENT_SUBJECTS[lang][data.type](data.title, data.shop.name);
@@ -329,23 +323,19 @@ export async function sendAppointmentEmail(data: AppointmentEmailSendData) {
     bookingUrl: data.bookingUrl,
   });
 
-  const cc =
-    data.type === "confirmation" || data.type === "cancellation"
-      ? await resolveAppointmentAdminCc(data.shop, data.to)
-      : undefined;
-
-  await sendTransactionalEmail({
+  // Sin CC al taller: las alertas internas van por src/lib/staff-alerts.ts, no
+  // como copia de lo que recibe el cliente.
+  return sendTransactionalEmail({
     shop: data.shop,
     channel: "APPOINTMENT",
     to: data.to,
-    cc,
     subject,
     react: element,
     clientId: data.clientId,
     businessEntityType: data.appointmentId ? "APPOINTMENT" : undefined,
     businessEntityId: data.appointmentId,
     idempotencyKey: data.appointmentId
-      ? `appointment-email:${data.type}:${data.appointmentId}`
+      ? `appointment-email:${data.type}:${data.appointmentId}${data.noticeKey ? `:${data.noticeKey}` : ""}`
       : undefined,
   });
 }
@@ -376,7 +366,7 @@ const WORK_ORDER_READY_COPY = {
   },
 } as const;
 
-export async function sendWorkOrderReadyEmail(data: WorkOrderReadyEmailData) {
+export async function sendWorkOrderReadyEmail(data: WorkOrderReadyEmailData): Promise<RecordAndSendResult> {
   const lang: "EN" | "FR" = data.language === "FR" ? "FR" : "EN";
   const copy = WORK_ORDER_READY_COPY[lang];
 
@@ -388,7 +378,7 @@ export async function sendWorkOrderReadyEmail(data: WorkOrderReadyEmailData) {
     lang: lang.toLowerCase(),
   });
 
-  await sendTransactionalEmail({
+  return sendTransactionalEmail({
     shop: data.shop,
     channel: "WORK_ORDER",
     to: data.to,

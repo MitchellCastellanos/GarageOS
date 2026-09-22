@@ -326,24 +326,8 @@ export async function updateJobStatus(id: string, jobStatus: JobStatus) {
     const clientEmail = workOrder.client.email?.trim();
     const clientPhone = workOrder.client.phone?.trim();
 
-    if (workOrder.shop.workOrderReadyNotifyEmail && clientEmail) {
-      try {
-        await sendWorkOrderReadyEmail({
-          shop: shopToEmailConfig(workOrder.shop),
-          to: clientEmail,
-          clientId: workOrder.clientId,
-          clientName,
-          workOrderId: workOrder.id,
-          orderNumber: workOrder.orderNumber,
-          vehicleDescription,
-          language: workOrder.client.language,
-        });
-        notified.email = true;
-      } catch (err) {
-        console.error(`Error sending Ready for Pickup email for ${workOrder.orderNumber}:`, err);
-      }
-    }
-
+    // Un solo canal: SMS primero, email solo si no hay SMS posible o falló
+    // (misma política que los avisos de citas, ver src/lib/appointment-notify.ts).
     if (workOrder.shop.workOrderReadyNotifySms && clientPhone) {
       try {
         await sendWorkOrderReadySms({
@@ -359,6 +343,24 @@ export async function updateJobStatus(id: string, jobStatus: JobStatus) {
         notified.sms = true;
       } catch (err) {
         console.error(`Error sending Ready for Pickup SMS for ${workOrder.orderNumber}:`, err);
+      }
+    }
+
+    if (!notified.sms && workOrder.shop.workOrderReadyNotifyEmail && clientEmail) {
+      try {
+        await sendWorkOrderReadyEmail({
+          shop: shopToEmailConfig(workOrder.shop),
+          to: clientEmail,
+          clientId: workOrder.clientId,
+          clientName,
+          workOrderId: workOrder.id,
+          orderNumber: workOrder.orderNumber,
+          vehicleDescription,
+          language: workOrder.client.language,
+        });
+        notified.email = true;
+      } catch (err) {
+        console.error(`Error sending Ready for Pickup email for ${workOrder.orderNumber}:`, err);
       }
     }
 

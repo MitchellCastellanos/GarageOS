@@ -2,8 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sendReminderEmail } from "@/lib/email";
 import { shopToEmailConfig } from "@/lib/email-config";
-import { notifyAppointmentEvent } from "@/lib/appointment-notify";
-import { ensureAppointmentManageToken } from "@/lib/appointment-token";
+import { SYSTEM_ACTOR, recordAppointmentEvent } from "@/lib/appointment-events";
 
 // Cron Job — corre diariamente a las 8am (configurado en vercel.json)
 // Envía recordatorios de servicio con vencimiento en ≤7 días
@@ -108,30 +107,19 @@ export async function GET(request: Request) {
       }
 
       try {
-        const manageToken = await ensureAppointmentManageToken(
-          appointment.id,
-          appointment.manageToken
-        );
-
-        const notified = await notifyAppointmentEvent({
-          type: "reminder",
-          shop: appointment.shop,
-          client: appointment.client,
-          appointmentId: appointment.id,
-          title: appointment.title,
-          startsAt: appointment.startsAt,
-          manageToken,
+        // Registra el recordatorio en el historial de la cita y marca
+        // reminderSentAt si salió por algún canal (ver recordAppointmentEvent).
+        const { notice } = await recordAppointmentEvent({
+          appointment,
+          type: "REMINDER_SENT",
+          actor: SYSTEM_ACTOR,
+          notice: "reminder",
         });
 
-        if (!notified.anySent) {
+        if (!notice?.anySent) {
           results.appointmentReminders.errors++;
           continue;
         }
-
-        await db.appointment.update({
-          where: { id: appointment.id },
-          data: { reminderSentAt: new Date() },
-        });
 
         results.appointmentReminders.sent++;
       } catch (err) {

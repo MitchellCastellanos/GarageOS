@@ -33,7 +33,7 @@ function platformFromAddress(): string {
   return raw.includes("<") ? raw : `"${APP_NAME}" <${raw}>`;
 }
 
-async function sendPlatformEmail(to: string | string[], subject: string, react: React.ReactElement): Promise<void> {
+export async function sendPlatformEmail(to: string | string[], subject: string, react: React.ReactElement): Promise<void> {
   const resend = getResend();
   if (!resend) {
     console.warn(`[platform/notify] RESEND_API_KEY no configurada — correo "${subject}" a ${to} omitido.`);

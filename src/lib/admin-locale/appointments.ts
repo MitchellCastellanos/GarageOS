@@ -32,6 +32,30 @@ export interface AppointmentsDictionary {
   editPage: {
     title: string;
   };
+  history: {
+    title: string;
+    subtitle: string;
+    empty: string;
+    by: (name: string) => string;
+    client: string;
+    system: string;
+    events: Record<
+      | "CREATED"
+      | "RESCHEDULED"
+      | "UPDATED"
+      | "CANCELLED"
+      | "REOPENED"
+      | "STATUS_CHANGED"
+      | "CONFIRMED_BY_CLIENT"
+      | "NOTICE_RESENT"
+      | "REMINDER_SENT",
+      string
+    >;
+    notices: Record<"confirmation" | "update" | "reminder" | "cancellation", string>;
+    outcomes: Record<"SENT" | "FAILED" | "SKIPPED_NO_CONTACT" | "SKIPPED_DISABLED" | "SKIPPED_PAST", string>;
+    deliveryStatus: Record<string, string>;
+    fields: Record<string, string>;
+  };
   form: {
     sectionTitle: string;
     statusLabel: string;
@@ -150,6 +174,56 @@ export const APPOINTMENTS_DICT: Record<AdminLocale, AppointmentsDictionary> = {
     },
     editPage: {
       title: "Editar cita",
+    },
+    history: {
+      title: "Historial",
+      subtitle: "Cada cambio de la cita y el aviso que se le envió al cliente.",
+      empty: "Sin eventos registrados todavía.",
+      by: (name) => `por ${name}`,
+      client: "el cliente",
+      system: "automático",
+      events: {
+        CREATED: "Cita creada",
+        RESCHEDULED: "Cita reprogramada",
+        UPDATED: "Cita modificada",
+        CANCELLED: "Cita cancelada",
+        REOPENED: "Cita reabierta",
+        STATUS_CHANGED: "Estado cambiado",
+        CONFIRMED_BY_CLIENT: "Confirmada por el cliente",
+        NOTICE_RESENT: "Confirmación reenviada",
+        REMINDER_SENT: "Recordatorio",
+      },
+      notices: {
+        confirmation: "Aviso de confirmación",
+        update: "Aviso de cambio",
+        reminder: "Recordatorio",
+        cancellation: "Aviso de cancelación",
+      },
+      outcomes: {
+        SENT: "enviado",
+        FAILED: "no se pudo enviar",
+        SKIPPED_NO_CONTACT: "no enviado: el cliente no tiene teléfono ni email",
+        SKIPPED_DISABLED: "no enviado: avisos de citas desactivados",
+        SKIPPED_PAST: "no enviado: la cita ya pasó",
+      },
+      deliveryStatus: {
+        QUEUED: "en cola",
+        SENDING: "enviando",
+        SENT: "enviado",
+        DELIVERED: "entregado",
+        FAILED: "falló",
+        BOUNCED: "rebotó",
+      },
+      fields: {
+        startsAt: "Fecha y hora",
+        title: "Servicio",
+        durationMinutes: "Duración",
+        mechanicId: "Mecánico",
+        vehicleId: "Vehículo",
+        clientId: "Cliente",
+        notes: "Notas",
+        status: "Estado",
+      },
     },
     form: {
       sectionTitle: "Datos de la cita",
@@ -287,6 +361,56 @@ export const APPOINTMENTS_DICT: Record<AdminLocale, AppointmentsDictionary> = {
     editPage: {
       title: "Edit appointment",
     },
+    history: {
+      title: "History",
+      subtitle: "Every change to this appointment and the notice the client received.",
+      empty: "No events recorded yet.",
+      by: (name) => `by ${name}`,
+      client: "the client",
+      system: "automatic",
+      events: {
+        CREATED: "Appointment created",
+        RESCHEDULED: "Appointment rescheduled",
+        UPDATED: "Appointment updated",
+        CANCELLED: "Appointment cancelled",
+        REOPENED: "Appointment reopened",
+        STATUS_CHANGED: "Status changed",
+        CONFIRMED_BY_CLIENT: "Confirmed by the client",
+        NOTICE_RESENT: "Confirmation resent",
+        REMINDER_SENT: "Reminder",
+      },
+      notices: {
+        confirmation: "Confirmation notice",
+        update: "Change notice",
+        reminder: "Reminder",
+        cancellation: "Cancellation notice",
+      },
+      outcomes: {
+        SENT: "sent",
+        FAILED: "could not be sent",
+        SKIPPED_NO_CONTACT: "not sent: the client has no phone or email",
+        SKIPPED_DISABLED: "not sent: appointment notices are turned off",
+        SKIPPED_PAST: "not sent: the appointment is in the past",
+      },
+      deliveryStatus: {
+        QUEUED: "queued",
+        SENDING: "sending",
+        SENT: "sent",
+        DELIVERED: "delivered",
+        FAILED: "failed",
+        BOUNCED: "bounced",
+      },
+      fields: {
+        startsAt: "Date and time",
+        title: "Service",
+        durationMinutes: "Duration",
+        mechanicId: "Mechanic",
+        vehicleId: "Vehicle",
+        clientId: "Client",
+        notes: "Notes",
+        status: "Status",
+      },
+    },
     form: {
       sectionTitle: "Appointment details",
       statusLabel: "Status",
@@ -422,6 +546,56 @@ export const APPOINTMENTS_DICT: Record<AdminLocale, AppointmentsDictionary> = {
     },
     editPage: {
       title: "Modifier le rendez-vous",
+    },
+    history: {
+      title: "Historique",
+      subtitle: "Chaque modification du rendez-vous et l'avis envoyé au client.",
+      empty: "Aucun événement enregistré pour l'instant.",
+      by: (name) => `par ${name}`,
+      client: "le client",
+      system: "automatique",
+      events: {
+        CREATED: "Rendez-vous créé",
+        RESCHEDULED: "Rendez-vous déplacé",
+        UPDATED: "Rendez-vous modifié",
+        CANCELLED: "Rendez-vous annulé",
+        REOPENED: "Rendez-vous rouvert",
+        STATUS_CHANGED: "Statut modifié",
+        CONFIRMED_BY_CLIENT: "Confirmé par le client",
+        NOTICE_RESENT: "Confirmation renvoyée",
+        REMINDER_SENT: "Rappel",
+      },
+      notices: {
+        confirmation: "Avis de confirmation",
+        update: "Avis de modification",
+        reminder: "Rappel",
+        cancellation: "Avis d'annulation",
+      },
+      outcomes: {
+        SENT: "envoyé",
+        FAILED: "n'a pas pu être envoyé",
+        SKIPPED_NO_CONTACT: "non envoyé : le client n'a ni téléphone ni courriel",
+        SKIPPED_DISABLED: "non envoyé : les avis de rendez-vous sont désactivés",
+        SKIPPED_PAST: "non envoyé : le rendez-vous est passé",
+      },
+      deliveryStatus: {
+        QUEUED: "en file",
+        SENDING: "en cours",
+        SENT: "envoyé",
+        DELIVERED: "livré",
+        FAILED: "échec",
+        BOUNCED: "rejeté",
+      },
+      fields: {
+        startsAt: "Date et heure",
+        title: "Service",
+        durationMinutes: "Durée",
+        mechanicId: "Mécanicien",
+        vehicleId: "Véhicule",
+        clientId: "Client",
+        notes: "Notes",
+        status: "Statut",
+      },
     },
     form: {
       sectionTitle: "Détails du rendez-vous",

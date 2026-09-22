@@ -6,6 +6,7 @@ import { requireSuperAdmin } from "@/lib/permissions";
 import { PLATFORM } from "@/lib/routes";
 import { publishPlatformMessage, publishPlatformConversationUpdate } from "@/lib/platform/pusher";
 import { notifySupportReply } from "@/lib/platform/notify";
+import { resolveSupportRecipient } from "@/lib/platform/support-recipient";
 
 /** Lado de super admin de la mensajería con talleres — ver src/actions/support.ts para el lado del taller. */
 
@@ -59,9 +60,17 @@ export async function sendPlatformReply(conversationId: string, content: string)
   });
   await publishPlatformConversationUpdate(conversationId);
 
-  if (conversation.shop.email) {
+  // Responde a quien escribió por última vez desde el taller (si su correo está
+  // confirmado), si no al contacto efectivo del taller — nunca al Shop.email crudo.
+  const lastShopMessage = await db.platformMessage.findFirst({
+    where: { conversationId, sender: "SHOP", authorUserId: { not: null } },
+    orderBy: { createdAt: "desc" },
+    select: { authorUserId: true },
+  });
+  const replyTo = await resolveSupportRecipient(conversation.shop.id, lastShopMessage?.authorUserId ?? null);
+  if (replyTo) {
     await notifySupportReply({
-      to: conversation.shop.email,
+      to: replyTo,
       shopId: conversation.shop.id,
       shopName: conversation.shop.name,
       reply: trimmed,

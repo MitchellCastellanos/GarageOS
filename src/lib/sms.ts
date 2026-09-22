@@ -1,5 +1,5 @@
 import twilio from "twilio";
-import { recordAndSend } from "@/lib/communications/outbox";
+import { recordAndSend, type RecordAndSendResult } from "@/lib/communications/outbox";
 import { resolveSenderIdentity } from "@/lib/communications/sender-identity";
 import { toE164 } from "@/lib/phone";
 
@@ -25,7 +25,7 @@ export interface SendSmsParams {
   idempotencyKey?: string;
 }
 
-export async function sendSms(params: SendSmsParams): Promise<void> {
+export async function sendSms(params: SendSmsParams): Promise<RecordAndSendResult> {
   const identity = await resolveSenderIdentity(params.shopId, params.purpose, "SMS");
   const rawFrom = identity?.address ?? process.env.TWILIO_FROM_NUMBER;
   const from = rawFrom ? toE164(rawFrom) : null;
@@ -38,7 +38,7 @@ export async function sendSms(params: SendSmsParams): Promise<void> {
     throw new Error(`Invalid phone number for SMS: ${params.to}`);
   }
 
-  await recordAndSend({
+  return recordAndSend({
     shopId: params.shopId,
     clientId: params.clientId,
     purpose: params.purpose,
@@ -57,7 +57,7 @@ export async function sendSms(params: SendSmsParams): Promise<void> {
   });
 }
 
-export type AppointmentSmsType = "confirmation" | "reminder" | "cancellation";
+export type AppointmentSmsType = "confirmation" | "update" | "reminder" | "cancellation";
 export type SmsLanguage = "EN" | "FR";
 
 export interface AppointmentSmsData {
@@ -66,6 +66,8 @@ export interface AppointmentSmsData {
   shopId: string;
   clientId?: string;
   appointmentId?: string;
+  /** Distingue cada aviso de la misma cita (ej. id del AppointmentEvent) — sin esto, un segundo aviso del mismo tipo (reprogramación, reenvío) se deduplicaría contra el primero y nunca saldría. */
+  noticeKey?: string;
   shopName: string;
   title: string;
   startsAtFormatted: string;
@@ -81,6 +83,9 @@ const SMS_COPY: Record<SmsLanguage, Record<AppointmentSmsType, SmsCopyFn>> = {
     confirmation: (data) =>
       `${data.shopName}: appointment confirmed — ${data.title}, ${data.startsAtFormatted}.` +
       (data.manageUrl ? ` Confirm or cancel: ${data.manageUrl}` : ""),
+    update: (data) =>
+      `${data.shopName}: your appointment was updated — ${data.title}, ${data.startsAtFormatted}.` +
+      (data.manageUrl ? ` Confirm or cancel: ${data.manageUrl}` : ""),
     reminder: (data) =>
       `${data.shopName}: reminder of your appointment — ${data.title}, ${data.startsAtFormatted}.` +
       (data.manageUrl ? ` Confirm or cancel: ${data.manageUrl}` : ""),
@@ -91,6 +96,9 @@ const SMS_COPY: Record<SmsLanguage, Record<AppointmentSmsType, SmsCopyFn>> = {
   FR: {
     confirmation: (data) =>
       `${data.shopName} : rendez-vous confirmé — ${data.title}, ${data.startsAtFormatted}.` +
+      (data.manageUrl ? ` Confirmer ou annuler : ${data.manageUrl}` : ""),
+    update: (data) =>
+      `${data.shopName} : votre rendez-vous a été modifié — ${data.title}, ${data.startsAtFormatted}.` +
       (data.manageUrl ? ` Confirmer ou annuler : ${data.manageUrl}` : ""),
     reminder: (data) =>
       `${data.shopName} : rappel de votre rendez-vous — ${data.title}, ${data.startsAtFormatted}.` +
@@ -105,9 +113,9 @@ function resolveSmsLanguage(language?: string | null): SmsLanguage {
   return language === "FR" ? "FR" : "EN";
 }
 
-export async function sendAppointmentSms(data: AppointmentSmsData): Promise<void> {
+export async function sendAppointmentSms(data: AppointmentSmsData): Promise<RecordAndSendResult> {
   const body = SMS_COPY[resolveSmsLanguage(data.language)][data.type](data);
-  await sendSms({
+  return sendSms({
     to: data.to,
     body,
     shopId: data.shopId,
@@ -116,7 +124,7 @@ export async function sendAppointmentSms(data: AppointmentSmsData): Promise<void
     businessEntityType: data.appointmentId ? "APPOINTMENT" : undefined,
     businessEntityId: data.appointmentId,
     idempotencyKey: data.appointmentId
-      ? `appointment-sms:${data.type}:${data.appointmentId}`
+      ? `appointment-sms:${data.type}:${data.appointmentId}${data.noticeKey ? `:${data.noticeKey}` : ""}`
       : undefined,
   });
 }
@@ -218,9 +226,9 @@ const WORK_ORDER_READY_SMS_COPY: Record<SmsLanguage, (data: WorkOrderReadySmsDat
     `${data.shopName} : votre ${data.vehicleDescription} est prêt (ordre ${data.orderNumber}).`,
 };
 
-export async function sendWorkOrderReadySms(data: WorkOrderReadySmsData): Promise<void> {
+export async function sendWorkOrderReadySms(data: WorkOrderReadySmsData): Promise<RecordAndSendResult> {
   const body = WORK_ORDER_READY_SMS_COPY[resolveSmsLanguage(data.language)](data);
-  await sendSms({
+  return sendSms({
     to: data.to,
     body,
     shopId: data.shopId,
