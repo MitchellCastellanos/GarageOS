@@ -9,6 +9,7 @@ import { AdminLocaleProvider } from "@/components/admin/AdminLocaleProvider";
 import { getAccessibleShops } from "@/actions/locations";
 import { can } from "@/lib/subscription";
 import { hasUnreadSupportMessage } from "@/actions/support";
+import { hasUnreadInboxThreads } from "@/actions/inbox";
 import { ImpersonationBanner } from "@/components/admin/ImpersonationBanner";
 import { EmailVerificationBanner } from "@/components/admin/EmailVerificationBanner";
 
@@ -31,7 +32,7 @@ export default async function DashboardLayout({
     redirect(ADMIN.login);
   }
 
-  const [shop, locale, accessibleShops, inventoryEntitled, campaignsEntitled, currentUser, hasUnreadSupport] = await Promise.all([
+  const [shop, locale, accessibleShops, inventoryEntitled, campaignsEntitled, currentUser, hasUnreadSupport, hasUnreadInbox] = await Promise.all([
     db.shop.findUnique({
       where: { id: session.user.shopId },
       select: { name: true, logoUrl: true, onboardingCompletedAt: true },
@@ -45,6 +46,7 @@ export default async function DashboardLayout({
       select: { email: true, emailVerified: true },
     }),
     hasUnreadSupportMessage(session.user.shopId),
+    hasUnreadInboxThreads(session.user.shopId),
   ]);
 
   // Solo el dueño completa el asistente de arranque — no bloquea al staff
@@ -72,6 +74,7 @@ export default async function DashboardLayout({
         currentShopId={session.user.shopId}
         lockedNavHrefs={lockedNavHrefs}
         hasUnreadSupport={hasUnreadSupport}
+        hasUnreadInbox={hasUnreadInbox}
       >
         {children}
       </AdminChrome>

@@ -25,6 +25,26 @@ export interface SettingsDictionary {
     saving: string;
     saved: string;
   };
+  smsNumber: {
+    title: string;
+    subtitle: string;
+    dedicatedLabel: string;
+    sharedLabel: string;
+    sharedBody: string;
+    noSmsBody: string;
+    provisioningBody: string;
+    releaseScheduled: (date: string) => string;
+    twoWayHint: string;
+    requestButton: string;
+    requestSent: string;
+    requestMessage: string;
+    usageTitle: string;
+    usageLine: (used: number, allowance: number) => string;
+    usageRenews: (date: string) => string;
+    usageFullHint: string;
+    segmentsHint: string;
+    optedOut: (count: number) => string;
+  };
   workOrderNotifications: {
     title: string;
     emailLabel: string;
@@ -482,6 +502,28 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       saving: "Guardando...",
       saved: "Configuración guardada",
     },
+    smsNumber: {
+      title: "SMS — número y uso",
+      subtitle: "Desde qué número salen tus SMS y cuánto llevas este mes.",
+      dedicatedLabel: "Número propio del taller",
+      sharedLabel: "Número compartido de GarageOS",
+      sharedBody:
+        "Tus avisos salen de un número compartido: funcionan, pero los clientes no pueden conversar contigo por SMS. Con un número propio, sus respuestas llegan a tu Bandeja de entrada.",
+      noSmsBody: "El SMS no está configurado todavía; los avisos salen por email.",
+      provisioningBody: "Estamos activando tu número propio. Te avisaremos cuando esté listo.",
+      releaseScheduled: (date) => `Tu suscripción no está activa: el número se liberará el ${date} si no se reactiva.`,
+      twoWayHint: "Los clientes pueden responder a este número; sus mensajes llegan a la Bandeja de entrada.",
+      requestButton: "Solicitar número propio",
+      requestSent: "Solicitud enviada — el equipo de GarageOS te contactará por Ayuda.",
+      requestMessage: "Hola, quisiera activar un número SMS propio para mi taller (SMS bidireccional).",
+      usageTitle: "Uso de SMS este mes",
+      usageLine: (used, allowance) => `${used} de ${allowance} segmentos`,
+      usageRenews: (date) => `Se renueva el ${date}.`,
+      usageFullHint: "Cupo agotado: los avisos automáticos salen por email hasta el próximo mes.",
+      segmentsHint:
+        "Un SMS de hasta 160 caracteres es 1 segmento; con acentos como ê, ô o ç el límite baja a 70 por segmento.",
+      optedOut: (count) => `${count} contacto${count !== 1 ? "s" : ""} respondieron STOP y no reciben SMS.`,
+    },
     workOrderNotifications: {
       title: "Órdenes de trabajo — avisar cuando el vehículo esté listo",
       emailLabel: "Notificar por email al marcar \"Listo para retirar\"",
@@ -900,6 +942,28 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       saving: "Saving...",
       saved: "Settings saved",
     },
+    smsNumber: {
+      title: "SMS — number and usage",
+      subtitle: "Which number your texts come from and how much you've used this month.",
+      dedicatedLabel: "Your shop's own number",
+      sharedLabel: "Shared GarageOS number",
+      sharedBody:
+        "Your notices go out from a shared number: they work, but clients can't text you back. With your own number, their replies arrive in your Inbox.",
+      noSmsBody: "SMS isn't set up yet; notices go out by email.",
+      provisioningBody: "We're activating your own number. We'll let you know when it's ready.",
+      releaseScheduled: (date) => `Your subscription isn't active: this number will be released on ${date} unless it's reactivated.`,
+      twoWayHint: "Clients can reply to this number; their messages arrive in your Inbox.",
+      requestButton: "Request my own number",
+      requestSent: "Request sent — the GarageOS team will follow up under Help.",
+      requestMessage: "Hi, I'd like to activate a dedicated SMS number for my shop (two-way SMS).",
+      usageTitle: "SMS usage this month",
+      usageLine: (used, allowance) => `${used} of ${allowance} segments`,
+      usageRenews: (date) => `Renews on ${date}.`,
+      usageFullHint: "Allowance used up: automatic notices go out by email until next month.",
+      segmentsHint:
+        "A text of up to 160 characters is 1 segment; accents like ê, ô or ç lower that to 70 per segment.",
+      optedOut: (count) => `${count} contact${count !== 1 ? "s" : ""} replied STOP and won't receive SMS.`,
+    },
     workOrderNotifications: {
       title: "Work orders — notify when the vehicle is ready",
       emailLabel: 'Notify by email when marked "Ready for pickup"',
@@ -1315,6 +1379,28 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       save: "Enregistrer les changements",
       saving: "Enregistrement...",
       saved: "Configuration enregistrée",
+    },
+    smsNumber: {
+      title: "SMS — numéro et utilisation",
+      subtitle: "De quel numéro partent vos SMS et combien vous en avez utilisé ce mois-ci.",
+      dedicatedLabel: "Numéro propre à l'atelier",
+      sharedLabel: "Numéro partagé GarageOS",
+      sharedBody:
+        "Vos avis partent d'un numéro partagé : ils fonctionnent, mais vos clients ne peuvent pas vous répondre par SMS. Avec votre propre numéro, leurs réponses arrivent dans votre boîte de réception.",
+      noSmsBody: "Les SMS ne sont pas encore configurés; les avis partent par courriel.",
+      provisioningBody: "Nous activons votre numéro. Nous vous aviserons dès qu'il sera prêt.",
+      releaseScheduled: (date) => `Votre abonnement n'est pas actif : ce numéro sera libéré le ${date} s'il n'est pas réactivé.`,
+      twoWayHint: "Vos clients peuvent répondre à ce numéro; leurs messages arrivent dans votre boîte de réception.",
+      requestButton: "Demander mon propre numéro",
+      requestSent: "Demande envoyée — l'équipe GarageOS vous répondra dans Aide.",
+      requestMessage: "Bonjour, j'aimerais activer un numéro SMS dédié pour mon atelier (SMS bidirectionnels).",
+      usageTitle: "Utilisation des SMS ce mois-ci",
+      usageLine: (used, allowance) => `${used} sur ${allowance} segments`,
+      usageRenews: (date) => `Renouvellement le ${date}.`,
+      usageFullHint: "Forfait épuisé : les avis automatiques partent par courriel jusqu'au mois prochain.",
+      segmentsHint:
+        "Un SMS de 160 caractères ou moins compte pour 1 segment; les accents comme ê, ô ou ç réduisent la limite à 70.",
+      optedOut: (count) => `${count} contact${count !== 1 ? "s" : ""} ont répondu STOP et ne reçoivent plus de SMS.`,
     },
     workOrderNotifications: {
       title: "Ordres de travail — aviser quand le véhicule est prêt",

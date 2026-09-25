@@ -170,3 +170,67 @@ async function persistAttachments(
 }
 
 export type { EmailAttachment };
+
+// ── SMS bidireccional ────────────────────────────────────────────────────────
+
+export interface SendInboxSmsParams {
+  shopId: string;
+  /** Hilo existente; si no viene, se retoma el hilo SMS de ese teléfono o se crea uno. */
+  threadId?: string | null;
+  clientId?: string | null;
+  to: string;
+  body: string;
+  createdByUserId?: string;
+}
+
+/**
+ * Mensaje SMS escrito por una persona desde el Inbox. Exige número dedicado:
+ * las respuestas del cliente tienen que volver a este taller. Sin idempotencyKey
+ * — cada clic de "Enviar" es deliberado (igual que el email del Inbox).
+ */
+export async function sendInboxSms(params: SendInboxSmsParams): Promise<SendInboxMessageResult> {
+  const { sendSms, toE164 } = await import("@/lib/sms");
+  const phone = toE164(params.to);
+  if (!phone) throw new Error("Invalid phone number");
+
+  const thread = params.threadId
+    ? await db.communicationThread.findFirstOrThrow({
+        where: { id: params.threadId, shopId: params.shopId, channel: "SMS" },
+      })
+    : (await db.communicationThread.findFirst({
+        where: { shopId: params.shopId, channel: "SMS", contactAddress: phone },
+        orderBy: { lastMessageAt: "desc" },
+      })) ??
+      (await db.communicationThread.create({
+        data: {
+          shopId: params.shopId,
+          channel: "SMS",
+          contactAddress: phone,
+          clientId: params.clientId ?? null,
+          status: "OPEN",
+        },
+      }));
+
+  const result = await sendSms({
+    shopId: params.shopId,
+    to: phone,
+    body: params.body,
+    purpose: "INBOX",
+    clientId: params.clientId ?? thread.clientId,
+    threadId: thread.id,
+    messageType: "HUMAN",
+    createdByUserId: params.createdByUserId,
+    businessEntityType: "COMMUNICATION_THREAD",
+    businessEntityId: thread.id,
+    requireDedicatedNumber: true,
+  });
+
+  // Responder cuenta como leído: quien escribe ya vio la conversación.
+  const now = new Date();
+  await db.communicationThread.update({
+    where: { id: thread.id },
+    data: { lastMessageAt: now, readAt: now, status: "OPEN" },
+  });
+
+  return { messageId: result.messageId, threadId: thread.id };
+}

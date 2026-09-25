@@ -286,3 +286,31 @@ export async function alertStaffSmsNumberReleaseScheduled(input: {
     },
   });
 }
+
+/** GarageOS activó el número dedicado del taller (respuesta a su solicitud). */
+export async function alertStaffSmsNumberActivated(input: { shopId: string; phoneNumber: string }): Promise<void> {
+  const shop = await shopBasics(input.shopId);
+  if (!shop) return;
+  await sendStaffAlert({
+    shopId: shop.id,
+    shopName: shop.name,
+    ctaPath: ADMIN.inbox,
+    build: (language) =>
+      language === "FR"
+        ? {
+            subject: `Votre numéro SMS est actif — ${shop.name}`,
+            heading: "Numéro SMS activé",
+            intro:
+              "Vos avis SMS partent maintenant de votre propre numéro, et les réponses de vos clients arrivent dans votre boîte de réception.",
+            details: [{ label: "Numéro", value: input.phoneNumber }],
+            ctaLabel: "Ouvrir la boîte de réception",
+          }
+        : {
+            subject: `Your SMS number is live — ${shop.name}`,
+            heading: "SMS number activated",
+            intro: "Your SMS notices now go out from your own number, and client replies arrive in your Inbox.",
+            details: [{ label: "Number", value: input.phoneNumber }],
+            ctaLabel: "Open the Inbox",
+          },
+  });
+}

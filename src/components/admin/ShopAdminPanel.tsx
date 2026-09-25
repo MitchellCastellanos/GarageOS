@@ -16,6 +16,7 @@ import { Tabs } from "@/components/ui/Tabs";
 import { ShopUsageTab, type ShopUsage } from "@/components/admin/ShopUsageTab";
 import { ShopBillingTab, type ShopSubscriptionDetail } from "@/components/admin/ShopBillingTab";
 import { ShopActivityTab, type PlatformNoteRow, type PlatformAuditLogRow } from "@/components/admin/ShopActivityTab";
+import { ShopSmsTab, type ShopSmsAdminOverview } from "@/components/admin/ShopSmsTab";
 
 type ShopDetail = {
   id: string;
@@ -40,12 +41,14 @@ export function ShopAdminPanel({
   notes,
   auditLog,
   actorNames,
+  sms,
 }: {
   shop: ShopDetail;
   usage: ShopUsage;
   notes: PlatformNoteRow[];
   auditLog: PlatformAuditLogRow[];
   actorNames: Record<string, string>;
+  sms: ShopSmsAdminOverview;
 }) {
   return (
     <div className="space-y-6">
@@ -71,6 +74,7 @@ export function ShopAdminPanel({
             content: <ShopUsageTab shopId={shop.id} usage={usage} subscriptionStatus={shop.subscription?.status ?? null} />,
           },
           { id: "billing", label: "Plan y facturación", content: <ShopBillingTab shopId={shop.id} subscription={shop.subscription} /> },
+          { id: "sms", label: "SMS", content: <ShopSmsTab shopId={shop.id} overview={sms} /> },
           {
             id: "activity",
             label: "Notas y bitácora",

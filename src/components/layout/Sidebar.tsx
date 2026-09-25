@@ -81,11 +81,13 @@ export function Sidebar({
   onMobileClose,
   lockedNavHrefs,
   hasUnreadSupport,
+  hasUnreadInbox,
 }: {
   mobileOpen: boolean;
   onMobileClose: () => void;
   lockedNavHrefs?: string[];
   hasUnreadSupport?: boolean;
+  hasUnreadInbox?: boolean;
 }) {
   const lockedSet = new Set(lockedNavHrefs ?? []);
   const pathname = usePathname();
@@ -176,7 +178,7 @@ export function Sidebar({
                 icon={item.icon}
                 active={isActive}
                 locked={lockedSet.has(item.href)}
-                unread={item.href === ADMIN.support && hasUnreadSupport}
+                unread={(item.href === ADMIN.support && hasUnreadSupport) || (item.href === ADMIN.inbox && hasUnreadInbox)}
               />
             );
           })}
@@ -252,7 +254,7 @@ export function Sidebar({
                         Pro
                       </span>
                     )}
-                    {item.href === ADMIN.support && hasUnreadSupport && !lockedSet.has(item.href) && (
+                    {((item.href === ADMIN.support && hasUnreadSupport) || (item.href === ADMIN.inbox && hasUnreadInbox)) && !lockedSet.has(item.href) && (
                       <span className="ml-auto w-2 h-2 rounded-full bg-red-500" />
                     )}
                   </Link>

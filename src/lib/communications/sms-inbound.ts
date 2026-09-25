@@ -60,7 +60,8 @@ async function resolveInboundShops(
   return { primary: recent?.shopId ?? null, all: outbound.map((m) => m.shopId) };
 }
 
-async function findClientsByPhone(shopId: string, phone: string) {
+/** Clientes del taller con ese teléfono (E.164), más reciente primero. */
+export async function findClientsByPhone(shopId: string, phone: string) {
   const last4 = phone.replace(/\D/g, "").slice(-4);
   const candidates = await db.client.findMany({
     where: { shopId, phone: { contains: last4 } },

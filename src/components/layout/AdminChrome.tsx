@@ -14,6 +14,8 @@ interface AdminChromeProps {
   lockedNavHrefs?: string[];
   /** Punto en el ícono de Ayuda — hay una respuesta de GarageOS que el taller no ha visto todavía. */
   hasUnreadSupport?: boolean;
+  /** Punto en Bandeja de entrada — un cliente escribió (SMS o email) y nadie abrió el hilo. */
+  hasUnreadInbox?: boolean;
   children: React.ReactNode;
 }
 
@@ -25,6 +27,7 @@ export function AdminChrome({
   currentShopId,
   lockedNavHrefs,
   hasUnreadSupport,
+  hasUnreadInbox,
   children,
 }: AdminChromeProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -47,6 +50,7 @@ export function AdminChrome({
           onMobileClose={closeMobileNav}
           lockedNavHrefs={lockedNavHrefs}
           hasUnreadSupport={hasUnreadSupport}
+          hasUnreadInbox={hasUnreadInbox}
         />
         <main className="flex-1 min-w-0 p-4 sm:p-6 overflow-y-auto">{children}</main>
       </div>

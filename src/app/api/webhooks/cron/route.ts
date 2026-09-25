@@ -3,10 +3,13 @@ import { db } from "@/lib/db";
 import { sendReminderEmail } from "@/lib/email";
 import { shopToEmailConfig } from "@/lib/email-config";
 import { SYSTEM_ACTOR, recordAppointmentEvent } from "@/lib/appointment-events";
+import { runSmsNumberLifecycle } from "@/lib/communications/sms-numbers";
+import { isTwilioConfigured } from "@/lib/communications/twilio";
 
 // Cron Job — corre diariamente a las 8am (configurado en vercel.json)
 // Envía recordatorios de servicio con vencimiento en ≤7 días
-// y recordatorios de citas según appointmentReminderHours de cada taller.
+// y recordatorios de citas según appointmentReminderHours de cada taller,
+// y aplica el ciclo de vida de 30 días de los números SMS dedicados.
 //
 // SEGURIDAD: protegido con CRON_SECRET header.
 export async function GET(request: Request) {
@@ -129,8 +132,18 @@ export async function GET(request: Request) {
     }
   }
 
+  // Números SMS dedicados: talleres que dejaron de pagar conservan el número 30
+  // días; después se libera (ver runSmsNumberLifecycle).
+  const smsNumbers = isTwilioConfigured()
+    ? await runSmsNumberLifecycle().catch((err) => {
+        console.error("[cron] ciclo de vida de números SMS falló:", err);
+        return null;
+      })
+    : null;
+
   return NextResponse.json({
     ...results,
+    smsNumbers,
     message: `Servicios: ${results.serviceReminders.sent} enviados. Citas: ${results.appointmentReminders.sent} enviados.`,
   });
 }

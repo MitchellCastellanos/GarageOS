@@ -35,6 +35,7 @@ export interface ClientsDictionary {
     edit: string;
     infoTitle: string;
     languageSuffix: string;
+    smsOptedOut: string;
     noContactInfo: string;
     notesTitle: string;
     add: string;
@@ -154,6 +155,7 @@ export const CLIENTS_DICT: Record<AdminLocale, ClientsDictionary> = {
       edit: "Editar",
       infoTitle: "Información",
       languageSuffix: "— SMS y email",
+      smsOptedOut: "Respondió STOP: no recibe SMS (los avisos le llegan por email).",
       noContactInfo: "Sin información de contacto",
       notesTitle: "Notas",
       add: "Agregar",
@@ -272,6 +274,7 @@ export const CLIENTS_DICT: Record<AdminLocale, ClientsDictionary> = {
       edit: "Edit",
       infoTitle: "Information",
       languageSuffix: "— SMS and email",
+      smsOptedOut: "Replied STOP: no SMS (notices go to email instead).",
       noContactInfo: "No contact information",
       notesTitle: "Notes",
       add: "Add",
@@ -390,6 +393,7 @@ export const CLIENTS_DICT: Record<AdminLocale, ClientsDictionary> = {
       edit: "Modifier",
       infoTitle: "Renseignements",
       languageSuffix: "— SMS et courriel",
+      smsOptedOut: "A répondu STOP : aucun SMS (les avis partent par courriel).",
       noContactInfo: "Aucune information de contact",
       notesTitle: "Notes",
       add: "Ajouter",

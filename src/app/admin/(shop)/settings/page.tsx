@@ -12,6 +12,8 @@ import { ShopSettingsForm } from "@/components/settings/ShopSettingsForm";
 import { AppointmentBookingSettings } from "@/components/settings/AppointmentBookingSettings";
 import { AppointmentReminderSettings } from "@/components/settings/AppointmentReminderSettings";
 import { WorkOrderNotificationSettings } from "@/components/settings/WorkOrderNotificationSettings";
+import { SmsNumberCard } from "@/components/settings/SmsNumberCard";
+import { getShopSmsOverview } from "@/actions/sms-settings";
 import { ServiceCatalogSettings } from "@/components/settings/ServiceCatalogSettings";
 import { DomainSettings } from "@/components/settings/DomainSettings";
 import { TeamManagement } from "@/components/settings/TeamManagement";
@@ -44,6 +46,7 @@ export default async function SettingsPage() {
   const domains = isOwner ? await getShopDomains() : null;
   const communications = isOwner ? await getCommunicationSettings() : null;
   const billing = isOwner ? await getBillingOverview() : null;
+  const smsOverview = isOwner ? await getShopSmsOverview() : null;
   const plan = billing?.subscription.plan ?? "CORE";
   const seatLimit = PLAN_LIMITS[plan].users;
   const canAddLocation = planIncludes(plan, "organization.multiLocation");
@@ -88,6 +91,7 @@ export default async function SettingsPage() {
       label: t.tabs.notifications,
       content: (
         <div className="space-y-6 max-w-2xl">
+          {smsOverview && <SmsNumberCard overview={smsOverview} />}
           <AppointmentReminderSettings shop={shop} />
           <WorkOrderNotificationSettings shop={shop} />
         </div>
