@@ -905,8 +905,8 @@ Benefits:
 - usage attribution;
 - operational isolation;
 - easier compliance containment;
-- future dedicated shop number;
-- future two-way SMS Inbox.
+- dedicated shop number (implemented, see status note below);
+- two-way SMS Inbox (implemented, see status note below).
 
 Do not provision paid provider resources during random page loads. Provision intentionally, idempotently, and with recoverable status.
 
