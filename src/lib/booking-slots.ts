@@ -6,6 +6,7 @@ import {
 } from "@/lib/shop-timezone";
 import { SERVICE_DURATIONS, SERVICE_KEYS } from "@/lib/service-catalog";
 import { SITE_DICTIONARIES } from "@/lib/site-locale";
+import { FACTORY_FEATURED_SERVICES, FACTORY_SERVICE_ICONS } from "@/lib/booking-page";
 
 export interface AvailableSlot {
   date: string;
@@ -63,6 +64,10 @@ export interface ShopServiceCatalogRow {
   durationMinutes: number;
   isActive: boolean;
   sortOrder: number;
+  /** Clave de SERVICE_ICON_KEYS (src/lib/booking-page.ts) o null → se infiere del nombre. */
+  iconKey: string | null;
+  /** Aparece en la franja de servicios destacados de la página pública. */
+  isFeatured: boolean;
 }
 
 /** Catálogo de fábrica (SERVICE_DURATIONS + traducciones de site-locale.ts) — lo que ve un taller que nunca tocó Configuración → Servicios. */
@@ -75,6 +80,8 @@ function defaultServiceCatalog(): ShopServiceCatalogRow[] {
     durationMinutes: SERVICE_DURATIONS[key],
     isActive: true,
     sortOrder: index,
+    iconKey: FACTORY_SERVICE_ICONS[key] ?? null,
+    isFeatured: FACTORY_FEATURED_SERVICES.includes(key),
   }));
 }
 
@@ -100,6 +107,8 @@ export async function getShopServiceCatalog(shopId: string): Promise<ShopService
     durationMinutes: row.durationMinutes,
     isActive: row.isActive,
     sortOrder: row.sortOrder,
+    iconKey: row.iconKey,
+    isFeatured: row.isFeatured,
   }));
 }
 

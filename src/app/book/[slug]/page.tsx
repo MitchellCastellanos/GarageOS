@@ -1,20 +1,20 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getShopBySlug, getShopServiceCatalog } from "@/lib/booking-slots";
+import { DEFAULT_WORKING_HOURS, getShopBySlug, getShopServiceCatalog } from "@/lib/booking-slots";
 import { bookingPublicUrl } from "@/config/app";
-import { toSafeDarkBrandColor } from "@/lib/brand-color";
+import { can } from "@/lib/subscription";
+import {
+  buildBookingPageViewModel,
+  requiresAdvancedDesign,
+  resolveEffectiveDesign,
+  selectFeaturedServices,
+  toPublicServices,
+} from "@/lib/booking-page";
 import { LocaleProvider } from "@/components/booking/LocaleProvider";
-import { SiteHeader } from "@/components/booking/SiteHeader";
-import { Hero } from "@/components/booking/Hero";
-import { QuickServicesStrip } from "@/components/booking/QuickServicesStrip";
-import { ServicesSection } from "@/components/booking/ServicesSection";
-import { OurShopSection } from "@/components/booking/OurShopSection";
 import { BookingSection } from "@/components/booking/BookingSection";
-import { ContactSection } from "@/components/booking/ContactSection";
-import { SiteFooter } from "@/components/booking/SiteFooter";
-import { WhatsAppButton } from "@/components/booking/WhatsAppButton";
 import { BookingUnavailable } from "@/components/booking/BookingUnavailable";
 import { LanguageSwitcher } from "@/components/booking/LanguageSwitcher";
+import { BookingPageRenderer } from "@/components/booking/page/BookingPageRenderer";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -26,15 +26,22 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const shop = await getShopBySlug(slug);
   if (!shop) return {};
 
+  // Descripción a partir de los servicios reales del taller (los destacados,
+  // o los primeros del catálogo), no de una lista genérica.
+  const services = toPublicServices(await getShopServiceCatalog(shop.id));
+  const highlighted = selectFeaturedServices(services);
+  const serviceNames = (highlighted.length > 0 ? highlighted : services.slice(0, 5)).map((s) => s.labelFr);
+
   const title = `${shop.name} — Réservez votre rendez-vous en ligne`;
   const description = [
-    `Mécanique générale, batteries, pneus, freins et vidange d'huile chez ${shop.name}.`,
+    serviceNames.length > 0 ? `${serviceNames.join(", ")} chez ${shop.name}.` : `Garage ${shop.name}.`,
     shop.address ? `${shop.address}.` : null,
     shop.phone ? `Réservez en ligne ou appelez au ${shop.phone}.` : "Réservez votre rendez-vous en ligne.",
   ]
     .filter(Boolean)
     .join(" ");
   const url = bookingPublicUrl(slug);
+  const images = shop.bookingCoverImageUrl ? [{ url: shop.bookingCoverImageUrl, alt: shop.name }] : undefined;
 
   return {
     title,
@@ -49,11 +56,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       siteName: shop.name,
       locale: "fr_CA",
       type: "website",
+      ...(images ? { images } : {}),
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
+      ...(images ? { images: images.map((i) => i.url) } : {}),
     },
   };
 }
@@ -83,40 +92,26 @@ export default async function PublicBookingPage({ params, searchParams }: PagePr
     );
   }
 
-  const catalog = await getShopServiceCatalog(shop.id);
-  const activeServices = catalog
-    .filter((row) => row.isActive)
-    .map(({ id, labelFr, labelEn, labelEs, durationMinutes }) => ({
-      id,
-      labelFr,
-      labelEn,
-      labelEs,
-      durationMinutes,
-    }));
-
-  const brandColor = toSafeDarkBrandColor(shop.brandColor ?? "");
-
-  const bookingSection = (
-    <BookingSection
-      slug={slug}
-      shop={{
-        name: shop.name,
-        phone: shop.phone,
-        address: shop.address,
-        logoUrl: shop.logoUrl,
-        bookingSlotMinutes: shop.bookingSlotMinutes,
-      }}
-      services={activeServices}
-    />
-  );
+  const services = toPublicServices(await getShopServiceCatalog(shop.id));
 
   // Modo embed: pensado para un <iframe> en el sitio del taller — solo el
-  // formulario/calendario, sin header/hero/footer propios de esta landing.
+  // formulario/calendario, sin header/hero/footer propios de esta landing
+  // (ni plantilla/tipografía: se mantiene liviano).
   if (isEmbed) {
     return (
       <LocaleProvider>
-        <div className="min-h-full bg-white">
-          {bookingSection}
+        <div className="min-h-full bg-white @container">
+          <BookingSection
+            slug={slug}
+            shop={{
+              name: shop.name,
+              phone: shop.phone,
+              address: shop.address,
+              logoUrl: shop.logoUrl,
+              bookingSlotMinutes: shop.bookingSlotMinutes,
+            }}
+            services={services}
+          />
           <p className="text-center text-[11px] text-slate-400 pb-3">
             <a
               href="https://garageos.com"
@@ -132,25 +127,32 @@ export default async function PublicBookingPage({ params, searchParams }: PagePr
     );
   }
 
+  // Diseño efectivo: si el taller guardó una plantilla/tipografía Pro y ya no
+  // tiene el plan, la página cae a Classic sin perder su preferencia.
+  const savedDesign = { template: shop.bookingTemplate, typography: shop.bookingTypography };
+  const design = requiresAdvancedDesign(savedDesign)
+    ? resolveEffectiveDesign(savedDesign, await can(shop.id, "bookingPage.advancedDesign"))
+    : savedDesign;
+
+  const page = buildBookingPageViewModel({
+    slug,
+    shop: {
+      name: shop.name,
+      logoUrl: shop.logoUrl,
+      phone: shop.phone,
+      address: shop.address,
+      bookingSlotMinutes: shop.bookingSlotMinutes,
+    },
+    coverImageUrl: shop.bookingCoverImageUrl,
+    shopImageUrl: shop.bookingShopImageUrl,
+    services,
+    // Mismo horario que usa el cálculo de disponibilidad (default si el taller no configuró).
+    workingHours: shop.workingHours.length > 0 ? shop.workingHours : DEFAULT_WORKING_HOURS,
+  });
+
   return (
     <LocaleProvider>
-      <div className="min-h-full">
-        <SiteHeader shopName={shop.name} logoUrl={shop.logoUrl} phone={shop.phone} brandColor={brandColor} />
-        <Hero shopName={shop.name} address={shop.address} phone={shop.phone} brandColor={brandColor} />
-        <QuickServicesStrip />
-        <ServicesSection />
-        <OurShopSection shopName={shop.name} address={shop.address} phone={shop.phone} brandColor={brandColor} />
-        {bookingSection}
-        <ContactSection slug={slug} shopName={shop.name} />
-        <SiteFooter
-          shopName={shop.name}
-          logoUrl={shop.logoUrl}
-          address={shop.address}
-          phone={shop.phone}
-          brandColor={brandColor}
-        />
-        <WhatsAppButton phone={shop.phone} />
-      </div>
+      <BookingPageRenderer page={page} design={design} brandColor={shop.brandColor} />
     </LocaleProvider>
   );
 }

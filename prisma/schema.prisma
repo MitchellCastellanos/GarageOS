@@ -60,6 +60,18 @@ model Shop {
   bookingSlotMinutes        Int           @default(60)
   bookingLeadTimeHours      Int           @default(24)
   bookingAdvanceDays        Int           @default(30)
+  // Página pública de reservas (/book/[slug]) — configurador guiado, no un
+  // page builder. Ver src/lib/booking-page.ts. Las fotos son opcionales: sin
+  // ellas la página cae al fondo con color de marca de siempre. Plantilla y
+  // tipografía guardan la preferencia del taller aunque su plan ya no la
+  // incluya (downgrade): el render público resuelve el diseño efectivo.
+  bookingCoverImageUrl      String?
+  bookingShopImageUrl       String?
+  bookingTemplate           BookingPageTemplate   @default(CLASSIC)
+  bookingTypography         BookingPageTypography @default(GARAGE)
+  // null = el taller nunca publicó desde el configurador → el admin ve el
+  // asistente guiado; con fecha, ve el editor compacto.
+  bookingPagePublishedAt    DateTime?
   createdAt                 DateTime      @default(now())
 
   users                     User[]
@@ -630,8 +642,31 @@ model ShopBookingService {
   durationMinutes Int
   isActive        Boolean  @default(true)
   sortOrder       Int      @default(0)
+  // Presentación en la página pública: ícono de un vocabulario curado
+  // (SERVICE_ICON_KEYS en src/lib/booking-page.ts; null = se infiere del
+  // nombre) y si aparece en la franja de servicios destacados.
+  iconKey         String?
+  isFeatured      Boolean  @default(false)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+
+  @@schema("garageos")
+}
+
+enum BookingPageTemplate {
+  CLASSIC
+  MODERN
+  BOLD
+  MINIMAL
+
+  @@schema("garageos")
+}
+
+enum BookingPageTypography {
+  GARAGE
+  MODERN
+  CLASSIC
+  PREMIUM
 
   @@schema("garageos")
 }

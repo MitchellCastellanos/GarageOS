@@ -88,6 +88,31 @@ export async function uploadShopLogoToStorage(
   return { storagePath, publicUrl: data.publicUrl };
 }
 
+/**
+ * Sube una foto de la página pública de reservas (portada o taller). Cada
+ * subida es un archivo nuevo (nombre con timestamp): el configurador guarda
+ * borradores y la página pública solo cambia cuando el taller publica, así
+ * que no podemos sobreescribir la foto que está en vivo.
+ */
+export async function uploadBookingPageImageToStorage(
+  folder: string,
+  kind: string,
+  buffer: Buffer
+): Promise<{ storagePath: string; publicUrl: string }> {
+  const supabase = getClient();
+  await ensureAccountingBucket(supabase);
+
+  const storagePath = `${folder}${kind}-${Date.now()}.webp`;
+  const { error } = await supabase.storage
+    .from(ACCOUNTING_BUCKET)
+    .upload(storagePath, buffer, { contentType: "image/webp", upsert: false });
+
+  if (error) throw new Error(`Supabase upload error: ${error.message}`);
+
+  const { data } = supabase.storage.from(ACCOUNTING_BUCKET).getPublicUrl(storagePath);
+  return { storagePath, publicUrl: data.publicUrl };
+}
+
 /** Sube o reemplaza el PDF empaquetado para el link de descarga del cliente. */
 export async function uploadInvoiceClientPackage(
   shopId: string,

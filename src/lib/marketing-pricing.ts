@@ -57,6 +57,7 @@ export const MARKETING_PRICING: Record<MarketingLocale, MarketingPricingCopy> = 
         features: [
           "Up to 3 users · 1 location",
           "Customers, vehicles, appointments & online booking",
+          "Branded booking page with your logo, color & shop photos",
           "Estimates, approvals, work orders, invoices & payments",
           "Basic DVI, job status & vehicle history",
           "Maintenance reminders & branded email communications",
@@ -80,6 +81,7 @@ export const MARKETING_PRICING: Record<MarketingLocale, MarketingPricingCopy> = 
           "Advanced reports, permissions & accounting tools",
           "QuickBooks Online sync",
           "Custom domain, sender identity & branded shop site",
+          "Advanced booking page customization",
           "Assisted onboarding & priority support",
         ],
         cta: "Choose Pro",
@@ -143,6 +145,7 @@ export const MARKETING_PRICING: Record<MarketingLocale, MarketingPricingCopy> = 
         features: [
           "Jusqu’à 3 utilisateurs · 1 établissement",
           "Clients, véhicules, rendez-vous et réservation en ligne",
+          "Page de réservation à votre image : logo, couleur et photos",
           "Soumissions, approbations, ordres de travail, factures et paiements",
           "DVI de base, statut des travaux et historique du véhicule",
           "Rappels d’entretien et communications courriel à votre image",
@@ -166,6 +169,7 @@ export const MARKETING_PRICING: Record<MarketingLocale, MarketingPricingCopy> = 
           "Rapports avancés, permissions et outils comptables",
           "Synchronisation QuickBooks Online",
           "Domaine personnalisé, identité d’expéditeur et site d’atelier à votre image",
+          "Personnalisation avancée de la page de réservation",
           "Accompagnement au démarrage et soutien prioritaire",
         ],
         cta: "Choisir Pro",

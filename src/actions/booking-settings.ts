@@ -11,6 +11,7 @@ import { dayLabel, type WorkingHoursRow } from "@/lib/working-hours";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import type { AdminLocale } from "@/lib/admin-locale";
 import { z } from "zod";
+import { MAX_FEATURED_SERVICES, SERVICE_ICON_KEYS } from "@/lib/booking-page";
 
 const INVALID_SCHEDULE_FOR: Record<AdminLocale, (day: string) => string> = {
   es: (day) => `Horario inválido para ${day}`,
@@ -293,9 +294,18 @@ const serviceRowSchema = z.object({
   labelEs: z.string().trim().min(1, "Falta el nombre en español").max(120),
   durationMinutes: z.coerce.number().int().min(5, "Mínimo 5 minutos").max(480, "Máximo 480 minutos"),
   isActive: z.boolean(),
+  iconKey: z.enum(SERVICE_ICON_KEYS).nullable().default(null),
+  isFeatured: z.boolean().default(false),
 });
 
-const serviceCatalogSchema = z.array(serviceRowSchema).min(1, "Agrega al menos un servicio").max(50);
+const serviceCatalogSchema = z
+  .array(serviceRowSchema)
+  .min(1, "Agrega al menos un servicio")
+  .max(50)
+  .refine(
+    (rows) => rows.filter((row) => row.isActive && row.isFeatured).length <= MAX_FEATURED_SERVICES,
+    `Máximo ${MAX_FEATURED_SERVICES} servicios destacados`
+  );
 
 /**
  * Reemplaza TODO el catálogo de servicios del taller de una sola vez — el
@@ -331,8 +341,14 @@ export async function updateServiceCatalog(formData: FormData) {
     }),
   ]);
 
+  await revalidatePublicBookingPage(shopId);
   revalidatePath(ADMIN.settings);
   return { success: true };
+}
+
+async function revalidatePublicBookingPage(shopId: string) {
+  const shop = await db.shop.findUnique({ where: { id: shopId }, select: { slug: true } });
+  if (shop?.slug) revalidatePath(`/book/${shop.slug}`);
 }
 
 const reminderSchema = z.object({
