@@ -484,8 +484,8 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
     },
     brandColor: {
       title: "Color de tu página de citas",
-      subtitle: "Personaliza el fondo del encabezado, portada, sección \"El taller\" y pie de página de tu enlace público — el acento rojo de GarageOS se mantiene.",
-      hint: "Si el color es muy claro lo oscurecemos automáticamente para que el texto blanco se siga leyendo bien.",
+      subtitle: "El color principal de tu página pública de reservas: botones, íconos y resaltados, y un tono profundo del mismo en las secciones oscuras. Ajusta el diseño en Configuración → Página de reservas.",
+      hint: "Si el color es muy claro lo oscurecemos un poco para que el texto blanco se siga leyendo bien.",
       previewLabel: "Tu taller",
       reset: "Usar el de GarageOS",
       save: "Guardar color",
@@ -912,8 +912,8 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
     },
     brandColor: {
       title: "Your booking page color",
-      subtitle: "Customize the header, hero, \"Our shop\" section and footer background on your public link — GarageOS's red accent stays as-is.",
-      hint: "If the color is too light we darken it automatically so white text stays readable.",
+      subtitle: "Your brand's primary color on your public booking page: buttons, icons and highlights, plus a deep tint of it on the dark sections. Fine-tune the look in Settings → Booking page.",
+      hint: "If the color is too light we darken it slightly so white text stays readable.",
       previewLabel: "Your shop",
       reset: "Use GarageOS's default",
       save: "Save color",
@@ -1338,8 +1338,8 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
     },
     brandColor: {
       title: "Couleur de votre page de rendez-vous",
-      subtitle: "Personnalisez le fond de l'en-tête, de la page d'accueil, de la section « Notre garage » et du pied de page de votre lien public — l'accent rouge de GarageOS reste inchangé.",
-      hint: "Si la couleur est trop claire, nous l'assombrissons automatiquement pour que le texte blanc reste lisible.",
+      subtitle: "La couleur principale de votre page de réservation publique : boutons, icônes et accents, et une teinte profonde de celle-ci sur les sections sombres. Ajustez le design dans Paramètres → Page de réservation.",
+      hint: "Si la couleur est trop claire, nous l'assombrissons légèrement pour que le texte blanc reste lisible.",
       previewLabel: "Votre garage",
       reset: "Utiliser celle de GarageOS",
       save: "Enregistrer la couleur",

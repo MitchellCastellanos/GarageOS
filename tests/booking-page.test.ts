@@ -3,6 +3,7 @@ import test, { type TestContext } from "node:test";
 import {
   MAX_FEATURED_SERVICES,
   buildBookingPageViewModel,
+  groupOpenHours,
   inferServiceIconKey,
   isOwnedBookingImageUrl,
   requiresAdvancedDesign,
@@ -13,7 +14,7 @@ import {
   validateBookingPagePublish,
   type CatalogServiceInput,
 } from "../src/lib/booking-page";
-import { contrastRatio, deriveBrandPalette } from "../src/lib/brand-color";
+import { DEFAULT_BRAND_COLOR, contrastRatio, deriveBrandPalette } from "../src/lib/brand-color";
 import { planIncludes } from "../src/config/entitlements";
 import { can } from "../src/lib/subscription";
 import { getShopServiceCatalog } from "../src/lib/booking-slots";
@@ -259,4 +260,35 @@ test("the brand palette stays readable for very light or invalid colors", () => 
     assert.ok(contrastRatio(palette.primaryHover, "#ffffff") >= 4.5);
     assert.ok(contrastRatio(palette.primary, palette.primarySoft) >= 3);
   }
+});
+
+test("the brand color drives the accent; no color keeps the historic red and a near-black surface", () => {
+  const legacy = deriveBrandPalette(null);
+  assert.equal(legacy.primary, DEFAULT_BRAND_COLOR);
+  assert.equal(legacy.accentOnDark, DEFAULT_BRAND_COLOR);
+
+  const blue = deriveBrandPalette("#2563eb");
+  assert.equal(blue.primary, "#2563eb");
+  for (const color of ["#2563eb", "#0f3d91", "#131417", "#16a34a", null]) {
+    const palette = deriveBrandPalette(color);
+    // Superficie oscura: texto blanco muy legible, acento ≥ 3:1 sobre ella.
+    assert.ok(contrastRatio(palette.surface, "#ffffff") >= 12, `${color} surface`);
+    assert.ok(contrastRatio(palette.accentOnDark, palette.surface) >= 3, `${color} accentOnDark`);
+  }
+});
+
+test("opening hours group consecutive days with the same schedule, week starting Monday", () => {
+  const rows = [
+    { dayOfWeek: 0, openTime: "09:00", closeTime: "17:00", isClosed: true },
+    ...[1, 2, 3, 4, 5].map((d) => ({ dayOfWeek: d, openTime: "08:00", closeTime: "18:00", isClosed: false })),
+    { dayOfWeek: 6, openTime: "09:00", closeTime: "14:00", isClosed: false },
+  ];
+  assert.deepEqual(groupOpenHours(rows), [
+    { fromDay: 1, toDay: 5, openTime: "08:00", closeTime: "18:00" },
+    { fromDay: 6, toDay: 6, openTime: "09:00", closeTime: "14:00" },
+  ]);
+  // Un día cerrado en medio corta el grupo.
+  rows[3] = { dayOfWeek: 3, openTime: "08:00", closeTime: "18:00", isClosed: true };
+  assert.equal(groupOpenHours(rows).length, 3);
+  assert.deepEqual(groupOpenHours([]), []);
 });

@@ -14,18 +14,18 @@ import type { TemplateProps } from "@/components/booking/page/shared";
  * retrocompatible): hero fotográfico con velo, franja flotante clara,
  * tarjetas convencionales y sección "El taller" oscura.
  */
-export function ClassicTemplate({ page, mode, brandDark, renderBooking }: TemplateProps) {
+export function ClassicTemplate({ page, mode, surface, renderBooking }: TemplateProps) {
   const { shop } = page;
   const full = mode !== "thumbnail";
 
   return (
-    <div className="min-h-full">
-      <SiteHeader shopName={shop.name} logoUrl={shop.logoUrl} phone={shop.phone} backgroundColor={brandDark} />
+    <div className="min-h-full bg-slate-50">
+      <SiteHeader shopName={shop.name} logoUrl={shop.logoUrl} phone={shop.phone} backgroundColor={surface} />
       <Hero
         shopName={shop.name}
         address={shop.address}
         phone={shop.phone}
-        brandDark={brandDark}
+        surface={surface}
         coverImageUrl={page.coverImageUrl}
       />
       <QuickServicesStrip featured={page.featured} mode={mode} />
@@ -36,8 +36,9 @@ export function ClassicTemplate({ page, mode, brandDark, renderBooking }: Templa
             shopName={shop.name}
             address={shop.address}
             phone={shop.phone}
-            brandDark={brandDark}
+            surface={surface}
             shopImageUrl={page.shopImageUrl}
+            hours={page.hours}
           />
           {renderBooking()}
           <ContactSection slug={page.slug} shopName={shop.name} />
@@ -46,7 +47,7 @@ export function ClassicTemplate({ page, mode, brandDark, renderBooking }: Templa
             logoUrl={shop.logoUrl}
             address={shop.address}
             phone={shop.phone}
-            backgroundColor={brandDark}
+            backgroundColor={surface}
           />
         </>
       )}

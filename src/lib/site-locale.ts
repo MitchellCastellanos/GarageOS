@@ -14,6 +14,8 @@ export interface SiteDictionary {
   header: { bookCta: string; home: string; openMenu: string };
   whatsapp: { label: string; message: string };
   hero: {
+    /** Etiqueta corta sobre el nombre del taller. */
+    eyebrow: string;
     subheadline: string;
     tagline: string;
     bookCta: string;
@@ -24,6 +26,8 @@ export interface SiteDictionary {
     heading: string;
     subtitle: string;
     featuredLabel: string;
+    viewAll: (count: number) => string;
+    showLess: string;
     /** "≈ 1 h 30" — duración aproximada del servicio (ya formateada). */
     approxDuration: (duration: string) => string;
     bookThis: string;
@@ -112,6 +116,7 @@ export const SITE_DICTIONARIES: Record<SiteLocale, SiteDictionary> = {
       message: "Bonjour, j'aimerais prendre un rendez-vous.",
     },
     hero: {
+      eyebrow: "Mécanique automobile",
       subheadline: "Une mécanique de confiance pour votre auto de tous les jours",
       tagline:
         "Diagnostic honnête, réparation complète et rendez-vous en ligne en quelques minutes — sans surprise sur la facture.",
@@ -123,6 +128,8 @@ export const SITE_DICTIONARIES: Record<SiteLocale, SiteDictionary> = {
       heading: "Services du garage",
       subtitle: "Tout ce dont votre auto a besoin, au même endroit, avec rendez-vous en ligne.",
       featuredLabel: "Services populaires",
+      viewAll: (count) => `Voir tous les services (${count})`,
+      showLess: "Voir moins",
       approxDuration: (duration) => `Environ ${duration}`,
       bookThis: "Réserver",
       noServiceTitle: "Vous ne voyez pas votre service ?",
@@ -232,6 +239,7 @@ export const SITE_DICTIONARIES: Record<SiteLocale, SiteDictionary> = {
       message: "Hi, I'd like to book an appointment.",
     },
     hero: {
+      eyebrow: "Auto repair & maintenance",
       subheadline: "Trusted mechanics for your everyday car",
       tagline:
         "Honest diagnostics, complete repairs, and online booking in minutes — no surprises on the bill.",
@@ -243,6 +251,8 @@ export const SITE_DICTIONARIES: Record<SiteLocale, SiteDictionary> = {
       heading: "Shop services",
       subtitle: "Everything your car needs, in one place, with online booking.",
       featuredLabel: "Popular services",
+      viewAll: (count) => `View all services (${count})`,
+      showLess: "Show less",
       approxDuration: (duration) => `About ${duration}`,
       bookThis: "Book",
       noServiceTitle: "Don't see your service?",
@@ -351,6 +361,7 @@ export const SITE_DICTIONARIES: Record<SiteLocale, SiteDictionary> = {
       message: "Hola, quisiera agendar una cita.",
     },
     hero: {
+      eyebrow: "Mecánica automotriz",
       subheadline: "Mecánica de confianza para tu auto de todos los días",
       tagline:
         "Diagnóstico honesto, reparación completa y cita en línea en minutos — sin sorpresas en la factura.",
@@ -362,6 +373,8 @@ export const SITE_DICTIONARIES: Record<SiteLocale, SiteDictionary> = {
       heading: "Servicios del taller",
       subtitle: "Todo lo que tu auto necesita, en un mismo lugar y con cita en línea.",
       featuredLabel: "Servicios populares",
+      viewAll: (count) => `Ver todos los servicios (${count})`,
+      showLess: "Ver menos",
       approxDuration: (duration) => `Aprox. ${duration}`,
       bookThis: "Reservar",
       noServiceTitle: "¿No ves tu servicio?",

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Menu, Phone, X } from "lucide-react";
 import { useSiteLocale } from "@/components/booking/LocaleProvider";
 import { LanguageSwitcher } from "@/components/booking/LanguageSwitcher";
-import { ShopLogo, scrollToAnchor } from "@/components/booking/page/shared";
+import { ShopLogo, accentText, scrollToAnchor } from "@/components/booking/page/shared";
 
 interface SiteHeaderProps {
   shopName: string;
@@ -84,8 +84,10 @@ export function SiteHeader({ shopName, logoUrl, phone, tone = "dark", background
                 key={link.href}
                 onClick={() => goTo(link.href)}
                 className={[
-                  "relative text-sm font-medium transition-colors after:content-[''] after:absolute after:-bottom-1 after:left-0 after:h-0.5 after:w-0 after:bg-brand-red after:transition-all hover:after:w-full",
-                  dark ? "text-white/80 hover:text-white" : "text-slate-600 hover:text-slate-900",
+                  "relative text-sm font-medium transition-colors after:content-[''] after:absolute after:-bottom-1 after:left-0 after:h-0.5 after:w-0 after:transition-all hover:after:w-full",
+                  dark
+                    ? "text-white/80 hover:text-white after:bg-[var(--bp-accent-on-dark)]"
+                    : "text-slate-600 hover:text-slate-900 after:bg-brand-red",
                 ].join(" ")}
               >
                 {link.label}
@@ -103,7 +105,7 @@ export function SiteHeader({ shopName, logoUrl, phone, tone = "dark", background
                   dark ? "text-white/90 hover:text-white" : "text-slate-700 hover:text-slate-900",
                 ].join(" ")}
               >
-                <Phone className="w-4 h-4 text-brand-red" />
+                <Phone className={`w-4 h-4 ${accentText(tone)}`} />
                 {phone}
               </a>
             )}
@@ -112,6 +114,7 @@ export function SiteHeader({ shopName, logoUrl, phone, tone = "dark", background
               className={[
                 "bg-brand-red hover:bg-brand-red-dark text-white text-sm font-semibold px-5 py-2.5 transition-colors",
                 compact ? "rounded-full" : "rounded-lg uppercase tracking-wide shadow-md shadow-black/20",
+                dark ? "ring-1 ring-white/15" : "",
               ].join(" ")}
             >
               {t.header.bookCta}
@@ -151,7 +154,7 @@ export function SiteHeader({ shopName, logoUrl, phone, tone = "dark", background
               href={`tel:${phone}`}
               className={["flex items-center gap-2 font-medium py-2", dark ? "text-white/90" : "text-slate-800"].join(" ")}
             >
-              <Phone className="w-4 h-4 text-brand-red" />
+              <Phone className={`w-4 h-4 ${accentText(tone)}`} />
               {phone}
             </a>
           )}

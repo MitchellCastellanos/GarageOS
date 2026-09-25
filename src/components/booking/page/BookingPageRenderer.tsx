@@ -39,17 +39,21 @@ export function BookingPageRenderer({ page, design, brandColor, mode = "live" }:
   const palette = deriveBrandPalette(brandColor);
   const Template = TEMPLATES[design.template];
 
-  // Classic conserva el acento rojo de siempre (el color de marca es su fondo
-  // oscuro). El resto usa el color del taller como primario: se pisa la
-  // variable del acento, así formulario, calendario y botones lo heredan.
+  // El color del taller es el primario en las 4 plantillas: se pisa la
+  // variable del acento (--brand-red) para que botones, íconos, formulario y
+  // calendario lo hereden, y las superficies oscuras usan un tono profundo
+  // del mismo color. Sin color elegido la paleta cae al rojo histórico, así
+  // que un taller que nunca tocó nada se ve como siempre.
   const style = {
     ...typographyStyle(design.typography),
-    ...(design.template === "CLASSIC"
-      ? {}
-      : { "--brand-red": palette.primary, "--brand-red-dark": palette.primaryHover }),
+    "--brand-red": palette.primary,
+    "--brand-red-dark": palette.primaryHover,
+    "--bp-primary-soft": palette.primarySoft,
+    "--bp-surface": palette.surface,
+    "--bp-accent-on-dark": palette.accentOnDark,
   } as CSSProperties;
 
-  function renderBooking(className?: string) {
+  function renderBooking(className?: string, tone?: "light" | "dark") {
     if (mode === "thumbnail") return null;
     const section = (
       <BookingSection
@@ -63,6 +67,7 @@ export function BookingPageRenderer({ page, design, brandColor, mode = "live" }:
         }}
         services={page.services}
         className={className}
+        tone={tone}
       />
     );
     // En el preview el formulario es el real pero inerte: no se puede reservar desde el admin.
@@ -74,7 +79,7 @@ export function BookingPageRenderer({ page, design, brandColor, mode = "live" }:
       {/* El @container va en un hijo: su contención de layout convertiría al
           wrapper en el containing block del botón fijo de WhatsApp. */}
       <div className="@container min-h-full">
-        <Template page={page} mode={mode} brandDark={palette.primary} renderBooking={renderBooking} />
+        <Template page={page} mode={mode} surface={palette.surface} renderBooking={renderBooking} />
       </div>
       {mode !== "thumbnail" && <WhatsAppButton phone={page.shop.phone} />}
     </div>

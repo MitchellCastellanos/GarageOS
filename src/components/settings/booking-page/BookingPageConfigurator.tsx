@@ -78,6 +78,9 @@ function sameDraft(a: Draft, b: Draft): boolean {
   );
 }
 
+/** Atajos de color (el taller puede elegir cualquier otro con el selector). */
+const COLOR_PRESETS = ["#c8102e", "#2563eb", "#16a34a", "#ca8a04", "#ea580c", "#7c3aed", "#0f766e", "#131417"];
+
 const UPGRADE_HREF = `${ADMIN.settings}?tab=billing&plan=pro`;
 
 export function BookingPageConfigurator({ settings }: { settings: Settings }) {
@@ -122,6 +125,7 @@ export function BookingPageConfigurator({ settings }: { settings: Settings }) {
         coverImageUrl: draft.coverImageUrl,
         shopImageUrl: draft.shopImageUrl,
         services: settings.services,
+        workingHours: settings.workingHours,
       }),
     [settings, draft.coverImageUrl, draft.shopImageUrl]
   );
@@ -600,7 +604,8 @@ function TemplateStep({
                 selected ? "border-teal-600" : "border-slate-200 hover:border-slate-300"
               )}
             >
-              <div className="border-b border-slate-100 bg-slate-100">
+              {/* Miniatura decorativa: el nombre accesible del botón es el nombre/descr. de la plantilla. */}
+              <div className="border-b border-slate-100 bg-slate-100" aria-hidden="true">
                 <ScaledPreview virtualWidth={1280} height={150} interactive={false}>
                   <LocaleProvider syncDocumentLang={false}>
                     <BookingPageRenderer
@@ -724,6 +729,22 @@ function StyleStep({
           >
             {t.style.colorReset}
           </button>
+        </div>
+        <div className="flex flex-wrap gap-2" role="group" aria-label={t.style.colorTitle}>
+          {COLOR_PRESETS.map((color) => (
+            <button
+              key={color}
+              type="button"
+              onClick={() => setColor(color)}
+              aria-label={color}
+              aria-pressed={draft.brandColor.toLowerCase() === color}
+              className={cn(
+                "w-8 h-8 rounded-full border-2 transition-transform hover:scale-110",
+                draft.brandColor.toLowerCase() === color ? "border-slate-900 ring-2 ring-white ring-inset" : "border-white shadow"
+              )}
+              style={{ backgroundColor: color }}
+            />
+          ))}
         </div>
         {adjusted && (
           <p className="text-xs text-slate-500 flex items-center gap-2">

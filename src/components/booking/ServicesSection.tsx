@@ -1,12 +1,15 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Clock } from "lucide-react";
+import { ArrowRight, Clock } from "lucide-react";
 import { useSiteLocale } from "@/components/booking/LocaleProvider";
 import { ServiceIcon } from "@/components/booking/service-icons";
 import {
+  SectionHeading,
+  ViewAllServicesButton,
   bookService,
   formatDuration,
+  useCollapsedServices,
   useServiceLabel,
   type BookingPageRenderMode,
 } from "@/components/booking/page/shared";
@@ -21,58 +24,52 @@ interface ServicesSectionProps {
 export function ServicesSection({ services, mode }: ServicesSectionProps) {
   const { t } = useSiteLocale();
   const label = useServiceLabel();
+  const { visible, collapsible, expanded, toggle } = useCollapsedServices(services);
 
   return (
-    <section id="servicios" className="bg-slate-50 py-20 @2xl:py-28">
+    <section id="servicios" className="bg-slate-50 pt-16 pb-16 @2xl:pt-20 @2xl:pb-20">
       <div className="max-w-6xl mx-auto px-4 @2xl:px-6">
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-80px" }}
-          transition={{ duration: 0.5 }}
-          className="max-w-xl mb-12"
-        >
-          <span className="text-brand-red font-semibold text-sm uppercase tracking-widest">
-            {t.services.eyebrow}
-          </span>
-          <h2 className="bp-heading text-3xl @2xl:text-4xl text-slate-900 mt-2">{t.services.heading}</h2>
-          <p className="text-slate-500 mt-3">{t.services.subtitle}</p>
-        </motion.div>
+        <SectionHeading
+          title={t.services.heading}
+          subtitle={t.services.subtitle}
+          action={collapsible ? <ViewAllServicesButton total={services.length} expanded={expanded} onClick={toggle} /> : null}
+        />
 
-        <div className="grid @2xl:grid-cols-2 @5xl:grid-cols-3 gap-5">
-          {services.map((service, i) => (
+        <div className="grid @2xl:grid-cols-2 @5xl:grid-cols-3 gap-4">
+          {visible.map((service, i) => (
             <motion.button
               type="button"
               key={service.id}
               onClick={() => bookService(service.id, mode)}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 16 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-60px" }}
-              transition={{ duration: 0.45, delay: Math.min(i, 8) * 0.05 }}
-              whileHover={{ y: -6 }}
-              className="group relative text-left bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-xl hover:shadow-slate-200/60 hover:border-brand-red/30 transition-shadow"
+              viewport={{ once: true, margin: "-40px" }}
+              transition={{ duration: 0.4, delay: Math.min(i, 6) * 0.04 }}
+              className="group flex flex-col text-left bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:shadow-lg hover:shadow-slate-200/70 hover:border-brand-red/30 transition-all"
             >
-              <div className="w-12 h-12 rounded-xl bg-brand-red/10 flex items-center justify-center mb-4 group-hover:bg-brand-red transition-colors">
-                <ServiceIcon iconKey={service.iconKey} className="w-6 h-6 text-brand-red group-hover:text-white transition-colors" />
+              <div className="flex items-start gap-4">
+                <span className="w-12 h-12 shrink-0 rounded-lg bg-[var(--bp-primary-soft)] flex items-center justify-center group-hover:bg-brand-red transition-colors">
+                  <ServiceIcon iconKey={service.iconKey} className="w-6 h-6 text-brand-red group-hover:text-white transition-colors" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block font-semibold text-slate-900 break-words">{label(service)}</span>
+                  <span className="mt-1 inline-flex items-center gap-1.5 text-sm text-slate-500">
+                    <Clock className="w-3.5 h-3.5" />
+                    {t.services.approxDuration(formatDuration(service.durationMinutes))}
+                  </span>
+                </span>
               </div>
-              <h3 className="bp-heading text-base tracking-wide text-slate-900 break-words">{label(service)}</h3>
-              <p className="text-sm text-slate-500 mt-2 inline-flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5" />
-                {t.services.approxDuration(formatDuration(service.durationMinutes))}
-              </p>
+              <span className="mt-4 pt-3 border-t border-slate-100 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-red">
+                {t.services.bookThis}
+                <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
+              </span>
             </motion.button>
           ))}
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-60px" }}
-            transition={{ duration: 0.45 }}
-            className="rounded-2xl bg-brand-black text-white p-6 flex flex-col justify-center"
-          >
+          <div className="rounded-xl bg-[var(--bp-surface)] text-white p-5 flex flex-col justify-center">
             <p className="bp-heading text-lg leading-snug">{t.services.noServiceTitle}</p>
-            <p className="text-slate-400 text-sm mt-2">{t.services.noServiceBody}</p>
-          </motion.div>
+            <p className="text-slate-300 text-sm mt-2">{t.services.noServiceBody}</p>
+          </div>
         </div>
       </div>
     </section>

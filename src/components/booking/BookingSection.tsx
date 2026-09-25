@@ -16,9 +16,12 @@ interface BookingSectionProps {
   services: { id: string; labelFr: string; labelEn: string; labelEs: string; durationMinutes: number }[];
   /** Fondo de la sección según la plantilla (la lógica de reserva es siempre la misma). */
   className?: string;
+  /** "dark": encabezado claro para fondos oscuros (Bold). La tarjeta del formulario es siempre blanca. */
+  tone?: "light" | "dark";
 }
 
-export function BookingSection({ slug, shop, services, className = "bg-slate-50" }: BookingSectionProps) {
+export function BookingSection({ slug, shop, services, className = "bg-slate-50", tone = "light" }: BookingSectionProps) {
+  const dark = tone === "dark";
   const { t } = useSiteLocale();
 
   return (
@@ -31,13 +34,18 @@ export function BookingSection({ slug, shop, services, className = "bg-slate-50"
           transition={{ duration: 0.5 }}
           className="text-center mb-5"
         >
-          <span className="text-brand-red font-semibold text-sm uppercase tracking-widest">
+          <span
+            className={[
+              "font-semibold text-sm uppercase tracking-widest",
+              dark ? "text-[var(--bp-accent-on-dark)]" : "text-brand-red",
+            ].join(" ")}
+          >
             {t.booking.eyebrow}
           </span>
-          <h2 className="bp-heading text-2xl @2xl:text-3xl text-slate-900 mt-1">
+          <h2 className={["bp-heading text-2xl @2xl:text-3xl mt-1", dark ? "text-white" : "text-slate-900"].join(" ")}>
             {t.booking.heading}
           </h2>
-          <p className="text-slate-500 mt-2 text-sm">{t.booking.subtitle}</p>
+          <p className={["mt-2 text-sm", dark ? "text-slate-300" : "text-slate-500"].join(" ")}>{t.booking.subtitle}</p>
         </motion.div>
 
         <motion.div

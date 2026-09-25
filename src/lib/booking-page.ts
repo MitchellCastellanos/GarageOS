@@ -226,6 +226,8 @@ export interface BookingPageViewModel {
   services: PublicBookingService[];
   /** Destacados ya filtrados/acotados (selectFeaturedServices). */
   featured: PublicBookingService[];
+  /** Horario real del taller, agrupado (groupOpenHours). Vacío = no mostrar horario. */
+  hours: OpenHoursGroup[];
 }
 
 export function buildBookingPageViewModel(input: {
@@ -234,6 +236,7 @@ export function buildBookingPageViewModel(input: {
   coverImageUrl: string | null;
   shopImageUrl: string | null;
   services: PublicBookingService[];
+  workingHours?: WorkingHoursInput[];
 }): BookingPageViewModel {
   return {
     slug: input.slug,
@@ -242,7 +245,51 @@ export function buildBookingPageViewModel(input: {
     shopImageUrl: input.shopImageUrl || null,
     services: input.services,
     featured: selectFeaturedServices(input.services),
+    hours: groupOpenHours(input.workingHours ?? []),
   };
+}
+
+// ── Horario ─────────────────────────────────────────────────────
+
+export interface WorkingHoursInput {
+  dayOfWeek: number;
+  openTime: string;
+  closeTime: string;
+  isClosed: boolean;
+}
+
+/** Días consecutivos con el mismo horario (0 = domingo … 6 = sábado). */
+export interface OpenHoursGroup {
+  fromDay: number;
+  toDay: number;
+  openTime: string;
+  closeTime: string;
+}
+
+/** Semana empezando en lunes, como se lee un horario de taller. */
+const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0];
+
+/** "Lun–Vie 08:00–17:00 · Sáb 09:00–13:00" en datos: agrupa días abiertos consecutivos con el mismo horario. */
+export function groupOpenHours(rows: WorkingHoursInput[]): OpenHoursGroup[] {
+  const byDay = new Map(rows.map((row) => [row.dayOfWeek, row]));
+  const groups: OpenHoursGroup[] = [];
+  let previousDayOpen = false;
+
+  for (const day of WEEK_ORDER) {
+    const row = byDay.get(day);
+    if (!row || row.isClosed) {
+      previousDayOpen = false;
+      continue;
+    }
+    const last = groups[groups.length - 1];
+    if (previousDayOpen && last && last.openTime === row.openTime && last.closeTime === row.closeTime) {
+      last.toDay = day;
+    } else {
+      groups.push({ fromDay: day, toDay: day, openTime: row.openTime, closeTime: row.closeTime });
+    }
+    previousDayOpen = true;
+  }
+  return groups;
 }
 
 // ── Fotos del taller ────────────────────────────────────────────

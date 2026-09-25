@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getShopBySlug, getShopServiceCatalog } from "@/lib/booking-slots";
+import { DEFAULT_WORKING_HOURS, getShopBySlug, getShopServiceCatalog } from "@/lib/booking-slots";
 import { bookingPublicUrl } from "@/config/app";
 import { can } from "@/lib/subscription";
 import {
@@ -146,6 +146,8 @@ export default async function PublicBookingPage({ params, searchParams }: PagePr
     coverImageUrl: shop.bookingCoverImageUrl,
     shopImageUrl: shop.bookingShopImageUrl,
     services,
+    // Mismo horario que usa el cálculo de disponibilidad (default si el taller no configuró).
+    workingHours: shop.workingHours.length > 0 ? shop.workingHours : DEFAULT_WORKING_HOURS,
   });
 
   return (

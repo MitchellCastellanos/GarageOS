@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import sharp from "sharp";
 import { db } from "@/lib/db";
 import { requireOwner } from "@/lib/permissions";
-import { getShopServiceCatalog } from "@/lib/booking-slots";
+import { DEFAULT_WORKING_HOURS, getShopServiceCatalog } from "@/lib/booking-slots";
 import { bookingPublicUrl, bookingSubdomainUrl } from "@/config/app";
 import { can } from "@/lib/subscription";
 import { publicUrlForStoragePath, uploadBookingPageImageToStorage } from "@/lib/storage";
@@ -61,6 +61,10 @@ export async function getBookingPageSettings() {
       bookingShopImageUrl: true,
       bookingPagePublishedAt: true,
       domains: { where: { purpose: "LANDING", status: "VERIFIED" }, select: { domain: true } },
+      workingHours: {
+        orderBy: { dayOfWeek: "asc" },
+        select: { dayOfWeek: true, openTime: true, closeTime: true, isClosed: true },
+      },
     },
   });
   if (!shop) return null;
@@ -98,6 +102,7 @@ export async function getBookingPageSettings() {
     },
     publishedAt: shop.bookingPagePublishedAt,
     services: toPublicServices(catalog),
+    workingHours: shop.workingHours.length > 0 ? shop.workingHours : DEFAULT_WORKING_HOURS,
     advancedDesignAllowed,
     publicUrl,
   };
