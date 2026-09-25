@@ -6,13 +6,13 @@ export interface SettingsDictionary {
   tabs: {
     general: string;
     calendar: string;
+    notifications: string;
     services: string;
     bookingPage: string;
     team: string;
     locations: string;
     domain: string;
     billing: string;
-    support: string;
   };
   appointmentReminders: {
     title: string;
@@ -99,15 +99,6 @@ export interface SettingsDictionary {
     subtitle: string;
     placeholder: string;
     emptyWarning: string;
-    save: string;
-    saved: string;
-  };
-  brandColor: {
-    title: string;
-    subtitle: string;
-    hint: string;
-    previewLabel: string;
-    reset: string;
     save: string;
     saved: string;
   };
@@ -285,9 +276,6 @@ export interface SettingsDictionary {
       genericError: string;
     };
   };
-  support: {
-    needHelp: string;
-  };
   billingCta: {
     seatLimitTitle: string;
     seatLimitDescription: (limit: number) => string;
@@ -406,13 +394,13 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
     tabs: {
       general: "General",
       calendar: "Calendario y Horarios",
+      notifications: "Notificaciones",
       services: "Servicios",
       bookingPage: "Página de reservas",
       team: "Equipo",
       locations: "Ubicaciones",
-      domain: "Dominio",
+      domain: "Dominio y Email",
       billing: "Facturación",
-      support: "Soporte",
     },
     language: {
       title: "Idioma",
@@ -481,15 +469,6 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       emptyWarning: "Sin este identificador no tienes enlace público — el botón, el widget y las opciones de compartir no aparecerán hasta que lo definas.",
       save: "Guardar identificador",
       saved: "Identificador guardado",
-    },
-    brandColor: {
-      title: "Color de tu página de citas",
-      subtitle: "El color principal de tu página pública de reservas: botones, íconos y resaltados, y un tono profundo del mismo en las secciones oscuras. Ajusta el diseño en Configuración → Página de reservas.",
-      hint: "Si el color es muy claro lo oscurecemos un poco para que el texto blanco se siga leyendo bien.",
-      previewLabel: "Tu taller",
-      reset: "Usar el de GarageOS",
-      save: "Guardar color",
-      saved: "Color guardado",
     },
     appointmentReminders: {
       title: "Citas — notificaciones (SMS y email)",
@@ -707,7 +686,6 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
         genericError: "No pudimos completar la acción. Intenta de nuevo.",
       },
     },
-    support: { needHelp: "¿Necesita ayuda?" },
     billingCta: {
       seatLimitTitle: "Límite de usuarios alcanzado",
       seatLimitDescription: (limit) =>
@@ -834,13 +812,13 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
     tabs: {
       general: "General",
       calendar: "Calendar & Hours",
+      notifications: "Notifications",
       services: "Services",
       bookingPage: "Booking page",
       team: "Team",
       locations: "Locations",
-      domain: "Domain",
+      domain: "Domain & Email",
       billing: "Billing",
-      support: "Support",
     },
     language: {
       title: "Language",
@@ -909,15 +887,6 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       emptyWarning: "Without this identifier you have no public link — the button, widget, and share options won't appear until you set it.",
       save: "Save identifier",
       saved: "Identifier saved",
-    },
-    brandColor: {
-      title: "Your booking page color",
-      subtitle: "Your brand's primary color on your public booking page: buttons, icons and highlights, plus a deep tint of it on the dark sections. Fine-tune the look in Settings → Booking page.",
-      hint: "If the color is too light we darken it slightly so white text stays readable.",
-      previewLabel: "Your shop",
-      reset: "Use GarageOS's default",
-      save: "Save color",
-      saved: "Color saved",
     },
     appointmentReminders: {
       title: "Appointments — notifications (SMS and email)",
@@ -1135,7 +1104,6 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
         genericError: "We couldn't complete that action. Please try again.",
       },
     },
-    support: { needHelp: "Need help?" },
     billingCta: {
       seatLimitTitle: "User limit reached",
       seatLimitDescription: (limit) =>
@@ -1260,13 +1228,13 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
     tabs: {
       general: "Général",
       calendar: "Calendrier et horaires",
+      notifications: "Notifications",
       services: "Services",
       bookingPage: "Page de réservation",
       team: "Équipe",
       locations: "Emplacements",
-      domain: "Domaine",
+      domain: "Domaine et courriel",
       billing: "Facturation",
-      support: "Assistance",
     },
     language: {
       title: "Langue",
@@ -1335,15 +1303,6 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       emptyWarning: "Sans cet identifiant, vous n'avez pas de lien public — le bouton, le widget et les options de partage n'apparaîtront pas tant que vous ne l'aurez pas défini.",
       save: "Enregistrer l'identifiant",
       saved: "Identifiant enregistré",
-    },
-    brandColor: {
-      title: "Couleur de votre page de rendez-vous",
-      subtitle: "La couleur principale de votre page de réservation publique : boutons, icônes et accents, et une teinte profonde de celle-ci sur les sections sombres. Ajustez le design dans Paramètres → Page de réservation.",
-      hint: "Si la couleur est trop claire, nous l'assombrissons légèrement pour que le texte blanc reste lisible.",
-      previewLabel: "Votre garage",
-      reset: "Utiliser celle de GarageOS",
-      save: "Enregistrer la couleur",
-      saved: "Couleur enregistrée",
     },
     appointmentReminders: {
       title: "Rendez-vous — notifications (SMS et courriel)",
@@ -1561,7 +1520,6 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
         genericError: "Impossible de terminer cette action. Réessayez.",
       },
     },
-    support: { needHelp: "Besoin d'aide?" },
     billingCta: {
       seatLimitTitle: "Limite d’utilisateurs atteinte",
       seatLimitDescription: (limit) =>

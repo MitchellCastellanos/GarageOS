@@ -74,7 +74,7 @@ const STEPS = [
   {
     title: "Optional: configure communications and branding",
     description: "Set up mailboxes, your sending domain and communication routing.",
-    href: ADMIN.notifications,
+    href: `${ADMIN.settings}?tab=domain`,
     label: "Open communications",
   },
   {

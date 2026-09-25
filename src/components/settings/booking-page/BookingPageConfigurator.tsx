@@ -29,7 +29,7 @@ import { BOOKING_FONT_VARIABLES, TYPOGRAPHY_PRESETS } from "@/components/booking
 import { ScaledPreview } from "@/components/settings/booking-page/ScaledPreview";
 import { prepareBookingImage } from "@/components/settings/booking-page/prepare-image";
 import { BOOKING_PAGE_DICT, type BookingPageDictionary } from "@/lib/admin-locale/booking-page";
-import { DEFAULT_BRAND_COLOR, isValidHexColor, toSafeDarkBrandColor } from "@/lib/brand-color";
+import { BRAND_COLOR_PRESETS, DEFAULT_BRAND_COLOR, isValidHexColor, toSafeDarkBrandColor } from "@/lib/brand-color";
 import {
   BOOKING_PAGE_TEMPLATES,
   BOOKING_PAGE_TYPOGRAPHIES,
@@ -79,7 +79,7 @@ function sameDraft(a: Draft, b: Draft): boolean {
 }
 
 /** Atajos de color (el taller puede elegir cualquier otro con el selector). */
-const COLOR_PRESETS = ["#c8102e", "#2563eb", "#16a34a", "#ca8a04", "#ea580c", "#7c3aed", "#0f766e", "#131417"];
+const COLOR_PRESETS = BRAND_COLOR_PRESETS;
 
 const UPGRADE_HREF = `${ADMIN.settings}?tab=billing&plan=pro`;
 

@@ -363,7 +363,7 @@ export default async function DashboardPage() {
           {[
             { title: t.modules.operations, links: [[nav.appointments, ADMIN.appointments, CalendarDays], [nav.quotes, ADMIN.quotes, ClipboardList], [nav.reminders, ADMIN.reminders, Bell]] },
             { title: t.modules.customers, links: [[nav.clients, ADMIN.clients, Users], [nav.invoices, ADMIN.invoices, FileText], [nav.accounting, ADMIN.accounting, BarChart3]] },
-            { title: t.modules.communications, links: [[nav.inbox, ADMIN.inbox, MessageSquare], [nav.campaigns, ADMIN.campaigns, Megaphone], [nav.notifications, ADMIN.notifications, Bell]] },
+            { title: t.modules.communications, links: [[nav.inbox, ADMIN.inbox, MessageSquare], [nav.campaigns, ADMIN.campaigns, Megaphone], [nav.notifications, `${ADMIN.settings}?tab=domain`, Bell]] },
             { title: t.modules.finance, links: [[nav.caja, ADMIN.caja, DollarSign], [nav.invoices, ADMIN.invoices, TrendingUp], [t.modules.settings, ADMIN.settings, Wrench]] },
           ].map((group) => (
             <div key={group.title} className="rounded-xl bg-slate-50 p-4">

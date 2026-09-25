@@ -73,6 +73,9 @@ model Shop {
   // asistente guiado; con fecha, ve el editor compacto.
   bookingPagePublishedAt    DateTime?
   createdAt                 DateTime      @default(now())
+  // null = el taller (o esta ubicación adicional) todavía no terminó el
+  // asistente de arranque — /admin redirige ahí. Ver src/app/admin/(shop)/onboarding.
+  onboardingCompletedAt     DateTime?
 
   users                     User[]
   workingHours              ShopWorkingHours[]
