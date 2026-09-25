@@ -1,6 +1,9 @@
-// Color de marca personalizable por taller, usado como fondo del header,
-// hero, sección "El taller" y footer de /book/[slug]. El acento rojo de
-// GarageOS se mantiene fijo — solo el fondo oscuro es personalizable.
+// Color de marca personalizable por taller (único color que elige el taller).
+// En la plantilla Classic de /book/[slug] es el fondo oscuro del header, hero,
+// sección "El taller" y footer (el acento rojo se mantiene fijo, como
+// siempre). Las demás plantillas lo usan como color primario/acento — ver
+// deriveBrandPalette. Siempre pasa por toSafeDarkBrandColor, así que el texto
+// blanco encima y el color como texto sobre blanco cumplen contraste AA.
 
 export const DEFAULT_BRAND_COLOR = "#131417";
 
@@ -50,4 +53,39 @@ export function toSafeDarkBrandColor(hex: string): string {
   }
 
   return rgbToHex(cr, cg, cb);
+}
+
+/** Mezcla lineal hacia `target` (0 = color original, 1 = target). */
+export function mixHexColors(hex: string, target: string, amount: number): string {
+  const [r, g, b] = hexToRgb(hex);
+  const [tr, tg, tb] = hexToRgb(target);
+  const t = Math.max(0, Math.min(1, amount));
+  return rgbToHex(r + (tr - r) * t, g + (tg - g) * t, b + (tb - b) * t);
+}
+
+export interface BrandPalette {
+  /** Color principal seguro: fondo con texto blanco o texto/ícono sobre blanco (AA). */
+  primary: string;
+  /** Hover/pressed de botones primarios. */
+  primaryHover: string;
+  /** Fondo sutil (chips, íconos) — texto encima debe ser `primary`. */
+  primarySoft: string;
+}
+
+/** Variantes derivadas del único color que elige el taller — nunca un segundo color arbitrario. */
+export function deriveBrandPalette(brandColor: string | null | undefined): BrandPalette {
+  const primary = toSafeDarkBrandColor(brandColor ?? "");
+  return {
+    primary,
+    primaryHover: mixHexColors(primary, "#000000", 0.25),
+    primarySoft: mixHexColors(primary, "#ffffff", 0.9),
+  };
+}
+
+/** Ratio de contraste WCAG entre dos colores #RRGGBB (1–21). */
+export function contrastRatio(a: string, b: string): number {
+  const la = relativeLuminance(...hexToRgb(a));
+  const lb = relativeLuminance(...hexToRgb(b));
+  const [hi, lo] = la > lb ? [la, lb] : [lb, la];
+  return (hi + 0.05) / (lo + 0.05);
 }

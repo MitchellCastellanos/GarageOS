@@ -8,8 +8,6 @@ export const SITE_LOCALES: { value: SiteLocale; label: string }[] = [
 
 export const DEFAULT_SITE_LOCALE: SiteLocale = "fr";
 
-type ServiceKey = "general" | "batteries" | "tires" | "brakes" | "oil";
-
 export interface SiteDictionary {
   intlLocale: string;
   nav: { services: string; shop: string; book: string };
@@ -25,7 +23,10 @@ export interface SiteDictionary {
     eyebrow: string;
     heading: string;
     subtitle: string;
-    items: Record<ServiceKey, { title: string; description: string }>;
+    featuredLabel: string;
+    /** "≈ 1 h 30" — duración aproximada del servicio (ya formateada). */
+    approxDuration: (duration: string) => string;
+    bookThis: string;
     noServiceTitle: string;
     noServiceBody: string;
   };
@@ -121,28 +122,9 @@ export const SITE_DICTIONARIES: Record<SiteLocale, SiteDictionary> = {
       eyebrow: "Ce qu'on fait",
       heading: "Services du garage",
       subtitle: "Tout ce dont votre auto a besoin, au même endroit, avec rendez-vous en ligne.",
-      items: {
-        general: {
-          title: "Mécanique générale",
-          description: "Diagnostic, entretien et réparation complète pour toutes les marques.",
-        },
-        batteries: {
-          title: "Batteries",
-          description: "Vérification du système électrique et installation de batteries neuves.",
-        },
-        tires: {
-          title: "Pneus",
-          description: "Changement de pneus, balancement et alignement pour rouler en sécurité.",
-        },
-        brakes: {
-          title: "Freins",
-          description: "Inspection, plaquettes, disques et ajustement du système de freinage.",
-        },
-        oil: {
-          title: "Vidange d'huile",
-          description: "Changement d'huile et de filtre avec des produits de qualité.",
-        },
-      },
+      featuredLabel: "Services populaires",
+      approxDuration: (duration) => `Environ ${duration}`,
+      bookThis: "Réserver",
       noServiceTitle: "Vous ne voyez pas votre service ?",
       noServiceBody: "Écrivez-le lors de la réservation et on regarde ça ensemble.",
     },
@@ -260,28 +242,9 @@ export const SITE_DICTIONARIES: Record<SiteLocale, SiteDictionary> = {
       eyebrow: "What we do",
       heading: "Shop services",
       subtitle: "Everything your car needs, in one place, with online booking.",
-      items: {
-        general: {
-          title: "General mechanics",
-          description: "Diagnostics, maintenance, and complete repair for all makes.",
-        },
-        batteries: {
-          title: "Batteries",
-          description: "Electrical system check and new battery installation.",
-        },
-        tires: {
-          title: "Tires",
-          description: "Tire changes, balancing, and alignment for a safe ride.",
-        },
-        brakes: {
-          title: "Brakes",
-          description: "Inspection, pads, rotors, and brake system adjustment.",
-        },
-        oil: {
-          title: "Oil change",
-          description: "Oil and filter change with quality products.",
-        },
-      },
+      featuredLabel: "Popular services",
+      approxDuration: (duration) => `About ${duration}`,
+      bookThis: "Book",
       noServiceTitle: "Don't see your service?",
       noServiceBody: "Write it in when you book and we'll take a look together.",
     },
@@ -398,28 +361,9 @@ export const SITE_DICTIONARIES: Record<SiteLocale, SiteDictionary> = {
       eyebrow: "Qué hacemos",
       heading: "Servicios del taller",
       subtitle: "Todo lo que tu auto necesita, en un mismo lugar y con cita en línea.",
-      items: {
-        general: {
-          title: "Mecánica general",
-          description: "Diagnóstico, mantenimiento y reparación completa para todas las marcas.",
-        },
-        batteries: {
-          title: "Baterías",
-          description: "Revisión del sistema eléctrico e instalación de baterías nuevas.",
-        },
-        tires: {
-          title: "Neumáticos",
-          description: "Cambio de llantas, balanceo y alineación para rodar seguro.",
-        },
-        brakes: {
-          title: "Frenos",
-          description: "Inspección, pastillas, discos y ajuste del sistema de frenado.",
-        },
-        oil: {
-          title: "Cambio de aceite",
-          description: "Cambio de aceite y filtro con productos de calidad.",
-        },
-      },
+      featuredLabel: "Servicios populares",
+      approxDuration: (duration) => `Aprox. ${duration}`,
+      bookThis: "Reservar",
       noServiceTitle: "¿No ves tu servicio?",
       noServiceBody: "Escríbelo al reservar tu cita y lo revisamos juntos.",
     },
@@ -518,5 +462,3 @@ export const SITE_DICTIONARIES: Record<SiteLocale, SiteDictionary> = {
     },
   },
 };
-
-export const SERVICE_KEYS: ServiceKey[] = ["general", "batteries", "tires", "brakes", "oil"];

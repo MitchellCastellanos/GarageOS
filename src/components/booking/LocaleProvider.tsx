@@ -18,7 +18,14 @@ interface LocaleContextValue {
 
 const LocaleContext = createContext<LocaleContextValue | null>(null);
 
-export function LocaleProvider({ children }: { children: React.ReactNode }) {
+export function LocaleProvider({
+  children,
+  syncDocumentLang = true,
+}: {
+  children: React.ReactNode;
+  /** false en el preview del admin: no debe cambiar el `lang` del panel. */
+  syncDocumentLang?: boolean;
+}) {
   const [locale, setLocaleState] = useState<SiteLocale>(DEFAULT_SITE_LOCALE);
 
   useEffect(() => {
@@ -32,8 +39,8 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    document.documentElement.lang = locale;
-  }, [locale]);
+    if (syncDocumentLang) document.documentElement.lang = locale;
+  }, [locale, syncDocumentLang]);
 
   function setLocale(next: SiteLocale) {
     setLocaleState(next);

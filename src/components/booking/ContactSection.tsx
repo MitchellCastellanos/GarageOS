@@ -91,8 +91,8 @@ export function ContactSection({ slug, shopName }: ContactSectionProps) {
   return (
     <section id="contact" className="max-w-xl mx-auto px-4 py-16">
       <div className="text-center mb-8">
-        <Mail className="w-8 h-8 text-blue-600 mx-auto mb-3" />
-        <h2 className="text-2xl font-bold text-slate-900">{t.title}</h2>
+        <Mail className="w-8 h-8 text-brand-red mx-auto mb-3" />
+        <h2 className="bp-heading text-2xl text-slate-900">{t.title}</h2>
         <p className="text-slate-500 mt-1">
           {t.subtitle} — {shopName}
         </p>
@@ -127,7 +127,7 @@ export function ContactSection({ slug, shopName }: ContactSectionProps) {
         <button
           type="submit"
           disabled={pending}
-          className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium px-5 py-2.5 rounded-lg text-sm transition-colors"
+          className="w-full flex items-center justify-center gap-2 bg-brand-red hover:bg-brand-red-dark disabled:opacity-50 text-white font-medium px-5 py-2.5 rounded-lg text-sm transition-colors"
         >
           {pending && <Loader2 className="w-4 h-4 animate-spin" />}
           {t.submit}

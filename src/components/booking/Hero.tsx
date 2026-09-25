@@ -1,66 +1,56 @@
 "use client";
 
-import { useState } from "react";
 import { motion } from "framer-motion";
 import { ChevronRight, MapPin, Phone } from "lucide-react";
 import { useSiteLocale } from "@/components/booking/LocaleProvider";
+import { ShopPhoto, scrollToAnchor } from "@/components/booking/page/shared";
 
 interface HeroProps {
   shopName: string;
   address: string | null;
   phone: string | null;
-  brandColor: string;
-}
-
-function scrollTo(id: string) {
-  document.querySelector(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  brandDark: string;
+  coverImageUrl: string | null;
 }
 
 /**
- * Foto real del taller — usa la misma imagen que la sección "El taller"
- * (public/garage-exterior.png). Si aún no existe, cae al color de marca del
- * taller (brandColor, personalizable en Configuración) con textura en vez de
- * romper el layout.
+ * Hero de la plantilla Classic — foto de portada del taller con velo oscuro.
+ * Sin foto (o si falla) cae al color de marca con textura, como siempre.
  */
-export function Hero({ shopName, address, phone, brandColor }: HeroProps) {
+export function Hero({ shopName, address, phone, brandDark, coverImageUrl }: HeroProps) {
   const { t } = useSiteLocale();
-  const [photoFailed, setPhotoFailed] = useState(false);
 
   return (
     <section
       id="top"
-      style={{ backgroundColor: brandColor }}
-      className="relative overflow-hidden min-h-[640px] flex items-end"
+      style={{ backgroundColor: brandDark }}
+      className="relative overflow-hidden min-h-[560px] @2xl:min-h-[640px] flex items-end"
     >
       <div className="absolute inset-0">
-        {!photoFailed ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src="/garage-exterior.png"
-            alt={shopName}
-            onError={() => setPhotoFailed(true)}
-            className="absolute inset-0 w-full h-full object-cover"
-          />
-        ) : (
-          <div className="absolute inset-0 garage-diagonal-stripes" />
-        )}
+        <ShopPhoto
+          src={coverImageUrl}
+          alt={shopName}
+          eager
+          className="absolute inset-0 w-full h-full object-cover"
+          fallback={<div className="absolute inset-0 garage-diagonal-stripes" />}
+        />
         {/* Velo oscuro para que el texto se lea sobre la foto, más denso a la izquierda */}
         <div className="absolute inset-0 bg-gradient-to-r from-black via-black/70 to-black/20" />
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/10 to-transparent" />
         <div className="pointer-events-none absolute inset-0 garage-grid-texture opacity-20" />
       </div>
 
-      <div className="relative w-full max-w-6xl mx-auto px-4 sm:px-6 pt-32 pb-16 sm:pt-40 sm:pb-20">
+      <div className="relative w-full max-w-6xl mx-auto px-4 @2xl:px-6 pt-32 pb-16 @2xl:pt-40 @2xl:pb-20">
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, ease: "easeOut" }}
           className="max-w-2xl"
         >
-          <h1 className="font-sans font-black uppercase text-white text-4xl sm:text-5xl lg:text-6xl leading-[1.02] tracking-tight">
+          <h1 className="bp-hero-title text-white text-4xl @2xl:text-5xl @5xl:text-6xl leading-[1.02] tracking-tight break-words">
             {shopName}
           </h1>
-          <p className="mt-4 font-display font-semibold uppercase tracking-wide text-brand-red text-lg sm:text-xl">
+          <p className="mt-4 bp-heading font-semibold tracking-wide text-brand-red text-lg @2xl:text-xl">
             {t.hero.subheadline}
           </p>
           <p className="mt-4 text-slate-300 max-w-lg">{t.hero.tagline}</p>
@@ -69,7 +59,7 @@ export function Hero({ shopName, address, phone, brandColor }: HeroProps) {
             <motion.button
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.97 }}
-              onClick={() => scrollTo("#cita")}
+              onClick={() => scrollToAnchor("#cita")}
               className="inline-flex items-center gap-2 bg-brand-red hover:bg-brand-red-dark text-white font-semibold uppercase tracking-wide text-sm px-6 py-3.5 rounded-xl shadow-lg shadow-red-950/40 transition-colors"
             >
               {t.hero.bookCta}
@@ -78,7 +68,7 @@ export function Hero({ shopName, address, phone, brandColor }: HeroProps) {
             <motion.button
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.97 }}
-              onClick={() => scrollTo("#servicios")}
+              onClick={() => scrollToAnchor("#servicios")}
               className="inline-flex items-center gap-2 border border-white/40 hover:border-white text-white font-semibold uppercase tracking-wide text-sm px-6 py-3.5 rounded-xl transition-colors"
             >
               {t.hero.viewServicesCta}

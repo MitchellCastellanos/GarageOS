@@ -1,4 +1,5 @@
 import type { AdminLocale } from "@/lib/admin-locale";
+import type { ServiceIconKey } from "@/lib/booking-page";
 
 export interface SettingsDictionary {
   page: { title: string; subtitle: string };
@@ -6,6 +7,7 @@ export interface SettingsDictionary {
     general: string;
     calendar: string;
     services: string;
+    bookingPage: string;
     team: string;
     locations: string;
     domain: string;
@@ -211,6 +213,14 @@ export interface SettingsDictionary {
     saved: string;
     needOneService: string;
     needAllLanguages: string;
+    icon: string;
+    chooseIcon: string;
+    featured: string;
+    featuredHint: (max: number) => string;
+    featuredLimit: (max: number) => string;
+    moveUp: string;
+    moveDown: string;
+    iconLabels: Record<ServiceIconKey, string>;
   };
   team: {
     title: string;
@@ -397,6 +407,7 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       general: "General",
       calendar: "Calendario y Horarios",
       services: "Servicios",
+      bookingPage: "Página de reservas",
       team: "Equipo",
       locations: "Ubicaciones",
       domain: "Dominio",
@@ -606,6 +617,31 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       saved: "Servicios guardados",
       needOneService: "Agrega al menos un servicio",
       needAllLanguages: "Completa el nombre del servicio en los 3 idiomas",
+      icon: "Ícono",
+      chooseIcon: "Elegir ícono",
+      featured: "Destacado",
+      featuredHint: (max) => `Los destacados (máx. ${max}) aparecen en la franja principal de tu página de reservas.`,
+      featuredLimit: (max) => `Ya tienes ${max} servicios destacados — quita uno para destacar otro.`,
+      moveUp: "Subir",
+      moveDown: "Bajar",
+      iconLabels: {
+        wrench: "Mecánica general",
+        oil: "Aceite",
+        tires: "Neumáticos",
+        brakes: "Frenos",
+        battery: "Batería",
+        diagnostics: "Diagnóstico",
+        engine: "Motor",
+        alignment: "Alineación",
+        suspension: "Suspensión",
+        ac: "Aire acondicionado",
+        transmission: "Transmisión",
+        exhaust: "Escape",
+        inspection: "Inspección",
+        electrical: "Eléctrico",
+        detailing: "Estética",
+        car: "Vehículo",
+      },
     },
     team: {
       title: "Equipo del taller",
@@ -799,6 +835,7 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       general: "General",
       calendar: "Calendar & Hours",
       services: "Services",
+      bookingPage: "Booking page",
       team: "Team",
       locations: "Locations",
       domain: "Domain",
@@ -1008,6 +1045,31 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       saved: "Services saved",
       needOneService: "Add at least one service",
       needAllLanguages: "Fill in the service name in all 3 languages",
+      icon: "Icon",
+      chooseIcon: "Choose icon",
+      featured: "Featured",
+      featuredHint: (max) => `Featured services (max ${max}) appear in the main strip of your booking page.`,
+      featuredLimit: (max) => `You already have ${max} featured services — unfeature one to feature another.`,
+      moveUp: "Move up",
+      moveDown: "Move down",
+      iconLabels: {
+        wrench: "General repair",
+        oil: "Oil",
+        tires: "Tires",
+        brakes: "Brakes",
+        battery: "Battery",
+        diagnostics: "Diagnostics",
+        engine: "Engine",
+        alignment: "Alignment",
+        suspension: "Suspension",
+        ac: "A/C",
+        transmission: "Transmission",
+        exhaust: "Exhaust",
+        inspection: "Inspection",
+        electrical: "Electrical",
+        detailing: "Detailing",
+        car: "Vehicle",
+      },
     },
     team: {
       title: "Shop team",
@@ -1199,6 +1261,7 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       general: "Général",
       calendar: "Calendrier et horaires",
       services: "Services",
+      bookingPage: "Page de réservation",
       team: "Équipe",
       locations: "Emplacements",
       domain: "Domaine",
@@ -1408,6 +1471,31 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       saved: "Services enregistrés",
       needOneService: "Ajoutez au moins un service",
       needAllLanguages: "Complétez le nom du service dans les 3 langues",
+      icon: "Icône",
+      chooseIcon: "Choisir une icône",
+      featured: "En vedette",
+      featuredHint: (max) => `Les services en vedette (max. ${max}) s'affichent dans la bande principale de votre page de réservation.`,
+      featuredLimit: (max) => `Vous avez déjà ${max} services en vedette — retirez-en un pour en ajouter un autre.`,
+      moveUp: "Monter",
+      moveDown: "Descendre",
+      iconLabels: {
+        wrench: "Mécanique générale",
+        oil: "Huile",
+        tires: "Pneus",
+        brakes: "Freins",
+        battery: "Batterie",
+        diagnostics: "Diagnostic",
+        engine: "Moteur",
+        alignment: "Alignement",
+        suspension: "Suspension",
+        ac: "Climatisation",
+        transmission: "Transmission",
+        exhaust: "Échappement",
+        inspection: "Inspection",
+        electrical: "Électrique",
+        detailing: "Esthétique",
+        car: "Véhicule",
+      },
     },
     team: {
       title: "Équipe du garage",

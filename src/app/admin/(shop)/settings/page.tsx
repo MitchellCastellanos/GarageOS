@@ -3,6 +3,8 @@ import { bookingPublicPath, getAppUrl } from "@/config/app";
 import { getShopSettings } from "@/actions/settings";
 import { getAppointmentBookingSettings, getServiceCatalogSettings } from "@/actions/booking-settings";
 import { getShopDomains } from "@/actions/domains";
+import { getBookingPageSettings } from "@/actions/booking-page";
+import { BookingPageConfigurator } from "@/components/settings/booking-page/BookingPageConfigurator";
 import { getTeamMembers } from "@/actions/users";
 import { ShopSettingsForm } from "@/components/settings/ShopSettingsForm";
 import { AppointmentBookingSettings } from "@/components/settings/AppointmentBookingSettings";
@@ -37,6 +39,7 @@ export default async function SettingsPage() {
   const team = isOwner ? await getTeamMembers() : [];
   const bookingSettings = isOwner ? await getAppointmentBookingSettings() : null;
   const serviceCatalog = isOwner ? await getServiceCatalogSettings() : null;
+  const bookingPage = isOwner ? await getBookingPageSettings() : null;
   const domains = isOwner ? await getShopDomains() : null;
   const billing = isOwner ? await getBillingOverview() : null;
   const plan = billing?.subscription.plan ?? "CORE";
@@ -81,6 +84,14 @@ export default async function SettingsPage() {
       id: "services",
       label: t.tabs.services,
       content: <ServiceCatalogSettings services={serviceCatalog} />,
+    });
+  }
+
+  if (isOwner && bookingPage) {
+    tabs.push({
+      id: "booking-page",
+      label: t.tabs.bookingPage,
+      content: <BookingPageConfigurator settings={bookingPage} />,
     });
   }
 
