@@ -23,6 +23,7 @@ export default async function EditClientPage({ params }: Props) {
     email: client.email ?? "",
     phone: client.phone ?? "",
     language: (client.language === "FR" ? "FR" : "EN") as "EN" | "FR",
+    notifyChannel: client.notifyChannel,
     address: client.address ?? "",
     notes: client.notes ?? "",
   };

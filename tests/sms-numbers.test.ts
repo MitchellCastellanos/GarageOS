@@ -32,9 +32,6 @@ function mockDb<M extends keyof typeof db, K extends keyof (typeof db)[M]>(
   return fn;
 }
 
-function argsOf(fn: ReturnType<TestContext["mock"]["fn"]>, call = 0) {
-  return fn.mock.calls[call].arguments[0] as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
-}
 
 // ── Remitente ────────────────────────────────────────────────────────────────
 

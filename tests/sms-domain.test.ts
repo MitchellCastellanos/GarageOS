@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  canSpendSmsSegments,
   computeOverageSegments,
   countSmsSegments,
   decideSmsNumberLifecycle,
@@ -74,11 +73,6 @@ test("billing period is the UTC calendar month", () => {
   assert.equal(smsBillingPeriod(new Date("2026-12-15T00:00:00.000Z")).end.toISOString(), "2027-01-01T00:00:00.000Z");
 });
 
-test("allowance blocks a send that would exceed the monthly cap", () => {
-  assert.equal(canSpendSmsSegments(298, 300, 2), true);
-  assert.equal(canSpendSmsSegments(299, 300, 2), false);
-  assert.equal(canSpendSmsSegments(0, 0, 1), false);
-});
 
 test("usage alerts fire once per threshold per month", () => {
   assert.equal(smsUsageAlertLevel(79, 100), 0);

@@ -124,10 +124,6 @@ export function smsBillingPeriod(now: Date = new Date()): { key: string; start: 
   return { key, start, end };
 }
 
-export function canSpendSmsSegments(used: number, allowance: number, needed: number): boolean {
-  return used + needed <= allowance;
-}
-
 /**
  * Precio de excedente — $0.05 CAD por segmento arriba del cupo del plan
  * (decisión de producto). Debe coincidir con el Price configurado en el
