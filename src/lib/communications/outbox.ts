@@ -33,6 +33,8 @@ export interface RecordAndSendParams {
   createdByUserId?: string;
   /** Segmentos SMS estimados antes del envío (se corrigen con lo que devuelva `send`). */
   segments?: number;
+  /** Cuántos de esos segmentos son excedente del cupo mensual — ver planSmsOverage. */
+  billedOverageSegments?: number;
   send: () => Promise<{ providerMessageId?: string | null; segments?: number | null }>;
 }
 
@@ -81,6 +83,7 @@ async function reserveMessageId(params: RecordAndSendParams): Promise<
     htmlBody: params.htmlBody ?? null,
     createdByUserId: params.createdByUserId ?? null,
     segments: params.segments ?? null,
+    billedOverageSegments: params.billedOverageSegments ?? null,
   } satisfies Prisma.CommunicationMessageUncheckedCreateInput;
 
   if (params.idempotencyKey) {

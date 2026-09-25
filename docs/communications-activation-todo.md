@@ -67,6 +67,17 @@ automáticamente. Pasos de operación:
    país y código de área). Para números de EE. UU. hace falta registro A2P 10DLC por
    taller antes de enviar volumen — no está automatizado.
 6. **Cupos:** los valores de `PLAN_LIMITS.smsSegmentsPerMonth` son provisionales.
+7. **Cobro de excedente (código activo, falta Stripe):** al agotar el cupo, el SMS
+   se sigue enviando y se factura a $0.05 CAD/segmento
+   (`SMS_OVERAGE_PRICE_CAD_PER_SEGMENT`). Para que Stripe realmente cobre:
+   a. Crear un Billing Meter (Dashboard → Billing → Meters), copiar su `event_name`
+      a `STRIPE_SMS_OVERAGE_METER_EVENT_NAME`.
+   b. Crear un Price "metered" sobre ese Meter a $0.05 CAD/unidad y agregarlo como
+      item a la suscripción de cada taller.
+   c. Confirmar la forma de `stripe.billing.meterEvents.create` contra
+      https://docs.stripe.com/api/billing/meter-event — no se pudo verificar contra
+      la referencia viva en este entorno (sin credenciales de Stripe).
+   Sin esto, nada se rompe: el excedente simplemente no se factura todavía.
 
 ## 3. Variables de entorno / infraestructura a confirmar en producción
 

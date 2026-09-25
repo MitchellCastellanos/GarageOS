@@ -111,13 +111,31 @@ Los avisos automáticos (citas, vehículo listo) capturan esos errores y caen al
   `AppointmentEvent` (`src/lib/notification-fallback.ts`). Facturas, cotizaciones y
   mensajes del Inbox no se reenvían por otro canal: los eligió una persona.
 
-### Cupos
+### Cupos y excedente
 
 - `PLAN_LIMITS.smsSegmentsPerMonth` (CORE 300 / PRO 1000 / COMPLETE 2500 —
   **provisionales, a confirmar comercialmente**), o
   `Shop.smsMonthlyAllowanceOverride` fijado desde `/platform`.
 - Mes calendario UTC; cuentan los segmentos salientes que llegaron a Twilio
-  (incluidos los no entregados). No hay cobro de excedente: al agotarse, email.
+  (incluidos los no entregados).
+- **Al agotar el cupo, el SMS se sigue enviando** (nunca se bloquea ni cae a
+  email por esto — decisión de producto). Los segmentos de más se cobran a
+  `SMS_OVERAGE_PRICE_CAD_PER_SEGMENT` ($0.05 CAD, `src/domain/sms.ts`) vía
+  Stripe Billing Meters (`reportSmsOverageUsage` en `src/lib/stripe.ts`,
+  `CommunicationMessage.billedOverageSegments` guarda cuánto se reportó de
+  cada mensaje). `computeOverageSegments` reparte correctamente un mensaje que
+  cruza la frontera del cupo a la mitad.
+- **Activación** (sin esto, el excedente se manda igual pero no se factura):
+  1. Crear un Billing Meter en Stripe (Dashboard → Billing → Meters) y copiar
+     su `event_name` a `STRIPE_SMS_OVERAGE_METER_EVENT_NAME`.
+  2. Agregar un Price "metered" sobre ese Meter a $0.05 CAD/unidad, como item
+     de la suscripción de cada taller (vía Stripe o incluido en el Checkout).
+  3. La forma exacta de `stripe.billing.meterEvents.create` no se pudo
+     verificar contra la referencia viva de Stripe en este entorno —
+     confirmarla antes de depender de esto para facturar de verdad.
+- Alertas de uso (80 %/100 % del cupo, una vez por umbral y mes) avisan a los
+  owners; el mensaje del 100 % ahora dice que el excedente se factura, no que
+  se corta el SMS.
 
 ### Ciclo de vida del número (cron diario)
 
@@ -140,8 +158,10 @@ Los avisos automáticos (citas, vehículo listo) capturan esos errores y caen al
 - **Centro de notificaciones en la app (hecho):** campana en tiempo real vía Pusher,
   bandeja de pendientes y preferencias por usuario — ver "Centro de
   notificaciones" más abajo.
-- **Pendiente — cobro de excedente de SMS** al agotar el cupo del plan (hoy cae a
-  email sin cargo extra) — ver "Cupos y excedente" abajo.
+- **Cobro de excedente de SMS (hecho, código):** el SMS ya no se bloquea al agotar
+  el cupo — se factura a $0.05 CAD/segmento. Falta la activación en Stripe
+  (crear el Meter y el Price, ver "Cupos y excedente" arriba) — sin eso, el
+  excedente se manda igual pero no se factura de verdad.
 - **Pendiente — registro A2P 10DLC automatizado** para números de EE. UU. Decisión de
   negocio: no se automatiza (el volumen de talleres en EE. UU. no justifica el costo
   de mantenerlo); el registro sigue siendo manual por taller si algún día se necesita.

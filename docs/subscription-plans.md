@@ -75,7 +75,7 @@ Legend:
 | DVI photos / media / reusable templates | — | Included | Included |
 | Basic maintenance reminders | Included | Advanced | Advanced |
 | Branded email communications | Included | Included | Included |
-| SMS notifications | Allowance (300 segments/mo, provisional) | Larger allowance (1,000, provisional) | Largest allowance (2,500, provisional) |
+| SMS notifications | Allowance (300 segments/mo, provisional) + overage at $0.05 CAD/segment | Larger allowance (1,000, provisional) + overage | Largest allowance (2,500, provisional) + overage |
 | Two-way SMS (dedicated shop number, provisioned by GarageOS) | Included | Included | Included |
 | Customer Portal | Future / Included | Future / Included | Future / Included |
 | Shop branding on customer documents | Included | Included | Included |

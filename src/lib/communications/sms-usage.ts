@@ -1,20 +1,14 @@
 // Uso y cupo mensual de SMS por taller, medido en segmentos (lo que cobra Twilio).
 // El cupo sale del plan (PLAN_LIMITS.smsSegmentsPerMonth) salvo que GarageOS
 // haya fijado otro para el taller (Shop.smsMonthlyAllowanceOverride). Al
-// agotarse, sendSms lanza SmsAllowanceExceededError y los avisos automáticos
-// caen a email (ver notifyAppointmentEvent / updateJobStatus).
+// agotarse el cupo, el SMS se sigue enviando (nunca se bloquea ni cae a
+// email por esto) y los segmentos de más se cobran como excedente — ver
+// planSmsOverage y src/lib/stripe.ts (reportSmsOverageUsage).
 
 import { db } from "@/lib/db";
 import { PLAN_LIMITS } from "@/config/entitlements";
 import { getEffectiveSubscription } from "@/lib/subscription";
-import { canSpendSmsSegments, nextUsageAlert, smsBillingPeriod, smsUsageAlertLevel } from "@/domain/sms";
-
-export class SmsAllowanceExceededError extends Error {
-  constructor(public readonly used: number, public readonly allowance: number) {
-    super(`Monthly SMS allowance reached (${used}/${allowance} segments).`);
-    this.name = "SmsAllowanceExceededError";
-  }
-}
+import { computeOverageSegments, nextUsageAlert, smsBillingPeriod, smsUsageAlertLevel } from "@/domain/sms";
 
 export async function getSmsAllowance(shopId: string): Promise<number> {
   const shop = await db.shop.findUnique({ where: { id: shopId }, select: { smsMonthlyAllowanceOverride: true } });
@@ -73,12 +67,20 @@ export async function getSmsUsageSummary(shopId: string, now: Date = new Date())
   };
 }
 
-/** Lanza SmsAllowanceExceededError si enviar `needed` segmentos pasaría el cupo del mes. */
-export async function assertSmsAllowance(shopId: string, needed: number): Promise<void> {
-  const [used, allowance] = await Promise.all([getSmsSegmentsUsed(shopId), getSmsAllowance(shopId)]);
-  if (!canSpendSmsSegments(used, allowance, needed)) {
-    throw new SmsAllowanceExceededError(used, allowance);
-  }
+export interface SmsOveragePlan {
+  usedBefore: number;
+  allowance: number;
+  /** Segmentos de este envío que caen fuera del cupo — para facturar y para guardar en CommunicationMessage.billedOverageSegments. */
+  overageSegments: number;
+}
+
+/**
+ * Nunca bloquea el envío — solo calcula cuánto de este mensaje (`segments`)
+ * cae fuera del cupo del mes, contando lo que ya se envió antes que él.
+ */
+export async function planSmsOverage(shopId: string, segments: number): Promise<SmsOveragePlan> {
+  const [usedBefore, allowance] = await Promise.all([getSmsSegmentsUsed(shopId), getSmsAllowance(shopId)]);
+  return { usedBefore, allowance, overageSegments: computeOverageSegments(usedBefore, allowance, segments) };
 }
 
 /**

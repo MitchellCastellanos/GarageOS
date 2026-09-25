@@ -10,6 +10,7 @@ import { resolveEffectiveShopContactEmail } from "@/lib/communications/sender-id
 import { resolveShopEmailLanguage, type PlatformEmailLanguage } from "@/lib/platform/locale";
 import { StaffAlertEmail } from "@/emails/StaffAlertEmail";
 import { getStaffNotificationPreferences, type StaffEventKey } from "@/lib/staff-notify";
+import { SMS_OVERAGE_PRICE_CAD_PER_SEGMENT } from "@/domain/sms";
 import { DEFAULT_STAFF_NOTIFICATION_PREFERENCE } from "@/lib/staff-notify-events";
 import { groupEmailBatchByLanguage, planStaffAlertRecipients } from "@/domain/staff-notify";
 import { publishStaffNotification } from "@/lib/staff-notify-realtime";
@@ -298,8 +299,8 @@ export async function alertStaffSmsUsage(input: {
               : `80 % du forfait SMS du mois utilisé — ${shop.name}`,
             heading: full ? "Forfait SMS épuisé" : "Forfait SMS presque épuisé",
             intro: full
-              ? "Les avis automatiques (confirmations, rappels, véhicule prêt) partent maintenant par courriel jusqu'au mois prochain. Vos clients sont toujours avisés."
-              : "Vous avez utilisé 80 % de vos SMS du mois. Une fois le forfait épuisé, les avis automatiques partiront par courriel.",
+              ? `Vos SMS continuent d'être envoyés normalement. Les segments en trop sont facturés ${SMS_OVERAGE_PRICE_CAD_PER_SEGMENT.toFixed(2)} $ CAD chacun sur votre prochaine facture.`
+              : "Vous avez utilisé 80 % de vos SMS du mois. Au-delà du forfait, les segments supplémentaires seront facturés.",
             details: [{ label: "Segments SMS", value: usage }],
             ctaLabel: "Voir l'utilisation",
           }
@@ -307,8 +308,8 @@ export async function alertStaffSmsUsage(input: {
             subject: full ? `Monthly SMS allowance used up — ${shop.name}` : `80% of monthly SMS allowance used — ${shop.name}`,
             heading: full ? "SMS allowance used up" : "SMS allowance almost used up",
             intro: full
-              ? "Automatic notices (confirmations, reminders, vehicle ready) now go out by email until next month. Your clients are still notified."
-              : "You've used 80% of this month's SMS. Once it runs out, automatic notices will go out by email instead.",
+              ? `Your SMS keep sending normally. Extra segments are billed at $${SMS_OVERAGE_PRICE_CAD_PER_SEGMENT.toFixed(2)} CAD each on your next invoice.`
+              : "You've used 80% of this month's SMS. Beyond the allowance, extra segments will be billed.",
             details: [{ label: "SMS segments", value: usage }],
             ctaLabel: "View usage",
           },

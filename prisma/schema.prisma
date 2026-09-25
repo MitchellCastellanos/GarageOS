@@ -1122,6 +1122,11 @@ model CommunicationMessage {
   errorCode          String?
   // Segmentos facturables del SMS (Twilio numSegments; estimado antes del envío).
   segments           Int?
+  // Cuántos de esos segmentos cayeron fuera del cupo mensual del taller y se
+  // reportaron a Stripe para cobro de excedente (0 = dentro del cupo; null =
+  // no aplica — no es SMS, o el cobro de excedente no estaba configurado
+  // todavía). Ver src/lib/communications/sms-usage.ts.
+  billedOverageSegments Int?
   errorMessage       String?              @db.Text
   sentAt             DateTime?
   deliveredAt        DateTime?

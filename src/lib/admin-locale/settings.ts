@@ -528,7 +528,7 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       usageTitle: "Uso de SMS este mes",
       usageLine: (used, allowance) => `${used} de ${allowance} segmentos`,
       usageRenews: (date) => `Se renueva el ${date}.`,
-      usageFullHint: "Cupo agotado: los avisos automáticos salen por email hasta el próximo mes.",
+      usageFullHint: "Cupo agotado: los SMS siguen enviándose; los segmentos de más se facturan a $0.05 CAD cada uno.",
       segmentsHint:
         "Un SMS de hasta 160 caracteres es 1 segmento; con acentos como ê, ô o ç el límite baja a 70 por segmento.",
       optedOut: (count) => `${count} contacto${count !== 1 ? "s" : ""} respondieron STOP y no reciben SMS.`,
@@ -977,7 +977,7 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       usageTitle: "SMS usage this month",
       usageLine: (used, allowance) => `${used} of ${allowance} segments`,
       usageRenews: (date) => `Renews on ${date}.`,
-      usageFullHint: "Allowance used up: automatic notices go out by email until next month.",
+      usageFullHint: "Allowance used up: SMS keep sending; extra segments are billed at $0.05 CAD each.",
       segmentsHint:
         "A text of up to 160 characters is 1 segment; accents like ê, ô or ç lower that to 70 per segment.",
       optedOut: (count) => `${count} contact${count !== 1 ? "s" : ""} replied STOP and won't receive SMS.`,
@@ -1424,7 +1424,7 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       usageTitle: "Utilisation des SMS ce mois-ci",
       usageLine: (used, allowance) => `${used} sur ${allowance} segments`,
       usageRenews: (date) => `Renouvellement le ${date}.`,
-      usageFullHint: "Forfait épuisé : les avis automatiques partent par courriel jusqu'au mois prochain.",
+      usageFullHint: "Forfait épuisé : les SMS continuent d'être envoyés; les segments en trop sont facturés 0,05 $ CAD chacun.",
       segmentsHint:
         "Un SMS de 160 caractères ou moins compte pour 1 segment; les accents comme ê, ô ou ç réduisent la limite à 70.",
       optedOut: (count) => `${count} contact${count !== 1 ? "s" : ""} ont répondu STOP et ne reçoivent plus de SMS.`,

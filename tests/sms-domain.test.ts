@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   canSpendSmsSegments,
+  computeOverageSegments,
   countSmsSegments,
   decideSmsNumberLifecycle,
   isSubscriptionInGoodStanding,
@@ -150,4 +151,23 @@ test("client channel plan: EMAIL prefers email with an SMS fallback", () => {
 
 test("client channel plan: BOTH sends both, not a fallback chain", () => {
   assert.deepEqual(resolveNotifyChannelPlan("BOTH"), { order: ["SMS", "EMAIL"], sendBoth: true });
+});
+
+test("overage is zero while a message stays fully within the allowance", () => {
+  assert.equal(computeOverageSegments(50, 100, 10), 0);
+  assert.equal(computeOverageSegments(90, 100, 10), 0);
+});
+
+test("overage is the full message once the allowance is already spent", () => {
+  assert.equal(computeOverageSegments(100, 100, 5), 5);
+  assert.equal(computeOverageSegments(150, 100, 5), 5);
+});
+
+test("overage is only the portion that crosses the allowance boundary", () => {
+  // 98 used, cupo 100: quedan 2 libres; un mensaje de 5 factura solo 3 de excedente.
+  assert.equal(computeOverageSegments(98, 100, 5), 3);
+});
+
+test("a zero allowance bills every segment as overage", () => {
+  assert.equal(computeOverageSegments(0, 0, 3), 3);
 });

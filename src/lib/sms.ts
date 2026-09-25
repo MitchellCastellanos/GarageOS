@@ -3,7 +3,8 @@ import { recordAndSend, type RecordAndSendResult } from "@/lib/communications/ou
 import { getTwilioClientFor, TWILIO_STATUS_PATH, twilioWebhookUrl } from "@/lib/communications/twilio";
 import { resolveShopSmsSender } from "@/lib/communications/sms-numbers";
 import { isSuppressed } from "@/lib/communications/suppression";
-import { assertSmsAllowance, checkSmsUsageAlerts } from "@/lib/communications/sms-usage";
+import { checkSmsUsageAlerts, planSmsOverage } from "@/lib/communications/sms-usage";
+import { getEffectiveSubscription } from "@/lib/subscription";
 import { countSmsSegments } from "@/domain/sms";
 import { toE164 } from "@/lib/phone";
 
@@ -48,9 +49,10 @@ function statusCallbackUrl(): string | undefined {
 
 /**
  * Punto único de envío de SMS. Sale desde el número dedicado del taller si lo
- * tiene (en su subcuenta de Twilio) o desde el compartido; respeta STOP y el
- * cupo mensual (lanza SmsOptedOutError / SmsAllowanceExceededError para que el
- * llamador caiga al email) y pide callbacks de entrega.
+ * tiene (en su subcuenta de Twilio) o desde el compartido; respeta STOP
+ * (lanza SmsOptedOutError para que el llamador caiga al email) y pide
+ * callbacks de entrega. El cupo mensual nunca bloquea el envío: los segmentos
+ * de más se cobran como excedente (ver planSmsOverage / reportSmsOverageUsage).
  */
 export async function sendSms(params: SendSmsParams): Promise<RecordAndSendResult> {
   const sender = await resolveShopSmsSender(params.shopId);
@@ -69,7 +71,7 @@ export async function sendSms(params: SendSmsParams): Promise<RecordAndSendResul
   }
 
   const { segments } = countSmsSegments(params.body);
-  await assertSmsAllowance(params.shopId, segments);
+  const overage = await planSmsOverage(params.shopId, segments);
 
   const result = await recordAndSend({
     shopId: params.shopId,
@@ -84,6 +86,7 @@ export async function sendSms(params: SendSmsParams): Promise<RecordAndSendResul
     to: [e164],
     textBody: params.body,
     segments,
+    billedOverageSegments: overage.overageSegments,
     businessEntityType: params.businessEntityType,
     businessEntityId: params.businessEntityId,
     idempotencyKey: params.idempotencyKey,
@@ -100,6 +103,14 @@ export async function sendSms(params: SendSmsParams): Promise<RecordAndSendResul
   });
 
   if (!result.deduped) {
+    if (overage.overageSegments > 0 && result.messageId) {
+      const { stripeCustomerId } = await getEffectiveSubscription(params.shopId);
+      if (stripeCustomerId) {
+        const { reportSmsOverageUsage } = await import("@/lib/stripe");
+        await reportSmsOverageUsage({ stripeCustomerId, segments: overage.overageSegments, messageId: result.messageId });
+      }
+    }
+
     // Import diferido: staff-alerts es server-only (correo de plataforma).
     await checkSmsUsageAlerts(params.shopId, async (alert) => {
       const { alertStaffSmsUsage } = await import("@/lib/staff-alerts");

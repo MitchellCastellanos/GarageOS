@@ -59,7 +59,9 @@ export function planIncludes(plan: Plan, capability: CapabilityKey): boolean {
  *
  * smsSegmentsPerMonth: cupo de SMS salientes por mes calendario, en segmentos
  * (lo que cobra Twilio — ver countSmsSegments en src/domain/sms.ts). Al
- * agotarse, los avisos automáticos caen a email; no hay cobro de excedente.
+ * agotarse, el SMS se sigue enviando y el excedente se cobra a
+ * SMS_OVERAGE_PRICE_CAD_PER_SEGMENT (src/domain/sms.ts) vía Stripe Billing
+ * Meters — ver reportSmsOverageUsage en src/lib/stripe.ts.
  * VALORES PROVISIONALES: docs/subscription-plans.md solo define "Allowance /
  * Larger / Largest" — confirmar cifras comerciales antes del lanzamiento.
  * GarageOS puede fijar otro cupo por taller (Shop.smsMonthlyAllowanceOverride).

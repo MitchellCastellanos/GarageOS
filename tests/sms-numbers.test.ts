@@ -9,7 +9,7 @@ import {
   SmsNumberError,
 } from "../src/lib/communications/sms-numbers";
 import { sendSms, SmsOptedOutError } from "../src/lib/sms";
-import { checkSmsUsageAlerts, SmsAllowanceExceededError } from "../src/lib/communications/sms-usage";
+import { checkSmsUsageAlerts } from "../src/lib/communications/sms-usage";
 
 process.env.TWILIO_ACCOUNT_SID = "ACparent";
 process.env.TWILIO_AUTH_TOKEN = "parent-token";
@@ -30,6 +30,10 @@ function mockDb<M extends keyof typeof db, K extends keyof (typeof db)[M]>(
     db[model][method] = original;
   });
   return fn;
+}
+
+function argsOf(fn: ReturnType<TestContext["mock"]["fn"]>, call = 0) {
+  return fn.mock.calls[call].arguments[0] as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 }
 
 // ── Remitente ────────────────────────────────────────────────────────────────
@@ -115,7 +119,13 @@ function mockSendBasics(t: TestContext, opts: { suppressed: boolean; used: numbe
   mockDb(t, "communicationSuppression", "findUnique", async () => (opts.suppressed ? { id: "sup" } : null));
   mockDb(t, "communicationMessage", "aggregate", async () => ({ _sum: { segments: opts.used } }));
   mockDb(t, "communicationMessage", "count", async () => 0);
-  mockDb(t, "shop", "findUnique", async () => ({ smsMonthlyAllowanceOverride: opts.allowance }));
+  // Mismo mock atiende tanto a getSmsAllowance (smsMonthlyAllowanceOverride) como a
+  // getEffectiveSubscription (organizationId/subscription, para el reporte de excedente).
+  mockDb(t, "shop", "findUnique", async () => ({
+    smsMonthlyAllowanceOverride: opts.allowance,
+    organizationId: null,
+    subscription: null,
+  }));
   return mockDb(t, "communicationMessage", "create", async () => ({ id: "m" }));
 }
 
@@ -124,15 +134,6 @@ test("an SMS to a phone that replied STOP is refused so the caller falls back to
   await assert.rejects(
     sendSms({ shopId: "shop-A", to: "5145551234", body: "hi", purpose: "APPOINTMENT" }),
     (err: unknown) => err instanceof SmsOptedOutError
-  );
-  assert.equal(create.mock.callCount(), 0);
-});
-
-test("an SMS that would exceed the monthly allowance is refused before sending", async (t) => {
-  const create = mockSendBasics(t, { suppressed: false, used: 100, allowance: 100 });
-  await assert.rejects(
-    sendSms({ shopId: "shop-A", to: "5145551234", body: "hi", purpose: "APPOINTMENT" }),
-    (err: unknown) => err instanceof SmsAllowanceExceededError
   );
   assert.equal(create.mock.callCount(), 0);
 });

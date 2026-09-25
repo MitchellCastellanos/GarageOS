@@ -128,6 +128,26 @@ export function canSpendSmsSegments(used: number, allowance: number, needed: num
   return used + needed <= allowance;
 }
 
+/**
+ * Precio de excedente — $0.05 CAD por segmento arriba del cupo del plan
+ * (decisión de producto). Debe coincidir con el Price configurado en el
+ * Meter de Stripe (ver reportSmsOverageUsage en src/lib/stripe.ts); este
+ * valor es solo para mostrarlo en la UI, Stripe es quien factura de verdad.
+ */
+export const SMS_OVERAGE_PRICE_CAD_PER_SEGMENT = 0.05;
+
+/**
+ * Cuántos de los `segments` de un envío caen fuera del cupo mensual — la
+ * porción exacta que corresponde facturar como excedente, aunque el mensaje
+ * cruce la frontera del cupo a la mitad (ej. cupo con 2 segmentos libres y un
+ * mensaje de 5: 2 dentro del cupo, 3 de excedente).
+ */
+export function computeOverageSegments(usedBefore: number, allowance: number, segments: number): number {
+  const before = Math.max(0, usedBefore - allowance);
+  const after = Math.max(0, usedBefore + segments - allowance);
+  return after - before;
+}
+
 /** Umbral de alerta alcanzado (0, 80 o 100 %). */
 export function smsUsageAlertLevel(used: number, allowance: number): 0 | 80 | 100 {
   if (allowance <= 0) return used > 0 ? 100 : 0;
