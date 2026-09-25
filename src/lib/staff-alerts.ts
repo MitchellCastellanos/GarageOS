@@ -9,38 +9,49 @@ import { sendPlatformEmail } from "@/lib/platform/notify";
 import { resolveEffectiveShopContactEmail } from "@/lib/communications/sender-identity";
 import { resolveShopEmailLanguage, type PlatformEmailLanguage } from "@/lib/platform/locale";
 import { StaffAlertEmail } from "@/emails/StaffAlertEmail";
+import { getStaffNotificationPreferences, type StaffEventKey } from "@/lib/staff-notify";
+import { DEFAULT_STAFF_NOTIFICATION_PREFERENCE } from "@/lib/staff-notify-events";
+import { groupEmailBatchByLanguage, planStaffAlertRecipients } from "@/domain/staff-notify";
+import { publishStaffNotification } from "@/lib/staff-notify-realtime";
 
 /**
  * Alertas internas al equipo del taller — eventos que el taller no disparó y
  * necesita saber (cita nueva desde la web, el cliente canceló desde su link,
- * el cliente aprobó/rechazó una cotización). Canal: email desde GarageOS (no
- * desde el remitente del taller — no es un mensaje al cliente). Reemplaza al
- * SMS que iba al teléfono público del taller y al CC en los correos al
- * cliente. El centro de notificaciones en la app (Fase 3) se alimentará de los
- * mismos puntos de disparo.
+ * el cliente aprobó/rechazó una cotización, uso/ciclo de vida de SMS). Dos
+ * canales, decididos por cada usuario (ver src/lib/staff-notify.ts):
  *
- * Destinatarios: los OWNER con correo confirmado; si ninguno califica, el
- * contacto efectivo del taller (resolveEffectiveShopContactEmail). Cada uno
- * recibe el correo en su propio idioma.
+ * - **App** (StaffNotification + campana en tiempo real): canal principal,
+ *   activo por defecto. No depende de que el correo esté verificado.
+ * - **Email** desde GarageOS (no desde el remitente del taller — no es un
+ *   mensaje al cliente): refuerzo, también activo por defecto, apagable por
+ *   evento. Exige correo verificado.
+ *
+ * Reemplaza al SMS que iba al teléfono público del taller y al CC en los
+ * correos al cliente.
+ *
+ * Destinatarios: los OWNER del taller. Si ninguno tiene correo verificado, el
+ * email cae al contacto efectivo del taller (sin preferencia asociada — no es
+ * un usuario) y la app se queda sin nada que mostrar (no hay a quién).
  */
 
-interface Recipient {
+interface OwnerRecipient {
+  userId: string;
   email: string;
+  emailVerified: boolean;
   language: PlatformEmailLanguage;
 }
 
-async function resolveStaffAlertRecipients(shopId: string): Promise<Recipient[]> {
+async function resolveOwners(shopId: string): Promise<OwnerRecipient[]> {
   const owners = await db.user.findMany({
-    where: { shopId, role: "OWNER", emailVerified: { not: null } },
-    select: { email: true, preferredLocale: true },
+    where: { shopId, role: "OWNER" },
+    select: { id: true, email: true, emailVerified: true, preferredLocale: true },
   });
-  if (owners.length > 0) {
-    return owners.map((o) => ({ email: o.email, language: o.preferredLocale === "FR" ? "FR" : "EN" }));
-  }
-
-  const fallback = await resolveEffectiveShopContactEmail(shopId);
-  if (!fallback) return [];
-  return [{ email: fallback, language: await resolveShopEmailLanguage(shopId) }];
+  return owners.map((o) => ({
+    userId: o.id,
+    email: o.email,
+    emailVerified: Boolean(o.emailVerified),
+    language: o.preferredLocale === "FR" ? "FR" : "EN",
+  }));
 }
 
 interface AlertContent {
@@ -51,36 +62,94 @@ interface AlertContent {
   ctaLabel: string;
 }
 
+async function sendPlatformAlertEmail(
+  to: string[],
+  language: PlatformEmailLanguage,
+  shopName: string,
+  ctaUrl: string,
+  content: AlertContent
+): Promise<void> {
+  try {
+    await sendPlatformEmail(
+      to,
+      content.subject,
+      React.createElement(StaffAlertEmail, {
+        shopName,
+        heading: content.heading,
+        intro: content.intro,
+        details: content.details,
+        ctaUrl,
+        ctaLabel: content.ctaLabel,
+        language,
+      })
+    );
+  } catch (err) {
+    console.error(`[staff-alerts] "${content.subject}" falló:`, err);
+  }
+}
+
+/** Cuerpo corto para la campana — intro más el primer detalle (ej. nombre del cliente). */
+function notificationBody(content: AlertContent): string {
+  const firstDetail = content.details[0];
+  return firstDetail ? `${content.intro} (${firstDetail.label}: ${firstDetail.value})` : content.intro;
+}
+
 async function sendStaffAlert(params: {
   shopId: string;
   shopName: string;
+  event: StaffEventKey;
   ctaPath: string;
   build: (language: PlatformEmailLanguage) => AlertContent;
 }): Promise<void> {
-  const recipients = await resolveStaffAlertRecipients(params.shopId);
+  const owners = await resolveOwners(params.shopId);
   const ctaUrl = `${getAppUrl()}${params.ctaPath}`;
 
-  for (const language of ["EN", "FR"] as const) {
-    const to = recipients.filter((r) => r.language === language).map((r) => r.email);
-    if (to.length === 0) continue;
-    const content = params.build(language);
+  if (owners.length === 0) {
+    // Ningún OWNER en el taller (no debería pasar) — email de último recurso,
+    // sin preferencia asociada porque no hay un usuario al que atribuírsela.
+    const fallback = await resolveEffectiveShopContactEmail(params.shopId);
+    if (!fallback) return;
+    const language = await resolveShopEmailLanguage(params.shopId);
+    await sendPlatformAlertEmail([fallback], language, params.shopName, ctaUrl, params.build(language));
+    return;
+  }
+
+  const preferenceRows = await Promise.all(
+    owners.map(async (o) => [o.userId, await getStaffNotificationPreferences(o.userId)] as const)
+  );
+  const preferences = new Map(preferenceRows.map(([userId, prefs]) => [userId, prefs[params.event]]));
+  const plan = planStaffAlertRecipients(owners, preferences, DEFAULT_STAFF_NOTIFICATION_PREFERENCE);
+
+  for (const entry of plan) {
+    if (!entry.createInApp) continue;
+    const content = params.build(entry.language);
     try {
-      await sendPlatformEmail(
-        to,
-        content.subject,
-        React.createElement(StaffAlertEmail, {
-          shopName: params.shopName,
-          heading: content.heading,
-          intro: content.intro,
-          details: content.details,
-          ctaUrl,
-          ctaLabel: content.ctaLabel,
-          language,
-        })
-      );
+      const notification = await db.staffNotification.create({
+        data: {
+          shopId: params.shopId,
+          userId: entry.userId,
+          event: params.event,
+          title: content.heading,
+          body: notificationBody(content),
+          href: params.ctaPath,
+        },
+      });
+      await publishStaffNotification(entry.userId, {
+        id: notification.id,
+        title: notification.title,
+        body: notification.body,
+        href: notification.href,
+        createdAt: notification.createdAt.toISOString(),
+      });
     } catch (err) {
-      console.error(`[staff-alerts] "${content.subject}" falló:`, err);
+      console.error(`[staff-alerts] no se pudo crear la notificación en la app (${params.event}):`, err);
     }
+  }
+
+  const emailBatch = groupEmailBatchByLanguage(owners, plan);
+  for (const language of ["EN", "FR"] as const) {
+    if (emailBatch[language].length === 0) continue;
+    await sendPlatformAlertEmail(emailBatch[language], language, params.shopName, ctaUrl, params.build(language));
   }
 }
 
@@ -111,6 +180,7 @@ export async function alertStaffNewWebAppointment(input: AppointmentAlertInput):
   await sendStaffAlert({
     shopId: input.shop.id,
     shopName: input.shop.name,
+    event: "STAFF_NEW_WEB_BOOKING",
     ctaPath: ADMIN.appointments,
     build: (language) =>
       language === "FR"
@@ -135,6 +205,7 @@ export async function alertStaffClientCancelledAppointment(input: AppointmentAle
   await sendStaffAlert({
     shopId: input.shop.id,
     shopName: input.shop.name,
+    event: "STAFF_CLIENT_CANCELLED_APPOINTMENT",
     ctaPath: ADMIN.appointments,
     build: (language) =>
       language === "FR"
@@ -167,6 +238,7 @@ export async function alertStaffQuoteDecided(input: {
   await sendStaffAlert({
     shopId: input.shop.id,
     shopName: input.shop.name,
+    event: "STAFF_QUOTE_DECIDED",
     ctaPath: `${ADMIN.quotes}/${input.quoteId}`,
     build: (language) => {
       const l = LABELS[language];
@@ -216,6 +288,7 @@ export async function alertStaffSmsUsage(input: {
   await sendStaffAlert({
     shopId: shop.id,
     shopName: shop.name,
+    event: "STAFF_SMS_USAGE",
     ctaPath: `${ADMIN.settings}?tab=notifications`,
     build: (language) =>
       language === "FR"
@@ -253,6 +326,7 @@ export async function alertStaffSmsNumberReleaseScheduled(input: {
   await sendStaffAlert({
     shopId: shop.id,
     shopName: shop.name,
+    event: "STAFF_SMS_NUMBER_RELEASE_SCHEDULED",
     ctaPath: `${ADMIN.settings}?tab=billing`,
     build: (language) => {
       const date = input.releaseAt.toLocaleDateString(language === "FR" ? "fr-CA" : "en-CA", {
@@ -294,6 +368,7 @@ export async function alertStaffSmsNumberActivated(input: { shopId: string; phon
   await sendStaffAlert({
     shopId: shop.id,
     shopName: shop.name,
+    event: "STAFF_SMS_NUMBER_ACTIVATED",
     ctaPath: ADMIN.inbox,
     build: (language) =>
       language === "FR"

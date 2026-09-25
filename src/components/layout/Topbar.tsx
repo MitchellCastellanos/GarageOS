@@ -13,6 +13,8 @@ import { LanguageQuickSwitch } from "@/components/settings/LanguageQuickSwitch";
 import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
 import { LAYOUT_DICT } from "@/lib/admin-locale/layout";
 import { switchActiveShop } from "@/actions/locations";
+import { NotificationBell } from "@/components/layout/NotificationBell";
+import type { StaffNotificationRow } from "@/actions/staff-notifications";
 import { SETTINGS_DICT } from "@/lib/admin-locale/settings";
 
 interface TopbarProps {
@@ -23,6 +25,9 @@ interface TopbarProps {
   mobileNavOpen: boolean;
   accessibleShops: { id: string; name: string }[];
   currentShopId: string;
+  userId: string;
+  initialNotifications: StaffNotificationRow[];
+  initialUnreadNotifications: number;
 }
 
 function initials(name?: string | null): string {
@@ -41,6 +46,9 @@ export function Topbar({
   mobileNavOpen,
   accessibleShops,
   currentShopId,
+  userId,
+  initialNotifications,
+  initialUnreadNotifications,
 }: TopbarProps) {
   const locale = useAdminLocale();
   const t = LAYOUT_DICT[locale];
@@ -172,6 +180,8 @@ export function Topbar({
           </button>
         </form>
       )}
+
+      <NotificationBell userId={userId} initialNotifications={initialNotifications} initialUnreadCount={initialUnreadNotifications} />
 
       {/* Usuario */}
       <div

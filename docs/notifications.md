@@ -138,10 +138,38 @@ Los avisos automáticos (citas, vehículo listo) capturan esos errores y caen al
 - **Estados de entrega de email / respaldo diferido bidireccional (hecho):** ver
   "Estado de entrega y respaldo diferido (SMS y email)" arriba.
 - **Centro de notificaciones en la app (hecho):** campana en tiempo real vía Pusher,
-  bandeja de pendientes y preferencias por usuario — ver
-  `docs/notifications.md` sección "Centro de notificaciones" más abajo.
+  bandeja de pendientes y preferencias por usuario — ver "Centro de
+  notificaciones" más abajo.
 - **Pendiente — cobro de excedente de SMS** al agotar el cupo del plan (hoy cae a
   email sin cargo extra) — ver "Cupos y excedente" abajo.
 - **Pendiente — registro A2P 10DLC automatizado** para números de EE. UU. Decisión de
   negocio: no se automatiza (el volumen de talleres en EE. UU. no justifica el costo
   de mantenerlo); el registro sigue siendo manual por taller si algún día se necesita.
+
+## Centro de notificaciones (app)
+
+`StaffNotification` (una fila por usuario destinatario) + `UserNotificationPreference`
+(por usuario y evento: `inApp`/`email`, default ambos activos — sin fila = default).
+Mismo dispatcher que las alertas por email de la Fase 1 (`sendStaffAlert` en
+`src/lib/staff-alerts.ts`): para cada owner del taller decide, según su preferencia,
+si crea la notificación en la app, si entra al lote de email de su idioma, o ambos.
+La decisión de "quién recibe qué" es pura (`src/domain/staff-notify.ts`,
+`planStaffAlertRecipients` / `groupEmailBatchByLanguage`) — testeada ahí porque
+`staff-alerts.ts` en sí usa `import "server-only"`, que Next.js resuelve pero el test
+runner (tsx) no (limitación del entorno, no del código; confirmado con `next build`).
+
+Eventos: `STAFF_NEW_WEB_BOOKING`, `STAFF_CLIENT_CANCELLED_APPOINTMENT`,
+`STAFF_QUOTE_DECIDED`, `STAFF_SMS_USAGE`, `STAFF_SMS_NUMBER_RELEASE_SCHEDULED`,
+`STAFF_SMS_NUMBER_ACTIVATED` (catálogo en `src/lib/staff-notify-events.ts`).
+
+- **Campana** (`src/components/layout/NotificationBell.tsx`): últimas 30, contador de
+  no leídas, tiempo real por canal de Pusher **por usuario**
+  (`staff-notifications-{userId}` — nunca por taller, para que un compañero no vea
+  las notificaciones de otro). Sin Pusher configurado, sigue funcionando por
+  polling al abrir el menú.
+- **Preferencias**: Configuración → Notificaciones → "Alertas internas del equipo"
+  (solo owners, mismo destinatario que las alertas). Un evento no puede quedar con
+  los dos canales apagados (dejaría de existir para esa persona sin ningún rastro).
+- Solo llega a los OWNER del taller — mismo alcance que ya tenían las alertas por
+  email de la Fase 1. Ampliarlo a mecánicos/recepción es una mejora futura, no algo
+  que este centro ya resuelva.

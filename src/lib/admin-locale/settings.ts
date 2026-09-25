@@ -45,6 +45,15 @@ export interface SettingsDictionary {
     segmentsHint: string;
     optedOut: (count: number) => string;
   };
+  staffNotificationPreferences: {
+    title: string;
+    subtitle: string;
+    columnInApp: string;
+    columnEmail: string;
+    saved: string;
+    error: string;
+    atLeastOneChannel: string;
+  };
   workOrderNotifications: {
     title: string;
     emailLabel: string;
@@ -524,6 +533,15 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
         "Un SMS de hasta 160 caracteres es 1 segmento; con acentos como ê, ô o ç el límite baja a 70 por segmento.",
       optedOut: (count) => `${count} contacto${count !== 1 ? "s" : ""} respondieron STOP y no reciben SMS.`,
     },
+    staffNotificationPreferences: {
+      title: "Alertas internas del equipo",
+      subtitle: "Cómo quieres enterarte tú (no tus clientes) de cita nueva, cancelación, cotización decidida y avisos de SMS.",
+      columnInApp: "En la app",
+      columnEmail: "Por email",
+      saved: "Preferencia guardada",
+      error: "No se pudo guardar",
+      atLeastOneChannel: "Deja al menos un canal activo",
+    },
     workOrderNotifications: {
       title: "Órdenes de trabajo — avisar cuando el vehículo esté listo",
       emailLabel: "Notificar por email al marcar \"Listo para retirar\"",
@@ -964,6 +982,15 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
         "A text of up to 160 characters is 1 segment; accents like ê, ô or ç lower that to 70 per segment.",
       optedOut: (count) => `${count} contact${count !== 1 ? "s" : ""} replied STOP and won't receive SMS.`,
     },
+    staffNotificationPreferences: {
+      title: "Internal team alerts",
+      subtitle: "How you (not your clients) want to hear about new bookings, cancellations, quote decisions and SMS notices.",
+      columnInApp: "In the app",
+      columnEmail: "By email",
+      saved: "Preference saved",
+      error: "Could not save",
+      atLeastOneChannel: "Leave at least one channel on",
+    },
     workOrderNotifications: {
       title: "Work orders — notify when the vehicle is ready",
       emailLabel: 'Notify by email when marked "Ready for pickup"',
@@ -1401,6 +1428,15 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       segmentsHint:
         "Un SMS de 160 caractères ou moins compte pour 1 segment; les accents comme ê, ô ou ç réduisent la limite à 70.",
       optedOut: (count) => `${count} contact${count !== 1 ? "s" : ""} ont répondu STOP et ne reçoivent plus de SMS.`,
+    },
+    staffNotificationPreferences: {
+      title: "Alertes internes de l'équipe",
+      subtitle: "Comment vous (pas vos clients) voulez être avisé d'une nouvelle réservation, d'une annulation, d'une soumission décidée et des avis SMS.",
+      columnInApp: "Dans l'application",
+      columnEmail: "Par courriel",
+      saved: "Préférence enregistrée",
+      error: "Impossible d'enregistrer",
+      atLeastOneChannel: "Laissez au moins un canal actif",
     },
     workOrderNotifications: {
       title: "Ordres de travail — aviser quand le véhicule est prêt",

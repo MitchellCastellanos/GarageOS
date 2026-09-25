@@ -16,6 +16,7 @@ model Shop {
   inventoryParts     InventoryPart[]
   inventoryMovements InventoryMovement[]
   userAccess         UserShopAccess[]
+  staffNotifications StaffNotification[]
   documentSequences  DocumentSequence[]
   platformNotes              PlatformNote[]
   platformAuditLogs          PlatformAuditLog[]
@@ -232,6 +233,8 @@ model User {
   inspections  Inspection[]           @relation("InspectionMechanic")
   workingHours MechanicWorkingHours[]
   shopAccess   UserShopAccess[]
+  staffNotifications           StaffNotification[]
+  notificationPreferences      UserNotificationPreference[]
 
   @@schema("garageos")
 }
@@ -1628,5 +1631,50 @@ model ShopSmsNumber {
   updatedAt           DateTime            @updatedAt
 
   @@index([status, releaseScheduledAt])
+  @@schema("garageos")
+}
+
+/**
+ * Centro de notificaciones en la app — alertas internas al equipo del taller
+ * (cita web nueva, cliente canceló, cotización decidida, uso/ciclo de vida de
+ * SMS). Una fila por usuario destinatario (no por taller): así cada quien
+ * marca su propia bandeja como leída sin afectar a los demás. El email es un
+ * canal aparte (ver UserNotificationPreference) — esta tabla es la fuente de
+ * verdad de "qué vio quién", no un log de envíos.
+ */
+model StaffNotification {
+  id        String    @id @default(cuid())
+  shopId    String
+  shop      Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Clave estable del evento (ej. "STAFF_NEW_WEB_BOOKING") — ver StaffEventKey
+  // en src/lib/staff-notify.ts. String, no enum: igual que CommunicationAuditLog,
+  // para poder agregar eventos sin migración.
+  event     String
+  title     String
+  body      String    @db.Text
+  href      String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([shopId, userId, readAt, createdAt])
+  @@schema("garageos")
+}
+
+/**
+ * Preferencia por usuario y por tipo de evento: verlo en la app, recibirlo
+ * también por email, o ambos. Sin fila = default (in-app y email activos) —
+ * ver DEFAULT_STAFF_NOTIFICATION_PREFERENCE en src/lib/staff-notify.ts.
+ */
+model UserNotificationPreference {
+  id     String  @id @default(cuid())
+  userId String
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event  String
+  inApp  Boolean @default(true)
+  email  Boolean @default(true)
+
+  @@unique([userId, event])
   @@schema("garageos")
 }
