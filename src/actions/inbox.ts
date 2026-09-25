@@ -5,7 +5,7 @@ import { ADMIN, adminPath } from "@/lib/routes";
 import { db } from "@/lib/db";
 import { getShopId } from "@/lib/shop-context";
 import { requireShopSession } from "@/lib/permissions";
-import { sendInboxMessage, sendInboxSms } from "@/lib/communications/inbox";
+import { isThreadUnread, sendInboxMessage, sendInboxSms } from "@/lib/communications/inbox";
 import { shopHasDedicatedSmsNumber } from "@/lib/communications/sms-numbers";
 import { isSuppressed } from "@/lib/communications/suppression";
 import { toE164 } from "@/lib/phone";
@@ -14,10 +14,6 @@ import { getInboxSenderOptions } from "@/lib/communications/sender-identity";
 import { parseEmailAttachments } from "@/lib/email-attachments";
 import { emailRichTextToPlainText, parseEmailRichText } from "@/lib/email-rich-text";
 
-/** No leído = llegó algo del cliente después de la última vez que el taller abrió el hilo. */
-function isThreadUnread(thread: { lastInboundAt: Date | null; readAt: Date | null }): boolean {
-  return Boolean(thread.lastInboundAt && (!thread.readAt || thread.lastInboundAt > thread.readAt));
-}
 
 export async function listThreads(status: "OPEN" | "ARCHIVED" = "OPEN") {
   const shopId = await getShopId();
@@ -30,17 +26,6 @@ export async function listThreads(status: "OPEN" | "ARCHIVED" = "OPEN") {
     orderBy: { lastMessageAt: "desc" },
   });
   return threads.map((thread) => ({ ...thread, unread: isThreadUnread(thread) }));
-}
-
-/** Punto del sidebar: ¿hay algún hilo abierto con mensajes del cliente sin leer? */
-export async function hasUnreadInboxThreads(shopId: string): Promise<boolean> {
-  const candidates = await db.communicationThread.findMany({
-    where: { shopId, status: "OPEN", lastInboundAt: { not: null } },
-    select: { lastInboundAt: true, readAt: true },
-    orderBy: { lastInboundAt: "desc" },
-    take: 50,
-  });
-  return candidates.some(isThreadUnread);
 }
 
 export async function markThreadReadAction(threadId: string) {

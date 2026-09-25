@@ -28,7 +28,7 @@ export function planAtLeast(plan: Plan, minPlan: Plan): boolean {
  *
  * Esta lista es intencionalmente más chica que el catálogo completo de
  * docs/subscription-plans.md: solo incluye funciones que ya existen en el
- * producto. Las marcadas "Future" en ese doc (two-way SMS, API pública,
+ * producto. Las marcadas "Future" en ese doc (API pública,
  * QuickBooks, DVI avanzado, reportes avanzados, etc.) no tienen todavía una
  * pantalla o acción real que gatear — cuando se construyan, se agregan acá.
  */

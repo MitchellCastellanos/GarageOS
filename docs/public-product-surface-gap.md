@@ -135,7 +135,7 @@ Se identificaron estos riesgos/inconsistencias a través de las superficies púb
 - Testimonials se presentan como reales sin evidencia de que lo sean.
 - Parte del wording sigue siendo single-shop pese a multi-location.
 - API sigue siendo futura.
-- Two-way SMS no forma parte de V1.
+- Two-way SMS existe para talleres con número dedicado (aprovisionado por GarageOS); no presentarlo como incluido sin ese número.
 - Purchase Orders/Suppliers no forman parte del alcance actual.
 - Full accounting no forma parte del producto; accounting-light/QuickBooks es la dirección futura.
 - Work Board/kanban no forma parte del workflow deseado.

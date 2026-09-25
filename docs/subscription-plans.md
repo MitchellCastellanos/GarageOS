@@ -75,8 +75,8 @@ Legend:
 | DVI photos / media / reusable templates | — | Included | Included |
 | Basic maintenance reminders | Included | Advanced | Advanced |
 | Branded email communications | Included | Included | Included |
-| SMS notifications | Allowance | Larger allowance | Largest allowance |
-| Two-way SMS | Future | Future | Future |
+| SMS notifications | Allowance (300 segments/mo, provisional) | Larger allowance (1,000, provisional) | Largest allowance (2,500, provisional) |
+| Two-way SMS (dedicated shop number, provisioned by GarageOS) | Included | Included | Included |
 | Customer Portal | Future / Included | Future / Included | Future / Included |
 | Shop branding on customer documents | Included | Included | Included |
 | Hosted GarageOS booking/shop page (Classic template, logo, brand color, 2 shop photos, real services/icons/featured) | Included | Included | Included |

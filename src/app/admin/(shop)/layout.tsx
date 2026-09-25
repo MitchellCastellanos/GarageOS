@@ -9,7 +9,7 @@ import { AdminLocaleProvider } from "@/components/admin/AdminLocaleProvider";
 import { getAccessibleShops } from "@/actions/locations";
 import { can } from "@/lib/subscription";
 import { hasUnreadSupportMessage } from "@/actions/support";
-import { hasUnreadInboxThreads } from "@/actions/inbox";
+import { hasUnreadInboxThreads } from "@/lib/communications/inbox";
 import { ImpersonationBanner } from "@/components/admin/ImpersonationBanner";
 import { EmailVerificationBanner } from "@/components/admin/EmailVerificationBanner";
 

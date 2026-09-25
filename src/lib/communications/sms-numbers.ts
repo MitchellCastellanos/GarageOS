@@ -303,7 +303,7 @@ export async function releaseShopSmsNumber(params: {
     });
   }
   const shop = await db.shop.findUnique({ where: { id: params.shopId }, select: { name: true } });
-  await restoreSharedSmsRoutes(params.shopId, shop?.name ?? "");
+  await restoreSharedSmsRoutes(params.shopId, shop?.name ?? "", { removeIfNoShared: true });
 
   try {
     if (row.phoneNumberSid && row.subaccountSid) {

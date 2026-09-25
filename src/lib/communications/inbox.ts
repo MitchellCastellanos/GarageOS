@@ -234,3 +234,25 @@ export async function sendInboxSms(params: SendInboxSmsParams): Promise<SendInbo
 
   return { messageId: result.messageId, threadId: thread.id };
 }
+
+// ── No leídos ────────────────────────────────────────────────────────────────
+
+/** No leído = llegó algo del cliente después de la última vez que el taller abrió el hilo. */
+export function isThreadUnread(thread: { lastInboundAt: Date | null; readAt: Date | null }): boolean {
+  return Boolean(thread.lastInboundAt && (!thread.readAt || thread.lastInboundAt > thread.readAt));
+}
+
+/**
+ * Punto del sidebar: ¿hay algún hilo abierto con mensajes del cliente sin leer?
+ * Vive fuera de actions/ a propósito: recibe el shopId de la sesión del layout y
+ * no debe quedar expuesto como server action invocable con cualquier shopId.
+ */
+export async function hasUnreadInboxThreads(shopId: string): Promise<boolean> {
+  const candidates = await db.communicationThread.findMany({
+    where: { shopId, status: "OPEN", lastInboundAt: { not: null } },
+    select: { lastInboundAt: true, readAt: true },
+    orderBy: { lastInboundAt: "desc" },
+    take: 50,
+  });
+  return candidates.some(isThreadUnread);
+}

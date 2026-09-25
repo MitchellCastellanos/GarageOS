@@ -133,13 +133,21 @@ export async function provisionDefaultSenderIdentities(shop: ProvisionableShop):
   if (!dedicated) await restoreSharedSmsRoutes(shop.id, shop.name);
 }
 
-/** Apunta todas las rutas SMS del taller al número compartido (TWILIO_FROM_NUMBER). */
-export async function restoreSharedSmsRoutes(shopId: string, displayName: string): Promise<void> {
+/**
+ * Apunta todas las rutas SMS del taller al número compartido (TWILIO_FROM_NUMBER).
+ * Sin número compartido no toca nada, salvo `removeIfNoShared` (al liberar un número
+ * dedicado sus rutas no pueden quedar apuntando a una identidad suspendida).
+ */
+export async function restoreSharedSmsRoutes(
+  shopId: string,
+  displayName: string,
+  options: { removeIfNoShared?: boolean } = {}
+): Promise<void> {
   const smsFrom = process.env.TWILIO_FROM_NUMBER?.trim()
     ? toE164(process.env.TWILIO_FROM_NUMBER.trim())
     : null;
   if (!smsFrom) {
-    await db.communicationRoute.deleteMany({ where: { shopId, channel: "SMS" } });
+    if (options.removeIfNoShared) await db.communicationRoute.deleteMany({ where: { shopId, channel: "SMS" } });
     return;
   }
   for (const purpose of SMS_PURPOSES) {

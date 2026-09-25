@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { mapTwilioMessageStatus, shouldApplyStatusUpdate } from "@/domain/sms";
 import { addSuppression } from "@/lib/communications/suppression";
 import { handleSmsDeliveryFailure } from "@/lib/notification-fallback";
+import { getSharedSmsNumber } from "@/lib/communications/sms-numbers";
 
 export interface SmsStatusInput {
   messageSid: string;
@@ -21,19 +22,18 @@ const TWILIO_UNSUBSCRIBED_ERROR = "21610";
 
 /**
  * El AccountSid del callback debe ser el dueño del número que envió el mensaje:
- * la subcuenta del taller (número dedicado, vigente o ya liberado) o la cuenta
- * principal (número compartido). Evita que un callback de otra cuenta toque
- * mensajes de este taller.
+ * la cuenta principal si salió del número compartido; si no, la subcuenta del
+ * taller (se conserva aunque el número se libere y se vuelva a pedir). Evita que
+ * un callback de otra cuenta toque mensajes de este taller.
  */
 async function accountOwnsMessage(message: { shopId: string; from: string }, accountSid: string): Promise<boolean> {
+  const parentSid = process.env.TWILIO_ACCOUNT_SID?.trim();
+  if (message.from === getSharedSmsNumber()) return accountSid === parentSid;
   const number = await db.shopSmsNumber.findUnique({
     where: { shopId: message.shopId },
-    select: { subaccountSid: true, phoneNumber: true, releasedPhoneNumber: true },
+    select: { subaccountSid: true },
   });
-  if (number?.subaccountSid && (number.phoneNumber === message.from || number.releasedPhoneNumber === message.from)) {
-    return number.subaccountSid === accountSid;
-  }
-  return accountSid === process.env.TWILIO_ACCOUNT_SID?.trim();
+  return Boolean(number?.subaccountSid && number.subaccountSid === accountSid);
 }
 
 export async function handleSmsStatusCallback(input: SmsStatusInput): Promise<"updated" | "ignored"> {

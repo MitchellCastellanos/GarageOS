@@ -26,21 +26,30 @@ configure. Para activarlo:
    dirección de una SenderIdentity activa) y confirmar que aparece como conversación
    nueva o respuesta en `/admin/inbox`.
 
-## 2. Activar SMS por taller (Fase 6)
+## 2. SMS por taller — configuración en Twilio
 
-El código vive en `src/lib/communications/sms-provisioning.ts`
-(`provisionShopTwilioSubaccount`) y hoy no lo llama nada — ni un cron, ni un botón.
+El código está completo (ver `docs/notifications.md` → "SMS por taller"). El número
+dedicado lo compra un super admin desde `/platform → taller → SMS`; nada lo compra
+automáticamente. Pasos de operación:
 
-1. Decidir el modelo de costos: ¿la renta mensual del número la paga GarageOS o se le
-   cobra al taller? Esto determina si el aprovisionamiento debe ir detrás de un plan de
-   pago o de un cargo aparte.
-2. Construir la acción/UI (falta por completo) para que un OWNER dispare
-   `provisionShopTwilioSubaccount(shopId, purpose)` con una confirmación explícita de
-   costo — nunca automático.
-3. Revisar el país por defecto (`"CA"` hardcoded) contra los mercados reales que atienda
-   GarageOS; el doc explícitamente pide no asumir solo EE. UU./Canadá para siempre.
-4. Probar con credenciales reales de Twilio — cada prueba compra un número real y genera
-   cargos reales, así que probarlo aquí no era una opción.
+1. **Cuenta principal de Twilio** con `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` en
+   producción. Las subcuentas de los talleres se crean y se operan con esas mismas
+   credenciales.
+2. **URL pública de webhooks:** `NEXT_PUBLIC_APP_URL` (o `TWILIO_WEBHOOK_BASE_URL` si
+   difiere) debe ser la URL https de producción: la firma de Twilio se calcula sobre
+   ella. Los números dedicados quedan configurados solos al comprarlos con
+   `<URL>/api/webhooks/twilio/inbound`; los callbacks de estado se piden por mensaje a
+   `<URL>/api/webhooks/twilio/status`.
+3. **Número compartido** (`TWILIO_FROM_NUMBER`): en la consola de Twilio, configurar
+   su "A message comes in" → `POST <URL>/api/webhooks/twilio/inbound` para que los STOP
+   y las respuestas lleguen.
+4. **Costos:** cada número dedicado tiene renta mensual; la liberación automática a
+   30 días de talleres que dejaron de pagar evita números huérfanos. Revisar en la
+   consola que no queden números en subcuentas suspendidas.
+5. **Cumplimiento:** los números se compran en `CA` por defecto (se puede elegir otro
+   país y código de área). Para números de EE. UU. hace falta registro A2P 10DLC por
+   taller antes de enviar volumen — no está automatizado.
+6. **Cupos:** los valores de `PLAN_LIMITS.smsSegmentsPerMonth` son provisionales.
 
 ## 3. Variables de entorno / infraestructura a confirmar en producción
 
