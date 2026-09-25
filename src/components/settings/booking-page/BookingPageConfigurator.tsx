@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   AlertTriangle,
@@ -22,7 +23,9 @@ import {
   type getBookingPageSettings,
   type BookingPageActionError,
 } from "@/actions/booking-page";
+import { updateShopSlug } from "@/actions/settings";
 import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
+import { SETTINGS_DICT } from "@/lib/admin-locale/settings";
 import { LocaleProvider } from "@/components/booking/LocaleProvider";
 import { BookingPageRenderer } from "@/components/booking/page/BookingPageRenderer";
 import { BOOKING_FONT_VARIABLES, TYPOGRAPHY_PRESETS } from "@/components/booking/page/typography";
@@ -83,10 +86,14 @@ const COLOR_PRESETS = BRAND_COLOR_PRESETS;
 
 const UPGRADE_HREF = `${ADMIN.settings}?tab=billing&plan=pro`;
 
-export function BookingPageConfigurator({ settings }: { settings: Settings }) {
+export function BookingPageConfigurator({ settings, slugUrlPrefix }: { settings: Settings; slugUrlPrefix: string }) {
   const locale = useAdminLocale();
   const t = BOOKING_PAGE_DICT[locale];
+  const tSlug = SETTINGS_DICT[locale].shopSlug;
+  const router = useRouter();
 
+  const [slug, setSlug] = useState(settings.shop.slug ?? "");
+  const [slugPending, startSlugTransition] = useTransition();
   const [published, setPublished] = useState<Draft>(() => toDraft(settings.published));
   const [draft, setDraft] = useState<Draft>(published);
   // Primera vez (nunca publicó desde acá): asistente guiado paso a paso.
@@ -175,6 +182,24 @@ export function BookingPageConfigurator({ settings }: { settings: Settings }) {
     setJustPublished(false);
   }
 
+  function handleSlugSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    startSlugTransition(async () => {
+      const result = await updateShopSlug(formData);
+      if (result?.success) {
+        setSlug(result.slug);
+        toast.success(tSlug.saved);
+        // El resto de esta pantalla (publicUrl, LiveUrlCard, preview) viene
+        // del snapshot del server component padre — refresca para que deje
+        // de estar obsoleto ahora que el slug cambió.
+        router.refresh();
+      } else {
+        toast.error(result?.error ?? tSlug.saved);
+      }
+    });
+  }
+
   return (
     <div className="space-y-5 min-w-0">
       <div className="bg-white rounded-xl border border-slate-200 p-5 flex flex-wrap items-start justify-between gap-4">
@@ -207,6 +232,37 @@ export function BookingPageConfigurator({ settings }: { settings: Settings }) {
           </div>
         )}
       </div>
+
+      <form onSubmit={handleSlugSubmit} className="bg-white rounded-xl border border-slate-200 p-5 space-y-3">
+        <div>
+          <h2 className="font-semibold text-slate-900">{tSlug.title}</h2>
+          <p className="text-sm text-slate-500 mt-1">{tSlug.subtitle}</p>
+        </div>
+        <div className="flex flex-wrap items-stretch rounded-lg border border-slate-300 overflow-hidden max-w-xl">
+          <span className="flex items-center px-3 bg-slate-50 text-slate-500 text-sm border-r border-slate-300 whitespace-nowrap">
+            {slugUrlPrefix}
+          </span>
+          <input
+            name="slug"
+            type="text"
+            value={slug}
+            onChange={(e) => setSlug(e.target.value)}
+            placeholder={tSlug.placeholder}
+            className="flex-1 min-w-[140px] px-3 py-2 text-sm focus:outline-none"
+          />
+        </div>
+        {!settings.shop.slug && <p className="text-xs text-amber-700">{tSlug.emptyWarning}</p>}
+        <div className="flex justify-end pt-1">
+          <button
+            type="submit"
+            disabled={slugPending || !slug.trim()}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium px-5 py-2 rounded-lg text-sm transition-colors"
+          >
+            {slugPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+            {tSlug.save}
+          </button>
+        </div>
+      </form>
 
       {!settings.shop.bookingEnabled && (
         <Notice>{t.publish.bookingDisabled}</Notice>
@@ -830,7 +886,6 @@ function ReviewStep({
       </Card>
 
       {justPublished && settings.publicUrl && <LiveUrlCard url={settings.publicUrl} t={t} />}
-      {!settings.publicUrl && <Notice>{t.publish.noSlug}</Notice>}
     </>
   );
 }

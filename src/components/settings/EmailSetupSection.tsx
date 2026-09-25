@@ -39,7 +39,7 @@ export function EmailSetupSection({
             {managedAddress ? t.bodyWithAddress(managedAddress) : t.bodyNoSlug}
           </p>
           <Link
-            href={`${ADMIN.settings}?tab=general`}
+            href={`${ADMIN.settings}?tab=booking-page`}
             className="inline-block text-sm font-medium text-teal-700 hover:underline mt-2"
           >
             {t.linkText}
