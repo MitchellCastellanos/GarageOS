@@ -33,7 +33,7 @@ export interface AppointmentNotifyClient {
   language?: string | null;
 }
 
-interface NotifyAppointmentEventParams {
+export interface NotifyAppointmentEventParams {
   type: AppointmentNotificationType;
   shop: AppointmentNotifyShop;
   client: AppointmentNotifyClient & { id?: string };
@@ -120,25 +120,10 @@ export async function notifyAppointmentEvent(
     }
   }
 
-  if (!result.smsSent && canEmail && email) {
+  if (!result.smsSent && canEmail) {
     try {
-      const sent = await sendAppointmentEmail({
-        shop: shopToEmailConfig(params.shop),
-        to: email,
-        type: params.type,
-        clientId: params.client.id,
-        appointmentId: params.appointmentId,
-        noticeKey: params.noticeKey,
-        clientName: formatClientName(params.client),
-        title: params.title,
-        startsAtFormatted,
-        shopPhone: params.shop.phone,
-        language: params.client.language,
-        manageUrl,
-        bookingUrl,
-      });
+      result.emailMessageId = await sendAppointmentNoticeEmail(params);
       result.emailSent = true;
-      result.emailMessageId = sent.messageId;
     } catch (err) {
       console.error(`[appointment-email] ${params.type} falló (${params.appointmentId}):`, err);
     }
@@ -146,4 +131,31 @@ export async function notifyAppointmentEvent(
 
   result.anySent = result.smsSent || result.emailSent;
   return result;
+}
+
+/**
+ * Envía el aviso por email (sin intentar SMS). Lo usa notifyAppointmentEvent como
+ * respaldo inmediato y el webhook de estado de Twilio como respaldo diferido
+ * cuando el operador reporta que el SMS no se entregó. Lanza si no hay email o
+ * el envío falla.
+ */
+export async function sendAppointmentNoticeEmail(params: NotifyAppointmentEventParams): Promise<string | null> {
+  const email = params.client.email?.trim();
+  if (!email) throw new Error("Client has no email");
+  const sent = await sendAppointmentEmail({
+    shop: shopToEmailConfig(params.shop),
+    to: email,
+    type: params.type,
+    clientId: params.client.id,
+    appointmentId: params.appointmentId,
+    noticeKey: params.noticeKey,
+    clientName: formatClientName(params.client),
+    title: params.title,
+    startsAtFormatted: formatShopDateTime(params.startsAt, params.shop.timezone),
+    shopPhone: params.shop.phone,
+    language: params.client.language,
+    manageUrl: buildAppointmentManageUrl(params.shop, params.manageToken),
+    bookingUrl: params.shop.slug ? getPublicBookingUrl(params.shop.slug) : null,
+  });
+  return sent.messageId;
 }
