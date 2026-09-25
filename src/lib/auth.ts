@@ -12,6 +12,10 @@ export const authConfig: NextAuthConfig = {
   session: { strategy: "jwt" },
   pages: {
     signIn: ADMIN.login,
+    // Sin esto Auth.js muestra su página de error por defecto, que responde
+    // 500 para errores de configuración/OAuth (p.ej. un callback de Google
+    // fallido). Mejor volver al login con un mensaje entendible (LoginForm).
+    error: ADMIN.login,
   },
   callbacks: {
     // Login con Google: self-serve. Si el correo no existe todavía, le
