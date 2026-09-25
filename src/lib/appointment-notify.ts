@@ -12,6 +12,7 @@ import { formatShopDateTime } from "@/lib/shop-timezone";
 import { sendAppointmentEmail } from "@/lib/email";
 import { sendAppointmentSms, type AppointmentSmsType } from "@/lib/sms";
 import { shopToEmailConfig, type ShopEmailConfig } from "@/lib/email-config";
+import { resolveNotifyChannelPlan, type ClientNotifyChannelPref } from "@/domain/sms";
 
 export type AppointmentNotificationType = AppointmentSmsType;
 
@@ -31,6 +32,13 @@ export interface AppointmentNotifyClient {
   phone: string | null;
   /** Idioma preferido — determina el idioma del SMS y del email. Por defecto español. */
   language?: string | null;
+  /**
+   * Elegido por el cliente (reserva web, link de gestión) o por el taller en su
+   * ficha. AUTO/SMS/EMAIL son una preferencia de orden con respaldo automático
+   * (nunca se deja al cliente sin avisar); BOTH es la única excepción a "un solo
+   * canal por evento" — el cliente pidió expresamente recibir los dos.
+   */
+  notifyChannel?: ClientNotifyChannelPref | null;
 }
 
 export interface NotifyAppointmentEventParams {
@@ -97,7 +105,8 @@ export async function notifyAppointmentEvent(
     return result;
   }
 
-  if (canSms && phone) {
+  async function trySms(): Promise<boolean> {
+    if (!canSms || !phone) return false;
     try {
       const sent = await sendAppointmentSms({
         type: params.type,
@@ -115,17 +124,32 @@ export async function notifyAppointmentEvent(
       });
       result.smsSent = true;
       result.smsMessageId = sent.messageId;
+      return true;
     } catch (err) {
       console.error(`[appointment-sms] ${params.type} falló (${params.appointmentId}):`, err);
+      return false;
     }
   }
 
-  if (!result.smsSent && canEmail) {
+  async function tryEmail(): Promise<boolean> {
+    if (!canEmail) return false;
     try {
       result.emailMessageId = await sendAppointmentNoticeEmail(params);
       result.emailSent = true;
+      return true;
     } catch (err) {
       console.error(`[appointment-email] ${params.type} falló (${params.appointmentId}):`, err);
+      return false;
+    }
+  }
+
+  const { order, sendBoth } = resolveNotifyChannelPlan(params.client.notifyChannel);
+  const attempt: Record<"SMS" | "EMAIL", () => Promise<boolean>> = { SMS: trySms, EMAIL: tryEmail };
+  if (sendBoth) {
+    for (const channel of order) await attempt[channel]();
+  } else {
+    for (const channel of order) {
+      if (await attempt[channel]()) break;
     }
   }
 

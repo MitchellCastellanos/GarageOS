@@ -53,6 +53,8 @@ export function PublicBookingForm({ slug, shop, services }: PublicBookingFormPro
   const otherLabel =
     t.form.serviceOptions.find((o) => o.value === OTHER_VALUE)?.label ?? t.form.otherOption;
   const [step, setStep] = useState<"form" | "done">("form");
+  const [hasEmail, setHasEmail] = useState(false);
+  const [notifyChannel, setNotifyChannel] = useState<"SMS" | "EMAIL" | "BOTH">("SMS");
   const [manageUrl, setManageUrl] = useState<string | null>(null);
   const [dates, setDates] = useState<string[]>([]);
   const [availableDates, setAvailableDates] = useState<Set<string>>(new Set());
@@ -200,6 +202,7 @@ export function PublicBookingForm({ slug, shop, services }: PublicBookingFormPro
       email: formData.get("email"),
       phone: formData.get("phone"),
       language: NOTIFICATION_LANGUAGE_FOR_SITE_LOCALE[locale],
+      notifyChannel,
       make: resolvedMake,
       model: resolvedModel,
       year,
@@ -484,8 +487,43 @@ export function PublicBookingForm({ slug, shop, services }: PublicBookingFormPro
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 {t.form.emailOptional}
               </label>
-              <input name="email" type="email" className={inputClass} />
+              <input
+                name="email"
+                type="email"
+                className={inputClass}
+                onChange={(e) => {
+                  const has = e.target.value.trim().length > 0;
+                  setHasEmail(has);
+                  if (!has && notifyChannel !== "SMS") setNotifyChannel("SMS");
+                }}
+              />
             </div>
+            {hasEmail && (
+              <div className="sm:col-span-2">
+                <span className="block text-sm font-medium text-slate-700 mb-1">
+                  {t.form.notifyChannelLabel}
+                </span>
+                <div className="flex flex-wrap gap-3">
+                  {(
+                    [
+                      ["SMS", t.form.notifyChannelSms],
+                      ["EMAIL", t.form.notifyChannelEmail],
+                      ["BOTH", t.form.notifyChannelBoth],
+                    ] as const
+                  ).map(([value, label]) => (
+                    <label key={value} className="flex items-center gap-1.5 text-sm text-slate-700">
+                      <input
+                        type="radio"
+                        name="notifyChannelChoice"
+                        checked={notifyChannel === value}
+                        onChange={() => setNotifyChannel(value)}
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 {t.form.licensePlate}

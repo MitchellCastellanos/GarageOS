@@ -6,6 +6,7 @@ export const clientSchema = z.object({
   phone: z.string().min(7, "Phone number is required").max(30),
   email: z.string().email("Invalid email address").optional().or(z.literal("")),
   language: z.enum(["EN", "FR"]),
+  notifyChannel: z.enum(["AUTO", "SMS", "EMAIL", "BOTH"]).default("AUTO"),
   address: z.string().max(255).optional().or(z.literal("")),
   notes: z.string().max(1000).optional().or(z.literal("")),
 });
@@ -96,6 +97,7 @@ export const publicBookingSchema = z.object({
   phone: z.string().min(7, "Phone number is required").max(30),
   email: z.string().email("Invalid email address").optional().or(z.literal("")),
   language: z.enum(["EN", "FR"]).default("EN"),
+  notifyChannel: z.enum(["AUTO", "SMS", "EMAIL", "BOTH"]).default("AUTO"),
   make: z.string().min(1, "Make is required").max(50),
   model: z.string().min(1, "Model is required").max(50),
   year: z.coerce.number().int().min(1900).max(new Date().getFullYear() + 1),

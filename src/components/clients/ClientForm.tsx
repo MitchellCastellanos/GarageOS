@@ -48,6 +48,7 @@ export function ClientForm({
       phone: "",
       email: "",
       language: "EN",
+      notifyChannel: "AUTO",
       address: "",
       notes: "",
     },
@@ -118,6 +119,17 @@ export function ClientForm({
             </option>
           ))}
         </select>
+      </Field>
+
+      {/* Preferencia de canal de notificación */}
+      <Field label={t.clientForm.notifyChannelLabel} error={errors.notifyChannel?.message}>
+        <select {...register("notifyChannel")} className={inputClass(!!errors.notifyChannel)}>
+          <option value="AUTO">{t.clientForm.notifyChannelOptions.auto}</option>
+          <option value="SMS">{t.clientForm.notifyChannelOptions.sms}</option>
+          <option value="EMAIL">{t.clientForm.notifyChannelOptions.email}</option>
+          <option value="BOTH">{t.clientForm.notifyChannelOptions.both}</option>
+        </select>
+        <p className="text-xs text-slate-400 mt-1">{t.clientForm.notifyChannelHint}</p>
       </Field>
 
       {/* Dirección */}

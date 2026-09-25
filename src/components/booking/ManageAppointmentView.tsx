@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useSiteLocale } from "@/components/booking/LocaleProvider";
 import { LanguageSwitcher } from "@/components/booking/LanguageSwitcher";
 import { ClientAppointmentActions } from "@/components/booking/ClientAppointmentActions";
+import { NotifyChannelPreference } from "@/components/booking/NotifyChannelPreference";
 
 interface ManageAppointmentViewProps {
   slug: string;
@@ -18,6 +19,8 @@ interface ManageAppointmentViewProps {
   status: string;
   vehicleLabel: string | null;
   mechanicName: string | null;
+  clientHasEmail: boolean;
+  notifyChannel: "AUTO" | "SMS" | "EMAIL" | "BOTH";
 }
 
 export function ManageAppointmentView({
@@ -33,6 +36,8 @@ export function ManageAppointmentView({
   status,
   vehicleLabel,
   mechanicName,
+  clientHasEmail,
+  notifyChannel,
 }: ManageAppointmentViewProps) {
   const { t } = useSiteLocale();
   const statusLabel = t.manage.statuses[status as keyof typeof t.manage.statuses] ?? status;
@@ -78,7 +83,9 @@ export function ManageAppointmentView({
               canConfirm={canConfirm}
               canCancel={canCancel}
             />
-          ) : (
+          ) : null}
+          <NotifyChannelPreference slug={slug} token={token} hasEmail={clientHasEmail} initialChannel={notifyChannel} />
+          {!manageable && (
             <div className="space-y-4 text-center py-6">
               <p className="text-slate-700">{t.manage.helloLocked(clientName)}</p>
               <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-sm text-left space-y-1">

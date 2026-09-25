@@ -93,6 +93,7 @@ export async function POST(
         phone: data.phone,
         email,
         language: data.language,
+        notifyChannel: data.notifyChannel,
         notes: "Cliente creado desde reserva web",
       },
     });
@@ -104,6 +105,9 @@ export async function POST(
         lastName: data.lastName || null,
         email: email ?? client.email,
         language: data.language,
+        // Si vuelve a reservar sin email, no le pisamos una preferencia que ya
+        // eligió (ej. BOTH la última vez); solo se actualiza si hay algo que elegir.
+        ...(email ? { notifyChannel: data.notifyChannel } : {}),
       },
     });
   }

@@ -18,6 +18,7 @@ import { formatClientName } from "@/lib/client-name";
 import { shopToEmailConfig } from "@/lib/email-config";
 import { sendWorkOrderReadyEmail } from "@/lib/email";
 import { sendWorkOrderReadySms } from "@/lib/sms";
+import { resolveNotifyChannelPlan } from "@/domain/sms";
 import Decimal from "decimal.js";
 
 const WORK_ORDER_NOT_FOUND: Record<AdminLocale, string> = {
@@ -326,41 +327,59 @@ export async function updateJobStatus(id: string, jobStatus: JobStatus) {
     const clientEmail = workOrder.client.email?.trim();
     const clientPhone = workOrder.client.phone?.trim();
 
-    // Un solo canal: SMS primero, email solo si no hay SMS posible o falló
-    // (misma política que los avisos de citas, ver src/lib/appointment-notify.ts).
-    if (workOrder.shop.workOrderReadyNotifySms && clientPhone) {
+    // Respeta la preferencia del cliente (AUTO/SMS/EMAIL = orden con respaldo,
+    // BOTH = los dos) — misma lógica que los avisos de citas, ver
+    // src/lib/appointment-notify.ts. Aquí solo hay un evento por orden de
+    // trabajo, así que se resuelve en línea en vez de compartir el helper.
+    async function trySms(): Promise<boolean> {
+      if (!workOrder!.shop.workOrderReadyNotifySms || !clientPhone) return false;
       try {
         await sendWorkOrderReadySms({
           to: clientPhone,
           shopId,
-          clientId: workOrder.clientId,
-          workOrderId: workOrder.id,
-          shopName: workOrder.shop.name,
-          orderNumber: workOrder.orderNumber,
+          clientId: workOrder!.clientId,
+          workOrderId: workOrder!.id,
+          shopName: workOrder!.shop.name,
+          orderNumber: workOrder!.orderNumber,
           vehicleDescription,
-          language: workOrder.client.language,
+          language: workOrder!.client.language,
         });
-        notified.sms = true;
+        notified!.sms = true;
+        return true;
       } catch (err) {
-        console.error(`Error sending Ready for Pickup SMS for ${workOrder.orderNumber}:`, err);
+        console.error(`Error sending Ready for Pickup SMS for ${workOrder!.orderNumber}:`, err);
+        return false;
       }
     }
 
-    if (!notified.sms && workOrder.shop.workOrderReadyNotifyEmail && clientEmail) {
+    async function tryEmail(): Promise<boolean> {
+      if (!workOrder!.shop.workOrderReadyNotifyEmail || !clientEmail) return false;
       try {
         await sendWorkOrderReadyEmail({
-          shop: shopToEmailConfig(workOrder.shop),
+          shop: shopToEmailConfig(workOrder!.shop),
           to: clientEmail,
-          clientId: workOrder.clientId,
+          clientId: workOrder!.clientId,
           clientName,
-          workOrderId: workOrder.id,
-          orderNumber: workOrder.orderNumber,
+          workOrderId: workOrder!.id,
+          orderNumber: workOrder!.orderNumber,
           vehicleDescription,
-          language: workOrder.client.language,
+          language: workOrder!.client.language,
         });
-        notified.email = true;
+        notified!.email = true;
+        return true;
       } catch (err) {
-        console.error(`Error sending Ready for Pickup email for ${workOrder.orderNumber}:`, err);
+        console.error(`Error sending Ready for Pickup email for ${workOrder!.orderNumber}:`, err);
+        return false;
+      }
+    }
+
+    const { order, sendBoth } = resolveNotifyChannelPlan(workOrder.client.notifyChannel);
+    const attempt: Record<"SMS" | "EMAIL", () => Promise<boolean>> = { SMS: trySms, EMAIL: tryEmail };
+    if (sendBoth) {
+      for (const channel of order) await attempt[channel]();
+    } else {
+      for (const channel of order) {
+        if (await attempt[channel]()) break;
       }
     }
 

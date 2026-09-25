@@ -52,6 +52,37 @@ export async function POST(
   return NextResponse.json({ ok: true });
 }
 
+const NOTIFY_CHANNELS = new Set(["AUTO", "SMS", "EMAIL", "BOTH"]);
+
+/** El cliente cambia cómo quiere que le avisemos (desde su propio link, sin login). */
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ slug: string; token: string }> }
+) {
+  const { slug, token } = await params;
+  const found = await getShopAndAppointmentByToken(slug, token);
+  if (!found) {
+    return NextResponse.json({ error: "Cita no encontrada" }, { status: 404 });
+  }
+
+  const body = await req.json().catch(() => null);
+  const notifyChannel = body?.notifyChannel;
+  if (typeof notifyChannel !== "string" || !NOTIFY_CHANNELS.has(notifyChannel)) {
+    return NextResponse.json({ error: "Canal inválido" }, { status: 400 });
+  }
+  // BOTH y EMAIL exigen tener un email en el archivo — si no, no hay a dónde mandarlo.
+  if (notifyChannel !== "SMS" && !found.appointment.client.email) {
+    return NextResponse.json({ error: "Agrega un email para elegir esta opción" }, { status: 422 });
+  }
+
+  await db.client.update({
+    where: { id: found.appointment.clientId },
+    data: { notifyChannel: notifyChannel as "AUTO" | "SMS" | "EMAIL" | "BOTH" },
+  });
+
+  return NextResponse.json({ ok: true, notifyChannel });
+}
+
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ slug: string; token: string }> }

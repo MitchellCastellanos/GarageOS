@@ -314,6 +314,12 @@ model Client {
   // (transaccional incluido) hasta que responda START. La fuente de verdad del
   // bloqueo es CommunicationSuppression (por teléfono); esto es para mostrarlo.
   smsOptOutAt            DateTime?
+  // Preferencia de canal para avisos transaccionales (citas, vehículo listo) —
+  // AUTO deja la política del taller (SMS primero, email de respaldo, ver
+  // notifyAppointmentEvent). No aplica a campañas/marketing, que ya tienen su
+  // propio opt-in/out. Elegible por el cliente (reserva web, link de gestión)
+  // o por el taller en su ficha.
+  notifyChannel          ClientNotifyChannel @default(AUTO)
 
   vehicles           Vehicle[]
   invoices           Invoice[]
@@ -346,6 +352,15 @@ model Vehicle {
   quoteVehicles   QuoteVehicle[]
   appointments    Appointment[]
   reminders       ServiceReminder[]
+
+  @@schema("garageos")
+}
+
+enum ClientNotifyChannel {
+  AUTO
+  SMS
+  EMAIL
+  BOTH
 
   @@schema("garageos")
 }

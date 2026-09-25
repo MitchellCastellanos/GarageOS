@@ -214,3 +214,23 @@ export const SUBSCRIPTION_LAPSED_REASON = "subscription_lapsed";
 export function addDays(date: Date, days: number): Date {
   return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
 }
+
+// ── Preferencia de canal del cliente ─────────────────────────────────────────
+
+export type ClientNotifyChannelPref = "AUTO" | "SMS" | "EMAIL" | "BOTH";
+
+/**
+ * Orden de canales a intentar para un aviso transaccional (citas, vehículo
+ * listo) según la preferencia del cliente. `sendBoth` es la única excepción a
+ * "un solo canal por evento": el cliente pidió expresamente los dos, así que
+ * no es un respaldo (no depende de que el primero falle).
+ */
+export function resolveNotifyChannelPlan(pref: ClientNotifyChannelPref | null | undefined): {
+  order: readonly ["SMS", "EMAIL"] | readonly ["EMAIL", "SMS"];
+  sendBoth: boolean;
+} {
+  if (pref === "BOTH") return { order: ["SMS", "EMAIL"], sendBoth: true };
+  if (pref === "EMAIL") return { order: ["EMAIL", "SMS"], sendBoth: false };
+  // AUTO y SMS comparten la misma política por defecto (SMS primero, email de respaldo).
+  return { order: ["SMS", "EMAIL"], sendBoth: false };
+}

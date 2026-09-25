@@ -8,6 +8,7 @@ import {
   mapTwilioMessageStatus,
   nextUsageAlert,
   parseSmsKeyword,
+  resolveNotifyChannelPlan,
   shouldApplyStatusUpdate,
   smsBillingPeriod,
   smsUsageAlertLevel,
@@ -135,4 +136,18 @@ test("number lifecycle: schedule on lapse, cancel on recovery, release after the
     }),
     "RELEASE"
   );
+});
+
+test("client channel plan: AUTO and SMS prefer SMS with an email fallback", () => {
+  assert.deepEqual(resolveNotifyChannelPlan("AUTO"), { order: ["SMS", "EMAIL"], sendBoth: false });
+  assert.deepEqual(resolveNotifyChannelPlan(null), { order: ["SMS", "EMAIL"], sendBoth: false });
+  assert.deepEqual(resolveNotifyChannelPlan("SMS"), { order: ["SMS", "EMAIL"], sendBoth: false });
+});
+
+test("client channel plan: EMAIL prefers email with an SMS fallback", () => {
+  assert.deepEqual(resolveNotifyChannelPlan("EMAIL"), { order: ["EMAIL", "SMS"], sendBoth: false });
+});
+
+test("client channel plan: BOTH sends both, not a fallback chain", () => {
+  assert.deepEqual(resolveNotifyChannelPlan("BOTH"), { order: ["SMS", "EMAIL"], sendBoth: true });
 });

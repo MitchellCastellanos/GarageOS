@@ -44,6 +44,8 @@ export default async function ManageAppointmentPage({ params }: PageProps) {
         status={appointment.status}
         vehicleLabel={vehicleLabel}
         mechanicName={appointment.mechanic?.name ?? null}
+        clientHasEmail={Boolean(appointment.client.email)}
+        notifyChannel={appointment.client.notifyChannel}
       />
     </LocaleProvider>
   );
