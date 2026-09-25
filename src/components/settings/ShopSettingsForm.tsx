@@ -5,7 +5,6 @@ import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
   updateShopSettings,
-  updateShopSlug,
   updateEtransferSettings,
   updateShopTaxLines,
   uploadShopLogo,
@@ -31,7 +30,6 @@ interface Shop {
   emailVerified: Date | null;
   taxId: string | null;
   logoUrl: string | null;
-  slug: string | null;
   etransferEnabled: boolean;
   etransferEmail: string | null;
   taxLines: unknown;
@@ -46,20 +44,18 @@ interface TaxLineDraft {
 
 interface ShopSettingsFormProps {
   shop: Shop;
-  slugUrlPrefix: string;
   /** true si quien ve esta pantalla es OWNER — el único rol con login forzosamente verificado. */
   canUseLoginEmail: boolean;
   loginEmail: string;
 }
 
-export function ShopSettingsForm({ shop, slugUrlPrefix, canUseLoginEmail, loginEmail }: ShopSettingsFormProps) {
+export function ShopSettingsForm({ shop, canUseLoginEmail, loginEmail }: ShopSettingsFormProps) {
   const locale = useAdminLocale();
   const t = SETTINGS_DICT[locale];
   const searchParams = useSearchParams();
   const [logoUrl, setLogoUrl] = useState(shop.logoUrl);
   const [emailValue, setEmailValue] = useState(shop.email ?? "");
   const [emailVerified, setEmailVerified] = useState<Date | null>(shop.emailVerified);
-  const [slug, setSlug] = useState(shop.slug ?? "");
   const [infopending, startInfoTransition] = useTransition();
   const [useLoginPending, startUseLoginTransition] = useTransition();
   const [resendPending, startResendTransition] = useTransition();
@@ -99,7 +95,6 @@ export function ShopSettingsForm({ shop, slugUrlPrefix, canUseLoginEmail, loginE
     });
   }
   const [logoPending, startLogoTransition] = useTransition();
-  const [slugPending, startSlugTransition] = useTransition();
   const [pwPending, startPwTransition] = useTransition();
   const [etransferPending, startEtransferTransition] = useTransition();
   const [etransferEnabled, setEtransferEnabled] = useState(shop.etransferEnabled);
@@ -113,20 +108,6 @@ export function ShopSettingsForm({ shop, slugUrlPrefix, canUseLoginEmail, loginE
   );
   const logoInputRef = useRef<HTMLInputElement>(null);
   const pwFormRef = useRef<HTMLFormElement>(null);
-
-  function handleSlugSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    startSlugTransition(async () => {
-      const result = await updateShopSlug(formData);
-      if (result?.success) {
-        setSlug(result.slug);
-        toast.success(t.shopSlug.saved);
-      } else {
-        toast.error(result?.error ?? t.shopSlug.saved);
-      }
-    });
-  }
 
   function handleInfoSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -561,38 +542,6 @@ export function ShopSettingsForm({ shop, slugUrlPrefix, canUseLoginEmail, loginE
           >
             {taxPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
             {taxPending ? t.taxes.saving : t.taxes.save}
-          </button>
-        </div>
-      </form>
-
-      {/* ── Slug público (URL de reservas) ── */}
-      <form onSubmit={handleSlugSubmit} className="bg-white rounded-xl border border-slate-200 p-5 space-y-3">
-        <div>
-          <h2 className="font-semibold text-slate-900">{t.shopSlug.title}</h2>
-          <p className="text-sm text-slate-500 mt-1">{t.shopSlug.subtitle}</p>
-        </div>
-        <div className="flex flex-wrap items-stretch rounded-lg border border-slate-300 overflow-hidden max-w-xl">
-          <span className="flex items-center px-3 bg-slate-50 text-slate-500 text-sm border-r border-slate-300 whitespace-nowrap">
-            {slugUrlPrefix}
-          </span>
-          <input
-            name="slug"
-            type="text"
-            value={slug}
-            onChange={(e) => setSlug(e.target.value)}
-            placeholder={t.shopSlug.placeholder}
-            className="flex-1 min-w-[140px] px-3 py-2 text-sm focus:outline-none"
-          />
-        </div>
-        {!shop.slug && <p className="text-xs text-amber-700">{t.shopSlug.emptyWarning}</p>}
-        <div className="flex justify-end pt-1">
-          <button
-            type="submit"
-            disabled={slugPending || !slug.trim()}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium px-5 py-2 rounded-lg text-sm transition-colors"
-          >
-            {slugPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-            {t.shopSlug.save}
           </button>
         </div>
       </form>

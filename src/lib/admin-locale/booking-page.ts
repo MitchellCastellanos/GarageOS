@@ -83,7 +83,6 @@ export interface BookingPageDictionary {
     copy: string;
     copied: string;
     open: string;
-    noSlug: string;
     bookingDisabled: string;
     unsavedPrompt: string;
   };
@@ -187,7 +186,6 @@ const es: BookingPageDictionary = {
     copy: "Copiar enlace",
     copied: "Enlace copiado",
     open: "Abrir",
-    noSlug: "Define el identificador de tu página en Configuración → General para obtener un enlace público.",
     bookingDisabled: "Las reservas en línea están desactivadas: la página muestra un aviso en lugar del diseño. Actívalas en Calendario.",
     unsavedPrompt: "Tienes cambios sin publicar en la página de reservas.",
   },
@@ -301,7 +299,6 @@ const en: BookingPageDictionary = {
     copy: "Copy link",
     copied: "Link copied",
     open: "Open",
-    noSlug: "Set your page identifier in Settings → General to get a public link.",
     bookingDisabled: "Online booking is turned off, so the page shows a notice instead of this design. Turn it on under Calendar.",
     unsavedPrompt: "You have unpublished changes to your booking page.",
   },
@@ -415,7 +412,6 @@ const fr: BookingPageDictionary = {
     copy: "Copier le lien",
     copied: "Lien copié",
     open: "Ouvrir",
-    noSlug: "Définissez l'identifiant de votre page dans Paramètres → Général pour obtenir un lien public.",
     bookingDisabled: "La réservation en ligne est désactivée : la page affiche un avis au lieu de ce design. Activez-la dans Calendrier.",
     unsavedPrompt: "Vous avez des changements non publiés sur votre page de réservation.",
   },
