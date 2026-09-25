@@ -197,3 +197,92 @@ export async function alertStaffQuoteDecided(input: {
     },
   });
 }
+
+async function shopBasics(shopId: string): Promise<{ id: string; name: string } | null> {
+  return db.shop.findUnique({ where: { id: shopId }, select: { id: true, name: true } });
+}
+
+/** 80 % / 100 % del cupo mensual de SMS (una vez por umbral y por mes, ver checkSmsUsageAlerts). */
+export async function alertStaffSmsUsage(input: {
+  shopId: string;
+  level: 80 | 100;
+  used: number;
+  allowance: number;
+}): Promise<void> {
+  const shop = await shopBasics(input.shopId);
+  if (!shop) return;
+  const full = input.level === 100;
+  const usage = `${input.used} / ${input.allowance}`;
+  await sendStaffAlert({
+    shopId: shop.id,
+    shopName: shop.name,
+    ctaPath: `${ADMIN.settings}?tab=notifications`,
+    build: (language) =>
+      language === "FR"
+        ? {
+            subject: full
+              ? `Forfait SMS du mois épuisé — ${shop.name}`
+              : `80 % du forfait SMS du mois utilisé — ${shop.name}`,
+            heading: full ? "Forfait SMS épuisé" : "Forfait SMS presque épuisé",
+            intro: full
+              ? "Les avis automatiques (confirmations, rappels, véhicule prêt) partent maintenant par courriel jusqu'au mois prochain. Vos clients sont toujours avisés."
+              : "Vous avez utilisé 80 % de vos SMS du mois. Une fois le forfait épuisé, les avis automatiques partiront par courriel.",
+            details: [{ label: "Segments SMS", value: usage }],
+            ctaLabel: "Voir l'utilisation",
+          }
+        : {
+            subject: full ? `Monthly SMS allowance used up — ${shop.name}` : `80% of monthly SMS allowance used — ${shop.name}`,
+            heading: full ? "SMS allowance used up" : "SMS allowance almost used up",
+            intro: full
+              ? "Automatic notices (confirmations, reminders, vehicle ready) now go out by email until next month. Your clients are still notified."
+              : "You've used 80% of this month's SMS. Once it runs out, automatic notices will go out by email instead.",
+            details: [{ label: "SMS segments", value: usage }],
+            ctaLabel: "View usage",
+          },
+  });
+}
+
+/** El número dedicado se liberará (suscripción sin pagar) — da tiempo a regularizar. */
+export async function alertStaffSmsNumberReleaseScheduled(input: {
+  shopId: string;
+  phoneNumber: string;
+  releaseAt: Date;
+}): Promise<void> {
+  const shop = await shopBasics(input.shopId);
+  if (!shop) return;
+  await sendStaffAlert({
+    shopId: shop.id,
+    shopName: shop.name,
+    ctaPath: `${ADMIN.settings}?tab=billing`,
+    build: (language) => {
+      const date = input.releaseAt.toLocaleDateString(language === "FR" ? "fr-CA" : "en-CA", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+      return language === "FR"
+        ? {
+            subject: `Votre numéro SMS sera libéré le ${date} — ${shop.name}`,
+            heading: "Numéro SMS bientôt libéré",
+            intro:
+              "Votre abonnement n'est plus actif. Votre numéro SMS dédié continue de fonctionner jusqu'à la date ci-dessous; réactivez l'abonnement pour le conserver.",
+            details: [
+              { label: "Numéro", value: input.phoneNumber },
+              { label: "Date de libération", value: date },
+            ],
+            ctaLabel: "Gérer l'abonnement",
+          }
+        : {
+            subject: `Your SMS number will be released on ${date} — ${shop.name}`,
+            heading: "SMS number release scheduled",
+            intro:
+              "Your subscription is no longer active. Your dedicated SMS number keeps working until the date below; reactivate your subscription to keep it.",
+            details: [
+              { label: "Number", value: input.phoneNumber },
+              { label: "Release date", value: date },
+            ],
+            ctaLabel: "Manage subscription",
+          };
+    },
+  });
+}

@@ -54,11 +54,23 @@ export function planIncludes(plan: Plan, capability: CapabilityKey): boolean {
   return planAtLeast(plan, minPlanFor(capability));
 }
 
-/** Límites numéricos por plan (no son booleanos on/off). */
-export const PLAN_LIMITS: Record<Plan, { users: number | null; locations: number | null }> = {
-  CORE: { users: 3, locations: 1 },
-  PRO: { users: null, locations: 1 },
-  COMPLETE: { users: null, locations: null },
+/**
+ * Límites numéricos por plan (no son booleanos on/off).
+ *
+ * smsSegmentsPerMonth: cupo de SMS salientes por mes calendario, en segmentos
+ * (lo que cobra Twilio — ver countSmsSegments en src/domain/sms.ts). Al
+ * agotarse, los avisos automáticos caen a email; no hay cobro de excedente.
+ * VALORES PROVISIONALES: docs/subscription-plans.md solo define "Allowance /
+ * Larger / Largest" — confirmar cifras comerciales antes del lanzamiento.
+ * GarageOS puede fijar otro cupo por taller (Shop.smsMonthlyAllowanceOverride).
+ */
+export const PLAN_LIMITS: Record<
+  Plan,
+  { users: number | null; locations: number | null; smsSegmentsPerMonth: number }
+> = {
+  CORE: { users: 3, locations: 1, smsSegmentsPerMonth: 300 },
+  PRO: { users: null, locations: 1, smsSegmentsPerMonth: 1000 },
+  COMPLETE: { users: null, locations: null, smsSegmentsPerMonth: 2500 },
 };
 
 /** Precio público de referencia (CAD) — debe reflejar docs/subscription-plans.md. */

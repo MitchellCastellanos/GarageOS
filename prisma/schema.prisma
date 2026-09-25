@@ -97,7 +97,14 @@ model Shop {
   suppressions              CommunicationSuppression[]
   campaigns                 Campaign[]
   appointmentEvents         AppointmentEvent[]
+  smsNumber                 ShopSmsNumber?
   communicationsSuspendedAt DateTime?
+  // Cupo mensual de segmentos SMS fijado por GarageOS para este taller —
+  // reemplaza al de su plan (PLAN_LIMITS.smsSegmentsPerMonth). Null = el del plan.
+  smsMonthlyAllowanceOverride Int?
+  // Último umbral de uso de SMS avisado al taller ("2026-09:80" / "2026-09:100")
+  // — evita repetir la alerta de 80 % / 100 % dentro del mismo mes.
+  smsUsageAlertMarker       String?
   subscription              Subscription?
 
   @@schema("garageos")
@@ -303,6 +310,10 @@ model Client {
   consentAt              DateTime?
   emailMarketingOptOutAt DateTime?
   smsMarketingOptOutAt   DateTime?
+  // El cliente respondió STOP al número del taller: el operador bloquea todo SMS
+  // (transaccional incluido) hasta que responda START. La fuente de verdad del
+  // bloqueo es CommunicationSuppression (por teléfono); esto es para mostrarlo.
+  smsOptOutAt            DateTime?
 
   vehicles           Vehicle[]
   invoices           Invoice[]
@@ -1091,6 +1102,8 @@ model CommunicationMessage {
   textBody           String?              @db.Text
   htmlBody           String?              @db.Text
   errorCode          String?
+  // Segmentos facturables del SMS (Twilio numSegments; estimado antes del envío).
+  segments           Int?
   errorMessage       String?              @db.Text
   sentAt             DateTime?
   deliveredAt        DateTime?
@@ -1102,6 +1115,8 @@ model CommunicationMessage {
 
   @@index([shopId, businessEntityType, businessEntityId])
   @@index([shopId, createdAt])
+  @@index([provider, providerMessageId])
+  @@index([shopId, channel, direction, createdAt])
   @@index([clientId])
   @@index([threadId])
   @@schema("garageos")
@@ -1115,13 +1130,21 @@ model CommunicationThread {
   client        Client?          @relation(fields: [clientId], references: [id])
   subject       String?
   status        CommThreadStatus @default(OPEN)
+  // Canal de la conversación — un hilo SMS agrupa todo el ida y vuelta con un
+  // teléfono (contactAddress, E.164); un hilo EMAIL sigue el threading por Message-ID.
+  channel        CommChannel      @default(EMAIL)
+  contactAddress String?
   lastMessageAt DateTime         @default(now())
+  // No leído = lastInboundAt > readAt (mismo patrón que PlatformConversation.shopReadAt).
+  lastInboundAt DateTime?
+  readAt        DateTime?
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
 
   messages CommunicationMessage[]
 
   @@index([shopId, status, lastMessageAt])
+  @@index([shopId, channel, contactAddress])
   @@index([clientId])
   @@schema("garageos")
 }
@@ -1546,5 +1569,49 @@ model PageView {
   @@index([createdAt])
   @@index([path, createdAt])
   @@index([visitorHash, createdAt])
+  @@schema("garageos")
+}
+
+enum ShopSmsNumberStatus {
+  PROVISIONING
+  ACTIVE
+  RELEASE_SCHEDULED
+  RELEASED
+  FAILED
+
+  @@schema("garageos")
+}
+
+/**
+ * Número SMS dedicado de un taller — una subcuenta de Twilio por taller con su
+ * propio número, aprovisionado solo por GarageOS desde /platform (cuesta renta
+ * mensual). Una fila por taller: `shopId @unique` + la transición atómica a
+ * PROVISIONING es el candado contra aprovisionar dos veces. La subcuenta se
+ * reutiliza si el taller vuelve a pedir número. Ver src/lib/communications/sms-numbers.ts.
+ */
+model ShopSmsNumber {
+  id                  String              @id @default(cuid())
+  shopId              String              @unique
+  shop                Shop                @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  status              ShopSmsNumberStatus
+  subaccountSid       String?             @unique
+  // E.164 mientras el número está en uso; se vacía al liberarlo (el número puede
+  // terminar en otro taller) y queda copiado en releasedPhoneNumber.
+  phoneNumber         String?             @unique
+  phoneNumberSid      String?
+  countryCode         String              @default("CA")
+  areaCode            String?
+  senderIdentityId    String?
+  provisionedAt       DateTime?
+  provisionedByUserId String?
+  releaseScheduledAt  DateTime?
+  releaseReason       String?
+  releasedAt          DateTime?
+  releasedPhoneNumber String?
+  lastError           String?             @db.Text
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  @@index([status, releaseScheduledAt])
   @@schema("garageos")
 }

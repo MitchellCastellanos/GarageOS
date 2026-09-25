@@ -1,17 +1,27 @@
-import twilio from "twilio";
+import type { CommMessageType } from "@prisma/client";
 import { recordAndSend, type RecordAndSendResult } from "@/lib/communications/outbox";
-import { resolveSenderIdentity } from "@/lib/communications/sender-identity";
+import { getTwilioClientFor, TWILIO_STATUS_PATH, twilioWebhookUrl } from "@/lib/communications/twilio";
+import { resolveShopSmsSender } from "@/lib/communications/sms-numbers";
+import { isSuppressed } from "@/lib/communications/suppression";
+import { assertSmsAllowance, checkSmsUsageAlerts } from "@/lib/communications/sms-usage";
+import { countSmsSegments } from "@/domain/sms";
 import { toE164 } from "@/lib/phone";
 
 export { toE164 };
 
-function getTwilioClient() {
-  const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
-  if (!accountSid || !authToken) {
-    throw new Error("Twilio is not configured (TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN)");
+/** El cliente respondió STOP a este taller — el operador bloquearía el SMS de todos modos. */
+export class SmsOptedOutError extends Error {
+  constructor(phone: string) {
+    super(`The recipient opted out of SMS (${phone}).`);
+    this.name = "SmsOptedOutError";
   }
-  return twilio(accountSid, authToken);
+}
+
+export class SmsNotAvailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SmsNotAvailableError";
+  }
 }
 
 export interface SendSmsParams {
@@ -19,18 +29,34 @@ export interface SendSmsParams {
   body: string;
   shopId: string;
   purpose: string;
-  clientId?: string;
+  clientId?: string | null;
+  threadId?: string | null;
+  messageType?: CommMessageType;
+  createdByUserId?: string;
   businessEntityType?: string;
   businessEntityId?: string;
   idempotencyKey?: string;
+  /** Conversación bidireccional: exige número dedicado (las respuestas deben volver al taller). */
+  requireDedicatedNumber?: boolean;
 }
 
+function statusCallbackUrl(): string | undefined {
+  const url = twilioWebhookUrl(TWILIO_STATUS_PATH);
+  // Twilio no puede llamar a localhost — sin URL pública no se pide callback.
+  return url.startsWith("https://") ? url : undefined;
+}
+
+/**
+ * Punto único de envío de SMS. Sale desde el número dedicado del taller si lo
+ * tiene (en su subcuenta de Twilio) o desde el compartido; respeta STOP y el
+ * cupo mensual (lanza SmsOptedOutError / SmsAllowanceExceededError para que el
+ * llamador caiga al email) y pide callbacks de entrega.
+ */
 export async function sendSms(params: SendSmsParams): Promise<RecordAndSendResult> {
-  const identity = await resolveSenderIdentity(params.shopId, params.purpose, "SMS");
-  const rawFrom = identity?.address ?? process.env.TWILIO_FROM_NUMBER;
-  const from = rawFrom ? toE164(rawFrom) : null;
-  if (!from) {
-    throw new Error("TWILIO_FROM_NUMBER is not configured or invalid");
+  const sender = await resolveShopSmsSender(params.shopId);
+  if (!sender) throw new SmsNotAvailableError("No SMS number is configured (TWILIO_FROM_NUMBER).");
+  if (params.requireDedicatedNumber && !sender.dedicated) {
+    throw new SmsNotAvailableError("Two-way SMS needs a dedicated number for this shop.");
   }
 
   const e164 = toE164(params.to);
@@ -38,23 +64,50 @@ export async function sendSms(params: SendSmsParams): Promise<RecordAndSendResul
     throw new Error(`Invalid phone number for SMS: ${params.to}`);
   }
 
-  return recordAndSend({
+  if (await isSuppressed(params.shopId, "SMS", e164)) {
+    throw new SmsOptedOutError(e164);
+  }
+
+  const { segments } = countSmsSegments(params.body);
+  await assertSmsAllowance(params.shopId, segments);
+
+  const result = await recordAndSend({
     shopId: params.shopId,
     clientId: params.clientId,
+    threadId: params.threadId,
     purpose: params.purpose,
     channel: "SMS",
     provider: "twilio",
-    from,
+    messageType: params.messageType,
+    createdByUserId: params.createdByUserId,
+    from: sender.from,
     to: [e164],
     textBody: params.body,
+    segments,
     businessEntityType: params.businessEntityType,
     businessEntityId: params.businessEntityId,
     idempotencyKey: params.idempotencyKey,
     send: async () => {
-      const message = await getTwilioClient().messages.create({ to: e164, from, body: params.body });
-      return { providerMessageId: message.sid };
+      const message = await getTwilioClientFor(sender.subaccountSid).messages.create({
+        to: e164,
+        from: sender.from,
+        body: params.body,
+        statusCallback: statusCallbackUrl(),
+      });
+      const reported = Number(message.numSegments);
+      return { providerMessageId: message.sid, segments: Number.isFinite(reported) && reported > 0 ? reported : segments };
     },
   });
+
+  if (!result.deduped) {
+    // Import diferido: staff-alerts es server-only (correo de plataforma).
+    await checkSmsUsageAlerts(params.shopId, async (alert) => {
+      const { alertStaffSmsUsage } = await import("@/lib/staff-alerts");
+      await alertStaffSmsUsage({ shopId: params.shopId, ...alert });
+    }).catch((err) => console.error(`[sms] alerta de uso falló (${params.shopId}):`, err));
+  }
+
+  return result;
 }
 
 export type AppointmentSmsType = "confirmation" | "update" | "reminder" | "cancellation";

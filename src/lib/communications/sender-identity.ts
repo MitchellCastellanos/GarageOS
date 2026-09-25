@@ -42,7 +42,8 @@ const IMPLEMENTED_EMAIL_CHANNELS: EmailChannel[] = (
 ).filter((c) => EMAIL_CHANNEL_META[c].implemented && EMAIL_CHANNEL_META[c].pipeline === "resend");
 
 /** Purposes SMS actuales — mismo número compartido hasta que exista aislamiento por taller (Fase 6). */
-const SMS_PURPOSES = ["APPOINTMENT", "INVOICE", "QUOTE", "WORK_ORDER"] as const;
+/** Purposes con ruta SMS — INBOX es la conversación bidireccional (solo con número dedicado). */
+export const SMS_PURPOSES = ["APPOINTMENT", "INVOICE", "QUOTE", "WORK_ORDER", "INBOX"] as const;
 
 export type ProvisionableShop = ShopEmailConfig & { id: string; slug?: string | null };
 
@@ -123,13 +124,37 @@ export async function provisionDefaultSenderIdentities(shop: ProvisionableShop):
     // Sin dirección configurable todavía — se completa en el próximo backfill/guardado.
   }
 
+  // Un taller con número dedicado conserva sus rutas SMS — este backfill corre en
+  // cada guardado de Configuración y antes las reapuntaba al número compartido.
+  const dedicated = await db.shopSmsNumber.findFirst({
+    where: { shopId: shop.id, status: { in: ["ACTIVE", "RELEASE_SCHEDULED"] } },
+    select: { id: true },
+  });
+  if (!dedicated) await restoreSharedSmsRoutes(shop.id, shop.name);
+}
+
+/** Apunta todas las rutas SMS del taller al número compartido (TWILIO_FROM_NUMBER). */
+export async function restoreSharedSmsRoutes(shopId: string, displayName: string): Promise<void> {
   const smsFrom = process.env.TWILIO_FROM_NUMBER?.trim()
     ? toE164(process.env.TWILIO_FROM_NUMBER.trim())
     : null;
-  if (smsFrom) {
-    for (const purpose of SMS_PURPOSES) {
-      await upsertRoute(shop.id, purpose, "SMS", smsFrom, null, shop.name);
-    }
+  if (!smsFrom) {
+    await db.communicationRoute.deleteMany({ where: { shopId, channel: "SMS" } });
+    return;
+  }
+  for (const purpose of SMS_PURPOSES) {
+    await upsertRoute(shopId, purpose, "SMS", smsFrom, null, displayName);
+  }
+}
+
+/** Apunta todas las rutas SMS del taller a una identidad (número dedicado). */
+export async function pointSmsRoutesTo(shopId: string, senderIdentityId: string): Promise<void> {
+  for (const purpose of SMS_PURPOSES) {
+    await db.communicationRoute.upsert({
+      where: { shopId_purpose_channel: { shopId, purpose, channel: "SMS" } },
+      update: { senderIdentityId },
+      create: { shopId, purpose, channel: "SMS", senderIdentityId },
+    });
   }
 }
 
@@ -485,6 +510,9 @@ export async function setCommunicationRoute(params: {
     where: { id: params.senderIdentityId, shopId: params.shopId },
   });
   if (!identity) throw new SenderIdentityError("Identity not found for this shop");
+  if (identity.channel !== params.channel) {
+    throw new SenderIdentityError("That identity belongs to another channel");
+  }
   if (identity.status !== "ACTIVE") {
     throw new SenderIdentityError("That identity is not active");
   }
