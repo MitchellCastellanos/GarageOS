@@ -169,6 +169,8 @@ export interface MarketingDictionary {
       signIn: string;
       or: string;
       continueWithGoogle: string;
+      /** Mensajes para los códigos de error que Auth.js manda en ?error= (pages.error = login). */
+      errors: { credentials: string; oauth: string; generic: string };
       termsPrefix: string;
       termsLink: string;
       and: string;
@@ -568,6 +570,11 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
         signIn: "Sign in",
         or: "or",
         continueWithGoogle: "Continue with Google",
+        errors: {
+          credentials: "Incorrect email or password, or your email isn't confirmed yet.",
+          oauth: "We couldn't complete the Google sign-in. Please try again.",
+          generic: "Something went wrong while signing in. Please try again.",
+        },
         termsPrefix: "By signing in you agree to our",
         termsLink: "Terms of Service",
         and: "and",
@@ -965,6 +972,11 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
         signIn: "Se connecter",
         or: "ou",
         continueWithGoogle: "Continuer avec Google",
+        errors: {
+          credentials: "Courriel ou mot de passe incorrect, ou courriel pas encore confirmé.",
+          oauth: "La connexion avec Google n'a pas pu aboutir. Veuillez réessayer.",
+          generic: "Une erreur est survenue pendant la connexion. Veuillez réessayer.",
+        },
         termsPrefix: "En vous connectant, vous acceptez nos",
         termsLink: "conditions d'utilisation",
         and: "et notre",
