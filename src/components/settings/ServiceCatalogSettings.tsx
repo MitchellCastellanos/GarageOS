@@ -43,6 +43,8 @@ interface EditableRow extends Omit<ServiceCatalogRow, "iconKey"> {
 
 interface ServiceCatalogSettingsProps {
   services: ServiceCatalogRow[];
+  /** Se llama después de un guardado exitoso — usado por el asistente de arranque para avanzar de paso. */
+  onSaved?: () => void;
 }
 
 let newRowCounter = 0;
@@ -62,7 +64,7 @@ function blankRow(): EditableRow {
   };
 }
 
-export function ServiceCatalogSettings({ services }: ServiceCatalogSettingsProps) {
+export function ServiceCatalogSettings({ services, onSaved }: ServiceCatalogSettingsProps) {
   const locale = useAdminLocale();
   const t = SETTINGS_DICT[locale];
   const [rows, setRows] = useState<EditableRow[]>(() =>
@@ -134,8 +136,10 @@ export function ServiceCatalogSettings({ services }: ServiceCatalogSettingsProps
 
     startTransition(async () => {
       const result = await updateServiceCatalog(formData);
-      if (result?.success) toast.success(t.services.saved);
-      else {
+      if (result?.success) {
+        toast.success(t.services.saved);
+        onSaved?.();
+      } else {
         const msg = result?.error ? Object.values(result.error).flat()[0] : t.services.saved;
         toast.error(typeof msg === "string" ? msg : t.services.saved);
       }

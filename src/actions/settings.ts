@@ -104,7 +104,6 @@ export async function updateShopSettings(formData: FormData) {
   });
 
   revalidatePath(ADMIN.settings);
-  revalidatePath(ADMIN.notifications);
   return { success: true, email: normalizedEmail, emailVerified: !!emailVerified };
 }
 
@@ -128,7 +127,6 @@ export async function setShopContactToLoginEmail() {
   });
 
   revalidatePath(ADMIN.settings);
-  revalidatePath(ADMIN.notifications);
   return { success: true, email };
 }
 
@@ -249,31 +247,6 @@ export async function updateShopSlug(formData: FormData) {
 
   revalidatePath(ADMIN.settings);
   return { success: true, slug: parsed.data };
-}
-
-const brandColorSchema = z
-  .string()
-  .trim()
-  .regex(/^#[0-9a-fA-F]{6}$/, "Invalid color (use #RRGGBB format)");
-
-export async function updateShopBrandColor(formData: FormData) {
-  const shopId = await getShopId();
-
-  const raw = (formData.get("brandColor") as string) ?? "";
-  if (!raw.trim()) {
-    await db.shop.update({ where: { id: shopId }, data: { brandColor: null } });
-    revalidatePath(ADMIN.settings);
-    return { success: true, brandColor: null };
-  }
-
-  const parsed = brandColorSchema.safeParse(raw);
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid color" };
-  }
-
-  await db.shop.update({ where: { id: shopId }, data: { brandColor: parsed.data } });
-  revalidatePath(ADMIN.settings);
-  return { success: true, brandColor: parsed.data };
 }
 
 export async function uploadShopLogo(formData: FormData) {

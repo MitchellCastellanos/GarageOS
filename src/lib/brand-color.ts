@@ -12,6 +12,18 @@
  */
 export const DEFAULT_BRAND_COLOR = "#c8102e";
 
+/** Paleta de swatches rápidos ofrecida en los pickers de color de marca. */
+export const BRAND_COLOR_PRESETS = [
+  "#c8102e",
+  "#2563eb",
+  "#16a34a",
+  "#ca8a04",
+  "#ea580c",
+  "#7c3aed",
+  "#0f766e",
+  "#131417",
+];
+
 /** Superficie oscura de la página de reservas antes de que el color fuera personalizable. */
 const LEGACY_DARK_SURFACE = "#131417";
 

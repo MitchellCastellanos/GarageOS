@@ -3,6 +3,8 @@ import { bookingPublicPath, getAppUrl } from "@/config/app";
 import { getShopSettings } from "@/actions/settings";
 import { getAppointmentBookingSettings, getServiceCatalogSettings } from "@/actions/booking-settings";
 import { getShopDomains } from "@/actions/domains";
+import { getCommunicationSettings } from "@/actions/communications-settings";
+import { getManagedEmailDomain } from "@/lib/email-config";
 import { getBookingPageSettings } from "@/actions/booking-page";
 import { BookingPageConfigurator } from "@/components/settings/booking-page/BookingPageConfigurator";
 import { getTeamMembers } from "@/actions/users";
@@ -15,7 +17,6 @@ import { DomainSettings } from "@/components/settings/DomainSettings";
 import { TeamManagement } from "@/components/settings/TeamManagement";
 import { LocationsSettings } from "@/components/settings/LocationsSettings";
 import { getOrganizationLocations, getOrganizationUsers } from "@/actions/locations";
-import { SupportCard } from "@/components/settings/SupportCard";
 import { Tabs, type TabItem } from "@/components/ui/Tabs";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
@@ -41,11 +42,15 @@ export default async function SettingsPage() {
   const serviceCatalog = isOwner ? await getServiceCatalogSettings() : null;
   const bookingPage = isOwner ? await getBookingPageSettings() : null;
   const domains = isOwner ? await getShopDomains() : null;
+  const communications = isOwner ? await getCommunicationSettings() : null;
   const billing = isOwner ? await getBillingOverview() : null;
   const plan = billing?.subscription.plan ?? "CORE";
   const seatLimit = PLAN_LIMITS[plan].users;
   const canAddLocation = planIncludes(plan, "organization.multiLocation");
   const canCustomDomain = planIncludes(plan, "branding.customDomain");
+  const canCreateIdentity = planIncludes(plan, "branding.customSender");
+  const managedEmailDomain = getManagedEmailDomain();
+  const managedAddress = shop.slug && managedEmailDomain ? `${shop.slug}@${managedEmailDomain}` : null;
   const tabs: TabItem[] = [
     {
       id: "general",
@@ -72,6 +77,17 @@ export default async function SettingsPage() {
             workingHours={bookingSettings.workingHours}
             mechanics={bookingSettings.mechanics}
           />
+        </div>
+      ),
+    });
+  }
+
+  if (isOwner) {
+    tabs.push({
+      id: "notifications",
+      label: t.tabs.notifications,
+      content: (
+        <div className="space-y-6 max-w-2xl">
           <AppointmentReminderSettings shop={shop} />
           <WorkOrderNotificationSettings shop={shop} />
         </div>
@@ -121,7 +137,7 @@ export default async function SettingsPage() {
     });
   }
 
-  if (isOwner && domains) {
+  if (isOwner && domains && communications) {
     tabs.push({
       id: "domain",
       label: t.tabs.domain,
@@ -133,6 +149,10 @@ export default async function SettingsPage() {
           rootDomainConfigured={domains.rootDomainConfigured}
           landing={domains.landing}
           entitled={canCustomDomain}
+          email={domains.email}
+          canCreateIdentity={canCreateIdentity}
+          managedAddress={managedAddress}
+          communications={communications}
         />
       ),
     });
@@ -145,8 +165,6 @@ export default async function SettingsPage() {
       content: <BillingCard subscription={billing.subscription} />,
     });
   }
-
-  tabs.push({ id: "support", label: t.tabs.support, content: <SupportCard /> });
 
   return (
     <div className="space-y-6">
