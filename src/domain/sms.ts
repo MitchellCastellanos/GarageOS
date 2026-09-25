@@ -111,28 +111,8 @@ export function mapTwilioMessageStatus(status: string | null | undefined): CommS
   }
 }
 
-const STATUS_RANK: Partial<Record<CommStatus, number>> = {
-  DRAFT: 0,
-  QUEUED: 1,
-  SENDING: 2,
-  SENT: 3,
-  DELIVERED: 4,
-  FAILED: 4,
-  BOUNCED: 4,
-};
-
-/**
- * Los callbacks de estado de Twilio pueden llegar repetidos o desordenados
- * ("sent" después de "delivered"). Solo se avanza; un estado terminal
- * (DELIVERED/FAILED) nunca se sobrescribe.
- */
-export function shouldApplyStatusUpdate(current: CommStatus, next: CommStatus): boolean {
-  const currentRank = STATUS_RANK[current];
-  const nextRank = STATUS_RANK[next];
-  if (currentRank === undefined || nextRank === undefined) return false;
-  if (currentRank >= 4) return false;
-  return nextRank > currentRank;
-}
+// shouldApplyStatusUpdate movido a src/domain/communication-status.ts (compartido con Resend).
+export { shouldApplyStatusUpdate } from "@/domain/communication-status";
 
 // ── Cupos ────────────────────────────────────────────────────────────────────
 

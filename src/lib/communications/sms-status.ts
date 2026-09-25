@@ -6,7 +6,7 @@
 import { db } from "@/lib/db";
 import { mapTwilioMessageStatus, shouldApplyStatusUpdate } from "@/domain/sms";
 import { addSuppression } from "@/lib/communications/suppression";
-import { handleSmsDeliveryFailure } from "@/lib/notification-fallback";
+import { handleNotificationDeliveryFailure } from "@/lib/notification-fallback";
 import { getSharedSmsNumber } from "@/lib/communications/sms-numbers";
 
 export interface SmsStatusInput {
@@ -70,7 +70,7 @@ export async function handleSmsStatusCallback(input: SmsStatusInput): Promise<"u
     if (input.errorCode === TWILIO_UNSUBSCRIBED_ERROR && message.to[0]) {
       await addSuppression(message.shopId, "SMS", message.to[0], "UNSUBSCRIBE");
     }
-    await handleSmsDeliveryFailure(message.id).catch((err) =>
+    await handleNotificationDeliveryFailure(message.id, "SMS").catch((err) =>
       console.error(`[sms-status] respaldo por email falló (${message.id}):`, err)
     );
   }

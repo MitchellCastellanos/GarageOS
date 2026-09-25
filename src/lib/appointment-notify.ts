@@ -183,3 +183,29 @@ export async function sendAppointmentNoticeEmail(params: NotifyAppointmentEventP
   });
   return sent.messageId;
 }
+
+/**
+ * Envía el aviso por SMS (sin intentar email). Simétrico a
+ * sendAppointmentNoticeEmail — lo usa el webhook de estado de Resend cuando un
+ * email bounced y el cliente tiene teléfono. Lanza si no hay teléfono o el
+ * envío falla (incluye STOP: el llamador decide qué hacer).
+ */
+export async function sendAppointmentNoticeSms(params: NotifyAppointmentEventParams): Promise<string | null> {
+  const phone = params.client.phone?.trim();
+  if (!phone) throw new Error("Client has no phone");
+  const sent = await sendAppointmentSms({
+    type: params.type,
+    to: phone,
+    shopId: params.shop.id,
+    clientId: params.client.id,
+    appointmentId: params.appointmentId,
+    noticeKey: params.noticeKey,
+    shopName: params.shop.name,
+    title: params.title,
+    startsAtFormatted: formatShopDateTime(params.startsAt, params.shop.timezone),
+    language: params.client.language,
+    manageUrl: buildAppointmentManageUrl(params.shop, params.manageToken),
+    bookingUrl: params.shop.slug ? getPublicBookingUrl(params.shop.slug) : null,
+  });
+  return sent.messageId;
+}

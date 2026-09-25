@@ -5,6 +5,23 @@ Communications (`docs/communications-platform.md`) funcione con datos e infraest
 reales, no solo en el sandbox de desarrollo. Nada de esto bloquea el uso normal de
 GarageOS hoy — Fases 1, 2, 3, 5 y 7 ya están activas y no requieren nada de esta lista.
 
+## 0. Estado de entrega de email (Resend) — ACTIVO
+
+`email.delivered` / `email.bounced` / `email.complained` ya se procesan (ver
+`src/lib/communications/email-status.ts`): actualizan el estado del mensaje, un bounce
+o una queja suprimen la dirección, y si un aviso automático de cita rebota se reintenta
+por SMS. Para activarlo en producción:
+
+1. En Resend, agregar un webhook apuntando a `https://<tu-dominio>/api/webhooks/resend`
+   suscrito a `email.delivered`, `email.bounced` y `email.complained` (puede ser el
+   mismo webhook del punto 1 si además se suscribe `email.received`).
+2. Setear `RESEND_WEBHOOK_SECRET` con el signing secret (`whsec_...`) de ese webhook.
+   `RESEND_INBOUND_WEBHOOK_SECRET` sigue funcionando como alias si ya estaba seteado.
+3. El formato exacto del payload de bounce/complaint (`data.bounce.message`,
+   `data.bounce.type`, `data.complaint.type`) no se pudo verificar contra la
+   documentación viva de Resend — confirmarlo antes de depender del mensaje de error
+   guardado en `CommunicationMessage.errorMessage`.
+
 ## 1. Activar email entrante (Fase 4)
 
 El código vive en `src/app/api/webhooks/resend/route.ts` y responde 404 mientras no se
@@ -15,7 +32,7 @@ configure. Para activarlo:
 2. Agregar un webhook en el dashboard de Resend apuntando a
    `https://<tu-dominio>/api/webhooks/resend`, evento `email.received`, y copiar el
    signing secret (`whsec_...`).
-3. Setear `RESEND_INBOUND_WEBHOOK_SECRET` en las variables de entorno de producción.
+3. Setear `RESEND_WEBHOOK_SECRET` (o `RESEND_INBOUND_WEBHOOK_SECRET`) en las variables de entorno de producción.
 4. **Antes de confiar en esto en producción**: verificar contra la referencia viva de la
    API de Resend los endpoints exactos que usa el handler (`GET
    /emails/inbound/{id}` para el contenido y el endpoint de adjuntos) — se armaron a
@@ -53,7 +70,7 @@ automáticamente. Pasos de operación:
 
 ## 3. Variables de entorno / infraestructura a confirmar en producción
 
-- `RESEND_INBOUND_WEBHOOK_SECRET` — nueva, requerida solo para el punto 1.
+- `RESEND_WEBHOOK_SECRET` — nueva, requerida para los puntos 0 y 1 (un solo secreto para todos los eventos de Resend). `RESEND_INBOUND_WEBHOOK_SECRET` sigue funcionando como alias legado.
 - `NEXTAUTH_SECRET` — ya existe, pero ahora también firma los tokens de unsubscribe de
   campañas (`src/lib/communications/suppression.ts`). Si se rota, todos los enlaces de
   baja ya enviados dejan de funcionar — coordinar con soporte antes de rotarlo.

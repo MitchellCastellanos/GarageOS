@@ -6,10 +6,11 @@ producto.
 
 ## Decisiones tomadas
 
-1. **Un solo canal por aviso al cliente.** Política por defecto: **SMS primero**
-   si el taller lo tiene activo y el cliente tiene teléfono; **email como
-   respaldo** si no hay SMS posible o el SMS falla. Nunca los dos a la vez.
-   (Fase 2 agrega la preferencia del propio cliente, que tendrá prioridad.)
+1. **Un solo canal por aviso al cliente, salvo que el cliente pida los dos.**
+   Política por defecto (`AUTO`/`SMS`): SMS primero, email de respaldo si no hay
+   SMS posible o falla. `EMAIL` invierte el orden. `BOTH` es la única excepción
+   — el cliente lo eligió expresamente (reserva web, su link de gestión, o el
+   taller en su ficha). Ver `resolveNotifyChannelPlan` en `src/domain/sms.ts`.
 2. **Confirmación automática siempre**: al crear la cita (web o manual) y en
    cada cambio que el cliente necesita saber (fecha/hora, servicio, cancelación,
    reapertura, cita reasignada a otro cliente). Los cambios internos (mecánico,
@@ -98,12 +99,16 @@ Los avisos automáticos (citas, vehículo listo) capturan esos errores y caen al
 - Twilio también responde y bloquea STOP/START por su cuenta; si igual intentamos
   enviar, el error 21610 del callback registra la supresión.
 
-### Estado de entrega y respaldo diferido
+### Estado de entrega y respaldo diferido (SMS y email)
 
-- `POST /api/webhooks/twilio/status`: estados monótonos (nunca retroceden, un estado
-  terminal no se sobrescribe), actualización condicional (idempotente ante reintentos).
-- Si un aviso de cita o de vehículo listo termina `FAILED` (hasta 48 h después), se
-  reenvía por email y queda enlazado a su `AppointmentEvent`. Facturas, cotizaciones y
+- `POST /api/webhooks/twilio/status` y el webhook de Resend (`email.delivered` /
+  `email.bounced` / `email.complained`, ver `docs/communications-activation-todo.md`):
+  estados monótonos (nunca retroceden, un estado terminal no se sobrescribe),
+  actualización condicional (idempotente ante reintentos). Un bounce o queja de email
+  suprime la dirección igual que un STOP de SMS.
+- Si un aviso de cita o de vehículo listo termina fallando por SMS o por email (hasta
+  48 h después), se reintenta por el otro canal y queda enlazado a su
+  `AppointmentEvent` (`src/lib/notification-fallback.ts`). Facturas, cotizaciones y
   mensajes del Inbox no se reenvían por otro canal: los eligió una persona.
 
 ### Cupos
@@ -128,8 +133,15 @@ Los avisos automáticos (citas, vehículo listo) capturan esos errores y caen al
 - **Fase 1 (hecha):** puntos 1–5 de "Decisiones tomadas".
 - **SMS por taller (hecho):** número dedicado, SMS bidireccional en el Inbox, estados
   de entrega, STOP/START/HELP, cupos y ciclo de vida (sección anterior).
-- **Pendiente — canal preferido por cliente** (`AUTO | SMS | EMAIL | BOTH`), elegido
-  en la reserva web, en el link de gestión y en la ficha; estados de entrega de Resend
-  (rebotes de email).
-- **Pendiente — centro de notificaciones en la app** (campana en tiempo real vía
-  Pusher, preferencias por usuario, resumen diario por email).
+- **Canal preferido por cliente (hecho):** `AUTO | SMS | EMAIL | BOTH`, elegido en la
+  reserva web, en el link de gestión (sin login) y en la ficha del taller.
+- **Estados de entrega de email / respaldo diferido bidireccional (hecho):** ver
+  "Estado de entrega y respaldo diferido (SMS y email)" arriba.
+- **Centro de notificaciones en la app (hecho):** campana en tiempo real vía Pusher,
+  bandeja de pendientes y preferencias por usuario — ver
+  `docs/notifications.md` sección "Centro de notificaciones" más abajo.
+- **Pendiente — cobro de excedente de SMS** al agotar el cupo del plan (hoy cae a
+  email sin cargo extra) — ver "Cupos y excedente" abajo.
+- **Pendiente — registro A2P 10DLC automatizado** para números de EE. UU. Decisión de
+  negocio: no se automatiza (el volumen de talleres en EE. UU. no justifica el costo
+  de mantenerlo); el registro sigue siendo manual por taller si algún día se necesita.
