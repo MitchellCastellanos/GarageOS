@@ -9,7 +9,7 @@ import { db } from "@/lib/db";
 import { getShopId } from "@/lib/shop-context";
 import { workOrderSchema, type WorkOrderFormData } from "@/lib/validations";
 import { allocateNextInvoiceNumber, allocateNextWorkOrderNumber } from "@/lib/invoice-number";
-import { calculateTaxBreakdown, roundTaxRate, DEFAULT_COMBINED_TAX_RATE } from "@/lib/taxes";
+import { calculateTaxAmount, roundTaxRate, sumTaxLineRates, parseShopTaxLines } from "@/lib/taxes";
 import { syncSavedLineItems } from "@/actions/line-items";
 import { canTransitionWorkOrder } from "@/domain/work-order";
 import { getAdminLocale } from "@/lib/get-admin-locale";
@@ -392,8 +392,9 @@ export async function convertWorkOrderToInvoice(id: string) {
     (sum, item) => sum.plus(new Decimal(item.quantity.toString()).times(item.unitPrice.toString())),
     new Decimal(0)
   );
-  const taxRate = roundTaxRate(DEFAULT_COMBINED_TAX_RATE);
-  const { taxAmount } = calculateTaxBreakdown(subtotal, taxRate);
+  const shop = await db.shop.findUnique({ where: { id: shopId }, select: { taxLines: true } });
+  const taxRate = roundTaxRate(sumTaxLineRates(parseShopTaxLines(shop?.taxLines)));
+  const taxAmount = calculateTaxAmount(subtotal, taxRate);
   const total = subtotal.plus(taxAmount);
 
   const invoice = await db.$transaction(async (tx) => {

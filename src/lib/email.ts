@@ -1,7 +1,6 @@
 import { render } from "@react-email/render";
 import { Resend } from "resend";
 import { ServiceReminderEmail } from "@/emails/ServiceReminderEmail";
-import { AccountingNotificationEmail } from "@/emails/AccountingNotificationEmail";
 import { InvoiceEmail, type InvoiceEmailProps } from "@/emails/InvoiceEmail";
 import { QuoteEmail, type QuoteEmailProps } from "@/emails/QuoteEmail";
 import {
@@ -137,35 +136,6 @@ export async function sendReminderEmail(data: ReminderEmailData) {
     businessEntityType: data.reminderId ? "SERVICE_REMINDER" : undefined,
     businessEntityId: data.reminderId,
     idempotencyKey: data.reminderId ? `service-reminder:${data.reminderId}` : undefined,
-  });
-}
-
-interface AccountingEmailData {
-  shop: ShopEmailConfig;
-  uploaderName: string;
-  files: { fileName: string; category: string; driveUrl?: string }[];
-  driveFolderUrl?: string;
-}
-
-export async function sendAccountantEmail(data: AccountingEmailData) {
-  const to = process.env.ACCOUNTANT_EMAIL?.trim();
-  if (!to) throw new Error("ACCOUNTANT_EMAIL is not configured");
-
-  const element = React.createElement(AccountingNotificationEmail, {
-    shopName: data.shop.name,
-    uploaderName: data.uploaderName,
-    files: data.files,
-    driveFolderUrl: data.driveFolderUrl,
-  });
-
-  const fileCount = data.files.length;
-
-  await sendTransactionalEmail({
-    shop: data.shop,
-    channel: "ACCOUNTING",
-    to,
-    subject: `${data.shop.name} — ${fileCount} new document${fileCount !== 1 ? "s" : ""}`,
-    react: element,
   });
 }
 

@@ -34,7 +34,7 @@ export default async function DashboardLayout({
   const [shop, locale, accessibleShops, inventoryEntitled, campaignsEntitled, currentUser, hasUnreadSupport] = await Promise.all([
     db.shop.findUnique({
       where: { id: session.user.shopId },
-      select: { name: true, logoUrl: true },
+      select: { name: true, logoUrl: true, onboardingCompletedAt: true },
     }),
     getAdminLocale(),
     getAccessibleShops(),
@@ -46,6 +46,12 @@ export default async function DashboardLayout({
     }),
     hasUnreadSupportMessage(session.user.shopId),
   ]);
+
+  // Solo el dueño completa el asistente de arranque — no bloquea al staff
+  // invitado a un taller cuyo dueño todavía no terminó de configurarlo.
+  if (session.user.role === "OWNER" && !shop?.onboardingCompletedAt) {
+    redirect(ADMIN.onboarding);
+  }
 
   const lockedNavHrefs = [
     ...(inventoryEntitled ? [] : [ADMIN.inventory]),
@@ -62,7 +68,6 @@ export default async function DashboardLayout({
         shopName={shop?.name}
         shopLogoUrl={shop?.logoUrl}
         userName={session.user.name}
-        isOwner={session.user.role === "OWNER"}
         accessibleShops={accessibleShops}
         currentShopId={session.user.shopId}
         lockedNavHrefs={lockedNavHrefs}

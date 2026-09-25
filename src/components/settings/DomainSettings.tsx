@@ -8,6 +8,8 @@ import { setLandingDomain, verifyLandingDomainAction, removeLandingDomainAction 
 import { UpgradeCTA } from "@/components/billing/UpgradeCTA";
 import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
 import { SETTINGS_DICT } from "@/lib/admin-locale/settings";
+import { EmailSetupSection } from "./EmailSetupSection";
+import type { CommunicationSettingsData } from "@/actions/communications-settings";
 
 interface DomainSettingsProps {
   slug: string | null;
@@ -16,6 +18,10 @@ interface DomainSettingsProps {
   rootDomainConfigured: boolean;
   landing: DomainInfo | null;
   entitled: boolean;
+  email: DomainInfo | null;
+  canCreateIdentity: boolean;
+  managedAddress: string | null;
+  communications: CommunicationSettingsData;
 }
 
 export function DomainSettings({
@@ -25,6 +31,10 @@ export function DomainSettings({
   rootDomainConfigured,
   landing,
   entitled,
+  email,
+  canCreateIdentity,
+  managedAddress,
+  communications,
 }: DomainSettingsProps) {
   return (
     <div className="space-y-6 max-w-2xl">
@@ -35,6 +45,13 @@ export function DomainSettings({
         rootDomainConfigured={rootDomainConfigured}
         landing={landing}
         entitled={entitled}
+      />
+      <EmailSetupSection
+        email={email}
+        canCustomDomain={entitled}
+        canCreateIdentity={canCreateIdentity}
+        managedAddress={managedAddress}
+        communications={communications}
       />
     </div>
   );

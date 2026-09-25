@@ -8,6 +8,7 @@ import { OTHER_VALUE, VEHICLE_MAKES, VEHICLE_MODELS, VEHICLE_YEARS } from "@/lib
 import { resolveServiceDuration } from "@/lib/service-catalog";
 import { MonthCalendar } from "@/components/booking/MonthCalendar";
 import { BookingUnavailable } from "@/components/booking/BookingUnavailable";
+import { SELECT_BOOKING_SERVICE_EVENT } from "@/lib/booking-page";
 
 interface ShopInfo {
   name: string;
@@ -81,6 +82,17 @@ export function PublicBookingForm({ slug, shop, services }: PublicBookingFormPro
       ? serviceOther.trim()
       : (selectedService ? serviceLabel(selectedService, locale) : "");
   const durationMinutes = resolveServiceDuration(serviceValue, shop.bookingSlotMinutes, serviceDurations);
+
+  // Clic en un servicio de la landing (franja de destacados / tarjetas) → lo
+  // preselecciona acá; el efecto de hasService de abajo lleva al calendario.
+  useEffect(() => {
+    function onSelectService(event: Event) {
+      const id = (event as CustomEvent<unknown>).detail;
+      if (typeof id === "string" && services.some((s) => s.id === id)) setServiceValue(id);
+    }
+    window.addEventListener(SELECT_BOOKING_SERVICE_EVENT, onSelectService);
+    return () => window.removeEventListener(SELECT_BOOKING_SERVICE_EVENT, onSelectService);
+  }, [services]);
 
   function handleMakeChange(value: string) {
     setMake(value);
@@ -246,7 +258,7 @@ export function PublicBookingForm({ slug, shop, services }: PublicBookingFormPro
           )}
         </p>
         {manageUrl && (
-          <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-left">
+          <div className="bg-brand-red/5 border border-brand-red/20 rounded-lg px-4 py-3 text-sm text-left">
             <p className="text-slate-700 mb-1">{t.form.saveLink}</p>
             <a
               href={manageUrl}
@@ -340,7 +352,7 @@ export function PublicBookingForm({ slug, shop, services }: PublicBookingFormPro
                     "px-3 py-2 rounded-lg text-sm border transition-colors min-w-[4.5rem]",
                     selectedTime === slot.time
                       ? "bg-brand-red text-white border-brand-red"
-                      : "bg-white text-slate-700 border-slate-200 hover:border-red-300",
+                      : "bg-white text-slate-700 border-slate-200 hover:border-brand-red/40",
                   ].join(" ")}
                 >
                   {slot.time}

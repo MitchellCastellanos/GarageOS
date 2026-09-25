@@ -10,10 +10,9 @@ import {
   Font,
 } from "@react-pdf/renderer";
 import { formatClientName } from "@/lib/client-name";
-import { calculateTaxBreakdown, TPS_RATE, TVQ_RATE } from "@/lib/taxes";
+import { calculateTaxBreakdown, parseShopTaxLines } from "@/lib/taxes";
 import { getInvoiceStrings, type InvoiceLanguage } from "@/lib/invoice-i18n";
 import { invoiceStatusLabelForPdf } from "@/lib/invoice-status";
-import Decimal from "decimal.js";
 
 // Por defecto @react-pdf parte palabras a media sílaba cuando no caben en la
 // línea (p. ej. "LA-CHINE"). Desactivamos la silabación: una palabra que no
@@ -72,6 +71,7 @@ interface InvoiceData {
     currency?: string | null;
     etransferEnabled?: boolean;
     etransferEmail?: string | null;
+    taxLines?: unknown;
   };
 }
 
@@ -743,13 +743,11 @@ export function InvoiceDocument({ invoice }: { invoice: InvoiceData }) {
     ? `Cotización ${invoice.invoiceNumber}`
     : t.documentTitle(invoice.invoiceNumber);
 
-  const { tpsAmount, tvqAmount, taxAmount } = calculateTaxBreakdown(
+  const { lines: taxLineAmounts, taxAmount } = calculateTaxBreakdown(
     invoice.subtotal,
-    invoice.taxRate
+    invoice.taxRate,
+    parseShopTaxLines(invoice.shop.taxLines)
   );
-  const factor = new Decimal(invoice.taxRate).div(TPS_RATE + TVQ_RATE);
-  const tpsPct = new Decimal(TPS_RATE).times(factor).times(100).toFixed(2);
-  const tvqPct = new Decimal(TVQ_RATE).times(factor).times(100).toFixed(2);
 
   const allLineItems = invoice.vehicles.flatMap((v) => v.lineItems);
   const warrantyItems = allLineItems.filter(
@@ -903,26 +901,24 @@ export function InvoiceDocument({ invoice }: { invoice: InvoiceData }) {
                       {fmtCurrency(invoice.subtotal, currency)}
                     </Text>
                   </View>
-                  <View style={styles.totalRow}>
-                    <Text style={styles.totalLabel}>{t.tps(tpsPct)}</Text>
-                    <Text style={styles.totalValue}>
-                      {fmtCurrency(tpsAmount.toString(), currency)}
-                    </Text>
-                  </View>
-                  <View style={styles.totalRow}>
-                    <Text style={styles.totalLabel}>{t.tvq(tvqPct)}</Text>
-                    <Text style={styles.totalValue}>
-                      {fmtCurrency(tvqAmount.toString(), currency)}
-                    </Text>
-                  </View>
-                  <View style={styles.totalRow}>
-                    <Text style={[styles.totalLabel, { color: SLATE_400 }]}>
-                      {t.taxesTotal}
-                    </Text>
-                    <Text style={styles.totalValue}>
-                      {fmtCurrency(taxAmount.toString(), currency)}
-                    </Text>
-                  </View>
+                  {taxLineAmounts.map((line) => (
+                    <View style={styles.totalRow} key={line.name}>
+                      <Text style={styles.totalLabel}>{t.taxLine(line.name, line.pct)}</Text>
+                      <Text style={styles.totalValue}>
+                        {fmtCurrency(line.amount.toString(), currency)}
+                      </Text>
+                    </View>
+                  ))}
+                  {taxLineAmounts.length > 1 && (
+                    <View style={styles.totalRow}>
+                      <Text style={[styles.totalLabel, { color: SLATE_400 }]}>
+                        {t.taxesTotal}
+                      </Text>
+                      <Text style={styles.totalValue}>
+                        {fmtCurrency(taxAmount.toString(), currency)}
+                      </Text>
+                    </View>
+                  )}
                   <View style={styles.totalDivider} />
                 </View>
                 <View style={styles.grandTotalRow}>

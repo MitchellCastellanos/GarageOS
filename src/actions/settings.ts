@@ -16,6 +16,7 @@ import bcrypt from "bcryptjs";
 import sharp from "sharp";
 import { validateLogo } from "@/lib/logo-upload";
 import { adminLocaleToDb, type AdminLocale } from "@/lib/admin-locale";
+import Decimal from "decimal.js";
 
 async function trimLogo(buffer: Buffer, contentType: string): Promise<Buffer> {
   if (contentType === "image/svg+xml") return buffer;
@@ -103,7 +104,6 @@ export async function updateShopSettings(formData: FormData) {
   });
 
   revalidatePath(ADMIN.settings);
-  revalidatePath(ADMIN.notifications);
   return { success: true, email: normalizedEmail, emailVerified: !!emailVerified };
 }
 
@@ -127,7 +127,6 @@ export async function setShopContactToLoginEmail() {
   });
 
   revalidatePath(ADMIN.settings);
-  revalidatePath(ADMIN.notifications);
   return { success: true, email };
 }
 
@@ -179,6 +178,44 @@ export async function updateEtransferSettings(formData: FormData) {
   return { success: true };
 }
 
+const taxLinesSchema = z
+  .array(
+    z.object({
+      name: z.string().trim().min(1).max(30),
+      rate: z
+        .number()
+        .min(0, "Rate cannot be negative")
+        .max(1, "Rate cannot exceed 100%"),
+    })
+  )
+  .max(5, "Maximum 5 tax lines");
+
+export async function updateShopTaxLines(formData: FormData) {
+  const shopId = await getShopId();
+
+  let raw: unknown;
+  try {
+    raw = JSON.parse(String(formData.get("taxLines") ?? "[]"));
+  } catch {
+    return { error: "Invalid tax data" };
+  }
+
+  const parsed = taxLinesSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { error: parsed.error.flatten().formErrors[0] ?? "Invalid tax data" };
+  }
+
+  const taxLines = parsed.data.map((line) => ({
+    name: line.name,
+    rate: new Decimal(line.rate).toDecimalPlaces(5, Decimal.ROUND_HALF_UP).toString(),
+  }));
+
+  await db.shop.update({ where: { id: shopId }, data: { taxLines } });
+
+  revalidatePath(ADMIN.settings);
+  return { success: true };
+}
+
 const slugSchema = z
   .string()
   .trim()
@@ -210,31 +247,6 @@ export async function updateShopSlug(formData: FormData) {
 
   revalidatePath(ADMIN.settings);
   return { success: true, slug: parsed.data };
-}
-
-const brandColorSchema = z
-  .string()
-  .trim()
-  .regex(/^#[0-9a-fA-F]{6}$/, "Invalid color (use #RRGGBB format)");
-
-export async function updateShopBrandColor(formData: FormData) {
-  const shopId = await getShopId();
-
-  const raw = (formData.get("brandColor") as string) ?? "";
-  if (!raw.trim()) {
-    await db.shop.update({ where: { id: shopId }, data: { brandColor: null } });
-    revalidatePath(ADMIN.settings);
-    return { success: true, brandColor: null };
-  }
-
-  const parsed = brandColorSchema.safeParse(raw);
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid color" };
-  }
-
-  await db.shop.update({ where: { id: shopId }, data: { brandColor: parsed.data } });
-  revalidatePath(ADMIN.settings);
-  return { success: true, brandColor: parsed.data };
 }
 
 export async function uploadShopLogo(formData: FormData) {

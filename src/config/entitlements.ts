@@ -37,6 +37,10 @@ export const CAPABILITY_MIN_PLAN = {
   "communications.campaigns": "PRO",
   "branding.customDomain": "PRO",
   "branding.customSender": "PRO",
+  // Plantillas Modern/Bold/Minimal y tipografías alternativas de la página
+  // pública de reservas. Classic, logo, color, fotos, íconos y destacados
+  // quedan en todos los planes (ver src/lib/booking-page.ts).
+  "bookingPage.advancedDesign": "PRO",
   "organization.multiLocation": "COMPLETE",
 } as const satisfies Record<string, Plan>;
 

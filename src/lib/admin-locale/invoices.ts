@@ -32,8 +32,6 @@ export interface InvoicesDictionary {
     smsSentLabel: (date: string, count: number) => string;
     accounting: {
       title: string;
-      exportLabel: string;
-      exportIncluded: string;
       paymentMethodLabel: string;
       cashMovementLabel: string;
     };
@@ -57,8 +55,7 @@ export interface InvoicesDictionary {
     summary: {
       title: string;
       subtotal: string;
-      tps: (pct: string) => string;
-      tvq: (pct: string) => string;
+      taxLine: (name: string, pct: string) => string;
       totalTaxes: string;
       totalCad: string;
     };
@@ -84,8 +81,7 @@ export interface InvoicesDictionary {
     summaryTitle: string;
     taxRateLabel: string;
     subtotal: string;
-    tps: (pct: string) => string;
-    tvq: (pct: string) => string;
+    taxLine: (name: string, pct: string) => string;
     totalTaxes: (pct: string) => string;
     totalCad: string;
     saving: string;
@@ -232,9 +228,7 @@ export const INVOICES_DICT: Record<AdminLocale, InvoicesDictionary> = {
       emailSentLabel: (date, count) => `Email: ${date}${count > 1 ? ` (${count}×)` : ""}`,
       smsSentLabel: (date, count) => `SMS: ${date}${count > 1 ? ` (${count}×)` : ""}`,
       accounting: {
-        title: "Registro y contabilidad",
-        exportLabel: "Exportación a contabilidad",
-        exportIncluded: "Incluida al marcar como pagada",
+        title: "Información de pago",
         paymentMethodLabel: "Método de pago",
         cashMovementLabel: "Movimiento en caja",
       },
@@ -258,8 +252,7 @@ export const INVOICES_DICT: Record<AdminLocale, InvoicesDictionary> = {
       summary: {
         title: "Resumen",
         subtotal: "Subtotal",
-        tps: (pct) => `TPS (${pct}%)`,
-        tvq: (pct) => `TVQ (${pct}%)`,
+        taxLine: (name, pct) => `${name} (${pct}%)`,
         totalTaxes: "Total impuestos",
         totalCad: "Total CAD",
       },
@@ -283,10 +276,9 @@ export const INVOICES_DICT: Record<AdminLocale, InvoicesDictionary> = {
       notesLabel: "Notas (opcionales)",
       notesPlaceholder: "Observaciones, garantía, instrucciones de pago...",
       summaryTitle: "Resumen",
-      taxRateLabel: "Tasa de impuestos (TPS+TVQ)",
+      taxRateLabel: "Tasa de impuestos",
       subtotal: "Subtotal",
-      tps: (pct) => `TPS (${pct}%)`,
-      tvq: (pct) => `TVQ (${pct}%)`,
+      taxLine: (name, pct) => `${name} (${pct}%)`,
       totalTaxes: (pct) => `Total impuestos (${pct}%)`,
       totalCad: "Total CAD",
       saving: "Guardando...",
@@ -441,9 +433,7 @@ export const INVOICES_DICT: Record<AdminLocale, InvoicesDictionary> = {
       emailSentLabel: (date, count) => `Email: ${date}${count > 1 ? ` (${count}×)` : ""}`,
       smsSentLabel: (date, count) => `SMS: ${date}${count > 1 ? ` (${count}×)` : ""}`,
       accounting: {
-        title: "Record and accounting",
-        exportLabel: "Export to accounting",
-        exportIncluded: "Included when marked as paid",
+        title: "Payment information",
         paymentMethodLabel: "Payment method",
         cashMovementLabel: "Cash drawer movement",
       },
@@ -467,8 +457,7 @@ export const INVOICES_DICT: Record<AdminLocale, InvoicesDictionary> = {
       summary: {
         title: "Summary",
         subtotal: "Subtotal",
-        tps: (pct) => `GST (${pct}%)`,
-        tvq: (pct) => `QST (${pct}%)`,
+        taxLine: (name, pct) => `${name} (${pct}%)`,
         totalTaxes: "Total taxes",
         totalCad: "Total CAD",
       },
@@ -492,10 +481,9 @@ export const INVOICES_DICT: Record<AdminLocale, InvoicesDictionary> = {
       notesLabel: "Notes (optional)",
       notesPlaceholder: "Remarks, warranty, payment instructions...",
       summaryTitle: "Summary",
-      taxRateLabel: "Tax rate (GST+QST)",
+      taxRateLabel: "Tax rate",
       subtotal: "Subtotal",
-      tps: (pct) => `GST (${pct}%)`,
-      tvq: (pct) => `QST (${pct}%)`,
+      taxLine: (name, pct) => `${name} (${pct}%)`,
       totalTaxes: (pct) => `Total taxes (${pct}%)`,
       totalCad: "Total CAD",
       saving: "Saving...",
@@ -650,9 +638,7 @@ export const INVOICES_DICT: Record<AdminLocale, InvoicesDictionary> = {
       emailSentLabel: (date, count) => `Courriel : ${date}${count > 1 ? ` (${count}×)` : ""}`,
       smsSentLabel: (date, count) => `SMS : ${date}${count > 1 ? ` (${count}×)` : ""}`,
       accounting: {
-        title: "Registre et comptabilité",
-        exportLabel: "Exportation vers la comptabilité",
-        exportIncluded: "Incluse lorsque marquée comme payée",
+        title: "Information de paiement",
         paymentMethodLabel: "Méthode de paiement",
         cashMovementLabel: "Mouvement de caisse",
       },
@@ -676,8 +662,7 @@ export const INVOICES_DICT: Record<AdminLocale, InvoicesDictionary> = {
       summary: {
         title: "Résumé",
         subtotal: "Sous-total",
-        tps: (pct) => `TPS (${pct} %)`,
-        tvq: (pct) => `TVQ (${pct} %)`,
+        taxLine: (name, pct) => `${name} (${pct} %)`,
         totalTaxes: "Total des taxes",
         totalCad: "Total CAD",
       },
@@ -701,10 +686,9 @@ export const INVOICES_DICT: Record<AdminLocale, InvoicesDictionary> = {
       notesLabel: "Notes (optionnelles)",
       notesPlaceholder: "Observations, garantie, instructions de paiement...",
       summaryTitle: "Résumé",
-      taxRateLabel: "Taux de taxes (TPS+TVQ)",
+      taxRateLabel: "Taux de taxes",
       subtotal: "Sous-total",
-      tps: (pct) => `TPS (${pct} %)`,
-      tvq: (pct) => `TVQ (${pct} %)`,
+      taxLine: (name, pct) => `${name} (${pct} %)`,
       totalTaxes: (pct) => `Total des taxes (${pct} %)`,
       totalCad: "Total CAD",
       saving: "Enregistrement...",

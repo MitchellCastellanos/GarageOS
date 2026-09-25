@@ -1,8 +1,34 @@
-// Color de marca personalizable por taller, usado como fondo del header,
-// hero, sección "El taller" y footer de /book/[slug]. El acento rojo de
-// GarageOS se mantiene fijo — solo el fondo oscuro es personalizable.
+// Color de marca personalizable por taller (único color que elige el taller).
+// En las 4 plantillas de /book/[slug] es el color primario: botones, íconos,
+// resaltados y barras de título. Las superficies oscuras (header, hero,
+// "El taller", footer) usan un tono muy profundo derivado del mismo color —
+// ver deriveBrandPalette. Siempre pasa por toSafeDarkBrandColor, así que el
+// texto blanco encima y el color como texto sobre blanco cumplen AA.
 
-export const DEFAULT_BRAND_COLOR = "#131417";
+/**
+ * Sin color elegido: el rojo histórico de la página de reservas. Con
+ * deriveBrandPalette(null) la página se ve igual que siempre (acento rojo
+ * sobre superficies casi negras).
+ */
+export const DEFAULT_BRAND_COLOR = "#c8102e";
+
+/** Paleta de swatches rápidos ofrecida en los pickers de color de marca. */
+export const BRAND_COLOR_PRESETS = [
+  "#c8102e",
+  "#2563eb",
+  "#16a34a",
+  "#ca8a04",
+  "#ea580c",
+  "#7c3aed",
+  "#0f766e",
+  "#131417",
+];
+
+/** Superficie oscura de la página de reservas antes de que el color fuera personalizable. */
+const LEGACY_DARK_SURFACE = "#131417";
+
+/** Base casi negra hacia la que se mezclan las superficies oscuras. */
+const DARK_BASE = "#0b0c0f";
 
 const HEX_RE = /^#([0-9a-fA-F]{6})$/;
 
@@ -50,4 +76,59 @@ export function toSafeDarkBrandColor(hex: string): string {
   }
 
   return rgbToHex(cr, cg, cb);
+}
+
+/** Mezcla lineal hacia `target` (0 = color original, 1 = target). */
+export function mixHexColors(hex: string, target: string, amount: number): string {
+  const [r, g, b] = hexToRgb(hex);
+  const [tr, tg, tb] = hexToRgb(target);
+  const t = Math.max(0, Math.min(1, amount));
+  return rgbToHex(r + (tr - r) * t, g + (tg - g) * t, b + (tb - b) * t);
+}
+
+export interface BrandPalette {
+  /** Color principal seguro: fondo con texto blanco o texto/ícono sobre blanco (AA). */
+  primary: string;
+  /** Hover/pressed de botones primarios. */
+  primaryHover: string;
+  /** Fondo sutil (chips, íconos, secciones claras teñidas) — texto encima debe ser `primary` o oscuro. */
+  primarySoft: string;
+  /** Superficie oscura (header, hero sin foto, "El taller", footer): el color llevado casi a negro. */
+  surface: string;
+  /**
+   * Acento legible SOBRE `surface` (íconos, palabra resaltada del titular):
+   * el color aclarado lo justo para ≥ 3:1 (texto grande / elementos no
+   * textuales, WCAG 1.4.11).
+   */
+  accentOnDark: string;
+}
+
+/** Variantes derivadas del único color que elige el taller — nunca un segundo color arbitrario. */
+export function deriveBrandPalette(brandColor: string | null | undefined): BrandPalette {
+  const hasColor = Boolean(brandColor && isValidHexColor(brandColor));
+  const source = hasColor ? brandColor! : DEFAULT_BRAND_COLOR;
+  const primary = toSafeDarkBrandColor(source);
+  // Sin color elegido: la superficie casi negra histórica, idéntica a la página de siempre.
+  const surface = hasColor ? mixHexColors(primary, DARK_BASE, 0.92) : LEGACY_DARK_SURFACE;
+
+  let accentOnDark = source;
+  for (let step = 1; step <= 10 && contrastRatio(accentOnDark, surface) < 3; step++) {
+    accentOnDark = mixHexColors(source, "#ffffff", step * 0.1);
+  }
+
+  return {
+    primary,
+    primaryHover: mixHexColors(primary, "#000000", 0.25),
+    primarySoft: mixHexColors(primary, "#ffffff", 0.9),
+    surface,
+    accentOnDark,
+  };
+}
+
+/** Ratio de contraste WCAG entre dos colores #RRGGBB (1–21). */
+export function contrastRatio(a: string, b: string): number {
+  const la = relativeLuminance(...hexToRgb(a));
+  const lb = relativeLuminance(...hexToRgb(b));
+  const [hi, lo] = la > lb ? [la, lb] : [lb, la];
+  return (hi + 0.05) / (lo + 0.05);
 }

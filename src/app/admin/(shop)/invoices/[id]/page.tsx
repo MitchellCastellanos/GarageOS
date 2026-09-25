@@ -4,7 +4,7 @@ import { ArrowLeft, Download, Pencil } from "lucide-react";
 import { getInvoiceById } from "@/actions/invoices";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { formatClientName } from "@/lib/client-name";
-import { calculateTaxBreakdown, TPS_RATE, TVQ_RATE } from "@/lib/taxes";
+import { calculateTaxBreakdown, parseShopTaxLines } from "@/lib/taxes";
 import { INVOICE_LANGUAGES } from "@/lib/invoice-i18n";
 import { InvoiceActions } from "@/components/invoices/InvoiceActions";
 import {
@@ -17,7 +17,6 @@ import { cashDrawerEntryTypeLabel } from "@/lib/cash-drawer";
 import { publicUrlForStoragePath } from "@/lib/storage";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import { INVOICES_DICT } from "@/lib/admin-locale/invoices";
-import Decimal from "decimal.js";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -29,13 +28,11 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
   const t = INVOICES_DICT[locale];
   const ITEM_TYPE_LABEL = t.itemTypes;
 
-  const { tpsAmount, tvqAmount } = calculateTaxBreakdown(
+  const { lines: taxLineAmounts } = calculateTaxBreakdown(
     invoice.subtotal.toString(),
-    invoice.taxRate.toString()
+    invoice.taxRate.toString(),
+    parseShopTaxLines(invoice.shop.taxLines)
   );
-  const factor = new Decimal(invoice.taxRate.toString()).div(TPS_RATE + TVQ_RATE);
-  const tpsPct = new Decimal(TPS_RATE).times(factor).times(100).toFixed(2);
-  const tvqPct = new Decimal(TVQ_RATE).times(factor).times(100).toFixed(2);
   const langLabel =
     INVOICE_LANGUAGES.find((l) => l.value === invoice.language)?.label ?? invoice.language;
 
@@ -137,41 +134,35 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
       </div>
 
       {/* Accounting visibility + payment info */}
-      <div className="bg-white rounded-xl border border-slate-200 p-5">
-        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">
-          {t.detail.accounting.title}
-        </p>
-        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-          <div>
-            <dt className="text-slate-500">{t.detail.accounting.exportLabel}</dt>
-            <dd className="mt-0.5">
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700">
-                {t.detail.accounting.exportIncluded}
-              </span>
-            </dd>
-          </div>
-          {paymentModeLabel && (
-            <div>
-              <dt className="text-slate-500">{t.detail.accounting.paymentMethodLabel}</dt>
-              <dd className="font-medium text-slate-900 mt-0.5">{paymentModeLabel}</dd>
-            </div>
-          )}
-          {linkedCashEntry && (
-            <div>
-              <dt className="text-slate-500">{t.detail.accounting.cashMovementLabel}</dt>
-              <dd className="mt-0.5">
-                <Link
-                  href={ADMIN.caja}
-                  className="text-blue-600 hover:underline font-medium"
-                >
-                  {cashDrawerEntryTypeLabel(linkedCashEntry.type)} ·{" "}
-                  {formatCurrency(Number(linkedCashEntry.amount))}
-                </Link>
-              </dd>
-            </div>
-          )}
-        </dl>
-      </div>
+      {(paymentModeLabel || linkedCashEntry) && (
+        <div className="bg-white rounded-xl border border-slate-200 p-5">
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">
+            {t.detail.accounting.title}
+          </p>
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+            {paymentModeLabel && (
+              <div>
+                <dt className="text-slate-500">{t.detail.accounting.paymentMethodLabel}</dt>
+                <dd className="font-medium text-slate-900 mt-0.5">{paymentModeLabel}</dd>
+              </div>
+            )}
+            {linkedCashEntry && (
+              <div>
+                <dt className="text-slate-500">{t.detail.accounting.cashMovementLabel}</dt>
+                <dd className="mt-0.5">
+                  <Link
+                    href={ADMIN.caja}
+                    className="text-blue-600 hover:underline font-medium"
+                  >
+                    {cashDrawerEntryTypeLabel(linkedCashEntry.type)} ·{" "}
+                    {formatCurrency(Number(linkedCashEntry.amount))}
+                  </Link>
+                </dd>
+              </div>
+            )}
+          </dl>
+        </div>
+      )}
 
       {/* Client info */}
       <div className="bg-white rounded-xl border border-slate-200 p-5">
@@ -288,14 +279,12 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
               <span className="text-slate-600">{t.detail.summary.subtotal}</span>
               <span className="text-slate-900">{formatCurrency(Number(invoice.subtotal))}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-slate-600">{t.detail.summary.tps(tpsPct)}</span>
-              <span className="text-slate-900">{formatCurrency(Number(tpsAmount))}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-600">{t.detail.summary.tvq(tvqPct)}</span>
-              <span className="text-slate-900">{formatCurrency(Number(tvqAmount))}</span>
-            </div>
+            {taxLineAmounts.map((line) => (
+              <div className="flex justify-between" key={line.name}>
+                <span className="text-slate-600">{t.detail.summary.taxLine(line.name, line.pct)}</span>
+                <span className="text-slate-900">{formatCurrency(Number(line.amount))}</span>
+              </div>
+            ))}
             <div className="flex justify-between text-slate-500">
               <span className="text-xs">{t.detail.summary.totalTaxes}</span>
               <span className="text-xs">{formatCurrency(Number(invoice.taxAmount))}</span>

@@ -15,10 +15,10 @@ export const ADMIN = {
   caja: "/admin/caja",
   inbox: "/admin/inbox",
   campaigns: "/admin/campaigns",
-  notifications: "/admin/notifications",
   inventory: "/admin/inventory",
   settings: "/admin/settings",
   support: "/admin/support",
+  onboarding: "/admin/onboarding",
 } as const;
 
 /** Panel super-admin de la plataforma — separado del /admin de cada taller */

@@ -1,5 +1,5 @@
-// Wrapper para Supabase Storage
-// Se usa como backup de los archivos antes de subirlos a Google Drive.
+// Wrapper para Supabase Storage — almacén de documentos de contabilidad,
+// aislado por shopId (bucket "accounting", carpeta {shopId}/{categoria}/...).
 // El cliente de servidor usa la SERVICE_ROLE_KEY para bypass de RLS.
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
@@ -83,6 +83,31 @@ export async function uploadShopLogoToStorage(
   if (error) {
     throw new Error(`Supabase upload error: ${error.message}`);
   }
+
+  const { data } = supabase.storage.from(ACCOUNTING_BUCKET).getPublicUrl(storagePath);
+  return { storagePath, publicUrl: data.publicUrl };
+}
+
+/**
+ * Sube una foto de la página pública de reservas (portada o taller). Cada
+ * subida es un archivo nuevo (nombre con timestamp): el configurador guarda
+ * borradores y la página pública solo cambia cuando el taller publica, así
+ * que no podemos sobreescribir la foto que está en vivo.
+ */
+export async function uploadBookingPageImageToStorage(
+  folder: string,
+  kind: string,
+  buffer: Buffer
+): Promise<{ storagePath: string; publicUrl: string }> {
+  const supabase = getClient();
+  await ensureAccountingBucket(supabase);
+
+  const storagePath = `${folder}${kind}-${Date.now()}.webp`;
+  const { error } = await supabase.storage
+    .from(ACCOUNTING_BUCKET)
+    .upload(storagePath, buffer, { contentType: "image/webp", upsert: false });
+
+  if (error) throw new Error(`Supabase upload error: ${error.message}`);
 
   const { data } = supabase.storage.from(ACCOUNTING_BUCKET).getPublicUrl(storagePath);
   return { storagePath, publicUrl: data.publicUrl };

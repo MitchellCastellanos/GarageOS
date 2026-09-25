@@ -203,9 +203,6 @@ export function InvoiceMarkPaidDialog({
         return;
       }
       toast.success(t.markedPaidToast);
-      if (result.accountantExport?.status === "skipped") {
-        toast.info(result.accountantExport.reason, { duration: 6000 });
-      }
       setOpen(false);
       setEntries([]);
       setExtraFiles([]);

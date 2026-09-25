@@ -79,8 +79,8 @@ Legend:
 | Two-way SMS | Future | Future | Future |
 | Customer Portal | Future / Included | Future / Included | Future / Included |
 | Shop branding on customer documents | Included | Included | Included |
-| Hosted GarageOS booking/shop page | Included | Included | Included |
-| Branded shop landing/site | — | Included | Included |
+| Hosted GarageOS booking/shop page (Classic template, logo, brand color, 2 shop photos, real services/icons/featured) | Included | Included | Included |
+| Branded shop landing/site (advanced booking page customization: Modern/Bold/Minimal templates + typography presets) | — | Included | Included |
 | Custom domain | — | Included | Included |
 | Custom sender / email identity | — | Included | Included |
 | Campaigns / CRM messaging | — | Included | Included |
@@ -268,6 +268,7 @@ The exact names can change during implementation, but the concepts should stay s
 - **Runtime entitlement gates are implemented** for the capabilities that
   already exist in the product: `inventory.manage`, `communications.campaigns`,
   `branding.customDomain`, `branding.customSender`, `organization.multiLocation`,
+  `bookingPage.advancedDesign` (the implemented slice of `branding.shopSite`),
   plus the `users.limit` seat cap. Everything still marked "Future" above
   (two-way SMS, public API, QuickBooks sync, advanced reports/DVI, etc.) has
   no gate yet because the feature itself doesn't exist in code.

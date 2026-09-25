@@ -63,11 +63,13 @@ export const BILLING_DICT: Record<AdminLocale, BillingDictionary> = {
         "Hasta 3 usuarios · 1 ubicación",
         "Citas, clientes, cotizaciones, órdenes y facturas",
         "DVI básica, recordatorios y portal de cliente",
+        "Página de reservas con tu logo, color y fotos",
       ],
       PRO: [
         "Usuarios ilimitados · 1 ubicación",
         "Inventario, campañas y DVI completa",
         "Dominio propio, identidad de envío y reportes avanzados",
+        "Personalización avanzada de la página de reservas",
       ],
       COMPLETE: [
         "Todo lo de Pro",
@@ -116,11 +118,13 @@ export const BILLING_DICT: Record<AdminLocale, BillingDictionary> = {
         "Up to 3 users · 1 location",
         "Appointments, clients, estimates, work orders and invoices",
         "Basic DVI, reminders and customer portal",
+        "Booking page with your logo, color and photos",
       ],
       PRO: [
         "Unlimited users · 1 location",
         "Inventory, campaigns and full DVI",
         "Custom domain, sender identity and advanced reports",
+        "Advanced booking page customization",
       ],
       COMPLETE: [
         "Everything in Pro",
@@ -169,11 +173,13 @@ export const BILLING_DICT: Record<AdminLocale, BillingDictionary> = {
         "Jusqu'à 3 utilisateurs · 1 emplacement",
         "Rendez-vous, clients, soumissions, bons de travail et factures",
         "DVI de base, rappels et portail client",
+        "Page de réservation avec votre logo, couleur et photos",
       ],
       PRO: [
         "Utilisateurs illimités · 1 emplacement",
         "Inventaire, campagnes et DVI complète",
         "Domaine personnalisé, identité d'envoi et rapports avancés",
+        "Personnalisation avancée de la page de réservation",
       ],
       COMPLETE: [
         "Tout ce qui est inclus dans Pro",

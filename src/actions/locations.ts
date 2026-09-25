@@ -1,5 +1,6 @@
 "use server";
 
+import type { Prisma } from "@prisma/client";
 import { ADMIN } from "@/lib/routes";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
@@ -133,6 +134,16 @@ export async function createShopLocation(formData: ShopLocationFormData) {
         currency: currentShop.currency,
         timezone: currentShop.timezone,
         defaultLanguage: currentShop.defaultLanguage,
+        // Misma marca/fiscalía que la ubicación existente — el asistente de
+        // arranque de esta ubicación nueva no vuelve a pedirlos (ver
+        // src/actions/onboarding.ts); el dueño puede ajustarlos después
+        // desde Configuración si esta ubicación factura distinto.
+        logoUrl: currentShop.logoUrl,
+        brandColor: currentShop.brandColor,
+        taxId: currentShop.taxId,
+        taxLines: currentShop.taxLines as Prisma.InputJsonValue,
+        bookingTemplate: currentShop.bookingTemplate,
+        bookingTypography: currentShop.bookingTypography,
       },
     });
 

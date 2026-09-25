@@ -75,6 +75,43 @@ body {
   background-size: 40px 40px;
 }
 
+/* Página pública de reservas — tipografía y color del taller. Las variables
+   las pone BookingPageRenderer (src/components/booking/page) según la
+   tipografía y el color elegidos en Configuración → Página de reservas.
+   En @layer components para que una utilidad (p.ej. `uppercase` en el hero
+   de Bold) pueda pisarlas puntualmente. */
+@layer components {
+  .bp-body {
+    font-family: var(--bp-font-body, ui-sans-serif, system-ui, sans-serif);
+  }
+
+  .bp-heading {
+    font-family: var(--bp-font-heading, var(--font-oswald), ui-sans-serif, system-ui, sans-serif);
+    text-transform: var(--bp-heading-case, uppercase);
+    letter-spacing: var(--bp-heading-tracking, 0.01em);
+    font-weight: var(--bp-heading-weight, 700);
+  }
+
+  .bp-hero-title {
+    font-family: var(--bp-font-hero, ui-sans-serif, system-ui, sans-serif);
+    text-transform: var(--bp-heading-case, uppercase);
+    font-weight: var(--bp-hero-weight, 900);
+  }
+}
+
+/* Anclas (#servicios, #cita…) visibles debajo del header fijo. */
+.bp-body section[id] {
+  scroll-margin-top: 5rem;
+}
+
+/* Carrusel horizontal sin barra visible (servicios destacados en mobile). */
+.bp-scroll-row {
+  scrollbar-width: none;
+}
+.bp-scroll-row::-webkit-scrollbar {
+  display: none;
+}
+
 /* Marca GarageOS — patrón oficial (garageos-brand-kit/marks, public/brand/brand-pattern.png),
    para paneles oscuros del sitio de marketing. No confundir con .garage-grid-texture de arriba. */
 .brand-pattern {

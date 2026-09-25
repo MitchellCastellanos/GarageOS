@@ -7,6 +7,7 @@ import { getQuoteById, getQuoteFormData, updateQuote } from "@/actions/quotes";
 import { type QuoteFormData } from "@/lib/validations";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import { QUOTES_DICT } from "@/lib/admin-locale/quotes";
+import { parseShopTaxLines } from "@/lib/taxes";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -15,7 +16,7 @@ interface PageProps {
 export default async function EditQuotePage({ params }: PageProps) {
   const { id } = await params;
 
-  const [quote, { clients }] = await Promise.all([
+  const [quote, { clients, shop }] = await Promise.all([
     getQuoteById(id),
     getQuoteFormData(),
   ]);
@@ -67,6 +68,7 @@ export default async function EditQuotePage({ params }: PageProps) {
       <InvoiceForm
         variant="quote"
         clients={clients}
+        taxLines={parseShopTaxLines(shop?.taxLines)}
         mode="edit"
         initialValues={initialValues}
         onSubmit={async (data: QuoteFormData) => {

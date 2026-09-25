@@ -53,7 +53,6 @@ export async function createSenderIdentityAction(formData: FormData) {
   try {
     const identity = await createSenderIdentity({ shopId, channel, address, displayName });
     revalidatePath(ADMIN.settings);
-    revalidatePath(ADMIN.notifications);
     return { success: true, identity };
   } catch (err) {
     if (err instanceof SenderIdentityError) return { error: err.message };
@@ -86,7 +85,6 @@ export async function updateCommunicationRouteAction(formData: FormData) {
     return { error: "Could not update the route" };
   }
 
-  revalidatePath(ADMIN.notifications);
   revalidatePath(ADMIN.settings);
   return { success: true };
 }

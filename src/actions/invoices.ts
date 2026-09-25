@@ -20,7 +20,7 @@ import {
   allocateNextInvoiceNumber,
   isUniqueConstraintError,
 } from "@/lib/invoice-number";
-import { calculateTaxBreakdown, roundTaxRate } from "@/lib/taxes";
+import { calculateTaxAmount, roundTaxRate } from "@/lib/taxes";
 import { serializeInvoiceForPdf } from "@/lib/invoice-serialize";
 import { generateInvoicePdf } from "@/lib/pdf";
 import { sendInvoiceEmail } from "@/lib/email";
@@ -45,7 +45,6 @@ import {
   type InvoicePaymentMode,
   type PaymentEntryInput,
 } from "@/lib/invoice-payments";
-import { archivePaidInvoiceToAccountant } from "@/lib/invoice-accounting";
 import { ensureCashInFromInvoice } from "@/actions/cash-drawer";
 import { auth } from "@/lib/auth";
 import { getAdminLocale } from "@/lib/get-admin-locale";
@@ -240,7 +239,7 @@ export async function createInvoice(formData: InvoiceFormData) {
     return sum.plus(new Decimal(item.quantity).times(item.unitPrice));
   }, new Decimal(0));
 
-  const { taxAmount } = calculateTaxBreakdown(subtotal, taxRate);
+  const taxAmount = calculateTaxAmount(subtotal, taxRate);
   const total = subtotal.plus(taxAmount);
 
   const invoiceData = {
@@ -534,7 +533,6 @@ export async function markInvoiceAsPaid(id: string, formData: FormData) {
   const session = await auth();
   const locale = await getAdminLocale();
   const msg = INVOICE_ACTION_MESSAGES[locale];
-  const uploaderName = session?.user?.name ?? "Taller";
 
   const invoice = await db.invoice.findFirst({
     where: { id, shopId, status: { in: [...INVOICE_PENDING_STATUSES] } },
@@ -669,20 +667,6 @@ export async function markInvoiceAsPaid(id: string, formData: FormData) {
     console.error("Guardar paquete PDF factura:", err);
   }
 
-  const archiveResult = await archivePaidInvoiceToAccountant({
-    shopId,
-    invoiceId: id,
-    invoiceNumber: invoice.invoiceNumber,
-    uploaderName,
-    files: [
-      {
-        fileName: packageFileName,
-        buffer: packagePdf,
-        mimeType: "application/pdf",
-      },
-    ],
-  });
-
   const cashAmount = validEntries
     .filter((e) => e.method === "CASH")
     .reduce((s, e) => s + e.amount, 0);
@@ -703,10 +687,7 @@ export async function markInvoiceAsPaid(id: string, formData: FormData) {
   revalidatePath(ADMIN.accounting);
   revalidatePath(ADMIN.caja);
 
-  return {
-    success: true,
-    accountantExport: archiveResult,
-  };
+  return { success: true };
 }
 
 export async function revertInvoiceToPending(id: string) {
@@ -835,7 +816,7 @@ export async function updateInvoice(id: string, formData: InvoiceFormData) {
     return sum.plus(new Decimal(item.quantity).times(item.unitPrice));
   }, new Decimal(0));
 
-  const { taxAmount } = calculateTaxBreakdown(subtotal, taxRate);
+  const taxAmount = calculateTaxAmount(subtotal, taxRate);
   const total = subtotal.plus(taxAmount);
 
   await db.$transaction(async (tx) => {

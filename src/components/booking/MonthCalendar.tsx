@@ -85,7 +85,7 @@ export function MonthCalendar({
           onClick={() => canGoPrev && setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1))}
           disabled={!canGoPrev}
           aria-label={prevMonthLabel}
-          className="p-1.5 rounded-lg border border-slate-200 disabled:opacity-30 disabled:cursor-not-allowed hover:border-red-300 transition-colors"
+          className="p-1.5 rounded-lg border border-slate-200 disabled:opacity-30 disabled:cursor-not-allowed hover:border-brand-red/40 transition-colors"
         >
           <ChevronLeft className="w-4 h-4" />
         </button>
@@ -95,7 +95,7 @@ export function MonthCalendar({
           onClick={() => canGoNext && setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1))}
           disabled={!canGoNext}
           aria-label={nextMonthLabel}
-          className="p-1.5 rounded-lg border border-slate-200 disabled:opacity-30 disabled:cursor-not-allowed hover:border-red-300 transition-colors"
+          className="p-1.5 rounded-lg border border-slate-200 disabled:opacity-30 disabled:cursor-not-allowed hover:border-brand-red/40 transition-colors"
         >
           <ChevronRight className="w-4 h-4" />
         </button>
@@ -126,7 +126,7 @@ export function MonthCalendar({
                 isSelected
                   ? "bg-brand-red text-white font-semibold"
                   : isAvailable
-                    ? "bg-white border border-slate-200 text-slate-700 hover:border-red-300 font-medium"
+                    ? "bg-white border border-slate-200 text-slate-700 hover:border-brand-red/40 font-medium"
                     : "text-slate-300 cursor-not-allowed",
               ].join(" ")}
             >
