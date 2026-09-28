@@ -26,6 +26,24 @@ spawnSync("npx", ["prisma", "migrate", "resolve", "--rolled-back", "202609191200
   env: process.env,
 });
 
+// One-time repair: 20260926100000_add_appointment_events failed on production
+// with "type AppointmentEventType already exists" (42710, 0 steps applied).
+// Root cause: this migration is a rename of an earlier one
+// (20260922120000_add_appointment_events) that had already applied
+// successfully in production before the rename — renaming an applied
+// migration folder makes Prisma treat it as a brand-new, unapplied migration,
+// so it tried to re-run the same CREATE TYPE/CREATE TABLE statements against
+// objects that already existed. Confirmed via direct inspection: the
+// AppointmentEvent table and both enums exist with the expected columns, so
+// `--applied` (not `--rolled-back`) is correct — nothing needs to run, just
+// record it as done. Safe to delete this block once production is confirmed
+// healthy (this command errors harmlessly on any database where the failure
+// never happened).
+spawnSync("npx", ["prisma", "migrate", "resolve", "--applied", "20260926100000_add_appointment_events"], {
+  stdio: "inherit",
+  env: process.env,
+});
+
 console.log("[deploy-migrations] Applying pending Prisma migrations...");
 const result = spawnSync("npx", ["prisma", "migrate", "deploy"], {
   stdio: "inherit",
