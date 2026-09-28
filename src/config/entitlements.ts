@@ -28,7 +28,7 @@ export function planAtLeast(plan: Plan, minPlan: Plan): boolean {
  *
  * Esta lista es intencionalmente más chica que el catálogo completo de
  * docs/subscription-plans.md: solo incluye funciones que ya existen en el
- * producto. Las marcadas "Future" en ese doc (two-way SMS, API pública,
+ * producto. Las marcadas "Future" en ese doc (API pública,
  * QuickBooks, DVI avanzado, reportes avanzados, etc.) no tienen todavía una
  * pantalla o acción real que gatear — cuando se construyan, se agregan acá.
  */
@@ -54,11 +54,25 @@ export function planIncludes(plan: Plan, capability: CapabilityKey): boolean {
   return planAtLeast(plan, minPlanFor(capability));
 }
 
-/** Límites numéricos por plan (no son booleanos on/off). */
-export const PLAN_LIMITS: Record<Plan, { users: number | null; locations: number | null }> = {
-  CORE: { users: 3, locations: 1 },
-  PRO: { users: null, locations: 1 },
-  COMPLETE: { users: null, locations: null },
+/**
+ * Límites numéricos por plan (no son booleanos on/off).
+ *
+ * smsSegmentsPerMonth: cupo de SMS salientes por mes calendario, en segmentos
+ * (lo que cobra Twilio — ver countSmsSegments en src/domain/sms.ts). Al
+ * agotarse, el SMS se sigue enviando y el excedente se cobra a
+ * SMS_OVERAGE_PRICE_CAD_PER_SEGMENT (src/domain/sms.ts) vía Stripe Billing
+ * Meters — ver reportSmsOverageUsage en src/lib/stripe.ts.
+ * VALORES PROVISIONALES: docs/subscription-plans.md solo define "Allowance /
+ * Larger / Largest" — confirmar cifras comerciales antes del lanzamiento.
+ * GarageOS puede fijar otro cupo por taller (Shop.smsMonthlyAllowanceOverride).
+ */
+export const PLAN_LIMITS: Record<
+  Plan,
+  { users: number | null; locations: number | null; smsSegmentsPerMonth: number }
+> = {
+  CORE: { users: 3, locations: 1, smsSegmentsPerMonth: 300 },
+  PRO: { users: null, locations: 1, smsSegmentsPerMonth: 1000 },
+  COMPLETE: { users: null, locations: null, smsSegmentsPerMonth: 2500 },
 };
 
 /** Precio público de referencia (CAD) — debe reflejar docs/subscription-plans.md. */

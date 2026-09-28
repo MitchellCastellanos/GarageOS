@@ -16,6 +16,7 @@ model Shop {
   inventoryParts     InventoryPart[]
   inventoryMovements InventoryMovement[]
   userAccess         UserShopAccess[]
+  staffNotifications StaffNotification[]
   documentSequences  DocumentSequence[]
   platformNotes              PlatformNote[]
   platformAuditLogs          PlatformAuditLog[]
@@ -96,7 +97,15 @@ model Shop {
   commThreads               CommunicationThread[]
   suppressions              CommunicationSuppression[]
   campaigns                 Campaign[]
+  appointmentEvents         AppointmentEvent[]
+  smsNumber                 ShopSmsNumber?
   communicationsSuspendedAt DateTime?
+  // Cupo mensual de segmentos SMS fijado por GarageOS para este taller —
+  // reemplaza al de su plan (PLAN_LIMITS.smsSegmentsPerMonth). Null = el del plan.
+  smsMonthlyAllowanceOverride Int?
+  // Último umbral de uso de SMS avisado al taller ("2026-09:80" / "2026-09:100")
+  // — evita repetir la alerta de 80 % / 100 % dentro del mismo mes.
+  smsUsageAlertMarker       String?
   subscription              Subscription?
 
   @@schema("garageos")
@@ -224,6 +233,8 @@ model User {
   inspections  Inspection[]           @relation("InspectionMechanic")
   workingHours MechanicWorkingHours[]
   shopAccess   UserShopAccess[]
+  staffNotifications           StaffNotification[]
+  notificationPreferences      UserNotificationPreference[]
 
   @@schema("garageos")
 }
@@ -302,6 +313,16 @@ model Client {
   consentAt              DateTime?
   emailMarketingOptOutAt DateTime?
   smsMarketingOptOutAt   DateTime?
+  // El cliente respondió STOP al número del taller: el operador bloquea todo SMS
+  // (transaccional incluido) hasta que responda START. La fuente de verdad del
+  // bloqueo es CommunicationSuppression (por teléfono); esto es para mostrarlo.
+  smsOptOutAt            DateTime?
+  // Preferencia de canal para avisos transaccionales (citas, vehículo listo) —
+  // AUTO deja la política del taller (SMS primero, email de respaldo, ver
+  // notifyAppointmentEvent). No aplica a campañas/marketing, que ya tienen su
+  // propio opt-in/out. Elegible por el cliente (reserva web, link de gestión)
+  // o por el taller en su ficha.
+  notifyChannel          ClientNotifyChannel @default(AUTO)
 
   vehicles           Vehicle[]
   invoices           Invoice[]
@@ -334,6 +355,15 @@ model Vehicle {
   quoteVehicles   QuoteVehicle[]
   appointments    Appointment[]
   reminders       ServiceReminder[]
+
+  @@schema("garageos")
+}
+
+enum ClientNotifyChannel {
+  AUTO
+  SMS
+  EMAIL
+  BOTH
 
   @@schema("garageos")
 }
@@ -589,6 +619,64 @@ model Appointment {
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
 
+  events AppointmentEvent[]
+
+  @@schema("garageos")
+}
+
+enum AppointmentEventType {
+  CREATED
+  RESCHEDULED
+  UPDATED
+  CANCELLED
+  REOPENED
+  STATUS_CHANGED
+  CONFIRMED_BY_CLIENT
+  NOTICE_RESENT
+  REMINDER_SENT
+
+  @@schema("garageos")
+}
+
+enum AppointmentActorType {
+  STAFF
+  CLIENT
+  SYSTEM
+
+  @@schema("garageos")
+}
+
+/**
+ * Historial (paper trail) de una cita — quién hizo qué, cuándo, qué cambió y
+ * qué aviso se le mandó al cliente por ese cambio. Una fila por evento; nunca
+ * se edita salvo para adjuntar el resultado del aviso (noticeOutcome + ids de
+ * CommunicationMessage, que es donde vive el texto exacto y el estado de
+ * entrega). Ver src/lib/appointment-events.ts.
+ */
+model AppointmentEvent {
+  id             String               @id @default(cuid())
+  shopId         String
+  shop           Shop                 @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  appointmentId  String
+  appointment    Appointment          @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  type           AppointmentEventType
+  actorType      AppointmentActorType
+  actorUserId    String?
+  // Snapshot del nombre — el historial debe seguir legible aunque el usuario se borre.
+  actorName      String?
+  // { campo: { from, to } } para lo que cambió (startsAt, title, status, ...).
+  changes        Json                 @default("{}")
+  // Tipo de aviso al cliente disparado por este evento (confirmation, update,
+  // cancellation, reminder) — null si el evento no avisa al cliente.
+  notice         String?
+  // SENT | FAILED | SKIPPED_NO_CONTACT | SKIPPED_DISABLED | SKIPPED_PAST
+  noticeOutcome  String?
+  smsMessageId   String?
+  emailMessageId String?
+  createdAt      DateTime             @default(now())
+
+  @@index([appointmentId, createdAt])
+  @@index([shopId, createdAt])
   @@schema("garageos")
 }
 
@@ -1032,6 +1120,13 @@ model CommunicationMessage {
   textBody           String?              @db.Text
   htmlBody           String?              @db.Text
   errorCode          String?
+  // Segmentos facturables del SMS (Twilio numSegments; estimado antes del envío).
+  segments           Int?
+  // Cuántos de esos segmentos cayeron fuera del cupo mensual del taller y se
+  // reportaron a Stripe para cobro de excedente (0 = dentro del cupo; null =
+  // no aplica — no es SMS, o el cobro de excedente no estaba configurado
+  // todavía). Ver src/lib/communications/sms-usage.ts.
+  billedOverageSegments Int?
   errorMessage       String?              @db.Text
   sentAt             DateTime?
   deliveredAt        DateTime?
@@ -1043,6 +1138,8 @@ model CommunicationMessage {
 
   @@index([shopId, businessEntityType, businessEntityId])
   @@index([shopId, createdAt])
+  @@index([provider, providerMessageId])
+  @@index([shopId, channel, direction, createdAt])
   @@index([clientId])
   @@index([threadId])
   @@schema("garageos")
@@ -1056,13 +1153,21 @@ model CommunicationThread {
   client        Client?          @relation(fields: [clientId], references: [id])
   subject       String?
   status        CommThreadStatus @default(OPEN)
+  // Canal de la conversación — un hilo SMS agrupa todo el ida y vuelta con un
+  // teléfono (contactAddress, E.164); un hilo EMAIL sigue el threading por Message-ID.
+  channel        CommChannel      @default(EMAIL)
+  contactAddress String?
   lastMessageAt DateTime         @default(now())
+  // No leído = lastInboundAt > readAt (mismo patrón que PlatformConversation.shopReadAt).
+  lastInboundAt DateTime?
+  readAt        DateTime?
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
 
   messages CommunicationMessage[]
 
   @@index([shopId, status, lastMessageAt])
+  @@index([shopId, channel, contactAddress])
   @@index([clientId])
   @@schema("garageos")
 }
@@ -1487,5 +1592,99 @@ model PageView {
   @@index([createdAt])
   @@index([path, createdAt])
   @@index([visitorHash, createdAt])
+  @@schema("garageos")
+}
+
+enum ShopSmsNumberStatus {
+  REQUESTED
+  PROVISIONING
+  ACTIVE
+  RELEASE_SCHEDULED
+  RELEASED
+  FAILED
+
+  @@schema("garageos")
+}
+
+/**
+ * Número SMS dedicado de un taller — una subcuenta de Twilio por taller con su
+ * propio número, aprovisionado solo por GarageOS desde /platform (cuesta renta
+ * mensual). El taller lo pide desde Configuración (REQUESTED) y un super admin
+ * lo aprueba con un clic, lo que dispara la compra real en Twilio. Una fila por
+ * taller: `shopId @unique` + la transición atómica a PROVISIONING es el candado
+ * contra aprovisionar dos veces. La subcuenta se reutiliza si el taller vuelve a
+ * pedir número. Ver src/lib/communications/sms-numbers.ts.
+ */
+model ShopSmsNumber {
+  id                  String              @id @default(cuid())
+  shopId              String              @unique
+  shop                Shop                @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  status              ShopSmsNumberStatus
+  subaccountSid       String?             @unique
+  // E.164 mientras el número está en uso; se vacía al liberarlo (el número puede
+  // terminar en otro taller) y queda copiado en releasedPhoneNumber.
+  phoneNumber         String?             @unique
+  phoneNumberSid      String?
+  countryCode         String              @default("CA")
+  areaCode            String?
+  senderIdentityId    String?
+  requestedAt         DateTime?
+  requestedByUserId   String?
+  provisionedAt       DateTime?
+  provisionedByUserId String?
+  releaseScheduledAt  DateTime?
+  releaseReason       String?
+  releasedAt          DateTime?
+  releasedPhoneNumber String?
+  lastError           String?             @db.Text
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  @@index([status, releaseScheduledAt])
+  @@schema("garageos")
+}
+
+/**
+ * Centro de notificaciones en la app — alertas internas al equipo del taller
+ * (cita web nueva, cliente canceló, cotización decidida, uso/ciclo de vida de
+ * SMS). Una fila por usuario destinatario (no por taller): así cada quien
+ * marca su propia bandeja como leída sin afectar a los demás. El email es un
+ * canal aparte (ver UserNotificationPreference) — esta tabla es la fuente de
+ * verdad de "qué vio quién", no un log de envíos.
+ */
+model StaffNotification {
+  id        String    @id @default(cuid())
+  shopId    String
+  shop      Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Clave estable del evento (ej. "STAFF_NEW_WEB_BOOKING") — ver StaffEventKey
+  // en src/lib/staff-notify.ts. String, no enum: igual que CommunicationAuditLog,
+  // para poder agregar eventos sin migración.
+  event     String
+  title     String
+  body      String    @db.Text
+  href      String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([shopId, userId, readAt, createdAt])
+  @@schema("garageos")
+}
+
+/**
+ * Preferencia por usuario y por tipo de evento: verlo en la app, recibirlo
+ * también por email, o ambos. Sin fila = default (in-app y email activos) —
+ * ver DEFAULT_STAFF_NOTIFICATION_PREFERENCE en src/lib/staff-notify.ts.
+ */
+model UserNotificationPreference {
+  id     String  @id @default(cuid())
+  userId String
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event  String
+  inApp  Boolean @default(true)
+  email  Boolean @default(true)
+
+  @@unique([userId, event])
   @@schema("garageos")
 }

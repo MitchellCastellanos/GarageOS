@@ -3,24 +3,29 @@ import { db } from "@/lib/db";
 import { verifyResendWebhookSignature } from "@/lib/communications/resend-webhook";
 import { resolveShopIdByInboundAddress } from "@/lib/communications/sender-identity";
 import { uploadCommunicationAttachment } from "@/lib/storage";
+import { handleResendStatusEvent } from "@/lib/communications/email-status";
 
 /**
- * Email entrante de Resend — Fase 4 de Communications Platform, NO ACTIVADA.
+ * Webhook único de Resend — un mismo endpoint recibe todos los tipos de evento
+ * que el taller/GarageOS suscriba en el dashboard de Resend con un solo secreto.
  *
- * Por qué está inactiva: requiere que el usuario configure recepción de correo en un
- * dominio real de Resend y agregue el webhook en su dashboard — nada de eso existe en
- * este entorno. El endpoint solo procesa algo cuando RESEND_INBOUND_WEBHOOK_SECRET está
- * configurado; sin esa variable responde 404 y no hace nada.
+ * - email.delivered / email.bounced / email.complained: ACTIVO. Actualiza el
+ *   estado de CommunicationMessage y, si un aviso automático (cita, vehículo
+ *   listo) rebota, lo reintenta por SMS — ver src/lib/communications/email-status.ts.
+ * - email.received (correo entrante → Inbox): Fase 4 de Communications
+ *   Platform, NO ACTIVADA. Requiere que el taller configure recepción de
+ *   correo en un dominio real de Resend. Las rutas de la API usadas abajo
+ *   (`/emails/inbound/{id}` y `/emails/inbound/{id}/attachments`) se armaron a
+ *   partir de la documentación pública de Resend, pero no se pudieron
+ *   verificar contra la referencia viva porque resend.com no es alcanzable
+ *   desde este sandbox. Confírmalas contra https://resend.com/docs antes de
+ *   depender de esta parte en producción.
  *
- * ADVERTENCIA para quien active esto: las rutas de la API de Resend usadas abajo
- * (`/emails/inbound/{id}` y `/emails/inbound/{id}/attachments`) se armaron a partir de
- * la documentación pública de Resend (el webhook solo trae metadata; el contenido y los
- * adjuntos se piden aparte), pero no se pudieron verificar contra la referencia viva de
- * la API porque resend.com no es alcanzable desde este sandbox. Confírmalas contra
- * https://resend.com/docs antes de depender de este endpoint en producción.
+ * Sin RESEND_WEBHOOK_SECRET (o su alias legado RESEND_INBOUND_WEBHOOK_SECRET),
+ * el endpoint entero responde 404 y no hace nada.
  */
 export async function POST(req: Request) {
-  const secret = process.env.RESEND_INBOUND_WEBHOOK_SECRET;
+  const secret = process.env.RESEND_WEBHOOK_SECRET || process.env.RESEND_INBOUND_WEBHOOK_SECRET;
   if (!secret) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
@@ -36,15 +41,34 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
-  let event: { type?: string; data?: { email_id?: string; to?: string[]; from?: string } };
+  let event: {
+    type?: string;
+    data?: {
+      email_id?: string;
+      to?: string[];
+      from?: string;
+      bounce?: { message?: string; type?: string };
+      complaint?: { type?: string };
+    };
+  };
   try {
     event = JSON.parse(rawBody);
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  if (event.type !== "email.received" || !event.data?.email_id) {
+  if (!event.type || !event.data?.email_id) {
     return NextResponse.json({ ok: true, skipped: true });
+  }
+
+  if (event.type !== "email.received") {
+    const result = await handleResendStatusEvent({
+      type: event.type,
+      emailId: event.data.email_id,
+      to: event.data.to,
+      reason: event.data.bounce?.message ?? event.data.bounce?.type ?? event.data.complaint?.type ?? null,
+    });
+    return NextResponse.json({ ok: true, result });
   }
 
   const toAddress = event.data.to?.[0]?.toLowerCase().trim();

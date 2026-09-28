@@ -25,6 +25,35 @@ export interface SettingsDictionary {
     saving: string;
     saved: string;
   };
+  smsNumber: {
+    title: string;
+    subtitle: string;
+    dedicatedLabel: string;
+    sharedLabel: string;
+    sharedBody: string;
+    noSmsBody: string;
+    provisioningBody: string;
+    releaseScheduled: (date: string) => string;
+    twoWayHint: string;
+    requestButton: string;
+    requestSent: string;
+    requestMessage: string;
+    usageTitle: string;
+    usageLine: (used: number, allowance: number) => string;
+    usageRenews: (date: string) => string;
+    usageFullHint: string;
+    segmentsHint: string;
+    optedOut: (count: number) => string;
+  };
+  staffNotificationPreferences: {
+    title: string;
+    subtitle: string;
+    columnInApp: string;
+    columnEmail: string;
+    saved: string;
+    error: string;
+    atLeastOneChannel: string;
+  };
   workOrderNotifications: {
     title: string;
     emailLabel: string;
@@ -475,18 +504,49 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       reminderHours: "Horas antes de la cita",
       reminderHoursHint: "El cron envía recordatorio cuando falten estas horas (por defecto 24 h)",
       smsLabel: "Enviar notificaciones de citas por SMS (canal principal)",
-      emailNotifLabel: "Enviar también por email (secundario)",
+      emailNotifLabel: "Usar email como respaldo (cuando no hay teléfono o el SMS falla)",
       smsHint:
         "El SMS requiere una cuenta de Twilio configurada por el equipo técnico (TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN / TWILIO_FROM_NUMBER).",
       save: "Guardar cambios",
       saving: "Guardando...",
       saved: "Configuración guardada",
     },
+    smsNumber: {
+      title: "SMS — número y uso",
+      subtitle: "Desde qué número salen tus SMS y cuánto llevas este mes.",
+      dedicatedLabel: "Número propio del taller",
+      sharedLabel: "Número compartido de GarageOS",
+      sharedBody:
+        "Tus avisos salen de un número compartido: funcionan, pero los clientes no pueden conversar contigo por SMS. Con un número propio, sus respuestas llegan a tu Bandeja de entrada.",
+      noSmsBody: "El SMS no está configurado todavía; los avisos salen por email.",
+      provisioningBody: "Estamos activando tu número propio. Te avisaremos cuando esté listo.",
+      releaseScheduled: (date) => `Tu suscripción no está activa: el número se liberará el ${date} si no se reactiva.`,
+      twoWayHint: "Los clientes pueden responder a este número; sus mensajes llegan a la Bandeja de entrada.",
+      requestButton: "Solicitar número propio",
+      requestSent: "Solicitud enviada — el equipo de GarageOS te contactará por Ayuda.",
+      requestMessage: "Hola, quisiera activar un número SMS propio para mi taller (SMS bidireccional).",
+      usageTitle: "Uso de SMS este mes",
+      usageLine: (used, allowance) => `${used} de ${allowance} segmentos`,
+      usageRenews: (date) => `Se renueva el ${date}.`,
+      usageFullHint: "Cupo agotado: los SMS siguen enviándose; los segmentos de más se facturan a $0.05 CAD cada uno.",
+      segmentsHint:
+        "Un SMS de hasta 160 caracteres es 1 segmento; con acentos como ê, ô o ç el límite baja a 70 por segmento.",
+      optedOut: (count) => `${count} contacto${count !== 1 ? "s" : ""} respondieron STOP y no reciben SMS.`,
+    },
+    staffNotificationPreferences: {
+      title: "Alertas internas del equipo",
+      subtitle: "Cómo quieres enterarte tú (no tus clientes) de cita nueva, cancelación, cotización decidida y avisos de SMS.",
+      columnInApp: "En la app",
+      columnEmail: "Por email",
+      saved: "Preferencia guardada",
+      error: "No se pudo guardar",
+      atLeastOneChannel: "Deja al menos un canal activo",
+    },
     workOrderNotifications: {
       title: "Órdenes de trabajo — avisar cuando el vehículo esté listo",
       emailLabel: "Notificar por email al marcar \"Listo para retirar\"",
       smsLabel: "Notificar por SMS al marcar \"Listo para retirar\"",
-      hint: "Se envía una sola vez por orden de trabajo, reutilizando el email/teléfono del cliente.",
+      hint: "Se envía una sola vez por orden y por un solo canal: SMS si está activo y el cliente tiene teléfono; si no, email.",
       save: "Guardar cambios",
       saving: "Guardando...",
       saved: "Configuración guardada",
@@ -893,18 +953,49 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       reminderHours: "Hours before the appointment",
       reminderHoursHint: "The cron sends a reminder when this many hours are left (default 24h)",
       smsLabel: "Send appointment notifications by SMS (main channel)",
-      emailNotifLabel: "Also send by email (secondary)",
+      emailNotifLabel: "Use email as a fallback (when there is no phone or the SMS fails)",
       smsHint:
         "SMS requires a Twilio account set up by the technical team (TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN / TWILIO_FROM_NUMBER).",
       save: "Save changes",
       saving: "Saving...",
       saved: "Settings saved",
     },
+    smsNumber: {
+      title: "SMS — number and usage",
+      subtitle: "Which number your texts come from and how much you've used this month.",
+      dedicatedLabel: "Your shop's own number",
+      sharedLabel: "Shared GarageOS number",
+      sharedBody:
+        "Your notices go out from a shared number: they work, but clients can't text you back. With your own number, their replies arrive in your Inbox.",
+      noSmsBody: "SMS isn't set up yet; notices go out by email.",
+      provisioningBody: "We're activating your own number. We'll let you know when it's ready.",
+      releaseScheduled: (date) => `Your subscription isn't active: this number will be released on ${date} unless it's reactivated.`,
+      twoWayHint: "Clients can reply to this number; their messages arrive in your Inbox.",
+      requestButton: "Request my own number",
+      requestSent: "Request sent — the GarageOS team will follow up under Help.",
+      requestMessage: "Hi, I'd like to activate a dedicated SMS number for my shop (two-way SMS).",
+      usageTitle: "SMS usage this month",
+      usageLine: (used, allowance) => `${used} of ${allowance} segments`,
+      usageRenews: (date) => `Renews on ${date}.`,
+      usageFullHint: "Allowance used up: SMS keep sending; extra segments are billed at $0.05 CAD each.",
+      segmentsHint:
+        "A text of up to 160 characters is 1 segment; accents like ê, ô or ç lower that to 70 per segment.",
+      optedOut: (count) => `${count} contact${count !== 1 ? "s" : ""} replied STOP and won't receive SMS.`,
+    },
+    staffNotificationPreferences: {
+      title: "Internal team alerts",
+      subtitle: "How you (not your clients) want to hear about new bookings, cancellations, quote decisions and SMS notices.",
+      columnInApp: "In the app",
+      columnEmail: "By email",
+      saved: "Preference saved",
+      error: "Could not save",
+      atLeastOneChannel: "Leave at least one channel on",
+    },
     workOrderNotifications: {
       title: "Work orders — notify when the vehicle is ready",
       emailLabel: 'Notify by email when marked "Ready for pickup"',
       smsLabel: 'Notify by SMS when marked "Ready for pickup"',
-      hint: "Sent once per work order, reusing the client's email/phone on file.",
+      hint: "Sent once per work order through a single channel: SMS when enabled and the client has a phone; otherwise email.",
       save: "Save changes",
       saving: "Saving...",
       saved: "Settings saved",
@@ -1309,18 +1400,49 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       reminderHours: "Heures avant le rendez-vous",
       reminderHoursHint: "La tâche planifiée envoie un rappel quand il reste ce nombre d'heures (24 h par défaut)",
       smsLabel: "Envoyer les notifications de rendez-vous par SMS (canal principal)",
-      emailNotifLabel: "Envoyer aussi par courriel (secondaire)",
+      emailNotifLabel: "Utiliser le courriel en secours (sans téléphone ou si le SMS échoue)",
       smsHint:
         "Le SMS nécessite un compte Twilio configuré par l'équipe technique (TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN / TWILIO_FROM_NUMBER).",
       save: "Enregistrer les changements",
       saving: "Enregistrement...",
       saved: "Configuration enregistrée",
     },
+    smsNumber: {
+      title: "SMS — numéro et utilisation",
+      subtitle: "De quel numéro partent vos SMS et combien vous en avez utilisé ce mois-ci.",
+      dedicatedLabel: "Numéro propre à l'atelier",
+      sharedLabel: "Numéro partagé GarageOS",
+      sharedBody:
+        "Vos avis partent d'un numéro partagé : ils fonctionnent, mais vos clients ne peuvent pas vous répondre par SMS. Avec votre propre numéro, leurs réponses arrivent dans votre boîte de réception.",
+      noSmsBody: "Les SMS ne sont pas encore configurés; les avis partent par courriel.",
+      provisioningBody: "Nous activons votre numéro. Nous vous aviserons dès qu'il sera prêt.",
+      releaseScheduled: (date) => `Votre abonnement n'est pas actif : ce numéro sera libéré le ${date} s'il n'est pas réactivé.`,
+      twoWayHint: "Vos clients peuvent répondre à ce numéro; leurs messages arrivent dans votre boîte de réception.",
+      requestButton: "Demander mon propre numéro",
+      requestSent: "Demande envoyée — l'équipe GarageOS vous répondra dans Aide.",
+      requestMessage: "Bonjour, j'aimerais activer un numéro SMS dédié pour mon atelier (SMS bidirectionnels).",
+      usageTitle: "Utilisation des SMS ce mois-ci",
+      usageLine: (used, allowance) => `${used} sur ${allowance} segments`,
+      usageRenews: (date) => `Renouvellement le ${date}.`,
+      usageFullHint: "Forfait épuisé : les SMS continuent d'être envoyés; les segments en trop sont facturés 0,05 $ CAD chacun.",
+      segmentsHint:
+        "Un SMS de 160 caractères ou moins compte pour 1 segment; les accents comme ê, ô ou ç réduisent la limite à 70.",
+      optedOut: (count) => `${count} contact${count !== 1 ? "s" : ""} ont répondu STOP et ne reçoivent plus de SMS.`,
+    },
+    staffNotificationPreferences: {
+      title: "Alertes internes de l'équipe",
+      subtitle: "Comment vous (pas vos clients) voulez être avisé d'une nouvelle réservation, d'une annulation, d'une soumission décidée et des avis SMS.",
+      columnInApp: "Dans l'application",
+      columnEmail: "Par courriel",
+      saved: "Préférence enregistrée",
+      error: "Impossible d'enregistrer",
+      atLeastOneChannel: "Laissez au moins un canal actif",
+    },
     workOrderNotifications: {
       title: "Ordres de travail — aviser quand le véhicule est prêt",
       emailLabel: "Notifier par courriel lorsque marqué « Prêt pour la récupération »",
       smsLabel: "Notifier par SMS lorsque marqué « Prêt pour la récupération »",
-      hint: "Envoyé une seule fois par ordre de travail, en réutilisant le courriel/téléphone du client.",
+      hint: "Envoyé une seule fois par ordre et par un seul canal : SMS s'il est activé et que le client a un téléphone, sinon courriel.",
       save: "Enregistrer les changements",
       saving: "Enregistrement...",
       saved: "Configuration enregistrée",

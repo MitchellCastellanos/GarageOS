@@ -9,6 +9,8 @@ import { AdminLocaleProvider } from "@/components/admin/AdminLocaleProvider";
 import { getAccessibleShops } from "@/actions/locations";
 import { can } from "@/lib/subscription";
 import { hasUnreadSupportMessage } from "@/actions/support";
+import { hasUnreadInboxThreads } from "@/lib/communications/inbox";
+import { getMyStaffNotifications } from "@/actions/staff-notifications";
 import { ImpersonationBanner } from "@/components/admin/ImpersonationBanner";
 import { EmailVerificationBanner } from "@/components/admin/EmailVerificationBanner";
 
@@ -31,7 +33,7 @@ export default async function DashboardLayout({
     redirect(ADMIN.login);
   }
 
-  const [shop, locale, accessibleShops, inventoryEntitled, campaignsEntitled, currentUser, hasUnreadSupport] = await Promise.all([
+  const [shop, locale, accessibleShops, inventoryEntitled, campaignsEntitled, currentUser, hasUnreadSupport, hasUnreadInbox, staffNotifications] = await Promise.all([
     db.shop.findUnique({
       where: { id: session.user.shopId },
       select: { name: true, logoUrl: true, onboardingCompletedAt: true },
@@ -45,6 +47,8 @@ export default async function DashboardLayout({
       select: { email: true, emailVerified: true },
     }),
     hasUnreadSupportMessage(session.user.shopId),
+    hasUnreadInboxThreads(session.user.shopId),
+    getMyStaffNotifications(),
   ]);
 
   // Solo el dueño completa el asistente de arranque — no bloquea al staff
@@ -72,6 +76,10 @@ export default async function DashboardLayout({
         currentShopId={session.user.shopId}
         lockedNavHrefs={lockedNavHrefs}
         hasUnreadSupport={hasUnreadSupport}
+        hasUnreadInbox={hasUnreadInbox}
+        userId={session.user.id}
+        initialNotifications={staffNotifications.notifications}
+        initialUnreadNotifications={staffNotifications.unreadCount}
       >
         {children}
       </AdminChrome>

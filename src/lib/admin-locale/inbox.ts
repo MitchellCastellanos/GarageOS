@@ -52,6 +52,25 @@ export interface InboxDictionary {
     toastReplySent: string;
     toastArchived: string;
   };
+  sms: {
+    channelSms: string;
+    channelEmail: string;
+    unread: string;
+    replyTitle: string;
+    bodyPlaceholder: string;
+    send: string;
+    sending: string;
+    segments: (count: number, special: boolean) => string;
+    toastSent: string;
+    noDedicatedNumber: string;
+    optedOut: string;
+    newSmsButton: string;
+    dialogTitle: string;
+    dialogSubtitle: string;
+    phoneLabel: string;
+    phonePlaceholder: string;
+    cancel: string;
+  };
   editor: {
     bold: string;
     italic: string;
@@ -123,6 +142,27 @@ export const INBOX_DICT: Record<AdminLocale, InboxDictionary> = {
       toastReplySent: "Respuesta enviada",
       toastArchived: "Conversación archivada",
     },
+    sms: {
+      channelSms: "SMS",
+      channelEmail: "Email",
+      unread: "Sin leer",
+      replyTitle: "Responder por SMS",
+      bodyPlaceholder: "Escribe tu mensaje…",
+      send: "Enviar SMS",
+      sending: "Enviando…",
+      segments: (count, special) =>
+        `${count} segmento${count !== 1 ? "s" : ""}${special ? " · caracteres especiales (70 por segmento)" : ""}`,
+      toastSent: "SMS enviado",
+      noDedicatedNumber:
+        "Para conversar por SMS el taller necesita un número propio. Solicítalo en Configuración → Notificaciones.",
+      optedOut: "Este contacto respondió STOP: no puede recibir SMS hasta que responda START.",
+      newSmsButton: "Nuevo SMS",
+      dialogTitle: "Nuevo SMS",
+      dialogSubtitle: "Se envía desde el número del taller; las respuestas llegan a esta bandeja.",
+      phoneLabel: "Teléfono",
+      phonePlaceholder: "+1 514 555 1234",
+      cancel: "Cancelar",
+    },
     editor: {
       bold: "Negrita",
       italic: "Cursiva",
@@ -192,6 +232,27 @@ export const INBOX_DICT: Record<AdminLocale, InboxDictionary> = {
       toastReplySent: "Reply sent",
       toastArchived: "Conversation archived",
     },
+    sms: {
+      channelSms: "SMS",
+      channelEmail: "Email",
+      unread: "Unread",
+      replyTitle: "Reply by SMS",
+      bodyPlaceholder: "Type your message…",
+      send: "Send SMS",
+      sending: "Sending…",
+      segments: (count, special) =>
+        `${count} segment${count !== 1 ? "s" : ""}${special ? " · special characters (70 per segment)" : ""}`,
+      toastSent: "SMS sent",
+      noDedicatedNumber:
+        "Two-way SMS needs a dedicated shop number. Request one under Settings → Notifications.",
+      optedOut: "This contact replied STOP: they can't receive SMS until they reply START.",
+      newSmsButton: "New SMS",
+      dialogTitle: "New SMS",
+      dialogSubtitle: "Sent from your shop number; replies arrive in this inbox.",
+      phoneLabel: "Phone",
+      phonePlaceholder: "+1 514 555 1234",
+      cancel: "Cancel",
+    },
     editor: {
       bold: "Bold",
       italic: "Italic",
@@ -260,6 +321,27 @@ export const INBOX_DICT: Record<AdminLocale, InboxDictionary> = {
       maxAttachments: (max) => `Maximum ${max} pièces jointes`,
       toastReplySent: "Réponse envoyée",
       toastArchived: "Conversation archivée",
+    },
+    sms: {
+      channelSms: "SMS",
+      channelEmail: "Courriel",
+      unread: "Non lu",
+      replyTitle: "Répondre par SMS",
+      bodyPlaceholder: "Écrivez votre message…",
+      send: "Envoyer le SMS",
+      sending: "Envoi…",
+      segments: (count, special) =>
+        `${count} segment${count !== 1 ? "s" : ""}${special ? " · caractères spéciaux (70 par segment)" : ""}`,
+      toastSent: "SMS envoyé",
+      noDedicatedNumber:
+        "Les SMS bidirectionnels exigent un numéro dédié. Demandez-en un dans Paramètres → Notifications.",
+      optedOut: "Ce contact a répondu STOP : il ne peut plus recevoir de SMS tant qu'il ne répond pas START.",
+      newSmsButton: "Nouveau SMS",
+      dialogTitle: "Nouveau SMS",
+      dialogSubtitle: "Envoyé depuis le numéro de l'atelier; les réponses arrivent dans cette boîte.",
+      phoneLabel: "Téléphone",
+      phonePlaceholder: "+1 514 555 1234",
+      cancel: "Annuler",
     },
     editor: {
       bold: "Gras",

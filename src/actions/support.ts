@@ -7,6 +7,7 @@ import { ADMIN } from "@/lib/routes";
 import { publishPlatformMessage, publishPlatformConversationUpdate } from "@/lib/platform/pusher";
 import { sendPlatformTelegramAlert } from "@/lib/platform/telegram";
 import { notifySupportMessageReceived, notifyAdminNewSupportMessage } from "@/lib/platform/notify";
+import { resolveSupportRecipient } from "@/lib/platform/support-recipient";
 
 /**
  * Mensajería del taller hacia GarageOS (soporte) — lado del taller. La
@@ -91,10 +92,15 @@ export async function sendSupportMessage(content: string) {
   });
   await publishPlatformConversationUpdate(conversation.id);
 
-  if (isNewConversation && shop.email) {
-    await notifySupportMessageReceived({ to: shop.email, shopId: shop.id, shopName: shop.name, message: trimmed }).catch((err) =>
-      console.error("[support] notifySupportMessageReceived falló:", err)
-    );
+  if (isNewConversation) {
+    // El acuse va a quien escribió (correo de login, ya verificado) — no al
+    // Shop.email crudo, que puede no estar confirmado.
+    const to = await resolveSupportRecipient(shop.id, session.user.id);
+    if (to) {
+      await notifySupportMessageReceived({ to, shopId: shop.id, shopName: shop.name, message: trimmed }).catch((err) =>
+        console.error("[support] notifySupportMessageReceived falló:", err)
+      );
+    }
   }
 
   // Solo alertamos una vez por espera — igual que MSC (evita spamear al equipo si el taller manda varios mensajes seguidos).

@@ -42,7 +42,7 @@ Función usable de órdenes de trabajo sobre `WorkOrder`, `WorkOrderLine` y el s
 
 - **VIN lookup/scanning: fuera.** No se planea construir funcionalidad VIN como requisito del producto.
 - **Work Board / kanban: fuera de V1.** El flujo principal será controlado por front desk/admin mediante estados simples.
-- **Two-way SMS: futuro.** V1 puede enviar notificaciones y recordatorios; conversación SMS bidireccional queda para una etapa posterior.
+- **Two-way SMS: implementado** para talleres con número dedicado (aprovisionado por GarageOS); ver `docs/notifications.md`.
 - **Purchase Orders / Suppliers: fuera del alcance actual.** No construir por ahora.
 - **Full accounting: fuera.** Preferir accounting light + integración con QuickBooks.
 - **Public API: futuro.** Mantener como `coming soon` hasta después de cerrar el producto principal.

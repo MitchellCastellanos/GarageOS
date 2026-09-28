@@ -53,6 +53,10 @@ export interface SiteDictionary {
     fullName: string;
     phone: string;
     emailOptional: string;
+    notifyChannelLabel: string;
+    notifyChannelSms: string;
+    notifyChannelEmail: string;
+    notifyChannelBoth: string;
     serviceRequested: string;
     serviceOptions: { value: string; label: string }[];
     selectPlaceholder: string;
@@ -103,6 +107,13 @@ export interface SiteDictionary {
     alreadyConfirmedNotice: string;
     alreadyConfirmedAt: string;
     statuses: Record<"SCHEDULED" | "CONFIRMED" | "COMPLETED" | "CANCELLED" | "NO_SHOW", string>;
+    notifyPrefTitle: string;
+    notifyPrefSaved: string;
+    notifyPrefError: string;
+    notifyPrefNeedsEmail: string;
+    notifyPrefSms: string;
+    notifyPrefEmail: string;
+    notifyPrefBoth: string;
   };
 }
 
@@ -155,6 +166,10 @@ export const SITE_DICTIONARIES: Record<SiteLocale, SiteDictionary> = {
       fullName: "Nom complet *",
       phone: "Téléphone *",
       emailOptional: "Courriel (optionnel)",
+      notifyChannelLabel: "Comment voulez-vous être avisé(e) ?",
+      notifyChannelSms: "Par SMS",
+      notifyChannelEmail: "Par courriel",
+      notifyChannelBoth: "Les deux",
       serviceRequested: "Service demandé *",
       serviceOptions: [
         { value: "oil_change", label: "Changement d'huile" },
@@ -218,6 +233,13 @@ export const SITE_DICTIONARIES: Record<SiteLocale, SiteDictionary> = {
       rescheduleNoPhone: "Contactez-nous si vous souhaitez reprogrammer.",
       confirmButton: "Confirmer ma présence",
       cancelButton: "Annuler le rendez-vous",
+      notifyPrefTitle: "Comment voulez-vous être avisé(e) de vos prochains rendez-vous ?",
+      notifyPrefSaved: "Préférence enregistrée",
+      notifyPrefError: "Impossible d'enregistrer votre préférence",
+      notifyPrefNeedsEmail: "Ajoutez un courriel dans votre dossier pour choisir cette option — appelez le garage.",
+      notifyPrefSms: "Par SMS",
+      notifyPrefEmail: "Par courriel",
+      notifyPrefBoth: "Les deux",
       alreadyConfirmedNotice:
         "Votre rendez-vous est déjà confirmé. Pour un changement de date ou d'heure, contactez le garage",
       alreadyConfirmedAt: " au ",
@@ -278,6 +300,10 @@ export const SITE_DICTIONARIES: Record<SiteLocale, SiteDictionary> = {
       fullName: "Full name *",
       phone: "Phone *",
       emailOptional: "Email (optional)",
+      notifyChannelLabel: "How should we contact you?",
+      notifyChannelSms: "By text",
+      notifyChannelEmail: "By email",
+      notifyChannelBoth: "Both",
       serviceRequested: "Requested service *",
       serviceOptions: [
         { value: "oil_change", label: "Oil change" },
@@ -340,6 +366,13 @@ export const SITE_DICTIONARIES: Record<SiteLocale, SiteDictionary> = {
       rescheduleNoPhone: "Contact us if you'd like to reschedule.",
       confirmButton: "Confirm attendance",
       cancelButton: "Cancel appointment",
+      notifyPrefTitle: "How should we notify you about your future appointments?",
+      notifyPrefSaved: "Preference saved",
+      notifyPrefError: "Could not save your preference",
+      notifyPrefNeedsEmail: "Add an email to your file to pick this option — call the shop.",
+      notifyPrefSms: "By text",
+      notifyPrefEmail: "By email",
+      notifyPrefBoth: "Both",
       alreadyConfirmedNotice:
         "Your appointment is already confirmed. For date or time changes, contact the shop",
       alreadyConfirmedAt: " at ",
@@ -400,6 +433,10 @@ export const SITE_DICTIONARIES: Record<SiteLocale, SiteDictionary> = {
       fullName: "Nombre completo *",
       phone: "Teléfono *",
       emailOptional: "Email (opcional)",
+      notifyChannelLabel: "¿Cómo quieres que te avisemos?",
+      notifyChannelSms: "Por SMS",
+      notifyChannelEmail: "Por email",
+      notifyChannelBoth: "Los dos",
       serviceRequested: "Servicio solicitado *",
       serviceOptions: [
         { value: "oil_change", label: "Cambio de aceite" },
@@ -462,6 +499,13 @@ export const SITE_DICTIONARIES: Record<SiteLocale, SiteDictionary> = {
       rescheduleNoPhone: "Contáctanos si deseas reprogramar.",
       confirmButton: "Confirmar asistencia",
       cancelButton: "Cancelar cita",
+      notifyPrefTitle: "¿Cómo quieres que te avisemos de tus próximas citas?",
+      notifyPrefSaved: "Preferencia guardada",
+      notifyPrefError: "No se pudo guardar tu preferencia",
+      notifyPrefNeedsEmail: "Agrega un email a tu ficha para elegir esta opción — llama al taller.",
+      notifyPrefSms: "Por SMS",
+      notifyPrefEmail: "Por email",
+      notifyPrefBoth: "Los dos",
       alreadyConfirmedNotice:
         "Tu cita ya está confirmada. Para cambios de fecha u horario, contacta al taller",
       alreadyConfirmedAt: " al ",

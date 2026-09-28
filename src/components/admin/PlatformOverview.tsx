@@ -3,10 +3,11 @@
 import { ADMIN, PLATFORM, adminPath } from "@/lib/routes";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { createShop } from "@/actions/platform";
-import { Loader2, Building2, ChevronRight, Plus } from "lucide-react";
+import { Loader2, Building2, ChevronRight, Plus, MessageSquare } from "lucide-react";
 
 type ShopRow = {
   id: string;
@@ -15,9 +16,11 @@ type ShopRow = {
   phone: string | null;
   _count: { users: number; clients: number; invoices: number };
   users: { id: string; name: string; email: string; role: string }[];
+  smsNumber: { status: string } | null;
 };
 
 export function PlatformOverview({ shops }: { shops: ShopRow[] }) {
+  const router = useRouter();
   const [showCreate, setShowCreate] = useState(false);
   const [pending, startTransition] = useTransition();
 
@@ -79,10 +82,15 @@ export function PlatformOverview({ shops }: { shops: ShopRow[] }) {
         {shops.map((shop) => {
           const owner = shop.users.find((u) => u.role === "OWNER");
           return (
-            <Link
+            <div
               key={shop.id}
-              href={PLATFORM.shop(shop.id)}
-              className="bg-white border border-slate-200 rounded-xl p-5 hover:border-amber-300 hover:shadow-sm transition-all flex items-center justify-between gap-4"
+              role="link"
+              tabIndex={0}
+              onClick={() => router.push(PLATFORM.shop(shop.id))}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") router.push(PLATFORM.shop(shop.id));
+              }}
+              className="bg-white border border-slate-200 rounded-xl p-5 hover:border-amber-300 hover:shadow-sm transition-all flex items-center justify-between gap-4 cursor-pointer"
             >
               <div className="flex items-start gap-4 min-w-0">
                 <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
@@ -98,8 +106,19 @@ export function PlatformOverview({ shops }: { shops: ShopRow[] }) {
                   </p>
                 </div>
               </div>
-              <ChevronRight className="w-5 h-5 text-slate-300 shrink-0" />
-            </Link>
+              <div className="flex items-center gap-3 shrink-0">
+                {shop.smsNumber?.status === "REQUESTED" && (
+                  <Link
+                    href={`${PLATFORM.shop(shop.id)}?tab=sms`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="flex items-center gap-1.5 px-2.5 py-1 bg-teal-50 border border-teal-200 text-teal-800 rounded-full text-xs font-medium hover:bg-teal-100"
+                  >
+                    <MessageSquare className="w-3.5 h-3.5" /> SMS pedido
+                  </Link>
+                )}
+                <ChevronRight className="w-5 h-5 text-slate-300 shrink-0" />
+              </div>
+            </div>
           );
         })}
       </div>

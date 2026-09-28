@@ -75,8 +75,8 @@ Legend:
 | DVI photos / media / reusable templates | — | Included | Included |
 | Basic maintenance reminders | Included | Advanced | Advanced |
 | Branded email communications | Included | Included | Included |
-| SMS notifications | Allowance | Larger allowance | Largest allowance |
-| Two-way SMS | Future | Future | Future |
+| SMS notifications | Allowance (300 segments/mo, provisional) + overage at $0.05 CAD/segment | Larger allowance (1,000, provisional) + overage | Largest allowance (2,500, provisional) + overage |
+| Two-way SMS (dedicated shop number, provisioned by GarageOS) | Included | Included | Included |
 | Customer Portal | Future / Included | Future / Included | Future / Included |
 | Shop branding on customer documents | Included | Included | Included |
 | Hosted GarageOS booking/shop page (Classic template, logo, brand color, 2 shop photos, real services/icons/featured) | Included | Included | Included |
@@ -189,7 +189,7 @@ Those are the core system of record and should become more valuable as the shop 
 
 The following may eventually require metering because GarageOS incurs direct cost:
 
-- SMS sends and future two-way SMS;
+- SMS sends (allowance + paid overage) — two-way SMS itself is included once a shop has a dedicated number, not metered separately;
 - AI features;
 - exceptionally high media/storage use;
 - third-party paid API calls;
@@ -269,9 +269,11 @@ The exact names can change during implementation, but the concepts should stay s
   already exist in the product: `inventory.manage`, `communications.campaigns`,
   `branding.customDomain`, `branding.customSender`, `organization.multiLocation`,
   `bookingPage.advancedDesign` (the implemented slice of `branding.shopSite`),
-  plus the `users.limit` seat cap. Everything still marked "Future" above
-  (two-way SMS, public API, QuickBooks sync, advanced reports/DVI, etc.) has
-  no gate yet because the feature itself doesn't exist in code.
+  plus the `users.limit` seat cap. Two-way SMS is implemented (see
+  `docs/notifications.md`) but not yet plan-gated — every shop with a
+  dedicated number can use it regardless of plan. Everything else still
+  marked "Future" above (public API, QuickBooks sync, advanced reports/DVI,
+  etc.) has no gate yet because the feature itself doesn't exist in code.
 - `src/config/entitlements.ts` is the single source of truth for
   plan → capability mapping (`CAPABILITY_MIN_PLAN`) and per-plan numeric
   limits (`PLAN_LIMITS`). `src/lib/subscription.ts` resolves a shop's

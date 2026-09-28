@@ -1,17 +1,28 @@
-import twilio from "twilio";
-import { recordAndSend } from "@/lib/communications/outbox";
-import { resolveSenderIdentity } from "@/lib/communications/sender-identity";
+import type { CommMessageType } from "@prisma/client";
+import { recordAndSend, type RecordAndSendResult } from "@/lib/communications/outbox";
+import { getTwilioClientFor, TWILIO_STATUS_PATH, twilioWebhookUrl } from "@/lib/communications/twilio";
+import { resolveShopSmsSender } from "@/lib/communications/sms-numbers";
+import { isSuppressed } from "@/lib/communications/suppression";
+import { checkSmsUsageAlerts, planSmsOverage } from "@/lib/communications/sms-usage";
+import { getEffectiveSubscription } from "@/lib/subscription";
+import { countSmsSegments } from "@/domain/sms";
 import { toE164 } from "@/lib/phone";
 
 export { toE164 };
 
-function getTwilioClient() {
-  const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
-  if (!accountSid || !authToken) {
-    throw new Error("Twilio is not configured (TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN)");
+/** El cliente respondió STOP a este taller — el operador bloquearía el SMS de todos modos. */
+export class SmsOptedOutError extends Error {
+  constructor(phone: string) {
+    super(`The recipient opted out of SMS (${phone}).`);
+    this.name = "SmsOptedOutError";
   }
-  return twilio(accountSid, authToken);
+}
+
+export class SmsNotAvailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SmsNotAvailableError";
+  }
 }
 
 export interface SendSmsParams {
@@ -19,18 +30,35 @@ export interface SendSmsParams {
   body: string;
   shopId: string;
   purpose: string;
-  clientId?: string;
+  clientId?: string | null;
+  threadId?: string | null;
+  messageType?: CommMessageType;
+  createdByUserId?: string;
   businessEntityType?: string;
   businessEntityId?: string;
   idempotencyKey?: string;
+  /** Conversación bidireccional: exige número dedicado (las respuestas deben volver al taller). */
+  requireDedicatedNumber?: boolean;
 }
 
-export async function sendSms(params: SendSmsParams): Promise<void> {
-  const identity = await resolveSenderIdentity(params.shopId, params.purpose, "SMS");
-  const rawFrom = identity?.address ?? process.env.TWILIO_FROM_NUMBER;
-  const from = rawFrom ? toE164(rawFrom) : null;
-  if (!from) {
-    throw new Error("TWILIO_FROM_NUMBER is not configured or invalid");
+function statusCallbackUrl(): string | undefined {
+  const url = twilioWebhookUrl(TWILIO_STATUS_PATH);
+  // Twilio no puede llamar a localhost — sin URL pública no se pide callback.
+  return url.startsWith("https://") ? url : undefined;
+}
+
+/**
+ * Punto único de envío de SMS. Sale desde el número dedicado del taller si lo
+ * tiene (en su subcuenta de Twilio) o desde el compartido; respeta STOP
+ * (lanza SmsOptedOutError para que el llamador caiga al email) y pide
+ * callbacks de entrega. El cupo mensual nunca bloquea el envío: los segmentos
+ * de más se cobran como excedente (ver planSmsOverage / reportSmsOverageUsage).
+ */
+export async function sendSms(params: SendSmsParams): Promise<RecordAndSendResult> {
+  const sender = await resolveShopSmsSender(params.shopId);
+  if (!sender) throw new SmsNotAvailableError("No SMS number is configured (TWILIO_FROM_NUMBER).");
+  if (params.requireDedicatedNumber && !sender.dedicated) {
+    throw new SmsNotAvailableError("Two-way SMS needs a dedicated number for this shop.");
   }
 
   const e164 = toE164(params.to);
@@ -38,26 +66,62 @@ export async function sendSms(params: SendSmsParams): Promise<void> {
     throw new Error(`Invalid phone number for SMS: ${params.to}`);
   }
 
-  await recordAndSend({
+  if (await isSuppressed(params.shopId, "SMS", e164)) {
+    throw new SmsOptedOutError(e164);
+  }
+
+  const { segments } = countSmsSegments(params.body);
+  const overage = await planSmsOverage(params.shopId, segments);
+
+  const result = await recordAndSend({
     shopId: params.shopId,
     clientId: params.clientId,
+    threadId: params.threadId,
     purpose: params.purpose,
     channel: "SMS",
     provider: "twilio",
-    from,
+    messageType: params.messageType,
+    createdByUserId: params.createdByUserId,
+    from: sender.from,
     to: [e164],
     textBody: params.body,
+    segments,
+    billedOverageSegments: overage.overageSegments,
     businessEntityType: params.businessEntityType,
     businessEntityId: params.businessEntityId,
     idempotencyKey: params.idempotencyKey,
     send: async () => {
-      const message = await getTwilioClient().messages.create({ to: e164, from, body: params.body });
-      return { providerMessageId: message.sid };
+      const message = await getTwilioClientFor(sender.subaccountSid).messages.create({
+        to: e164,
+        from: sender.from,
+        body: params.body,
+        statusCallback: statusCallbackUrl(),
+      });
+      const reported = Number(message.numSegments);
+      return { providerMessageId: message.sid, segments: Number.isFinite(reported) && reported > 0 ? reported : segments };
     },
   });
+
+  if (!result.deduped) {
+    if (overage.overageSegments > 0 && result.messageId) {
+      const { stripeCustomerId } = await getEffectiveSubscription(params.shopId);
+      if (stripeCustomerId) {
+        const { reportSmsOverageUsage } = await import("@/lib/stripe");
+        await reportSmsOverageUsage({ stripeCustomerId, segments: overage.overageSegments, messageId: result.messageId });
+      }
+    }
+
+    // Import diferido: staff-alerts es server-only (correo de plataforma).
+    await checkSmsUsageAlerts(params.shopId, async (alert) => {
+      const { alertStaffSmsUsage } = await import("@/lib/staff-alerts");
+      await alertStaffSmsUsage({ shopId: params.shopId, ...alert });
+    }).catch((err) => console.error(`[sms] alerta de uso falló (${params.shopId}):`, err));
+  }
+
+  return result;
 }
 
-export type AppointmentSmsType = "confirmation" | "reminder" | "cancellation";
+export type AppointmentSmsType = "confirmation" | "update" | "reminder" | "cancellation";
 export type SmsLanguage = "EN" | "FR";
 
 export interface AppointmentSmsData {
@@ -66,6 +130,8 @@ export interface AppointmentSmsData {
   shopId: string;
   clientId?: string;
   appointmentId?: string;
+  /** Distingue cada aviso de la misma cita (ej. id del AppointmentEvent) — sin esto, un segundo aviso del mismo tipo (reprogramación, reenvío) se deduplicaría contra el primero y nunca saldría. */
+  noticeKey?: string;
   shopName: string;
   title: string;
   startsAtFormatted: string;
@@ -81,6 +147,9 @@ const SMS_COPY: Record<SmsLanguage, Record<AppointmentSmsType, SmsCopyFn>> = {
     confirmation: (data) =>
       `${data.shopName}: appointment confirmed — ${data.title}, ${data.startsAtFormatted}.` +
       (data.manageUrl ? ` Confirm or cancel: ${data.manageUrl}` : ""),
+    update: (data) =>
+      `${data.shopName}: your appointment was updated — ${data.title}, ${data.startsAtFormatted}.` +
+      (data.manageUrl ? ` Confirm or cancel: ${data.manageUrl}` : ""),
     reminder: (data) =>
       `${data.shopName}: reminder of your appointment — ${data.title}, ${data.startsAtFormatted}.` +
       (data.manageUrl ? ` Confirm or cancel: ${data.manageUrl}` : ""),
@@ -91,6 +160,9 @@ const SMS_COPY: Record<SmsLanguage, Record<AppointmentSmsType, SmsCopyFn>> = {
   FR: {
     confirmation: (data) =>
       `${data.shopName} : rendez-vous confirmé — ${data.title}, ${data.startsAtFormatted}.` +
+      (data.manageUrl ? ` Confirmer ou annuler : ${data.manageUrl}` : ""),
+    update: (data) =>
+      `${data.shopName} : votre rendez-vous a été modifié — ${data.title}, ${data.startsAtFormatted}.` +
       (data.manageUrl ? ` Confirmer ou annuler : ${data.manageUrl}` : ""),
     reminder: (data) =>
       `${data.shopName} : rappel de votre rendez-vous — ${data.title}, ${data.startsAtFormatted}.` +
@@ -105,9 +177,9 @@ function resolveSmsLanguage(language?: string | null): SmsLanguage {
   return language === "FR" ? "FR" : "EN";
 }
 
-export async function sendAppointmentSms(data: AppointmentSmsData): Promise<void> {
+export async function sendAppointmentSms(data: AppointmentSmsData): Promise<RecordAndSendResult> {
   const body = SMS_COPY[resolveSmsLanguage(data.language)][data.type](data);
-  await sendSms({
+  return sendSms({
     to: data.to,
     body,
     shopId: data.shopId,
@@ -116,7 +188,7 @@ export async function sendAppointmentSms(data: AppointmentSmsData): Promise<void
     businessEntityType: data.appointmentId ? "APPOINTMENT" : undefined,
     businessEntityId: data.appointmentId,
     idempotencyKey: data.appointmentId
-      ? `appointment-sms:${data.type}:${data.appointmentId}`
+      ? `appointment-sms:${data.type}:${data.appointmentId}${data.noticeKey ? `:${data.noticeKey}` : ""}`
       : undefined,
   });
 }
@@ -218,9 +290,9 @@ const WORK_ORDER_READY_SMS_COPY: Record<SmsLanguage, (data: WorkOrderReadySmsDat
     `${data.shopName} : votre ${data.vehicleDescription} est prêt (ordre ${data.orderNumber}).`,
 };
 
-export async function sendWorkOrderReadySms(data: WorkOrderReadySmsData): Promise<void> {
+export async function sendWorkOrderReadySms(data: WorkOrderReadySmsData): Promise<RecordAndSendResult> {
   const body = WORK_ORDER_READY_SMS_COPY[resolveSmsLanguage(data.language)](data);
-  await sendSms({
+  return sendSms({
     to: data.to,
     body,
     shopId: data.shopId,

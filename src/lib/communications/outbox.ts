@@ -31,7 +31,11 @@ export interface RecordAndSendParams {
   businessEntityId?: string;
   idempotencyKey?: string;
   createdByUserId?: string;
-  send: () => Promise<{ providerMessageId?: string | null }>;
+  /** Segmentos SMS estimados antes del envío (se corrigen con lo que devuelva `send`). */
+  segments?: number;
+  /** Cuántos de esos segmentos son excedente del cupo mensual — ver planSmsOverage. */
+  billedOverageSegments?: number;
+  send: () => Promise<{ providerMessageId?: string | null; segments?: number | null }>;
 }
 
 export interface RecordAndSendResult {
@@ -78,6 +82,8 @@ async function reserveMessageId(params: RecordAndSendParams): Promise<
     textBody: params.textBody ?? null,
     htmlBody: params.htmlBody ?? null,
     createdByUserId: params.createdByUserId ?? null,
+    segments: params.segments ?? null,
+    billedOverageSegments: params.billedOverageSegments ?? null,
   } satisfies Prisma.CommunicationMessageUncheckedCreateInput;
 
   if (params.idempotencyKey) {
@@ -161,6 +167,7 @@ export async function recordAndSend(params: RecordAndSendParams): Promise<Record
         status: "SENT",
         sentAt: new Date(),
         providerMessageId: result.providerMessageId ?? null,
+        ...(result.segments != null ? { segments: result.segments } : {}),
       },
     });
     return { deduped: false, providerMessageId: result.providerMessageId ?? null, messageId };

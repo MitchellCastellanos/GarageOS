@@ -8,6 +8,8 @@ import {
   hashQuoteApprovalSnapshot,
 } from "@/lib/quote-approval";
 import { getQuoteApprovalStrings } from "@/lib/quote-approval-i18n";
+import { formatClientName } from "@/lib/client-name";
+import { alertStaffQuoteDecided } from "@/lib/staff-alerts";
 
 export async function decideQuoteApproval(
   token: string,
@@ -62,6 +64,16 @@ export async function decideQuoteApproval(
     console.error("Error registrando aprobación de cotización:", error);
     return { error: t.genericFailure };
   }
+
+  // Antes nadie en el taller se enteraba de que el cliente decidió.
+  await alertStaffQuoteDecided({
+    shop: quote.shop,
+    quoteId: quote.id,
+    quoteNumber: quote.quoteNumber,
+    clientName: formatClientName(quote.client),
+    decision,
+    actorName: name,
+  }).catch((err) => console.error(`[quote-approvals] alerta al taller falló (${quote.id}):`, err));
 
   revalidatePath(`/quote/${token}`);
   revalidatePath(`/quotes/${quote.id}`);

@@ -121,3 +121,54 @@ export function constructWebhookEvent(payload: string | Buffer, signature: strin
   if (!secret) throw new Error("STRIPE_WEBHOOK_SECRET no está configurada");
   return getStripeClient().webhooks.constructEvent(payload, signature, secret);
 }
+
+// ── Cobro de excedente de SMS (Billing Meters) ────────────────────────────────
+// Meter events, no usage records (createUsageRecord no existe en el SDK v22 —
+// Stripe lo reemplazó por la API de Meters). Requiere, del lado de Stripe:
+//   1. Un Billing Meter (Dashboard → Billing → Meters) con event_name igual a
+//      STRIPE_SMS_OVERAGE_METER_EVENT_NAME.
+//   2. Un Price "metered" sobre ese Meter, agregado como item a la suscripción
+//      de cada taller que pueda tener excedente (o vía Checkout con ese price
+//      incluido) — a $0.05 CAD/segmento (SMS_OVERAGE_PRICE_CAD_PER_SEGMENT en
+//      src/domain/sms.ts) para que factura y UI coincidan.
+// ADVERTENCIA: la forma exacta de `stripe.billing.meterEvents.create` no se
+// pudo verificar contra la referencia viva de Stripe (sin credenciales en este
+// entorno) — confirmar contra https://docs.stripe.com/api/billing/meter-event
+// antes de depender de esto para facturar de verdad.
+
+export function smsOverageMeterEventName(): string | null {
+  return process.env.STRIPE_SMS_OVERAGE_METER_EVENT_NAME?.trim() || null;
+}
+
+export function isSmsOverageBillingConfigured(): boolean {
+  return Boolean(smsOverageMeterEventName() && process.env.STRIPE_SECRET_KEY);
+}
+
+/**
+ * Reporta segmentos de excedente a Stripe para un cliente. Idempotente por
+ * `identifier` (el id del CommunicationMessage) — un reintento del mismo
+ * mensaje nunca lo cuenta dos veces. Nunca lanza: quien la llama la trata
+ * como best-effort (un fallo de Stripe nunca debe bloquear ni reintentar el
+ * envío del SMS, que ya salió).
+ */
+export async function reportSmsOverageUsage(params: {
+  stripeCustomerId: string;
+  segments: number;
+  messageId: string;
+}): Promise<void> {
+  const eventName = smsOverageMeterEventName();
+  if (!eventName || params.segments <= 0) return;
+
+  try {
+    await getStripeClient().billing.meterEvents.create({
+      event_name: eventName,
+      identifier: `sms-overage:${params.messageId}`,
+      payload: {
+        stripe_customer_id: params.stripeCustomerId,
+        value: String(params.segments),
+      },
+    });
+  } catch (err) {
+    console.error(`[stripe] reportSmsOverageUsage falló (mensaje ${params.messageId}):`, err);
+  }
+}

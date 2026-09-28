@@ -905,10 +905,12 @@ Benefits:
 - usage attribution;
 - operational isolation;
 - easier compliance containment;
-- future dedicated shop number;
-- future two-way SMS Inbox.
+- dedicated shop number (implemented, see status note below);
+- two-way SMS Inbox (implemented, see status note below).
 
 Do not provision paid provider resources during random page loads. Provision intentionally, idempotently, and with recoverable status.
+
+**Implementation status:** implemented as one subaccount + one number per shop (no Messaging Service yet), provisioned only by GarageOS from `/platform`, with a 30-day release lifecycle, inbound/two-way SMS in the Inbox, delivery status and STOP handling. See `docs/notifications.md` → "SMS por taller".
 
 Do not hardcode US-only assumptions into Canadian shops. Model provider/compliance metadata so region-specific requirements can evolve.
 

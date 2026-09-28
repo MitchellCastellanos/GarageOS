@@ -6,10 +6,12 @@ import {
   appointmentToFormValues,
   getAppointmentById,
   getAppointmentFormData,
+  getAppointmentHistoryForAdmin,
   getAppointmentManageUrl,
   updateAppointment,
 } from "@/actions/appointments";
 import { ClientManageLink } from "@/components/appointments/ClientManageLink";
+import { AppointmentHistory } from "@/components/appointments/AppointmentHistory";
 import { type AppointmentEditFormData } from "@/lib/validations";
 import { appointmentStatusLabel } from "@/lib/appointment-status";
 import { formatShopDate } from "@/lib/shop-timezone";
@@ -23,11 +25,12 @@ interface PageProps {
 export default async function EditAppointmentPage({ params }: PageProps) {
   const { id } = await params;
 
-  const [appointment, { clients, mechanics }, manageUrl, locale] = await Promise.all([
+  const [appointment, { clients, mechanics }, manageUrl, locale, history] = await Promise.all([
     getAppointmentById(id),
     getAppointmentFormData(),
     getAppointmentManageUrl(id),
     getAdminLocale(),
+    getAppointmentHistoryForAdmin(id),
   ]);
 
   const t = APPOINTMENTS_DICT[locale];
@@ -85,6 +88,10 @@ export default async function EditAppointmentPage({ params }: PageProps) {
           return updateAppointment(id, data);
         }}
       />
+
+      <div className="mt-6">
+        <AppointmentHistory entries={history} locale={locale} timeZone={timeZone} />
+      </div>
     </div>
   );
 }

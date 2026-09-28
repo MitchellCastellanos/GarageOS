@@ -75,6 +75,9 @@ export default async function ClientDetailPage({ params }: Props) {
                   <a href={`tel:${client.phone}`} className="text-sm text-slate-700">
                     {client.phone}
                   </a>
+                  {client.smsOptOutAt && (
+                    <p className="text-xs text-amber-800 mt-0.5">{t.detail.smsOptedOut}</p>
+                  )}
                 </ContactRow>
               )}
               {client.email && (

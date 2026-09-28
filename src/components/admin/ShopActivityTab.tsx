@@ -36,6 +36,11 @@ const ACTION_LABELS: Record<string, string> = {
   NOTE_ADDED: "Nota agregada",
   IMPERSONATION_STARTED: "Impersonación iniciada",
   IMPERSONATION_ENDED: "Impersonación terminada",
+  SMS_NUMBER_PROVISIONED: "Número SMS activado",
+  SMS_NUMBER_RELEASED: "Número SMS liberado",
+  SMS_NUMBER_RELEASE_SCHEDULED: "Liberación de número SMS programada",
+  SMS_NUMBER_RELEASE_CANCELLED: "Liberación de número SMS cancelada",
+  SMS_ALLOWANCE_CHANGED: "Cupo de SMS cambiado",
 };
 
 function fmt(d: Date) {

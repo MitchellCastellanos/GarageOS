@@ -70,3 +70,30 @@ export async function addSuppression(
     },
   });
 }
+
+/**
+ * Quita una supresión — solo si su motivo está en `reasons` (ej. START solo
+ * revierte un STOP/UNSUBSCRIBE, nunca un bloqueo MANUAL o por rebote).
+ */
+export async function removeSuppression(
+  shopId: string,
+  channel: CommChannel,
+  address: string,
+  reasons: SuppressionReason[]
+): Promise<boolean> {
+  const deleted = await db.communicationSuppression.deleteMany({
+    where: { shopId, channel, address: address.toLowerCase(), reason: { in: reasons } },
+  });
+  if (deleted.count > 0) {
+    await db.communicationAuditLog.create({
+      data: {
+        shopId,
+        action: "suppression.remove",
+        targetType: "CommunicationSuppression",
+        targetId: null,
+        metadata: { channel, address: address.toLowerCase(), reasons },
+      },
+    });
+  }
+  return deleted.count > 0;
+}

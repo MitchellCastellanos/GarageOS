@@ -5,6 +5,23 @@ Communications (`docs/communications-platform.md`) funcione con datos e infraest
 reales, no solo en el sandbox de desarrollo. Nada de esto bloquea el uso normal de
 GarageOS hoy — Fases 1, 2, 3, 5 y 7 ya están activas y no requieren nada de esta lista.
 
+## 0. Estado de entrega de email (Resend) — ACTIVO
+
+`email.delivered` / `email.bounced` / `email.complained` ya se procesan (ver
+`src/lib/communications/email-status.ts`): actualizan el estado del mensaje, un bounce
+o una queja suprimen la dirección, y si un aviso automático de cita rebota se reintenta
+por SMS. Para activarlo en producción:
+
+1. En Resend, agregar un webhook apuntando a `https://<tu-dominio>/api/webhooks/resend`
+   suscrito a `email.delivered`, `email.bounced` y `email.complained` (puede ser el
+   mismo webhook del punto 1 si además se suscribe `email.received`).
+2. Setear `RESEND_WEBHOOK_SECRET` con el signing secret (`whsec_...`) de ese webhook.
+   `RESEND_INBOUND_WEBHOOK_SECRET` sigue funcionando como alias si ya estaba seteado.
+3. El formato exacto del payload de bounce/complaint (`data.bounce.message`,
+   `data.bounce.type`, `data.complaint.type`) no se pudo verificar contra la
+   documentación viva de Resend — confirmarlo antes de depender del mensaje de error
+   guardado en `CommunicationMessage.errorMessage`.
+
 ## 1. Activar email entrante (Fase 4)
 
 El código vive en `src/app/api/webhooks/resend/route.ts` y responde 404 mientras no se
@@ -15,7 +32,7 @@ configure. Para activarlo:
 2. Agregar un webhook en el dashboard de Resend apuntando a
    `https://<tu-dominio>/api/webhooks/resend`, evento `email.received`, y copiar el
    signing secret (`whsec_...`).
-3. Setear `RESEND_INBOUND_WEBHOOK_SECRET` en las variables de entorno de producción.
+3. Setear `RESEND_WEBHOOK_SECRET` (o `RESEND_INBOUND_WEBHOOK_SECRET`) en las variables de entorno de producción.
 4. **Antes de confiar en esto en producción**: verificar contra la referencia viva de la
    API de Resend los endpoints exactos que usa el handler (`GET
    /emails/inbound/{id}` para el contenido y el endpoint de adjuntos) — se armaron a
@@ -26,25 +43,53 @@ configure. Para activarlo:
    dirección de una SenderIdentity activa) y confirmar que aparece como conversación
    nueva o respuesta en `/admin/inbox`.
 
-## 2. Activar SMS por taller (Fase 6)
+## 2. SMS por taller — configuración en Twilio
 
-El código vive en `src/lib/communications/sms-provisioning.ts`
-(`provisionShopTwilioSubaccount`) y hoy no lo llama nada — ni un cron, ni un botón.
+El código está completo (ver `docs/notifications.md` → "SMS por taller"). El taller
+pide su número desde Configuración y un super admin lo aprueba con un clic desde
+`/platform → taller → SMS` (el dashboard marca los talleres con solicitud
+pendiente); nada compra un número sin que un humano lo apruebe. Pasos de operación:
 
-1. Decidir el modelo de costos: ¿la renta mensual del número la paga GarageOS o se le
-   cobra al taller? Esto determina si el aprovisionamiento debe ir detrás de un plan de
-   pago o de un cargo aparte.
-2. Construir la acción/UI (falta por completo) para que un OWNER dispare
-   `provisionShopTwilioSubaccount(shopId, purpose)` con una confirmación explícita de
-   costo — nunca automático.
-3. Revisar el país por defecto (`"CA"` hardcoded) contra los mercados reales que atienda
-   GarageOS; el doc explícitamente pide no asumir solo EE. UU./Canadá para siempre.
-4. Probar con credenciales reales de Twilio — cada prueba compra un número real y genera
-   cargos reales, así que probarlo aquí no era una opción.
+1. **Cuenta principal de Twilio** con `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` en
+   producción. Las subcuentas de los talleres se crean y se operan con esas mismas
+   credenciales — **deben ser las de la cuenta raíz**, no una subcuenta: Twilio no
+   permite crear subcuentas desde una subcuenta (error 21101). Si el número
+   compartido actual (`TWILIO_FROM_NUMBER`) vive en una subcuenta en vez de la
+   raíz, no hay que moverlo ni comprarlo de nuevo — basta con poner el Account SID
+   de esa subcuenta en `TWILIO_SHARED_NUMBER_SUBACCOUNT_SID` (ver
+   `docs/notifications.md` → "Remitente"). Lo único que debe ser sí o sí de la
+   cuenta raíz es el par `TWILIO_ACCOUNT_SID`/`TWILIO_AUTH_TOKEN`, porque solo la
+   raíz puede crear las subcuentas nuevas del aprovisionamiento por taller.
+2. **URL pública de webhooks:** `NEXT_PUBLIC_APP_URL` (o `TWILIO_WEBHOOK_BASE_URL` si
+   difiere) debe ser la URL https de producción: la firma de Twilio se calcula sobre
+   ella. Los números dedicados quedan configurados solos al comprarlos con
+   `<URL>/api/webhooks/twilio/inbound`; los callbacks de estado se piden por mensaje a
+   `<URL>/api/webhooks/twilio/status`.
+3. **Número compartido** (`TWILIO_FROM_NUMBER`): en la consola de Twilio, configurar
+   su "A message comes in" → `POST <URL>/api/webhooks/twilio/inbound` para que los STOP
+   y las respuestas lleguen.
+4. **Costos:** cada número dedicado tiene renta mensual; la liberación automática a
+   30 días de talleres que dejaron de pagar evita números huérfanos. Revisar en la
+   consola que no queden números en subcuentas suspendidas.
+5. **Cumplimiento:** los números se compran en `CA` por defecto (se puede elegir otro
+   país y código de área). Para números de EE. UU. hace falta registro A2P 10DLC por
+   taller antes de enviar volumen — no está automatizado.
+6. **Cupos:** los valores de `PLAN_LIMITS.smsSegmentsPerMonth` son provisionales.
+7. **Cobro de excedente (código activo, falta Stripe):** al agotar el cupo, el SMS
+   se sigue enviando y se factura a $0.05 CAD/segmento
+   (`SMS_OVERAGE_PRICE_CAD_PER_SEGMENT`). Para que Stripe realmente cobre:
+   a. Crear un Billing Meter (Dashboard → Billing → Meters), copiar su `event_name`
+      a `STRIPE_SMS_OVERAGE_METER_EVENT_NAME`.
+   b. Crear un Price "metered" sobre ese Meter a $0.05 CAD/unidad y agregarlo como
+      item a la suscripción de cada taller.
+   c. Confirmar la forma de `stripe.billing.meterEvents.create` contra
+      https://docs.stripe.com/api/billing/meter-event — no se pudo verificar contra
+      la referencia viva en este entorno (sin credenciales de Stripe).
+   Sin esto, nada se rompe: el excedente simplemente no se factura todavía.
 
 ## 3. Variables de entorno / infraestructura a confirmar en producción
 
-- `RESEND_INBOUND_WEBHOOK_SECRET` — nueva, requerida solo para el punto 1.
+- `RESEND_WEBHOOK_SECRET` — nueva, requerida para los puntos 0 y 1 (un solo secreto para todos los eventos de Resend). `RESEND_INBOUND_WEBHOOK_SECRET` sigue funcionando como alias legado.
 - `NEXTAUTH_SECRET` — ya existe, pero ahora también firma los tokens de unsubscribe de
   campañas (`src/lib/communications/suppression.ts`). Si se rota, todos los enlaces de
   baja ya enviados dejan de funcionar — coordinar con soporte antes de rotarlo.

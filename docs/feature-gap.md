@@ -66,7 +66,7 @@ Orden aproximado por esfuerzo de implementación, excepto Customer Portal que qu
 
 - **VIN lookup/scanning: eliminado del alcance.** No es una función que queramos perseguir actualmente.
 - **Work Board/kanban: eliminado de V1.** Preferimos status simple administrado por front desk/admin.
-- **Two-way SMS: futuro.** No es requisito de lanzamiento.
+- **Two-way SMS: implementado** para talleres con número dedicado; ver `docs/notifications.md`.
 - **Purchase Orders/Suppliers: fuera.** No priorizar.
 - **Full accounting: fuera.** Integración ligera con QuickBooks en su lugar.
 - **Public API: futuro.**

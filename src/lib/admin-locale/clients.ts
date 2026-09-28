@@ -35,6 +35,7 @@ export interface ClientsDictionary {
     edit: string;
     infoTitle: string;
     languageSuffix: string;
+    smsOptedOut: string;
     noContactInfo: string;
     notesTitle: string;
     add: string;
@@ -86,6 +87,9 @@ export interface ClientsDictionary {
     emailLabel: string;
     emailPlaceholder: string;
     languageLabel: string;
+    notifyChannelLabel: string;
+    notifyChannelOptions: { auto: string; sms: string; email: string; both: string };
+    notifyChannelHint: string;
     addressLabel: string;
     addressPlaceholder: string;
     notesLabel: string;
@@ -154,6 +158,7 @@ export const CLIENTS_DICT: Record<AdminLocale, ClientsDictionary> = {
       edit: "Editar",
       infoTitle: "Información",
       languageSuffix: "— SMS y email",
+      smsOptedOut: "Respondió STOP: no recibe SMS (los avisos le llegan por email).",
       noContactInfo: "Sin información de contacto",
       notesTitle: "Notas",
       add: "Agregar",
@@ -205,6 +210,14 @@ export const CLIENTS_DICT: Record<AdminLocale, ClientsDictionary> = {
       emailLabel: "Email (opcional)",
       emailPlaceholder: "cliente@email.com",
       languageLabel: "Idioma preferido",
+      notifyChannelLabel: "Cómo avisarle",
+      notifyChannelOptions: {
+        auto: "Automático (SMS primero, email de respaldo)",
+        sms: "Preferir SMS",
+        email: "Preferir email",
+        both: "Ambos siempre",
+      },
+      notifyChannelHint: "Aplica a avisos de citas y de vehículo listo — no a campañas.",
       addressLabel: "Dirección",
       addressPlaceholder: "123 Rue Principale, Montréal, QC",
       notesLabel: "Notas internas",
@@ -272,6 +285,7 @@ export const CLIENTS_DICT: Record<AdminLocale, ClientsDictionary> = {
       edit: "Edit",
       infoTitle: "Information",
       languageSuffix: "— SMS and email",
+      smsOptedOut: "Replied STOP: no SMS (notices go to email instead).",
       noContactInfo: "No contact information",
       notesTitle: "Notes",
       add: "Add",
@@ -323,6 +337,14 @@ export const CLIENTS_DICT: Record<AdminLocale, ClientsDictionary> = {
       emailLabel: "Email (optional)",
       emailPlaceholder: "client@email.com",
       languageLabel: "Preferred language",
+      notifyChannelLabel: "How to notify them",
+      notifyChannelOptions: {
+        auto: "Automatic (SMS first, email fallback)",
+        sms: "Prefer SMS",
+        email: "Prefer email",
+        both: "Always both",
+      },
+      notifyChannelHint: "Applies to appointment and vehicle-ready notices — not campaigns.",
       addressLabel: "Address",
       addressPlaceholder: "123 Main Street, Montréal, QC",
       notesLabel: "Internal notes",
@@ -390,6 +412,7 @@ export const CLIENTS_DICT: Record<AdminLocale, ClientsDictionary> = {
       edit: "Modifier",
       infoTitle: "Renseignements",
       languageSuffix: "— SMS et courriel",
+      smsOptedOut: "A répondu STOP : aucun SMS (les avis partent par courriel).",
       noContactInfo: "Aucune information de contact",
       notesTitle: "Notes",
       add: "Ajouter",
@@ -441,6 +464,14 @@ export const CLIENTS_DICT: Record<AdminLocale, ClientsDictionary> = {
       emailLabel: "Courriel (optionnel)",
       emailPlaceholder: "client@courriel.com",
       languageLabel: "Langue préférée",
+      notifyChannelLabel: "Comment l'aviser",
+      notifyChannelOptions: {
+        auto: "Automatique (SMS d'abord, courriel en secours)",
+        sms: "Préférer le SMS",
+        email: "Préférer le courriel",
+        both: "Toujours les deux",
+      },
+      notifyChannelHint: "S'applique aux avis de rendez-vous et de véhicule prêt — pas aux campagnes.",
       addressLabel: "Adresse",
       addressPlaceholder: "123 rue Principale, Montréal, QC",
       notesLabel: "Notes internes",

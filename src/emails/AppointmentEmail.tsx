@@ -2,7 +2,7 @@ import { Button, Hr, Section, Text } from "@react-email/components";
 import React from "react";
 import { ShopEmailLayout } from "@/emails/layout/ShopEmailLayout";
 
-export type AppointmentEmailType = "confirmation" | "reminder" | "cancellation";
+export type AppointmentEmailType = "confirmation" | "update" | "reminder" | "cancellation";
 export type AppointmentEmailLanguage = "EN" | "FR";
 
 export interface AppointmentEmailProps {
@@ -43,6 +43,11 @@ const STRINGS: Record<AppointmentEmailLanguage, LanguageStrings> = {
         heading: "Appointment confirmed",
         body: "Your appointment has been booked. We'll see you at the date and time below.",
       },
+      update: {
+        preview: (title, shop) => `Appointment updated: ${title} — ${shop}`,
+        heading: "Appointment updated",
+        body: "Your appointment has been changed. Here are the updated details.",
+      },
       reminder: {
         preview: (title, shop) => `Appointment reminder: ${title} — ${shop}`,
         heading: "Appointment reminder",
@@ -70,6 +75,11 @@ const STRINGS: Record<AppointmentEmailLanguage, LanguageStrings> = {
         preview: (title, shop) => `Rendez-vous confirmé : ${title} — ${shop}`,
         heading: "Rendez-vous confirmé",
         body: "Votre rendez-vous a été enregistré. Nous vous attendons à la date et l'heure indiquées.",
+      },
+      update: {
+        preview: (title, shop) => `Rendez-vous modifié : ${title} — ${shop}`,
+        heading: "Rendez-vous modifié",
+        body: "Votre rendez-vous a été modifié. Voici les nouveaux détails.",
       },
       reminder: {
         preview: (title, shop) => `Rappel de rendez-vous : ${title} — ${shop}`,
