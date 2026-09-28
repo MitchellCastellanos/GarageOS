@@ -144,6 +144,24 @@ test("an inbound SMS to a number no shop owns is dropped", async (t) => {
   assert.equal(m.messageCreate.mock.callCount(), 0);
 });
 
+test("when the shared number lives in a subaccount, its inbound SMS arrive with that subaccount's AccountSid", async (t) => {
+  process.env.TWILIO_SHARED_NUMBER_SUBACCOUNT_SID = "ACsharedSub";
+  t.after(() => {
+    delete process.env.TWILIO_SHARED_NUMBER_SUBACCOUNT_SID;
+  });
+  const m = mockInboundBasics(t, { dedicatedShopId: null });
+  mockDb(t, "communicationMessage", "findMany", async () => [{ shopId: "shop-B", createdAt: new Date() }]);
+
+  // El AccountSid ya no es el de la cuenta raíz — es el de la subcuenta dueña del número.
+  const rejected = await handleInboundSms({ messageSid: "SM105", accountSid: "ACparent", from: "+15145551234", to: "+15145550000", body: "ok" });
+  assert.deepEqual(rejected, { status: "unroutable", reason: "no_shop_for_number" });
+
+  const result = await handleInboundSms({ messageSid: "SM106", accountSid: "ACsharedSub", from: "+15145551234", to: "+15145550000", body: "ok" });
+  assert.equal(result.status, "recorded");
+  assert.equal((result as { shopId: string }).shopId, "shop-B");
+  assert.equal(m.messageCreate.mock.callCount(), 1);
+});
+
 // ── Estado de entrega ────────────────────────────────────────────────────────
 
 function mockStatusBasics(
@@ -198,6 +216,16 @@ test("error 21610 on failure records the STOP as a suppression", async (t) => {
   const result = await handleSmsStatusCallback({ messageSid: "SM1", accountSid: "ACparent", status: "undelivered", errorCode: "21610" });
   assert.equal(result, "updated");
   assert.equal(argsOf(suppression).create.address, "+15145551234");
+});
+
+test("when the shared number lives in a subaccount, status callbacks for it must come from that subaccount", async (t) => {
+  process.env.TWILIO_SHARED_NUMBER_SUBACCOUNT_SID = "ACsharedSub";
+  t.after(() => {
+    delete process.env.TWILIO_SHARED_NUMBER_SUBACCOUNT_SID;
+  });
+  const rejectedFromRoot = mockStatusBasics(t, { status: "SENT", from: "+15145550000" }, null);
+  assert.equal(await handleSmsStatusCallback({ messageSid: "SM1", accountSid: "ACparent", status: "delivered" }), "ignored");
+  assert.equal(rejectedFromRoot.mock.callCount(), 0);
 });
 
 test("an undelivered appointment SMS is re-sent by email and linked to its history event", async (t) => {

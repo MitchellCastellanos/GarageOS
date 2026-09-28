@@ -16,6 +16,7 @@ import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { toE164 } from "@/lib/phone";
 import {
+  getSharedNumberAccountSid,
   getTwilioClientFor,
   getTwilioParentClient,
   TWILIO_INBOUND_PATH,
@@ -41,7 +42,7 @@ const STALE_PROVISIONING_MS = 15 * 60 * 1000;
 
 export interface ShopSmsSender {
   from: string;
-  /** Subcuenta dueña del número (null = número compartido de la cuenta principal). */
+  /** Cuenta/subcuenta dueña del número que envía (la del taller, o la del número compartido). */
   subaccountSid: string | null;
   dedicated: boolean;
 }
@@ -68,7 +69,7 @@ export async function resolveShopSmsSender(shopId: string): Promise<ShopSmsSende
     return { from: number.phoneNumber, subaccountSid: number.subaccountSid, dedicated: true };
   }
   const shared = getSharedSmsNumber();
-  return shared ? { from: shared, subaccountSid: null, dedicated: false } : null;
+  return shared ? { from: shared, subaccountSid: getSharedNumberAccountSid(), dedicated: false } : null;
 }
 
 export async function shopHasDedicatedSmsNumber(shopId: string): Promise<boolean> {

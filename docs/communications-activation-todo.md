@@ -51,7 +51,14 @@ automáticamente. Pasos de operación:
 
 1. **Cuenta principal de Twilio** con `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` en
    producción. Las subcuentas de los talleres se crean y se operan con esas mismas
-   credenciales.
+   credenciales — **deben ser las de la cuenta raíz**, no una subcuenta: Twilio no
+   permite crear subcuentas desde una subcuenta (error 21101). Si el número
+   compartido actual (`TWILIO_FROM_NUMBER`) vive en una subcuenta en vez de la
+   raíz, no hay que moverlo ni comprarlo de nuevo — basta con poner el Account SID
+   de esa subcuenta en `TWILIO_SHARED_NUMBER_SUBACCOUNT_SID` (ver
+   `docs/notifications.md` → "Remitente"). Lo único que debe ser sí o sí de la
+   cuenta raíz es el par `TWILIO_ACCOUNT_SID`/`TWILIO_AUTH_TOKEN`, porque solo la
+   raíz puede crear las subcuentas nuevas del aprovisionamiento por taller.
 2. **URL pública de webhooks:** `NEXT_PUBLIC_APP_URL` (o `TWILIO_WEBHOOK_BASE_URL` si
    difiere) debe ser la URL https de producción: la firma de Twilio se calcula sobre
    ella. Los números dedicados quedan configurados solos al comprarlos con

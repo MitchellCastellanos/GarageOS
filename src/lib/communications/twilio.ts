@@ -25,6 +25,21 @@ export function isTwilioConfigured(): boolean {
   return Boolean(process.env.TWILIO_ACCOUNT_SID?.trim() && process.env.TWILIO_AUTH_TOKEN?.trim());
 }
 
+/**
+ * Cuenta que de verdad es dueña del número compartido (TWILIO_FROM_NUMBER).
+ * Por defecto es la cuenta principal (TWILIO_ACCOUNT_SID) — pero si ese
+ * número vive en una subcuenta (armado histórico, antes de que existiera
+ * este aprovisionamiento), TWILIO_SHARED_NUMBER_SUBACCOUNT_SID le dice al
+ * código cuál es esa subcuenta. TWILIO_ACCOUNT_SID siempre debe ser la
+ * cuenta RAÍZ (Twilio no permite crear subcuentas desde una subcuenta —
+ * error 21101 "Subaccounts cannot contain subaccounts"), aunque el número
+ * compartido en sí no viva ahí.
+ */
+export function getSharedNumberAccountSid(): string {
+  const configured = process.env.TWILIO_SHARED_NUMBER_SUBACCOUNT_SID?.trim();
+  return configured || parentCredentials().accountSid;
+}
+
 /** Cliente de la cuenta principal (compra de números, subcuentas). */
 export function getTwilioParentClient(): TwilioClient {
   const { accountSid, authToken } = parentCredentials();
@@ -58,8 +73,10 @@ const tokenCache = new Map<string, { token: string; fetchedAt: number }>();
 
 /**
  * Token con el que Twilio firmó un webhook: el de la cuenta dueña del número.
- * Solo se resuelve para la cuenta principal o para subcuentas que GarageOS
- * creó (ShopSmsNumber.subaccountSid) — un AccountSid desconocido nunca valida.
+ * Solo se resuelve para la cuenta principal, para la cuenta del número
+ * compartido (si vive en una subcuenta aparte, ver getSharedNumberAccountSid)
+ * o para subcuentas que GarageOS creó (ShopSmsNumber.subaccountSid) — un
+ * AccountSid desconocido nunca valida.
  */
 async function authTokenForAccount(accountSid: string): Promise<string | null> {
   const parent = parentCredentials();
@@ -68,8 +85,10 @@ async function authTokenForAccount(accountSid: string): Promise<string | null> {
   const cached = tokenCache.get(accountSid);
   if (cached && Date.now() - cached.fetchedAt < TOKEN_TTL_MS) return cached.token;
 
-  const known = await db.shopSmsNumber.findUnique({ where: { subaccountSid: accountSid }, select: { id: true } });
-  if (!known) return null;
+  if (accountSid !== getSharedNumberAccountSid()) {
+    const known = await db.shopSmsNumber.findUnique({ where: { subaccountSid: accountSid }, select: { id: true } });
+    if (!known) return null;
+  }
 
   const account = await getTwilioParentClient().api.v2010.accounts(accountSid).fetch();
   if (!account.authToken) return null;

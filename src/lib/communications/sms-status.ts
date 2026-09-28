@@ -8,6 +8,7 @@ import { mapTwilioMessageStatus, shouldApplyStatusUpdate } from "@/domain/sms";
 import { addSuppression } from "@/lib/communications/suppression";
 import { handleNotificationDeliveryFailure } from "@/lib/notification-fallback";
 import { getSharedSmsNumber } from "@/lib/communications/sms-numbers";
+import { getSharedNumberAccountSid } from "@/lib/communications/twilio";
 
 export interface SmsStatusInput {
   messageSid: string;
@@ -27,8 +28,7 @@ const TWILIO_UNSUBSCRIBED_ERROR = "21610";
  * un callback de otra cuenta toque mensajes de este taller.
  */
 async function accountOwnsMessage(message: { shopId: string; from: string }, accountSid: string): Promise<boolean> {
-  const parentSid = process.env.TWILIO_ACCOUNT_SID?.trim();
-  if (message.from === getSharedSmsNumber()) return accountSid === parentSid;
+  if (message.from === getSharedSmsNumber()) return accountSid === getSharedNumberAccountSid();
   const number = await db.shopSmsNumber.findUnique({
     where: { shopId: message.shopId },
     select: { subaccountSid: true },

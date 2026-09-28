@@ -44,7 +44,20 @@ test("a live dedicated number is the sender; otherwise the shared number", async
   assert.deepEqual(await resolveShopSmsSender("shop-A"), { from: "+15145559999", subaccountSid: "ACsubA", dedicated: true });
 
   lookup.mock.mockImplementation(async () => ({ status: "RELEASED", phoneNumber: null, subaccountSid: "ACsubA" }));
-  assert.deepEqual(await resolveShopSmsSender("shop-A"), { from: "+15145550000", subaccountSid: null, dedicated: false });
+  assert.deepEqual(await resolveShopSmsSender("shop-A"), { from: "+15145550000", subaccountSid: "ACparent", dedicated: false });
+});
+
+test("if the shared number actually lives in a subaccount, the sender uses that subaccount", async (t) => {
+  process.env.TWILIO_SHARED_NUMBER_SUBACCOUNT_SID = "ACsharedSub";
+  t.after(() => {
+    delete process.env.TWILIO_SHARED_NUMBER_SUBACCOUNT_SID;
+  });
+  mockDb(t, "shopSmsNumber", "findUnique", async () => null);
+  assert.deepEqual(await resolveShopSmsSender("shop-A"), {
+    from: "+15145550000",
+    subaccountSid: "ACsharedSub",
+    dedicated: false,
+  });
 });
 
 // ── Aprovisionamiento sin duplicados ─────────────────────────────────────────

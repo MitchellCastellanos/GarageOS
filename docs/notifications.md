@@ -62,6 +62,17 @@ para los pasos de configuración en Twilio).
 - La fuente de verdad del remitente es `resolveShopSmsSender` (no las rutas por
   purpose, que solo anotan el envío). Todas las credenciales son las de la cuenta
   principal actuando sobre cada subcuenta: no se guardan tokens de subcuentas.
+- `TWILIO_ACCOUNT_SID`/`TWILIO_AUTH_TOKEN` deben ser los de la cuenta **raíz** de
+  Twilio: una subcuenta no puede crear más subcuentas (error 21101 de Twilio), y
+  el aprovisionamiento por taller crea una subcuenta nueva por cada número. Si el
+  número compartido (`TWILIO_FROM_NUMBER`) en realidad vive en una subcuenta —caso
+  típico si se compró antes de este sistema—, se indica con
+  `TWILIO_SHARED_NUMBER_SUBACCOUNT_SID` (ver `getSharedNumberAccountSid` en
+  `twilio.ts`); sin esa variable se asume que el número compartido pertenece a la
+  cuenta raíz. Esto afecta el envío (`resolveShopSmsSender`), los entrantes
+  (`resolveInboundShops`) y los callbacks de estado (`accountOwnsMessage`), ya que
+  Twilio siempre manda `AccountSid` como el de la cuenta/subcuenta dueña del
+  número, nunca el de la raíz.
 
 ### Envío (`sendSms`, único punto de envío)
 

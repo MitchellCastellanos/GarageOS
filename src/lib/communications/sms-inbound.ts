@@ -15,6 +15,7 @@ import { toE164 } from "@/lib/phone";
 import { parseSmsKeyword, type SmsKeyword } from "@/domain/sms";
 import { addSuppression, removeSuppression } from "@/lib/communications/suppression";
 import { getSharedSmsNumber, LIVE_NUMBER_STATUSES } from "@/lib/communications/sms-numbers";
+import { getSharedNumberAccountSid } from "@/lib/communications/twilio";
 
 export interface InboundSmsInput {
   messageSid: string;
@@ -45,7 +46,7 @@ async function resolveInboundShops(
   if (dedicated) return { primary: dedicated.shopId, all: [dedicated.shopId] };
 
   const shared = getSharedSmsNumber();
-  if (!shared || shared !== to || accountSid !== process.env.TWILIO_ACCOUNT_SID?.trim()) {
+  if (!shared || shared !== to || accountSid !== getSharedNumberAccountSid()) {
     return { primary: null, all: [] };
   }
 
