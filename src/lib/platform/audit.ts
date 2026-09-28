@@ -26,6 +26,7 @@ export type PlatformAuditAction =
   | "SMS_NUMBER_RELEASED"
   | "SMS_NUMBER_RELEASE_SCHEDULED"
   | "SMS_NUMBER_RELEASE_CANCELLED"
+  | "SMS_NUMBER_REQUEST_DISMISSED"
   | "SMS_ALLOWANCE_CHANGED";
 
 interface LogPlatformActionInput {

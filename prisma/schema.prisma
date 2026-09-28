@@ -1596,6 +1596,7 @@ model PageView {
 }
 
 enum ShopSmsNumberStatus {
+  REQUESTED
   PROVISIONING
   ACTIVE
   RELEASE_SCHEDULED
@@ -1608,9 +1609,11 @@ enum ShopSmsNumberStatus {
 /**
  * Número SMS dedicado de un taller — una subcuenta de Twilio por taller con su
  * propio número, aprovisionado solo por GarageOS desde /platform (cuesta renta
- * mensual). Una fila por taller: `shopId @unique` + la transición atómica a
- * PROVISIONING es el candado contra aprovisionar dos veces. La subcuenta se
- * reutiliza si el taller vuelve a pedir número. Ver src/lib/communications/sms-numbers.ts.
+ * mensual). El taller lo pide desde Configuración (REQUESTED) y un super admin
+ * lo aprueba con un clic, lo que dispara la compra real en Twilio. Una fila por
+ * taller: `shopId @unique` + la transición atómica a PROVISIONING es el candado
+ * contra aprovisionar dos veces. La subcuenta se reutiliza si el taller vuelve a
+ * pedir número. Ver src/lib/communications/sms-numbers.ts.
  */
 model ShopSmsNumber {
   id                  String              @id @default(cuid())
@@ -1625,6 +1628,8 @@ model ShopSmsNumber {
   countryCode         String              @default("CA")
   areaCode            String?
   senderIdentityId    String?
+  requestedAt         DateTime?
+  requestedByUserId   String?
   provisionedAt       DateTime?
   provisionedByUserId String?
   releaseScheduledAt  DateTime?

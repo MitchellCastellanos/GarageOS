@@ -3,12 +3,12 @@
 import { db } from "@/lib/db";
 import { requireShopSession } from "@/lib/permissions";
 import { getSmsUsageSummary } from "@/lib/communications/sms-usage";
-import { getSharedSmsNumber } from "@/lib/communications/sms-numbers";
+import { getSharedSmsNumber, requestShopSmsNumber, SmsNumberError } from "@/lib/communications/sms-numbers";
 import { sendSupportMessage } from "@/actions/support";
 
 export interface ShopSmsOverview {
   number: {
-    status: "PROVISIONING" | "ACTIVE" | "RELEASE_SCHEDULED" | "RELEASED" | "FAILED";
+    status: "REQUESTED" | "PROVISIONING" | "ACTIVE" | "RELEASE_SCHEDULED" | "RELEASED" | "FAILED";
     phoneNumber: string | null;
     releaseScheduledAt: Date | null;
   } | null;
@@ -34,10 +34,18 @@ export async function getShopSmsOverview(): Promise<ShopSmsOverview> {
 
 /**
  * El número dedicado lo aprovisiona GarageOS (tiene costo mensual): el taller
- * lo pide y la solicitud entra como mensaje de soporte, que ya alerta al equipo.
+ * lo pide, queda en cola (REQUESTED) visible en /platform, y un super admin lo
+ * aprueba con un clic — lo que dispara la compra real en Twilio. Además entra
+ * como mensaje de soporte para que el equipo lo vea de inmediato (Telegram/correo).
  */
 export async function requestDedicatedSmsNumber(message: string) {
   const session = await requireShopSession();
   if (session.user.role !== "OWNER") return { error: "Only the owner can request a number" };
+  try {
+    await requestShopSmsNumber({ shopId: session.user.shopId!, requestedByUserId: session.user.id });
+  } catch (err) {
+    if (err instanceof SmsNumberError) return { error: err.message };
+    throw err;
+  }
   return sendSupportMessage(message);
 }

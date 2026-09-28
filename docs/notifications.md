@@ -52,10 +52,15 @@ para los pasos de configuración en Twilio).
 ### Remitente
 
 - **Número dedicado** (`ShopSmsNumber`): una subcuenta de Twilio por taller con su
-  propio número. Solo GarageOS lo aprovisiona desde `/platform → taller → SMS`
-  (compra un número real con renta mensual; la UI pide confirmación). El taller lo
-  solicita desde Configuración → Notificaciones y la solicitud entra como mensaje de
-  soporte.
+  propio número. Solo GarageOS lo aprovisiona (compra un número real con renta
+  mensual) — nunca es automático. El taller lo pide desde Configuración →
+  Notificaciones (`requestShopSmsNumber`, estado `REQUESTED`); la solicitud también
+  entra como mensaje de soporte para que el equipo la vea de inmediato. Un super
+  admin la aprueba con un clic desde `/platform → taller → SMS` (o la descarta con
+  `dismissShopSmsNumberRequest` sin comprar nada) — aprobar reutiliza el mismo
+  `provisionShopSmsNumber` del flujo manual, así que también acepta país/código de
+  área en ese momento. El dashboard de `/platform` marca con una etiqueta "SMS
+  pedido" los talleres con una solicitud pendiente.
 - **Número compartido** (`TWILIO_FROM_NUMBER`): lo usan los talleres sin número
   propio. Sirve para avisos salientes; las respuestas no se pueden atribuir con
   certeza (ver "Entrantes").

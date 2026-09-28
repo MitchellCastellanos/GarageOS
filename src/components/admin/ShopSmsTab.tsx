@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Loader2, Phone, AlertTriangle } from "lucide-react";
 import {
   cancelShopSmsNumberReleaseAction,
+  dismissSmsNumberRequestAction,
   provisionShopSmsNumberAction,
   releaseShopSmsNumberAction,
   setShopSmsAllowanceAction,
@@ -18,6 +19,7 @@ export interface ShopSmsAdminOverview {
     subaccountSid: string | null;
     countryCode: string;
     areaCode: string | null;
+    requestedAt: Date | null;
     provisionedAt: Date | null;
     releaseScheduledAt: Date | null;
     releaseReason: string | null;
@@ -33,6 +35,7 @@ export interface ShopSmsAdminOverview {
 }
 
 const STATUS_LABEL: Record<string, string> = {
+  REQUESTED: "Solicitado por el taller",
   PROVISIONING: "Aprovisionando…",
   ACTIVE: "Activo",
   RELEASE_SCHEDULED: "Liberación programada",
@@ -55,6 +58,7 @@ export function ShopSmsTab({ shopId, overview }: { shopId: string; overview: Sho
   const n = overview.number;
   const live = n && (n.status === "ACTIVE" || n.status === "RELEASE_SCHEDULED");
   const failedRelease = n?.status === "FAILED" && !n.phoneNumber && n.lastError?.startsWith("Release failed");
+  const requested = n?.status === "REQUESTED";
   const canProvision = !live && n?.status !== "PROVISIONING" && !failedRelease;
 
   function run(action: () => Promise<{ error?: string; success?: boolean } | undefined>, ok: string) {
@@ -128,6 +132,25 @@ export function ShopSmsTab({ shopId, overview }: { shopId: string; overview: Sho
           </p>
         )}
 
+        {requested && (
+          <div className="flex items-center justify-between gap-2 rounded-md border border-teal-200 bg-teal-50 p-2.5">
+            <p className="text-xs text-teal-900">
+              El taller pidió su número dedicado{n.requestedAt ? ` el ${fmt(n.requestedAt)}` : ""}. Apruébalo abajo o descarta la solicitud.
+            </p>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => {
+                if (!confirm("Se descarta la solicitud sin comprar nada. ¿Continuar?")) return;
+                run(() => dismissSmsNumberRequestAction(shopId), "Solicitud descartada");
+              }}
+              className="flex-shrink-0 px-2.5 py-1.5 border border-slate-300 text-slate-700 hover:bg-white rounded-lg text-xs font-medium disabled:opacity-50"
+            >
+              Descartar
+            </button>
+          </div>
+        )}
+
         {canProvision && (
           <div className="flex flex-wrap items-end gap-2 pt-2 border-t border-slate-100">
             <label className="text-xs text-slate-500">
@@ -153,7 +176,7 @@ export function ShopSmsTab({ shopId, overview }: { shopId: string; overview: Sho
               disabled={pending || !overview.twilioConfigured}
               className="flex items-center gap-2 px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-sm font-medium disabled:opacity-50"
             >
-              {pending && <Loader2 className="w-4 h-4 animate-spin" />} Comprar y activar número
+              {pending && <Loader2 className="w-4 h-4 animate-spin" />} {requested ? "Aprobar y activar número" : "Comprar y activar número"}
             </button>
           </div>
         )}

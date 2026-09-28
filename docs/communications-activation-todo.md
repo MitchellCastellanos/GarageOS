@@ -45,9 +45,10 @@ configure. Para activarlo:
 
 ## 2. SMS por taller — configuración en Twilio
 
-El código está completo (ver `docs/notifications.md` → "SMS por taller"). El número
-dedicado lo compra un super admin desde `/platform → taller → SMS`; nada lo compra
-automáticamente. Pasos de operación:
+El código está completo (ver `docs/notifications.md` → "SMS por taller"). El taller
+pide su número desde Configuración y un super admin lo aprueba con un clic desde
+`/platform → taller → SMS` (el dashboard marca los talleres con solicitud
+pendiente); nada compra un número sin que un humano lo apruebe. Pasos de operación:
 
 1. **Cuenta principal de Twilio** con `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` en
    producción. Las subcuentas de los talleres se crean y se operan con esas mismas

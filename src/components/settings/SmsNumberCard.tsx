@@ -13,7 +13,7 @@ export function SmsNumberCard({ overview }: { overview: ShopSmsOverview }) {
   const locale = useAdminLocale();
   const t = SETTINGS_DICT[locale].smsNumber;
   const [pending, startTransition] = useTransition();
-  const [requested, setRequested] = useState(false);
+  const [requestedLocally, setRequestedLocally] = useState(false);
 
   const formatDate = (date: Date) =>
     new Date(date).toLocaleDateString(DATE_LOCALE[locale], { year: "numeric", month: "long", day: "numeric" });
@@ -21,6 +21,7 @@ export function SmsNumberCard({ overview }: { overview: ShopSmsOverview }) {
   const number = overview.number;
   const live = number && (number.status === "ACTIVE" || number.status === "RELEASE_SCHEDULED") && number.phoneNumber;
   const provisioning = number?.status === "PROVISIONING";
+  const requested = requestedLocally || number?.status === "REQUESTED";
   const { usage } = overview;
   const full = usage.used >= usage.allowance;
 
@@ -31,7 +32,7 @@ export function SmsNumberCard({ overview }: { overview: ShopSmsOverview }) {
         toast.error(result.error);
         return;
       }
-      setRequested(true);
+      setRequestedLocally(true);
       toast.success(t.requestSent);
     });
   }
@@ -60,6 +61,8 @@ export function SmsNumberCard({ overview }: { overview: ShopSmsOverview }) {
         </div>
       ) : provisioning ? (
         <p className="text-sm text-slate-600 rounded-lg border border-slate-200 p-4">{t.provisioningBody}</p>
+      ) : requested ? (
+        <p className="text-sm text-teal-800 bg-teal-50 border border-teal-200 rounded-lg p-4">{t.requestSent}</p>
       ) : (
         <div className="rounded-lg border border-slate-200 p-4 space-y-3">
           <p className="text-xs font-medium text-slate-500">{overview.sharedNumberConfigured ? t.sharedLabel : ""}</p>
@@ -67,11 +70,11 @@ export function SmsNumberCard({ overview }: { overview: ShopSmsOverview }) {
           <button
             type="button"
             onClick={handleRequest}
-            disabled={pending || requested}
+            disabled={pending}
             className="flex items-center gap-2 px-3 py-2 border border-teal-200 text-teal-700 hover:bg-teal-50 rounded-lg text-sm font-medium disabled:opacity-50"
           >
             {pending && <Loader2 className="w-4 h-4 animate-spin" />}
-            {requested ? t.requestSent : t.requestButton}
+            {t.requestButton}
           </button>
         </div>
       )}

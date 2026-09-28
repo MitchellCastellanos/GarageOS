@@ -8,6 +8,7 @@ import { logPlatformAction } from "@/lib/platform/audit";
 import { isTwilioConfigured } from "@/lib/communications/twilio";
 import {
   cancelShopSmsNumberRelease,
+  dismissShopSmsNumberRequest,
   provisionShopSmsNumber,
   releaseShopSmsNumber,
   scheduleShopSmsNumberRelease,
@@ -88,6 +89,26 @@ export async function releaseShopSmsNumberAction(shopId: string, mode: "now" | "
     return { success: true };
   } catch (err) {
     revalidatePath(PLATFORM.shop(shopId));
+    return toError(err);
+  }
+}
+
+/** Descarta una solicitud del taller sin aprovisionar nada (no compró nada aún). */
+export async function dismissSmsNumberRequestAction(shopId: string) {
+  const session = await requireSuperAdmin();
+  try {
+    await dismissShopSmsNumberRequest(shopId);
+    await logPlatformAction({
+      actorUserId: session.user.id,
+      shopId,
+      action: "SMS_NUMBER_REQUEST_DISMISSED",
+      targetType: "SHOP_SMS_NUMBER",
+      targetId: shopId,
+    });
+    revalidatePath(PLATFORM.shop(shopId));
+    revalidatePath(PLATFORM.home);
+    return { success: true };
+  } catch (err) {
     return toError(err);
   }
 }

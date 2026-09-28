@@ -46,6 +46,7 @@ export async function getPlatformOverview() {
         select: { id: true, name: true, email: true, role: true, createdAt: true },
         orderBy: { role: "asc" },
       },
+      smsNumber: { select: { status: true } },
     },
     orderBy: { name: "asc" },
   });

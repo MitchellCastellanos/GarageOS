@@ -3,8 +3,10 @@ import test, { type TestContext } from "node:test";
 import { Prisma } from "@prisma/client";
 import { db } from "../src/lib/db";
 import {
+  dismissShopSmsNumberRequest,
   provisionShopSmsNumber,
   releaseShopSmsNumber,
+  requestShopSmsNumber,
   resolveShopSmsSender,
   SmsNumberError,
 } from "../src/lib/communications/sms-numbers";
@@ -93,6 +95,65 @@ test("a provisioning in progress blocks a second one unless it is stale", async 
 test("invalid country or area codes are rejected before touching the DB or Twilio", async () => {
   await assert.rejects(provisionShopSmsNumber({ shopId: "x", actorUserId: "u", countryCode: "CAN" }), /Invalid country/);
   await assert.rejects(provisionShopSmsNumber({ shopId: "x", actorUserId: "u", areaCode: "51" }), /3 digits/);
+});
+
+// ── Solicitud (el taller pide, GarageOS aprueba) ─────────────────────────────
+
+test("requesting a number for a shop with none creates a REQUESTED row", async (t) => {
+  mockDb(t, "shopSmsNumber", "findUnique", async () => null);
+  const create = mockDb(t, "shopSmsNumber", "create", async () => ({}));
+  await requestShopSmsNumber({ shopId: "shop-A", requestedByUserId: "u1" });
+  const data = (create.mock.calls[0].arguments[0] as { data: { status: string; requestedByUserId: string } }).data;
+  assert.equal(data.status, "REQUESTED");
+  assert.equal(data.requestedByUserId, "u1");
+});
+
+test("two simultaneous first-time requests: the loser's unique-constraint error is swallowed", async (t) => {
+  mockDb(t, "shopSmsNumber", "findUnique", async () => null);
+  mockDb(t, "shopSmsNumber", "create", async () => {
+    throw new Prisma.PrismaClientKnownRequestError("Unique constraint failed", { code: "P2002", clientVersion: "7" });
+  });
+  await assert.doesNotReject(requestShopSmsNumber({ shopId: "shop-A", requestedByUserId: "u1" }));
+});
+
+test("requesting again while already REQUESTED is a no-op", async (t) => {
+  mockDb(t, "shopSmsNumber", "findUnique", async () => ({ status: "REQUESTED" }));
+  const update = mockDb(t, "shopSmsNumber", "update", async () => ({}));
+  await requestShopSmsNumber({ shopId: "shop-A", requestedByUserId: "u1" });
+  assert.equal(update.mock.callCount(), 0);
+});
+
+test("a shop with a live number cannot request another one", async (t) => {
+  mockDb(t, "shopSmsNumber", "findUnique", async () => ({ status: "ACTIVE" }));
+  await assert.rejects(requestShopSmsNumber({ shopId: "shop-A", requestedByUserId: "u1" }), /already has a dedicated number/);
+});
+
+test("a released or failed number can be requested again", async (t) => {
+  mockDb(t, "shopSmsNumber", "findUnique", async () => ({ status: "RELEASED" }));
+  const update = mockDb(t, "shopSmsNumber", "update", async () => ({}));
+  await requestShopSmsNumber({ shopId: "shop-A", requestedByUserId: "u1" });
+  const data = (update.mock.calls[0].arguments[0] as { data: { status: string } }).data;
+  assert.equal(data.status, "REQUESTED");
+});
+
+test("a REQUESTED number is claimable for provisioning, same as RELEASED/FAILED", async (t) => {
+  mockDb(t, "shop", "findUnique", async () => ({ id: "shop-A", name: "Garage A" }));
+  mockDb(t, "shopSmsNumber", "findUnique", async () => ({ shopId: "shop-A", status: "REQUESTED" }));
+  // count: 0 fuerza el rechazo temprano, antes de tocar Twilio — solo nos interesa
+  // que el filtro de reclamo incluya REQUESTED junto a RELEASED/FAILED.
+  const claim = mockDb(t, "shopSmsNumber", "updateMany", async () => ({ count: 0 }));
+  await assert.rejects(provisionShopSmsNumber({ shopId: "shop-A", actorUserId: "u1" }), /already being provisioned/);
+  const where = (claim.mock.calls[0].arguments[0] as { where: { OR: unknown[] } }).where;
+  assert.deepEqual((where.OR[0] as { status: { in: string[] } }).status.in, ["REQUESTED", "RELEASED", "FAILED"]);
+});
+
+test("dismissing a request removes it; dismissing with nothing pending fails clearly", async (t) => {
+  const del = mockDb(t, "shopSmsNumber", "deleteMany", async () => ({ count: 1 }));
+  await dismissShopSmsNumberRequest("shop-A");
+  assert.deepEqual((del.mock.calls[0].arguments[0] as { where: unknown }).where, { shopId: "shop-A", status: "REQUESTED" });
+
+  del.mock.mockImplementation(async () => ({ count: 0 }));
+  await assert.rejects(dismissShopSmsNumberRequest("shop-A"), /no pending request/);
 });
 
 // ── Liberación ───────────────────────────────────────────────────────────────

@@ -1,9 +1,11 @@
 // Números SMS dedicados por taller — una subcuenta de Twilio por taller con su
 // propio número. Solo GarageOS aprovisiona (desde /platform, con confirmación
-// explícita: cada número cuesta renta mensual). Estado en ShopSmsNumber:
+// explícita: cada número cuesta renta mensual). El taller lo pide desde
+// Configuración (REQUESTED) y un super admin lo aprueba con un clic. Estado en
+// ShopSmsNumber:
 //
-//   (sin fila) ─provision→ PROVISIONING ─ok→ ACTIVE ─schedule→ RELEASE_SCHEDULED ─(30 días)→ RELEASED
-//                               └─error→ FAILED            ↖──────cancel──────┘
+//   (sin fila) ─request→ REQUESTED ─provision→ PROVISIONING ─ok→ ACTIVE ─schedule→ RELEASE_SCHEDULED ─(30 días)→ RELEASED
+//                    └─dismiss→ (sin fila)          └─error→ FAILED            ↖──────cancel──────┘
 //
 // Garantías:
 // - Nunca dos aprovisionamientos a la vez: `shopId @unique` + transición atómica
@@ -76,6 +78,58 @@ export async function shopHasDedicatedSmsNumber(shopId: string): Promise<boolean
   return (await resolveShopSmsSender(shopId))?.dedicated ?? false;
 }
 
+// ── Solicitud (el taller pide, GarageOS aprueba) ─────────────────────────────
+
+/**
+ * El taller pide su número dedicado desde Configuración. No compra nada ni
+ * toca Twilio — solo dice "quiero uno" para que un super admin lo apruebe con
+ * un clic desde /platform (provisionShopSmsNumber ya acepta REQUESTED).
+ */
+export async function requestShopSmsNumber(params: { shopId: string; requestedByUserId: string }): Promise<void> {
+  const existing = await db.shopSmsNumber.findUnique({ where: { shopId: params.shopId }, select: { status: true } });
+
+  if (existing) {
+    if ((LIVE_NUMBER_STATUSES as readonly string[]).includes(existing.status)) {
+      throw new SmsNumberError("This shop already has a dedicated number.");
+    }
+    if (existing.status === "PROVISIONING") {
+      throw new SmsNumberError("A number is already being provisioned for this shop.");
+    }
+    if (existing.status === "REQUESTED") return; // ya pedido, nada que hacer
+
+    await db.shopSmsNumber.update({
+      where: { shopId: params.shopId },
+      data: {
+        status: "REQUESTED",
+        requestedAt: new Date(),
+        requestedByUserId: params.requestedByUserId,
+        lastError: null,
+      },
+    });
+    return;
+  }
+
+  try {
+    await db.shopSmsNumber.create({
+      data: {
+        shopId: params.shopId,
+        status: "REQUESTED",
+        requestedAt: new Date(),
+        requestedByUserId: params.requestedByUserId,
+      },
+    });
+  } catch (err) {
+    // Dos clics simultáneos del mismo dueño: la fila ya existe, nada que hacer.
+    if (!(err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002")) throw err;
+  }
+}
+
+/** El super admin descarta una solicitud sin aprovisionar nada (no hay recursos de Twilio que liberar). */
+export async function dismissShopSmsNumberRequest(shopId: string): Promise<void> {
+  const deleted = await db.shopSmsNumber.deleteMany({ where: { shopId, status: "REQUESTED" } });
+  if (deleted.count !== 1) throw new SmsNumberError("There is no pending request for this shop.");
+}
+
 // ── Aprovisionamiento ────────────────────────────────────────────────────────
 
 async function claimProvisioning(shopId: string, countryCode: string, areaCode: string | null): Promise<void> {
@@ -106,7 +160,7 @@ async function claimProvisioning(shopId: string, countryCode: string, areaCode: 
     where: {
       shopId,
       OR: [
-        { status: { in: ["RELEASED", "FAILED"] } },
+        { status: { in: ["REQUESTED", "RELEASED", "FAILED"] } },
         { status: "PROVISIONING", updatedAt: { lt: staleBefore } },
       ],
     },
