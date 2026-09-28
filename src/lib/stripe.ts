@@ -60,9 +60,14 @@ export async function createCheckoutSession(params: CreateCheckoutSessionParams)
     );
   }
 
+  const overagePriceId = smsOverageMeterPriceId();
+  const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = [{ price: priceId, quantity: 1 }];
+  // Metered: sin quantity — Stripe la calcula de los meter events reportados.
+  if (overagePriceId) line_items.push({ price: overagePriceId });
+
   return stripe.checkout.sessions.create({
     mode: "subscription",
-    line_items: [{ price: priceId, quantity: 1 }],
+    line_items,
     client_reference_id: params.shopId,
     customer: params.existingStripeCustomerId ?? undefined,
     customer_email: params.existingStripeCustomerId ? undefined : params.customerEmail,
@@ -124,24 +129,53 @@ export function constructWebhookEvent(payload: string | Buffer, signature: strin
 
 // ── Cobro de excedente de SMS (Billing Meters) ────────────────────────────────
 // Meter events, no usage records (createUsageRecord no existe en el SDK v22 —
-// Stripe lo reemplazó por la API de Meters). Requiere, del lado de Stripe:
+// Stripe lo reemplazó por la API de Meters). Forma verificada contra la
+// referencia viva de Stripe (docs.stripe.com/api/billing/meter-event) y contra
+// el Meter/Price reales de esta cuenta — ver docs/notifications.md. Del lado
+// de Stripe:
 //   1. Un Billing Meter (Dashboard → Billing → Meters) con event_name igual a
-//      STRIPE_SMS_OVERAGE_METER_EVENT_NAME.
-//   2. Un Price "metered" sobre ese Meter, agregado como item a la suscripción
-//      de cada taller que pueda tener excedente (o vía Checkout con ese price
-//      incluido) — a $0.05 CAD/segmento (SMS_OVERAGE_PRICE_CAD_PER_SEGMENT en
-//      src/domain/sms.ts) para que factura y UI coincidan.
-// ADVERTENCIA: la forma exacta de `stripe.billing.meterEvents.create` no se
-// pudo verificar contra la referencia viva de Stripe (sin credenciales en este
-// entorno) — confirmar contra https://docs.stripe.com/api/billing/meter-event
-// antes de depender de esto para facturar de verdad.
+//      STRIPE_SMS_OVERAGE_METER_EVENT_NAME, customer_mapping por
+//      stripe_customer_id.
+//   2. Un Price "metered" sobre ese Meter (STRIPE_SMS_OVERAGE_PRICE_ID) a
+//      $0.05 CAD/segmento (SMS_OVERAGE_PRICE_CAD_PER_SEGMENT en
+//      src/domain/sms.ts, deben coincidir) — agregado como subscription item
+//      en cada taller: createCheckoutSession lo agrega solo para talleres
+//      nuevos; scripts/backfill-sms-overage-subscription-item.ts lo agrega a
+//      los ya existentes. Sin ese item en la suscripción, los meter events se
+//      siguen acumulando pero Stripe nunca genera el cargo.
 
 export function smsOverageMeterEventName(): string | null {
   return process.env.STRIPE_SMS_OVERAGE_METER_EVENT_NAME?.trim() || null;
 }
 
+export function smsOverageMeterPriceId(): string | null {
+  return process.env.STRIPE_SMS_OVERAGE_PRICE_ID?.trim() || null;
+}
+
 export function isSmsOverageBillingConfigured(): boolean {
   return Boolean(smsOverageMeterEventName() && process.env.STRIPE_SECRET_KEY);
+}
+
+/**
+ * Agrega el subscription item de excedente de SMS a una suscripción de
+ * Stripe que todavía no lo tenga — usado por el backfill de talleres ya
+ * existentes (createCheckoutSession ya lo hace para talleres nuevos).
+ * Idempotente: no hace nada si el item ya está. No toca ningún otro item
+ * (el plan del taller queda intacto).
+ */
+export async function ensureSmsOverageSubscriptionItem(stripeSubscriptionId: string): Promise<"added" | "already_present" | "not_configured"> {
+  const overagePriceId = smsOverageMeterPriceId();
+  if (!overagePriceId) return "not_configured";
+
+  const stripe = getStripeClient();
+  const subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
+  const alreadyPresent = subscription.items.data.some((item) => item.price.id === overagePriceId);
+  if (alreadyPresent) return "already_present";
+
+  await stripe.subscriptions.update(stripeSubscriptionId, {
+    items: [{ price: overagePriceId }],
+  });
+  return "added";
 }
 
 /**
