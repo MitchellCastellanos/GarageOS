@@ -53,6 +53,21 @@ if (backfill.status !== 0) {
   );
 }
 
+// Backfill del subscription item de excedente de SMS (STRIPE_SMS_OVERAGE_PRICE_ID)
+// para talleres ya existentes. No-op si esa variable no está configurada.
+// Idempotente, no bloquea el deploy.
+console.log("[deploy-migrations] Backfilling SMS overage subscription item...");
+const backfillSmsOverage = spawnSync("npx", ["tsx", "scripts/backfill-sms-overage-subscription-item.ts"], {
+  stdio: "inherit",
+  env: process.env,
+});
+
+if (backfillSmsOverage.status !== 0) {
+  console.error(
+    "[deploy-migrations] backfill-sms-overage-subscription-item falló — continuando el deploy de todos modos."
+  );
+}
+
 // Bootstrap del super admin (PLATFORM_ADMIN_EMAIL/PASSWORD/NAME) — no-op si
 // esas variables no están configuradas. Idempotente, no bloquea el deploy.
 console.log("[deploy-migrations] Bootstrapping super admin...");
