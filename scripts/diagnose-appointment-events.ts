@@ -1,7 +1,5 @@
 // Diagnóstico temporal de solo lectura — ver commit que lo introdujo. Nunca escribe nada.
-import { PrismaClient } from "@prisma/client";
-
-const db = new PrismaClient();
+import { db } from "@/lib/db";
 
 async function main() {
   const migrationRows = await db.$queryRawUnsafe<any[]>(
