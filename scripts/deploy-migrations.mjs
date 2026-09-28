@@ -26,6 +26,10 @@ spawnSync("npx", ["prisma", "migrate", "resolve", "--rolled-back", "202609191200
   env: process.env,
 });
 
+console.log("[deploy-migrations] DIAGNOSTIC: prisma migrate status (read-only) ---");
+spawnSync("npx", ["prisma", "migrate", "status"], { stdio: "inherit", env: process.env });
+console.log("[deploy-migrations] DIAGNOSTIC: end of prisma migrate status ---");
+
 console.log("[deploy-migrations] Applying pending Prisma migrations...");
 const result = spawnSync("npx", ["prisma", "migrate", "deploy"], {
   stdio: "inherit",
