@@ -2,9 +2,15 @@
 import { db } from "@/lib/db";
 
 async function main() {
+  const schemaRows = await db.$queryRawUnsafe<any[]>(
+    `SELECT table_schema FROM information_schema.tables WHERE table_name = '_prisma_migrations'`
+  );
+  console.log("[_prisma_migrations lives in schema]", JSON.stringify(schemaRows));
+
+  const schema = schemaRows[0]?.table_schema ?? "public";
   const migrationRows = await db.$queryRawUnsafe<any[]>(
     `SELECT migration_name, started_at, finished_at, applied_steps_count, logs
-     FROM "garageos"."_prisma_migrations"
+     FROM "${schema}"."_prisma_migrations"
      WHERE migration_name LIKE '%appointment_events%'
      ORDER BY started_at ASC`
   );
