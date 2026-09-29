@@ -16,7 +16,7 @@ const NAV_ITEMS = [
   { href: PLATFORM.messages, label: "Mensajes", icon: MessagesSquare, exact: false },
 ] as const;
 
-function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
+function SidebarBody({ onNavigate, hasWaitingMessages }: { onNavigate?: () => void; hasWaitingMessages?: boolean }) {
   const pathname = usePathname();
 
   return (
@@ -36,6 +36,9 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
             >
               <item.icon className="w-4 h-4 flex-shrink-0" />
               {item.label}
+              {item.href === PLATFORM.messages && hasWaitingMessages && (
+                <span className="ml-auto w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
+              )}
             </Link>
           );
         })}
@@ -55,7 +58,15 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
-export function AdminSidebar({ mobileOpen = false, onMobileClose }: { mobileOpen?: boolean; onMobileClose?: () => void }) {
+export function AdminSidebar({
+  mobileOpen = false,
+  onMobileClose,
+  hasWaitingMessages,
+}: {
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
+  hasWaitingMessages?: boolean;
+}) {
   const drawerRef = useRef<HTMLElement>(null);
   const reducedMotion = useReducedMotion();
 
@@ -115,7 +126,7 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: { mobileOpen
             </div>
           </div>
         </div>
-        <SidebarBody />
+        <SidebarBody hasWaitingMessages={hasWaitingMessages} />
       </aside>
 
       {/* Mobile — drawer deslizable */}
@@ -164,7 +175,7 @@ export function AdminSidebar({ mobileOpen = false, onMobileClose }: { mobileOpen
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <SidebarBody onNavigate={onMobileClose} />
+              <SidebarBody onNavigate={onMobileClose} hasWaitingMessages={hasWaitingMessages} />
             </motion.aside>
           </>
         )}

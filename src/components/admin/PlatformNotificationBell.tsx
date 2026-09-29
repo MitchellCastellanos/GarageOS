@@ -4,8 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Bell, MessageSquare, Phone } from "lucide-react";
 import { PLATFORM } from "@/lib/routes";
-import { getPlatformPendingCount } from "@/actions/platform";
-import { PLATFORM_MESSAGES_CHANNEL } from "@/lib/platform/pusher-channels";
 
 export interface PlatformPendingCounts {
   waitingMessages: number;
@@ -17,48 +15,13 @@ export interface PlatformPendingCounts {
  * lista de talleres) — sin ella, un super admin solo se entera de una
  * solicitud de número SMS si entra a Mensajes, o de una conversación
  * esperando respuesta si entra a esa página. Cuenta, no lista: cada categoría
- * ya tiene su propia pantalla con el detalle.
+ * ya tiene su propia pantalla con el detalle. El conteo en vivo lo maneja
+ * PlatformChrome (una sola suscripción de Pusher para toda la página).
  */
-export function PlatformNotificationBell({ initialCounts }: { initialCounts: PlatformPendingCounts }) {
-  const [counts, setCounts] = useState(initialCounts);
+export function PlatformNotificationBell({ counts, onOpen }: { counts: PlatformPendingCounts; onOpen?: () => void }) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const total = counts.waitingMessages + counts.pendingSmsRequests;
-
-  async function refresh() {
-    try {
-      setCounts(await getPlatformPendingCount());
-    } catch (err) {
-      console.error("[PlatformNotificationBell] refresh falló:", err);
-    }
-  }
-
-  // Tiempo real — mismo canal compartido que ya usa /platform/messages.
-  useEffect(() => {
-    if (!process.env.NEXT_PUBLIC_PUSHER_KEY) return;
-    let unsub: (() => void) | undefined;
-    let cancelled = false;
-
-    import("pusher-js").then(({ default: Pusher }) => {
-      if (cancelled) return;
-      const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, { cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER! });
-      const channel = pusher.subscribe(PLATFORM_MESSAGES_CHANNEL);
-      const handler = () => refresh();
-      channel.bind("conversation-updated", handler);
-      channel.bind("pending-changed", handler);
-      unsub = () => {
-        channel.unbind("conversation-updated", handler);
-        channel.unbind("pending-changed", handler);
-        pusher.unsubscribe(PLATFORM_MESSAGES_CHANNEL);
-        pusher.disconnect();
-      };
-    });
-
-    return () => {
-      cancelled = true;
-      unsub?.();
-    };
-  }, []);
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
@@ -71,7 +34,7 @@ export function PlatformNotificationBell({ initialCounts }: { initialCounts: Pla
   function toggleOpen() {
     const next = !open;
     setOpen(next);
-    if (next) refresh(); // sin Pusher configurado (o si se perdió un evento), refresca al abrir
+    if (next) onOpen?.(); // sin Pusher configurado (o si se perdió un evento), refresca al abrir
   }
 
   return (

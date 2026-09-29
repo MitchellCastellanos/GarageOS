@@ -62,6 +62,12 @@ export default async function DashboardLayout({
     ...(campaignsEntitled ? [] : [ADMIN.campaigns]),
   ];
 
+  // Punto inicial en Citas (reserva/cancelación web sin ver) — el resto de la
+  // sesión lo actualiza en vivo el propio Sidebar por Pusher.
+  const hasUnreadAppointments = staffNotifications.notifications.some(
+    (n) => !n.readAt && n.href?.startsWith(ADMIN.appointments)
+  );
+
   return (
     <AdminLocaleProvider locale={locale}>
       {session.impersonation && (
@@ -77,6 +83,7 @@ export default async function DashboardLayout({
         lockedNavHrefs={lockedNavHrefs}
         hasUnreadSupport={hasUnreadSupport}
         hasUnreadInbox={hasUnreadInbox}
+        hasUnreadAppointments={hasUnreadAppointments}
         userId={session.user.id}
         initialNotifications={staffNotifications.notifications}
         initialUnreadNotifications={staffNotifications.unreadCount}

@@ -17,6 +17,8 @@ interface AdminChromeProps {
   hasUnreadSupport?: boolean;
   /** Punto en Bandeja de entrada — un cliente escribió (SMS o email) y nadie abrió el hilo. */
   hasUnreadInbox?: boolean;
+  /** Punto en Citas — una reserva/cancelación web reciente que nadie ha visto. */
+  hasUnreadAppointments?: boolean;
   userId: string;
   initialNotifications: StaffNotificationRow[];
   initialUnreadNotifications: number;
@@ -32,6 +34,7 @@ export function AdminChrome({
   lockedNavHrefs,
   hasUnreadSupport,
   hasUnreadInbox,
+  hasUnreadAppointments,
   userId,
   initialNotifications,
   initialUnreadNotifications,
@@ -61,6 +64,8 @@ export function AdminChrome({
           lockedNavHrefs={lockedNavHrefs}
           hasUnreadSupport={hasUnreadSupport}
           hasUnreadInbox={hasUnreadInbox}
+          hasUnreadAppointments={hasUnreadAppointments}
+          userId={userId}
         />
         <main className="flex-1 min-w-0 p-4 sm:p-6 overflow-y-auto">{children}</main>
       </div>

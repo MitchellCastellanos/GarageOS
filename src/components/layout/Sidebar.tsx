@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -82,12 +82,16 @@ export function Sidebar({
   lockedNavHrefs,
   hasUnreadSupport,
   hasUnreadInbox,
+  hasUnreadAppointments,
+  userId,
 }: {
   mobileOpen: boolean;
   onMobileClose: () => void;
   lockedNavHrefs?: string[];
   hasUnreadSupport?: boolean;
   hasUnreadInbox?: boolean;
+  hasUnreadAppointments?: boolean;
+  userId?: string;
 }) {
   const lockedSet = new Set(lockedNavHrefs ?? []);
   const pathname = usePathname();
@@ -95,6 +99,55 @@ export function Sidebar({
   const t = LAYOUT_DICT[locale];
   const drawerRef = useRef<HTMLElement>(null);
   const reducedMotion = useReducedMotion();
+
+  // Punto "en vivo" además del inicial calculado en el server — así no hace
+  // falta refrescar para verlo si el cliente escribe o reserva mientras se
+  // está en otra pantalla. Mismo canal por usuario que ya usa NotificationBell.
+  const [liveInbox, setLiveInbox] = useState(false);
+  const [liveAppointments, setLiveAppointments] = useState(false);
+
+  useEffect(() => {
+    if (!userId || !process.env.NEXT_PUBLIC_PUSHER_KEY) return;
+    let unsub: (() => void) | undefined;
+    let cancelled = false;
+
+    import("pusher-js").then(({ default: Pusher }) => {
+      if (cancelled) return;
+      const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, { cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER! });
+      const channelName = `staff-notifications-${userId}`;
+      const channel = pusher.subscribe(channelName);
+      const handler = (notification: { href?: string | null }) => {
+        if (notification.href?.startsWith(ADMIN.inbox)) setLiveInbox(true);
+        if (notification.href?.startsWith(ADMIN.appointments)) setLiveAppointments(true);
+      };
+      channel.bind("notification", handler);
+      unsub = () => {
+        channel.unbind("notification", handler);
+        pusher.unsubscribe(channelName);
+        pusher.disconnect();
+      };
+    });
+
+    return () => {
+      cancelled = true;
+      unsub?.();
+    };
+  }, [userId]);
+
+  // Entrar a la sección apaga su punto "en vivo" — el Inbox ya marca los
+  // hilos leídos por su cuenta; Appointments no tiene ese detalle, así que
+  // "lo vi" basta. Ajuste durante el render (no en un efecto ni con un ref)
+  // al cambiar de ruta, como recomienda React para "resetear estado cuando
+  // cambia algo" (https://react.dev/learn/you-might-not-need-an-effect).
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (prevPathname !== pathname) {
+    setPrevPathname(pathname);
+    if (pathname.startsWith(ADMIN.inbox) && liveInbox) setLiveInbox(false);
+    if (pathname.startsWith(ADMIN.appointments) && liveAppointments) setLiveAppointments(false);
+  }
+
+  const showInboxDot = hasUnreadInbox || liveInbox;
+  const showAppointmentsDot = hasUnreadAppointments || liveAppointments;
 
   useEffect(() => {
     if (!mobileOpen) return;
@@ -178,7 +231,11 @@ export function Sidebar({
                 icon={item.icon}
                 active={isActive}
                 locked={lockedSet.has(item.href)}
-                unread={(item.href === ADMIN.support && hasUnreadSupport) || (item.href === ADMIN.inbox && hasUnreadInbox)}
+                unread={
+                  (item.href === ADMIN.support && hasUnreadSupport) ||
+                  (item.href === ADMIN.inbox && showInboxDot) ||
+                  (item.href === ADMIN.appointments && showAppointmentsDot)
+                }
               />
             );
           })}
@@ -254,9 +311,10 @@ export function Sidebar({
                         Pro
                       </span>
                     )}
-                    {((item.href === ADMIN.support && hasUnreadSupport) || (item.href === ADMIN.inbox && hasUnreadInbox)) && !lockedSet.has(item.href) && (
-                      <span className="ml-auto w-2 h-2 rounded-full bg-red-500" />
-                    )}
+                    {((item.href === ADMIN.support && hasUnreadSupport) ||
+                      (item.href === ADMIN.inbox && showInboxDot) ||
+                      (item.href === ADMIN.appointments && showAppointmentsDot)) &&
+                      !lockedSet.has(item.href) && <span className="ml-auto w-2 h-2 rounded-full bg-red-500" />}
                   </Link>
                 ))}
                 <div className="border-t border-slate-800 my-2" />
