@@ -41,6 +41,19 @@ export function resolvePlanFromPriceId(priceId: string): { plan: Plan; interval:
   return null;
 }
 
+/**
+ * Encuentra el item de PLAN dentro de los items de una suscripción de Stripe
+ * (nunca `items.data[0]` a secas: desde que existe el item de excedente de
+ * SMS, el de plan puede no ser el primero — el orden de Stripe no está
+ * garantizado tras un `subscriptions.update`).
+ */
+export function findPlanSubscriptionItem<T extends { price: { id: string } }>(items: readonly T[]): T | null {
+  for (const item of items) {
+    if (resolvePlanFromPriceId(item.price.id)) return item;
+  }
+  return null;
+}
+
 export interface CreateCheckoutSessionParams {
   shopId: string;
   plan: Plan;
@@ -60,9 +73,16 @@ export async function createCheckoutSession(params: CreateCheckoutSessionParams)
     );
   }
 
+  // El item de excedente de SMS es "metered" (sin quantity) — se factura solo
+  // por lo que reporte reportSmsOverageUsage. Se agrega desde el arranque de
+  // la suscripción para no tener que hacer un backfill después.
+  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [{ price: priceId, quantity: 1 }];
+  const overagePriceId = getSmsOverageItemPriceId();
+  if (overagePriceId) lineItems.push({ price: overagePriceId });
+
   return stripe.checkout.sessions.create({
     mode: "subscription",
-    line_items: [{ price: priceId, quantity: 1 }],
+    line_items: lineItems,
     client_reference_id: params.shopId,
     customer: params.existingStripeCustomerId ?? undefined,
     customer_email: params.existingStripeCustomerId ? undefined : params.customerEmail,
@@ -127,17 +147,20 @@ export function constructWebhookEvent(payload: string | Buffer, signature: strin
 // Stripe lo reemplazó por la API de Meters). Requiere, del lado de Stripe:
 //   1. Un Billing Meter (Dashboard → Billing → Meters) con event_name igual a
 //      STRIPE_SMS_OVERAGE_METER_EVENT_NAME.
-//   2. Un Price "metered" sobre ese Meter, agregado como item a la suscripción
-//      de cada taller que pueda tener excedente (o vía Checkout con ese price
-//      incluido) — a $0.05 CAD/segmento (SMS_OVERAGE_PRICE_CAD_PER_SEGMENT en
-//      src/domain/sms.ts) para que factura y UI coincidan.
-// ADVERTENCIA: la forma exacta de `stripe.billing.meterEvents.create` no se
-// pudo verificar contra la referencia viva de Stripe (sin credenciales en este
-// entorno) — confirmar contra https://docs.stripe.com/api/billing/meter-event
-// antes de depender de esto para facturar de verdad.
+//   2. Un Price "metered" sobre ese Meter — su id va en
+//      STRIPE_SMS_OVERAGE_PRICE_ID. createCheckoutSession ya lo agrega como
+//      segundo item a toda suscripción nueva (sin quantity, como pide Stripe
+//      para un price metered); una suscripción creada ANTES de configurar
+//      esta variable no lo tiene y hay que agregárselo a mano una vez
+//      (Dashboard → esa suscripción → Add item, o `subscriptions.update` con
+//      solo el nuevo item — no toca los items existentes).
 
 export function smsOverageMeterEventName(): string | null {
   return process.env.STRIPE_SMS_OVERAGE_METER_EVENT_NAME?.trim() || null;
+}
+
+export function getSmsOverageItemPriceId(): string | null {
+  return process.env.STRIPE_SMS_OVERAGE_PRICE_ID?.trim() || null;
 }
 
 export function isSmsOverageBillingConfigured(): boolean {
