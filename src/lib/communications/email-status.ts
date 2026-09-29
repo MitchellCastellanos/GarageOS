@@ -47,11 +47,12 @@ export async function handleResendStatusEvent(event: ResendStatusEvent): Promise
       status: next,
       ...(next === "DELIVERED" ? { deliveredAt: now } : {}),
       ...(next === "BOUNCED" ? { failedAt: now, errorMessage: event.reason ?? "Bounced" } : {}),
+      ...(next === "FAILED" ? { failedAt: now, errorMessage: event.reason ?? "Failed" } : {}),
     },
   });
   if (updated.count !== 1) return "ignored";
 
-  if (next === "BOUNCED") {
+  if (next === "BOUNCED" || next === "FAILED") {
     await handleNotificationDeliveryFailure(message.id, "EMAIL").catch((err) =>
       console.error(`[email-status] respaldo por SMS falló (${message.id}):`, err)
     );

@@ -4,6 +4,8 @@ import { sendReminderEmail } from "@/lib/email";
 import { shopToEmailConfig } from "@/lib/email-config";
 import { SYSTEM_ACTOR, recordAppointmentEvent } from "@/lib/appointment-events";
 import { runSmsNumberLifecycle } from "@/lib/communications/sms-numbers";
+import { retryPendingSmsOverage } from "@/lib/communications/sms-usage";
+import { reconcileStaleSmsStatuses } from "@/lib/communications/sms-status";
 import { createOperatingChecker } from "@/lib/subscription";
 import { isTwilioConfigured } from "@/lib/communications/twilio";
 import { deliverDueAutomatedReminders } from "@/lib/reminder-automation";
@@ -158,9 +160,24 @@ export async function GET(request: Request) {
       })
     : null;
 
+  // Recuperación: excedentes de SMS que Stripe no aceptó y estados de entrega
+  // cuyo callback se perdió. Independientes entre sí; un fallo no tumba el cron.
+  const smsOverageRetry = await retryPendingSmsOverage().catch((err) => {
+    console.error("[cron] reintento de excedente SMS falló:", err);
+    return null;
+  });
+  const smsStatusReconcile = isTwilioConfigured()
+    ? await reconcileStaleSmsStatuses().catch((err) => {
+        console.error("[cron] conciliación de estados SMS falló:", err);
+        return null;
+      })
+    : null;
+
   return NextResponse.json({
     ...results,
     smsNumbers,
+    smsOverageRetry,
+    smsStatusReconcile,
     message: `Servicios: ${results.serviceReminders.sent} enviados. Citas: ${results.appointmentReminders.sent} enviados.`,
   });
 }

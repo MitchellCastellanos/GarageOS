@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { verifyResendWebhookSignature } from "@/lib/communications/resend-webhook";
 import { resolveShopIdByInboundAddress } from "@/lib/communications/sender-identity";
@@ -25,7 +26,9 @@ import { handleResendStatusEvent } from "@/lib/communications/email-status";
  * el endpoint entero responde 404 y no hace nada.
  */
 export async function POST(req: Request) {
-  const secret = process.env.RESEND_WEBHOOK_SECRET || process.env.RESEND_INBOUND_WEBHOOK_SECRET;
+  const secret =
+    process.env.RESEND_WEBHOOK_SECRET ||
+    process.env.RESEND_INBOUND_WEBHOOK_SECRET;
   if (!secret) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
@@ -48,6 +51,7 @@ export async function POST(req: Request) {
       to?: string[];
       from?: string;
       bounce?: { message?: string; type?: string };
+      failed?: { reason?: string };
       complaint?: { type?: string };
     };
   };
@@ -66,7 +70,12 @@ export async function POST(req: Request) {
       type: event.type,
       emailId: event.data.email_id,
       to: event.data.to,
-      reason: event.data.bounce?.message ?? event.data.bounce?.type ?? event.data.complaint?.type ?? null,
+      reason:
+        event.data.bounce?.message ??
+        event.data.bounce?.type ??
+        event.data.failed?.reason ??
+        event.data.complaint?.type ??
+        null,
     });
     return NextResponse.json({ ok: true, result });
   }
@@ -81,20 +90,36 @@ export async function POST(req: Request) {
   }
 
   // Idempotencia: un mismo email_id no debe crear dos mensajes si Resend reintenta el webhook.
-  const existing = await db.communicationMessage.findFirst({
-    where: { shopId, providerMessageId: event.data.email_id },
+  // idempotencyKey único: además del chequeo, cubre la carrera de dos entregas simultáneas.
+  const idempotencyKey = `resend-inbound:${event.data.email_id}`;
+  const existing = await db.communicationMessage.findUnique({
+    where: { idempotencyKey },
+    select: { id: true },
   });
   if (existing) return NextResponse.json({ ok: true, deduped: true });
 
   const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) return NextResponse.json({ error: "RESEND_API_KEY no configurado" }, { status: 500 });
+  if (!apiKey)
+    return NextResponse.json(
+      { error: "RESEND_API_KEY no configurado" },
+      { status: 500 },
+    );
 
-  const emailRes = await fetch(`https://api.resend.com/emails/inbound/${event.data.email_id}`, {
-    headers: { Authorization: `Bearer ${apiKey}` },
-  });
+  const emailRes = await fetch(
+    `https://api.resend.com/emails/inbound/${event.data.email_id}`,
+    {
+      headers: { Authorization: `Bearer ${apiKey}` },
+    },
+  );
   if (!emailRes.ok) {
-    console.error("[resend-inbound] no se pudo obtener el contenido del correo:", await emailRes.text());
-    return NextResponse.json({ error: "No se pudo obtener el correo" }, { status: 502 });
+    console.error(
+      "[resend-inbound] no se pudo obtener el contenido del correo:",
+      await emailRes.text(),
+    );
+    return NextResponse.json(
+      { error: "No se pudo obtener el correo" },
+      { status: 502 },
+    );
   }
 
   const email = (await emailRes.json()) as {
@@ -107,19 +132,28 @@ export async function POST(req: Request) {
     message_id?: string;
     in_reply_to?: string;
     references?: string[];
-    attachments?: { filename: string; content_type: string; download_url: string }[];
+    attachments?: {
+      filename: string;
+      content_type: string;
+      download_url: string;
+    }[];
   };
 
-  const fromAddress = email.from.match(/<([^>]+)>/)?.[1]?.toLowerCase() ?? email.from.toLowerCase();
+  const fromAddress =
+    email.from.match(/<([^>]+)>/)?.[1]?.toLowerCase() ??
+    email.from.toLowerCase();
 
-  const client = await db.client.findFirst({ where: { shopId, email: fromAddress } });
+  const client = await db.client.findFirst({
+    where: { shopId, email: fromAddress },
+  });
 
   // Threading: intenta encontrar el mensaje al que responde por Message-ID (doc §7).
   let threadId: string | null = null;
   if (email.in_reply_to || email.references?.length) {
-    const candidateIds = [email.in_reply_to, ...(email.references ?? [])].filter(
-      (v): v is string => Boolean(v)
-    );
+    const candidateIds = [
+      email.in_reply_to,
+      ...(email.references ?? []),
+    ].filter((v): v is string => Boolean(v));
     const parent = await db.communicationMessage.findFirst({
       where: { shopId, internetMessageId: { in: candidateIds } },
       select: { threadId: true },
@@ -145,28 +179,40 @@ export async function POST(req: Request) {
     });
   }
 
-  const message = await db.communicationMessage.create({
-    data: {
-      shopId,
-      clientId: client?.id ?? null,
-      threadId,
-      direction: "INBOUND",
-      channel: "EMAIL",
-      messageType: "HUMAN",
-      status: "RECEIVED",
-      provider: "resend",
-      providerMessageId: event.data.email_id,
-      internetMessageId: email.message_id ?? null,
-      inReplyTo: email.in_reply_to ?? null,
-      references: email.references ?? [],
-      from: fromAddress,
-      to: email.to ?? [toAddress],
-      cc: email.cc ?? [],
-      subject: email.subject ?? null,
-      textBody: email.text ?? null,
-      htmlBody: email.html ?? null,
-    },
-  });
+  let message: { id: string };
+  try {
+    message = await db.communicationMessage.create({
+      data: {
+        shopId,
+        clientId: client?.id ?? null,
+        threadId,
+        idempotencyKey,
+        direction: "INBOUND",
+        channel: "EMAIL",
+        messageType: "HUMAN",
+        status: "RECEIVED",
+        provider: "resend",
+        providerMessageId: event.data.email_id,
+        internetMessageId: email.message_id ?? null,
+        inReplyTo: email.in_reply_to ?? null,
+        references: email.references ?? [],
+        from: fromAddress,
+        to: email.to ?? [toAddress],
+        cc: email.cc ?? [],
+        subject: email.subject ?? null,
+        textBody: email.text ?? null,
+        htmlBody: email.html ?? null,
+      },
+    });
+  } catch (err) {
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === "P2002"
+    ) {
+      return NextResponse.json({ ok: true, deduped: true });
+    }
+    throw err;
+  }
 
   for (const att of email.attachments ?? []) {
     try {
@@ -178,7 +224,7 @@ export async function POST(req: Request) {
         message.id,
         att.filename,
         buffer,
-        att.content_type
+        att.content_type,
       );
       await db.communicationAttachment.create({
         data: {

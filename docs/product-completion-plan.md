@@ -246,10 +246,29 @@ Best owner: isolated Claude agent after Block 9.
 
 Pro+. Sync/export only the clean accounting entities GarageOS owns. Do not build QuickBooks inside GarageOS.
 
-### 11 — Communications production hardening — PARTIAL/VALIDATE — P0
-Best owner: Claude.
+### 11 — Communications production hardening — DONE in code (2026-10-01); real-provider validation = Block 15
 
-Validate real Twilio provisioning/dedicated numbers, SMS allowances and Stripe overage meter, Resend/webhooks, sender/domain setup, retries/idempotency and failure behavior. Two-way SMS remains included when a GarageOS-provisioned dedicated number exists.
+**Already present (audited, kept):** Twilio parent account + per-shop subaccounts + dedicated numbers (`ShopSmsNumber`, request/approve/provision/release, 30-day grace lifecycle in the daily cron); signature-validated inbound/status webhooks with `AccountSid`→owner mapping (unknown accounts never validate); inbound routing by `To`+`AccountSid` only, STOP/START/HELP incl. French; monotonic status callbacks; SMS segment counting (GSM-7/UCS-2); plan allowances (`PLAN_LIMITS`, calendar-month UTC) with usage alerts at 80/100 %; Stripe Billing Meter overage (`STRIPE_SMS_OVERAGE_METER_EVENT_NAME`, identifier `sms-overage:<messageId>`); Resend transactional pipeline with sender identities/domains, Svix-verified webhook (delivered/bounced/complained + inbound email), suppressions, cross-channel delivery-failure fallback; SMS-first/email-fallback policy; two-way SMS Inbox requiring a dedicated number (unread state, tenant-scoped threads).
+
+**Hardened in this block:**
+- **History never blocks delivery** (`outbox.ts`): a failed CommunicationMessage write before the send no longer prevents the notification; a failed "SENT" write after the provider accepted it no longer surfaces as a failure (which made callers fall back/retry = duplicates). Provider failure still marks FAILED and rethrows.
+- **Restricted-account guard** in `recordAndSend`: campaigns and `REMINDER` messages are refused for a shop without a paying subscription (crons already filtered; this is the last barrier). Transactional/inbox keep their action-level gating.
+- **Overage accounting** (`sms-usage.ts`, `sms.ts`, `stripe.ts`): overage is recomputed from Twilio's *actual* `numSegments`; reporting state is persisted (`overageReportedAt/Attempts/Error`); `settleSmsOverage` never throws and is idempotent (DB marker + Stripe identifier); the daily cron `retryPendingSmsOverage` recovers failed/unconfigured reports (≤30 days old, ≤25 attempts) and the meter event carries the message's own timestamp. Usage summary now exposes `overageSegments`/`estimatedOverageCad`. Messages with no `providerMessageId` (never left) are never billed. Old rows with `billedOverageSegments` are back-filled as reported (no double-reporting on deploy).
+- **Lost/early Twilio status callbacks** (`sms-status.ts`): the cron `reconcileStaleSmsStatuses` polls Twilio (inside the owning subaccount) for outbound SMS still QUEUED/SENDING/SENT after 15 min (≤3 days) and applies the result through the same monotonic, ownership-checked path — so the delivery-failure email fallback still fires.
+- **Resend**: `email.failed` is now a terminal FAILED (+ fallback); inbound email is idempotent via a unique `resend-inbound:<email_id>` key (closes the duplicate-on-concurrent-retry race).
+- **Inbox**: `InboxAutoRefresh` refreshes the list/thread every 20 s while visible (the shop Inbox never used Pusher; a per-shop private channel would need channel auth — deliberately not built).
+- **Tests**: `tests/comms-hardening.test.ts` (19, all provider-MOCKED: segments, overage boundaries, period reset, settle/retry/idempotency/failure, outbox resilience, restricted shops, suspended shops, Twilio reconciliation + tenant isolation, Resend failed/bounce scoping, Svix signature edge cases) on top of the existing `sms-*`/`email-status` suites (duplicate inbound, STOP/START, cross-account callbacks).
+- **Migration**: `20261001100000_sms_overage_report_state` (additive columns + index + back-fill).
+
+**Product decisions/limits:** allowance period is the UTC calendar month (Stripe invoices the aggregated meter on the subscription's own cycle, so annual subscribers see accumulated overage on their next invoice); two sends racing at the exact allowance boundary can under-count overage by a segment or two (never over-bill); shared-number (no dedicated number) inbound attribution is heuristic by design — two-way needs a dedicated number; email delivery events that arrive before the send is recorded are dropped (ms window; no Resend reconcile job).
+
+**Manual / real-provider checklist (nothing here is missing architecture):**
+1. **Twilio** env: `TWILIO_ACCOUNT_SID` (ROOT account), `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER` (shared/fallback number), optional `TWILIO_SHARED_NUMBER_SUBACCOUNT_SID`, optional `TWILIO_WEBHOOK_BASE_URL` (must equal the public origin Twilio calls — the signature is computed on it). Dedicated numbers are auto-configured on provisioning (SmsUrl → `/api/webhooks/twilio/inbound`, per-message StatusCallback → `/api/webhooks/twilio/status`); the SHARED number must be set by hand in Twilio Console → Phone Numbers → Active numbers → Messaging → "A message comes in" = Webhook POST `<origin>/api/webhooks/twilio/inbound`. Requires Canadian A2P/10DLC or toll-free verification for the numbers and Messaging Service/opt-out (STOP) handling left at Twilio defaults.
+2. **Stripe**: Billing → Meters → create meter with event name = `STRIPE_SMS_OVERAGE_METER_EVENT_NAME` (aggregation: Sum, value key `value`, customer key `stripe_customer_id`); create a metered Price ($0.05 CAD/segment) on it → `STRIPE_SMS_OVERAGE_PRICE_ID`; subscriptions created before this was set need that item added once. `STRIPE_SECRET_KEY` already required.
+3. **Resend**: `RESEND_API_KEY`; Webhooks → add `<origin>/api/webhooks/resend` with events `email.delivered`, `email.bounced`, `email.complained`, `email.failed` (+ `email.received` only if inbound email is enabled) → signing secret into `RESEND_WEBHOOK_SECRET`. Verify each sender domain (SPF/DKIM) in Resend. The inbound-email API paths in the route were written from public docs and are unverified (Block 15).
+4. **Cron**: `CRON_SECRET` (already used) — the daily `/api/webhooks/cron` now also runs overage retry and Twilio reconciliation.
+5. **Pusher** (platform/super-admin only, unchanged): `PUSHER_APP_ID/KEY/SECRET/CLUSTER`.
+6. **Block 15 real-provider validation:** send a real SMS from a provisioned number and confirm callback → DELIVERED; reply from a phone → shop Inbox (unread); STOP/START; force an overage and confirm the meter event and invoice line; bounce a real address via Resend and confirm suppression + SMS fallback.
 
 ### 12 — Complete / Multi-Shop completion — PARTIAL — P1
 Best owner: Claude.
@@ -317,7 +336,7 @@ These can be reconsidered from real customer demand after launch.
 
 ## Current next move
 
-**Blocks 0–4 and 6–8 are DONE. The next implementation handoff is Block 5 (Reports & Analytics)** — then 9 (fiscal + Accounting Light), 11 (communications hardening), 12 (Complete/Multi-Shop), 10, 13, 14, 15, 16.
+**Blocks 0–4, 6–8 and 11 are DONE. The next implementation handoff is Block 5 (Reports & Analytics)** — then 9 (fiscal + Accounting Light), 12 (Complete/Multi-Shop), 10, 13, 14, 15, 16.
 
 Rules every following block must respect:
 - Operational writes go through `getWritableShopId(permission?)` (restricted-mode + `ops.write` baseline + optional fine permission); sensitive reads through `getShopId(permission)`; new Pro+ functionality through a key in `src/config/entitlements.ts` + `checkEntitlement`/`can`/`canView`. Reports (Block 5) should gate on the existing `reports.view` permission and a new entitlement key for Advanced; Reports must not leak revenue to users without `financial.view`.
