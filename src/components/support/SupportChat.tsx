@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { sendSupportMessage } from "@/actions/support";
 import { Loader2, Send } from "lucide-react";
+import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
+import { SUPPORT_DICT } from "@/lib/admin-locale/support";
 
 export interface SupportMessageRow {
   id: string;
@@ -12,6 +14,8 @@ export interface SupportMessageRow {
 }
 
 export function SupportChat({ conversationId, initialMessages }: { conversationId: string | null; initialMessages: SupportMessageRow[] }) {
+  const locale = useAdminLocale();
+  const t = SUPPORT_DICT[locale];
   const [messages, setMessages] = useState(initialMessages);
   const [draft, setDraft] = useState("");
   const [pending, startTransition] = useTransition();
@@ -69,9 +73,7 @@ export function SupportChat({ conversationId, initialMessages }: { conversationI
     <div className="flex flex-col h-[calc(100dvh-240px)] min-h-[360px] bg-white border border-slate-200 rounded-xl overflow-hidden">
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {messages.length === 0 && (
-          <p className="text-sm text-slate-400 text-center mt-8">
-            Escríbenos aquí — un miembro del equipo de GarageOS te va a responder.
-          </p>
+          <p className="text-sm text-slate-400 text-center mt-8">{t.chat.empty}</p>
         )}
         {messages.map((m) => (
           <div key={m.id} className={`flex ${m.sender === "SHOP" ? "justify-end" : "justify-start"}`}>
@@ -100,7 +102,7 @@ export function SupportChat({ conversationId, initialMessages }: { conversationI
               handleSend();
             }
           }}
-          placeholder="Escribe un mensaje..."
+          placeholder={t.chat.placeholder}
           rows={1}
           className="flex-1 resize-none px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
         />

@@ -10,7 +10,6 @@ import {
   DollarSign,
   Bell,
   TrendingUp,
-  AlertCircle,
   Plus,
   ArrowUpRight,
   ArrowDownRight,
@@ -18,8 +17,10 @@ import {
   MessageSquare,
   Megaphone,
   ClipboardList,
+  ClipboardCheck,
   ChevronRight,
   Wrench,
+  Package,
   BarChart3,
 } from "lucide-react";
 import { RevenueChart } from "@/components/dashboard/RevenueChart";
@@ -76,6 +77,7 @@ export default async function DashboardPage() {
     campaignCount,
     accountingDocumentCount,
     workOrderCount,
+    inspectionCount,
   ] = await Promise.all([
     db.client.count({ where: { shopId } }),
     db.invoice.count({ where: { shopId } }),
@@ -134,6 +136,7 @@ export default async function DashboardPage() {
     db.campaign.count({ where: { shopId, status: { not: "CANCELLED" } } }),
     db.accountingDocument.count({ where: { shopId } }),
     db.workOrder.count({ where: { shopId, status: { not: "CANCELLED" } } }),
+    db.inspection.count({ where: { shopId } }),
   ]);
 
   const thisMonthRevenue = paidInvoicesThisMonth.reduce(
@@ -261,39 +264,8 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      {/* ── Métricas ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {metrics.map((metric) => {
-          const Icon = metric.icon;
-          return (
-            <Link
-              key={metric.label}
-              href={metric.href}
-              className="bg-white rounded-xl border border-slate-200 p-5 hover:border-slate-300 transition-colors"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm text-slate-500">{metric.label}</p>
-                <div className={`w-9 h-9 rounded-lg ${metric.bg} flex items-center justify-center`}>
-                  <Icon className={`w-4 h-4 ${metric.color}`} />
-                </div>
-              </div>
-              <p className="text-2xl font-bold text-slate-900">{metric.value}</p>
-              {/* Cambio % de ingresos */}
-              {metric.extra != null && (
-                <div className={`flex items-center gap-1 mt-1 text-xs font-medium ${metric.extra >= 0 ? "text-emerald-600" : "text-red-500"}`}>
-                  {metric.extra >= 0
-                    ? <ArrowUpRight className="w-3.5 h-3.5" />
-                    : <ArrowDownRight className="w-3.5 h-3.5" />
-                  }
-                  {Math.abs(metric.extra).toFixed(1)}% {t.metrics.vsLastMonth}
-                </div>
-              )}
-            </Link>
-          );
-        })}
-      </div>
-
-      {/* Centro de control: primero la operación del día, luego el reporting. */}
+      {/* Centro de control primero: es lo más accionable del día a día,
+          antes que las métricas o el reporting histórico. */}
       <section className="overflow-hidden rounded-2xl bg-slate-950 text-white shadow-xl shadow-slate-900/10">
         <div className="grid gap-0 lg:grid-cols-[1.25fr_1fr]">
           <div className="relative p-6 sm:p-8">
@@ -337,14 +309,48 @@ export default async function DashboardPage() {
         </div>
       </section>
 
+      {/* ── Métricas ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {metrics.map((metric) => {
+          const Icon = metric.icon;
+          return (
+            <Link
+              key={metric.label}
+              href={metric.href}
+              className="bg-white rounded-xl border border-slate-200 p-5 hover:border-slate-300 transition-colors"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm text-slate-500">{metric.label}</p>
+                <div className={`w-9 h-9 rounded-lg ${metric.bg} flex items-center justify-center`}>
+                  <Icon className={`w-4 h-4 ${metric.color}`} />
+                </div>
+              </div>
+              <p className="text-2xl font-bold text-slate-900">{metric.value}</p>
+              {/* Cambio % de ingresos */}
+              {metric.extra != null && (
+                <div className={`flex items-center gap-1 mt-1 text-xs font-medium ${metric.extra >= 0 ? "text-emerald-600" : "text-red-500"}`}>
+                  {metric.extra >= 0
+                    ? <ArrowUpRight className="w-3.5 h-3.5" />
+                    : <ArrowDownRight className="w-3.5 h-3.5" />
+                  }
+                  {Math.abs(metric.extra).toFixed(1)}% {t.metrics.vsLastMonth}
+                </div>
+              )}
+            </Link>
+          );
+        })}
+      </div>
+
+      {/* Recordatorios pendientes ya vive en la métrica de arriba — aquí no
+          se repite, para no mostrar la misma cifra tres veces en la pantalla. */}
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {[
           { label: t.commandCenter.openQuotes, value: quoteCount, href: ADMIN.quotes, icon: ClipboardList, color: "text-violet-600", bg: "bg-violet-50" },
           { label: t.commandCenter.conversations, value: inboxCount, href: ADMIN.inbox, icon: MessageSquare, color: "text-sky-600", bg: "bg-sky-50" },
           { label: t.commandCenter.campaigns, value: campaignCount, href: ADMIN.campaigns, icon: Megaphone, color: "text-pink-600", bg: "bg-pink-50" },
-          { label: t.commandCenter.workOrders, value: workOrderCount, href: ADMIN.appointments, icon: Wrench, color: "text-orange-600", bg: "bg-orange-50" },
+          { label: t.commandCenter.workOrders, value: workOrderCount, href: ADMIN.workOrders, icon: Wrench, color: "text-orange-600", bg: "bg-orange-50" },
           { label: t.commandCenter.documents, value: accountingDocumentCount, href: ADMIN.accounting, icon: FileText, color: "text-emerald-600", bg: "bg-emerald-50" },
-          { label: t.metrics.pendingReminders, value: pendingReminders, href: ADMIN.reminders, icon: Bell, color: "text-amber-600", bg: "bg-amber-50" },
+          { label: nav.inspections, value: inspectionCount, href: ADMIN.inspections, icon: ClipboardCheck, color: "text-amber-600", bg: "bg-amber-50" },
         ].map(({ label, value, href, icon: Icon, color, bg }) => (
           <Link key={label} href={href} className="group rounded-xl border border-slate-200 bg-white p-4 transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-sm">
             <div className={`mb-3 flex h-8 w-8 items-center justify-center rounded-lg ${bg}`}><Icon className={`h-4 w-4 ${color}`} /></div>
@@ -361,10 +367,10 @@ export default async function DashboardPage() {
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { title: t.modules.operations, links: [[nav.appointments, ADMIN.appointments, CalendarDays], [nav.quotes, ADMIN.quotes, ClipboardList], [nav.reminders, ADMIN.reminders, Bell]] },
+            { title: t.modules.operations, links: [[nav.appointments, ADMIN.appointments, CalendarDays], [nav.workOrders, ADMIN.workOrders, Wrench], [nav.inspections, ADMIN.inspections, ClipboardCheck]] },
             { title: t.modules.customers, links: [[nav.clients, ADMIN.clients, Users], [nav.invoices, ADMIN.invoices, FileText], [nav.accounting, ADMIN.accounting, BarChart3]] },
             { title: t.modules.communications, links: [[nav.inbox, ADMIN.inbox, MessageSquare], [nav.campaigns, ADMIN.campaigns, Megaphone], [nav.notifications, `${ADMIN.settings}?tab=domain`, Bell]] },
-            { title: t.modules.finance, links: [[nav.caja, ADMIN.caja, DollarSign], [nav.invoices, ADMIN.invoices, TrendingUp], [t.modules.settings, ADMIN.settings, Wrench]] },
+            { title: t.modules.finance, links: [[nav.caja, ADMIN.caja, DollarSign], [nav.inventory, ADMIN.inventory, Package], [t.modules.settings, ADMIN.settings, Wrench]] },
           ].map((group) => (
             <div key={group.title} className="rounded-xl bg-slate-50 p-4">
               <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">{group.title}</p>
@@ -382,6 +388,38 @@ export default async function DashboardPage() {
           <Link href="/#pricing" className="inline-flex items-center gap-1 text-sm font-semibold text-blue-700 hover:text-blue-900">{t.modules.planLink}<ArrowUpRight className="h-4 w-4" /></Link>
         </div>
       </section>
+
+      {/* Acciones rápidas: es una lista de atajos accionables, así que va
+          junto a los módulos y no mezclada con el reporting histórico. */}
+      <section className="bg-white rounded-xl border border-slate-200 p-5">
+        <h2 className="font-semibold text-slate-900 mb-4">{t.quickActions.title}</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
+          {[
+            { href: "/clients/new", label: t.quickActions.newClient, icon: Users, bg: "bg-blue-50", color: "text-blue-600" },
+            { href: "/invoices/new", label: t.quickActions.newInvoice, icon: FileText, bg: "bg-violet-50", color: "text-violet-600" },
+            { href: "/reminders/new", label: t.quickActions.newReminder, icon: Bell, bg: "bg-amber-50", color: "text-amber-600" },
+            { href: "/accounting", label: t.quickActions.uploadDocument, icon: Plus, bg: "bg-slate-100", color: "text-slate-600" },
+            { href: "/caja", label: t.quickActions.cashRegister, icon: DollarSign, bg: "bg-emerald-50", color: "text-emerald-600" },
+          ].map(({ href, label, icon: Icon, bg, color }) => (
+            <Link
+              key={href}
+              href={href}
+              className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors text-sm"
+            >
+              <div className={`w-8 h-8 ${bg} rounded-lg flex items-center justify-center`}>
+                <Icon className={`w-4 h-4 ${color}`} />
+              </div>
+              <span className="font-medium text-slate-700">{label}</span>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Reportes y análisis: separado de la operación del día ── */}
+      <div className="pt-2">
+        <h2 className="text-lg font-semibold text-slate-900">{t.analyticsSection.title}</h2>
+        <p className="mt-1 text-sm text-slate-500">{t.analyticsSection.subtitle}</p>
+      </div>
 
       {/* ── Desglose de ingresos (mes actual) ── */}
       <div className="bg-white rounded-xl border border-slate-200 p-5">
@@ -421,8 +459,8 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* ── Top clientes + Facturas recientes + Acciones ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/* ── Top clientes + Facturas recientes ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Top 5 clientes */}
         <div className="bg-white rounded-xl border border-slate-200">
           <div className="px-5 py-4 border-b border-slate-100">
@@ -491,47 +529,7 @@ export default async function DashboardPage() {
             </div>
           )}
         </div>
-
-        {/* Acciones rápidas */}
-        <div className="bg-white rounded-xl border border-slate-200 p-5">
-          <h2 className="font-semibold text-slate-900 mb-4">{t.quickActions.title}</h2>
-          <div className="space-y-2">
-            {[
-              { href: "/clients/new", label: t.quickActions.newClient, icon: Users, bg: "bg-blue-50", color: "text-blue-600" },
-              { href: "/invoices/new", label: t.quickActions.newInvoice, icon: FileText, bg: "bg-violet-50", color: "text-violet-600" },
-              { href: "/reminders/new", label: t.quickActions.newReminder, icon: Bell, bg: "bg-amber-50", color: "text-amber-600" },
-              { href: "/accounting", label: t.quickActions.uploadDocument, icon: Plus, bg: "bg-slate-100", color: "text-slate-600" },
-              { href: "/caja", label: t.quickActions.cashRegister, icon: DollarSign, bg: "bg-emerald-50", color: "text-emerald-600" },
-            ].map(({ href, label, icon: Icon, bg, color }) => (
-              <Link
-                key={href}
-                href={href}
-                className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors text-sm"
-              >
-                <div className={`w-8 h-8 ${bg} rounded-lg flex items-center justify-center`}>
-                  <Icon className={`w-4 h-4 ${color}`} />
-                </div>
-                <span className="font-medium text-slate-700">{label}</span>
-              </Link>
-            ))}
-          </div>
-        </div>
       </div>
-
-      {/* Alerta recordatorios pendientes */}
-      {pendingReminders > 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-medium text-amber-800">
-              {t.remindersAlert.pending(pendingReminders)}
-            </p>
-            <Link href={ADMIN.reminders} className="text-xs text-amber-700 hover:underline">
-              {t.remindersAlert.viewReminders}
-            </Link>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
