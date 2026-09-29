@@ -10,6 +10,7 @@ import { db } from "@/lib/db";
 import { getShopId } from "@/lib/shop-context";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import { INBOX_DICT } from "@/lib/admin-locale/inbox";
+import { InboxAutoRefresh } from "@/components/inbox/InboxAutoRefresh";
 
 interface PageProps { params: Promise<{ threadId: string }>; }
 type ThreadDetail = NonNullable<Awaited<ReturnType<typeof getThreadDetail>>>;
@@ -64,6 +65,7 @@ export default async function ThreadDetailPage({ params }: PageProps) {
 
   return (
     <div className="max-w-3xl space-y-6">
+      <InboxAutoRefresh />
       <div><h1 className="text-xl font-bold text-slate-900">{thread.client ? formatClientName(thread.client) : thread.channel === "SMS" ? thread.contactAddress : thread.subject || t.thread.fallbackTitle}</h1><p className="text-slate-500 text-sm mt-1">{thread.channel === "SMS" ? `${t.sms.channelSms} · ${thread.contactAddress ?? ""}` : thread.subject || t.thread.noSubject}</p></div>
       <div className="bg-white rounded-xl border border-slate-200 divide-y divide-slate-100">{thread.messages.map((message) => <MessageRow key={message.id} message={message} youTo={t.thread.youTo} />)}</div>
       {clientHistory.length > 0 && <div className="bg-white rounded-xl border border-slate-200 p-5"><h3 className="text-sm font-semibold text-slate-900 mb-3">{t.thread.clientHistoryTitle}</h3><ul className="space-y-2">{clientHistory.map((m) => <li key={m.id} className="text-xs text-slate-500 flex items-center justify-between"><span>{m.purpose ?? m.channel} — {m.subject ?? m.status}</span><span>{formatDate(m.createdAt)}</span></li>)}</ul></div>}

@@ -12,6 +12,7 @@ export type ResendDeliveryEventType =
   | "email.delivered"
   | "email.delivery_delayed"
   | "email.bounced"
+  | "email.failed"
   | "email.complained";
 
 export function mapResendEventStatus(type: string): CommStatus | null {
@@ -20,6 +21,8 @@ export function mapResendEventStatus(type: string): CommStatus | null {
       return "DELIVERED";
     case "email.bounced":
       return "BOUNCED";
+    case "email.failed":
+      return "FAILED";
     default:
       return null;
   }

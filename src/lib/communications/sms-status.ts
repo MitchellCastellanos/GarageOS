@@ -76,3 +76,87 @@ export async function handleSmsStatusCallback(input: SmsStatusInput): Promise<"u
   }
   return "updated";
 }
+
+// ── Conciliación de callbacks perdidos ───────────────────────────────────────
+// Twilio no reintenta un StatusCallback que ya respondimos 200, y a veces llega
+// antes de que el envío guarde el providerMessageId (entonces se ignora). Sin
+// esto, el mensaje quedaría en SENT para siempre y el respaldo por email de un
+// fallo de entrega nunca correría. El cron consulta a Twilio por los mensajes
+// que llevan un rato sin estado final y aplica el resultado por el mismo camino
+// (monótono e idempotente) que el webhook.
+
+const RECONCILE_MIN_AGE_MS = 15 * 60 * 1000;
+const RECONCILE_MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000;
+
+export interface TwilioMessageSnapshot {
+  status: string;
+  accountSid: string;
+  errorCode?: number | string | null;
+  errorMessage?: string | null;
+}
+
+export type FetchTwilioMessage = (subaccountSid: string | null, messageSid: string) => Promise<TwilioMessageSnapshot | null>;
+
+const defaultFetchTwilioMessage: FetchTwilioMessage = async (subaccountSid, messageSid) => {
+  const { getTwilioClientFor } = await import("@/lib/communications/twilio");
+  try {
+    const m = await getTwilioClientFor(subaccountSid).messages(messageSid).fetch();
+    return { status: m.status, accountSid: m.accountSid, errorCode: m.errorCode, errorMessage: m.errorMessage };
+  } catch (err) {
+    console.error(`[sms-status] no se pudo consultar ${messageSid} en Twilio:`, err);
+    return null;
+  }
+};
+
+export interface SmsReconcileResult {
+  scanned: number;
+  updated: number;
+}
+
+export async function reconcileStaleSmsStatuses(
+  now: Date = new Date(),
+  opts: { limit?: number; fetchMessage?: FetchTwilioMessage } = {}
+): Promise<SmsReconcileResult> {
+  const fetchMessage = opts.fetchMessage ?? defaultFetchTwilioMessage;
+  const stale = await db.communicationMessage.findMany({
+    where: {
+      channel: "SMS",
+      direction: "OUTBOUND",
+      provider: "twilio",
+      providerMessageId: { not: null },
+      status: { in: ["QUEUED", "SENDING", "SENT"] },
+      createdAt: {
+        gte: new Date(now.getTime() - RECONCILE_MAX_AGE_MS),
+        lte: new Date(now.getTime() - RECONCILE_MIN_AGE_MS),
+      },
+    },
+    orderBy: { createdAt: "asc" },
+    take: opts.limit ?? 50,
+    select: { id: true, shopId: true, from: true, providerMessageId: true },
+  });
+
+  const result: SmsReconcileResult = { scanned: 0, updated: 0 };
+  const shared = getSharedSmsNumber();
+  for (const m of stale) {
+    result.scanned++;
+    const subaccountSid =
+      m.from === shared
+        ? null
+        : (await db.shopSmsNumber.findUnique({ where: { shopId: m.shopId }, select: { subaccountSid: true } }))
+            ?.subaccountSid ?? null;
+    const snapshot = await fetchMessage(subaccountSid, m.providerMessageId!);
+    if (!snapshot) continue;
+    const outcome = await handleSmsStatusCallback({
+      messageSid: m.providerMessageId!,
+      accountSid: snapshot.accountSid,
+      status: snapshot.status,
+      errorCode: snapshot.errorCode != null ? String(snapshot.errorCode) : null,
+      errorMessage: snapshot.errorMessage ?? null,
+    }).catch((err) => {
+      console.error(`[sms-status] conciliación falló (${m.id}):`, err);
+      return "ignored" as const;
+    });
+    if (outcome === "updated") result.updated++;
+  }
+  return result;
+}

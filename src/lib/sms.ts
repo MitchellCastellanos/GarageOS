@@ -3,9 +3,9 @@ import { recordAndSend, type RecordAndSendResult } from "@/lib/communications/ou
 import { getTwilioClientFor, TWILIO_STATUS_PATH, twilioWebhookUrl } from "@/lib/communications/twilio";
 import { resolveShopSmsSender } from "@/lib/communications/sms-numbers";
 import { isSuppressed } from "@/lib/communications/suppression";
-import { checkSmsUsageAlerts, planSmsOverage } from "@/lib/communications/sms-usage";
-import { getEffectiveSubscription } from "@/lib/subscription";
-import { countSmsSegments } from "@/domain/sms";
+import { checkSmsUsageAlerts, planSmsOverage, settleSmsOverage } from "@/lib/communications/sms-usage";
+import { db } from "@/lib/db";
+import { computeOverageSegments, countSmsSegments } from "@/domain/sms";
 import { toE164 } from "@/lib/phone";
 
 export { toE164 };
@@ -103,13 +103,19 @@ export async function sendSms(params: SendSmsParams): Promise<RecordAndSendResul
   });
 
   if (!result.deduped) {
-    if (overage.overageSegments > 0 && result.messageId) {
-      const { stripeCustomerId } = await getEffectiveSubscription(params.shopId);
-      if (stripeCustomerId) {
-        const { reportSmsOverageUsage } = await import("@/lib/stripe");
-        await reportSmsOverageUsage({ stripeCustomerId, segments: overage.overageSegments, messageId: result.messageId });
+    // El cupo se recalcula con los segmentos REALES que reportó Twilio (el estimado
+    // local puede diferir p. ej. con caracteres raros) antes de reportar el excedente.
+    let billed = overage.overageSegments;
+    if (result.segments != null && result.segments !== segments) {
+      billed = computeOverageSegments(overage.usedBefore, overage.allowance, result.segments);
+      if (result.messageId) {
+        await db.communicationMessage
+          .update({ where: { id: result.messageId }, data: { billedOverageSegments: billed } })
+          .catch((err) => console.error(`[sms] no se pudo corregir el excedente (${result.messageId}):`, err));
       }
     }
+    // settleSmsOverage nunca lanza y persiste el resultado; si Stripe falla, el cron reintenta.
+    if (billed > 0 && result.messageId) await settleSmsOverage(result.messageId);
 
     // Import diferido: staff-alerts es server-only (correo de plataforma).
     await checkSmsUsageAlerts(params.shopId, async (alert) => {

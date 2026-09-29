@@ -206,20 +206,32 @@ export function isSmsOverageBillingConfigured(): boolean {
   return Boolean(smsOverageMeterEventName() && process.env.STRIPE_SECRET_KEY);
 }
 
+/** Stripe solo acepta timestamps de meter events de hasta 35 días atrás (y ~5 min a futuro). */
+const METER_EVENT_MAX_AGE_MS = 34 * 24 * 60 * 60 * 1000;
+
 /**
  * Reporta segmentos de excedente a Stripe para un cliente. Idempotente por
  * `identifier` (el id del CommunicationMessage) — un reintento del mismo
- * mensaje nunca lo cuenta dos veces. Nunca lanza: quien la llama la trata
- * como best-effort (un fallo de Stripe nunca debe bloquear ni reintentar el
- * envío del SMS, que ya salió).
+ * mensaje nunca lo cuenta dos veces. Nunca lanza: devuelve true solo si Stripe
+ * aceptó el evento; quien la llama persiste el resultado (overageReportedAt) y
+ * el cron reintenta los pendientes (retryPendingSmsOverage). Un fallo de Stripe
+ * nunca debe bloquear ni reintentar el envío del SMS, que ya salió.
+ * `occurredAt` fija el período de facturación correcto en un reintento tardío.
  */
 export async function reportSmsOverageUsage(params: {
   stripeCustomerId: string;
   segments: number;
   messageId: string;
-}): Promise<void> {
+  occurredAt?: Date;
+}): Promise<boolean> {
   const eventName = smsOverageMeterEventName();
-  if (!eventName || params.segments <= 0) return;
+  if (!eventName || params.segments <= 0) return false;
+
+  const age = params.occurredAt ? Date.now() - params.occurredAt.getTime() : 0;
+  const timestamp =
+    params.occurredAt && age >= 0 && age < METER_EVENT_MAX_AGE_MS
+      ? Math.floor(params.occurredAt.getTime() / 1000)
+      : undefined;
 
   try {
     await getStripeClient().billing.meterEvents.create({
@@ -229,8 +241,11 @@ export async function reportSmsOverageUsage(params: {
         stripe_customer_id: params.stripeCustomerId,
         value: String(params.segments),
       },
+      ...(timestamp ? { timestamp } : {}),
     });
+    return true;
   } catch (err) {
     console.error(`[stripe] reportSmsOverageUsage falló (mensaje ${params.messageId}):`, err);
+    return false;
   }
 }
