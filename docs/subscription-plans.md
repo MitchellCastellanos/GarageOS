@@ -20,9 +20,9 @@ GarageOS should sell a complete shop-management system at every tier. The lower 
 
 | Plan | Monthly | Annual | Included users | Included locations |
 | --- | ---: | ---: | ---: | ---: |
-| Core | $149 CAD | $1,490 CAD | 3 | 1 |
-| Pro | $249 CAD | $2,490 CAD | Unlimited | 1 |
-| Complete | $399 CAD | $3,990 CAD | Unlimited | 1 |
+| Core | $199 CAD | $1,990 CAD | 3 | 1 |
+| Pro | $299 CAD | $2,990 CAD | Unlimited | 1 |
+| Complete | $449 CAD | $4,490 CAD | Unlimited | 1 |
 
 Annual pricing is intentionally equivalent to paying for 10 months and receiving 12 months of service.
 
@@ -34,18 +34,6 @@ Multi-location organizations use **Complete** as the base plan.
 - Future annual multi-location pricing may mirror the same two-month annual discount, but should be explicitly defined when multi-location billing is implemented.
 - Multi-Shop should unlock centralized administration, cross-location access controls and consolidated reporting rather than requiring every location to purchase an unrelated standalone subscription.
 
-## Founding Shops launch offer
-
-For the first **25 eligible founding shops**:
-
-- GarageOS Pro: **$149 CAD/month for the first 12 months**.
-- Regular Pro price after the introductory period: **$249 CAD/month**.
-- $0 setup fee.
-- Assisted onboarding included.
-- Standard data migration included.
-- Optional founding annual price: **$1,490 CAD for the first year**, then the regular annual Pro price of $2,490 CAD.
-
-The founding offer is an acquisition promotion, not a separate permanent subscription tier.
 
 ## Entitlement matrix
 
@@ -108,7 +96,7 @@ Legend:
 
 ## Detailed plan intent
 
-### Core — $149 CAD/month
+### Core — $199 CAD/month
 
 **Positioning:** Everything a small independent shop needs to run day to day.
 
@@ -128,7 +116,7 @@ The main commercial constraints are:
 - no advanced accounting/integration package;
 - smaller communication allowances.
 
-### Pro — $249 CAD/month
+### Pro — $299 CAD/month
 
 **Positioning:** Run, automate and grow your entire shop.
 
@@ -153,7 +141,7 @@ It adds:
 
 Pro should represent the core GarageOS promise: **the whole independent shop in one platform**.
 
-### Complete — $399 CAD/month
+### Complete — $449 CAD/month
 
 **Positioning:** Advanced control for high-volume and more complex operations.
 
@@ -222,7 +210,6 @@ Suggested implementation shape:
 4. Expose entitlement state to the UI so unavailable features can show an upgrade affordance instead of failing mysteriously.
 5. Keep usage allowances separate from boolean entitlements.
 6. Make Multi-Shop organization/location limits explicit rather than inferring them from UI state.
-7. Keep promotional billing (Founding Shops) separate from entitlements: Founding Pro has **Pro entitlements** with a temporary discounted price.
 8. Add tests for every gate, especially cross-shop/multi-tenant isolation.
 
 ### Suggested entitlement keys
