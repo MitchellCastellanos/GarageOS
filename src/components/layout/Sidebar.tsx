@@ -34,10 +34,7 @@ import { LAYOUT_DICT } from "@/lib/admin-locale/layout";
 import { GarageOSAppIcon } from "@/components/marketing/GarageOSLogo";
 import { RailLink } from "@/components/layout/rail-variants/RailLink";
 import { FlyoutRail } from "@/components/layout/rail-variants/FlyoutRail";
-import { AccordionRail } from "@/components/layout/rail-variants/AccordionRail";
-import { TwoColumnRail } from "@/components/layout/rail-variants/TwoColumnRail";
-import { RailVariantSwitcher } from "@/components/layout/rail-variants/RailVariantSwitcher";
-import { RAIL_VARIANT_STORAGE_KEY, type RailNavGroup, type RailVariant } from "@/components/layout/rail-variants/types";
+import type { RailNavGroup } from "@/components/layout/rail-variants/types";
 
 function MobileNavLink({
   href,
@@ -100,33 +97,7 @@ export function Sidebar({
   const locale = useAdminLocale();
   const t = LAYOUT_DICT[locale];
   const drawerRef = useRef<HTMLElement>(null);
-  const asideRef = useRef<HTMLElement>(null);
   const reducedMotion = useReducedMotion();
-
-  // Prototipo de rediseño del riel (docs/sidebar-redesign-plan.md) — deja
-  // comparar los layouts candidatos en el mismo deploy de preview antes de
-  // comprometerse a uno. Se quita al implementar el definitivo.
-  const [railVariant, setRailVariant] = useState<RailVariant>(() => {
-    if (typeof window === "undefined") return "flyout";
-    try {
-      const stored = window.localStorage.getItem(RAIL_VARIANT_STORAGE_KEY);
-      if (stored === "stacked" || stored === "flyout" || stored === "accordion" || stored === "twocolumn") {
-        return stored;
-      }
-    } catch {
-      // localStorage puede no estar disponible (Safari privado, etc.) — no pasa nada.
-    }
-    return "flyout";
-  });
-
-  function handleRailVariantChange(next: RailVariant) {
-    setRailVariant(next);
-    try {
-      window.localStorage.setItem(RAIL_VARIANT_STORAGE_KEY, next);
-    } catch {
-      // idem — si no se puede persistir, igual funciona para esta sesión.
-    }
-  }
 
   // Punto "en vivo" además del inicial calculado en el server — así no hace
   // falta refrescar para verlo si el cliente escribe o reserva mientras se
@@ -220,9 +191,9 @@ export function Sidebar({
 
   // Mismas 4 categorías que el grid de "módulos" del dashboard, para que
   // ambas navegaciones cuenten la misma historia del negocio. El ícono de
-  // categoría (usado por los layouts flyout/acordeón/dos-columnas para
-  // representarla colapsada) no existía en el diseño original — se eligió
-  // uno distinto al de cualquiera de sus propios sub-ítems.
+  // categoría (el riel solo muestra estos 4 en reposo; FlyoutRail abre sus
+  // sub-ítems en un panel) no existía en el diseño original — se eligió uno
+  // distinto al de cualquiera de sus propios sub-ítems.
   const navGroupDefs = [
     {
       label: t.navGroups.operations,
@@ -282,10 +253,7 @@ export function Sidebar({
 
   return (
     <>
-      <aside
-        ref={asideRef}
-        className="no-print hidden md:flex w-[72px] flex-shrink-0 h-full bg-slate-900 flex-col items-center py-4"
-      >
+      <aside className="no-print hidden md:flex w-[72px] flex-shrink-0 h-full bg-slate-900 flex-col items-center py-4">
         <Link
           href={ADMIN.dashboard}
           aria-label="GarageOS"
@@ -293,14 +261,7 @@ export function Sidebar({
         >
           <GarageOSAppIcon className="w-9 h-9" />
         </Link>
-        <nav
-          className={cn(
-            "flex-1 min-h-0 w-full flex flex-col items-center gap-1.5",
-            railVariant === "stacked"
-              ? "rail-nav-scroll overflow-y-auto overflow-x-hidden"
-              : "overflow-visible"
-          )}
-        >
+        <nav className="flex-1 min-h-0 w-full flex flex-col items-center gap-1.5">
           <RailLink
             href={ADMIN.dashboard}
             label={t.nav.dashboard}
@@ -309,21 +270,7 @@ export function Sidebar({
             locked={false}
             unread={false}
           />
-          {railVariant === "stacked" &&
-            groups.map((group, groupIndex) => (
-              <div key={group.label} className="flex flex-col items-center gap-1.5">
-                <div
-                  aria-hidden="true"
-                  className={cn("w-6 border-t border-slate-800", groupIndex === 0 ? "mt-1.5 mb-1" : "my-1")}
-                />
-                {group.items.map((item) => (
-                  <RailLink key={item.href} {...item} />
-                ))}
-              </div>
-            ))}
-          {railVariant === "flyout" && <FlyoutRail groups={groups} />}
-          {railVariant === "accordion" && <AccordionRail groups={groups} />}
-          {railVariant === "twocolumn" && <TwoColumnRail groups={groups} railRef={asideRef} />}
+          <FlyoutRail groups={groups} />
         </nav>
 
         <div className="flex-shrink-0 pt-3 mt-3 border-t border-slate-800 w-full flex flex-col items-center gap-1.5">
@@ -345,7 +292,6 @@ export function Sidebar({
           />
         </div>
       </aside>
-      <RailVariantSwitcher value={railVariant} onChange={handleRailVariantChange} />
       <AnimatePresence>
         {mobileOpen && (
           <>

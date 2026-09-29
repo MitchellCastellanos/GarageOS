@@ -2,9 +2,9 @@
 
 import { useEffect } from "react";
 
-/** Cierra un panel flotante al hacer click fuera de sus `containers`, al
- * presionar Escape, o al redimensionar la ventana (la posición calculada del
- * panel quedaría vieja). Usado por los paneles de flyout y dos columnas. */
+/** Cierra el panel flotante del flyout al hacer click fuera de sus
+ * `containers`, al presionar Escape, o al redimensionar la ventana (la
+ * posición calculada del panel quedaría vieja). */
 export function useOutsideClose(
   active: boolean,
   onClose: () => void,

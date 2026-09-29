@@ -112,15 +112,6 @@ body {
   display: none;
 }
 
-/* Riel de íconos del admin (Sidebar) — scroll vertical sin la barra nativa
-   fea cuando hay más items de los que caben en pantallas bajas. */
-.rail-nav-scroll {
-  scrollbar-width: none;
-}
-.rail-nav-scroll::-webkit-scrollbar {
-  display: none;
-}
-
 /* Marca GarageOS — patrón oficial (garageos-brand-kit/marks, public/brand/brand-pattern.png),
    para paneles oscuros del sitio de marketing. No confundir con .garage-grid-texture de arriba. */
 .brand-pattern {

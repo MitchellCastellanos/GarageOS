@@ -5,8 +5,8 @@ import { Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { RailNavItem } from "./types";
 
-/** Fila de sub-ítem dentro de un panel flotante (flyout / dos columnas) — mismo
- * patrón visual que `MobileNavLink` del drawer, para no inventar un tercer estilo. */
+/** Fila de sub-ítem dentro del panel flotante del flyout — mismo patrón
+ * visual que `MobileNavLink` del drawer, para no inventar un tercer estilo. */
 export function RailPanelItemLink({ item, onNavigate }: { item: RailNavItem; onNavigate: () => void }) {
   const Icon = item.icon;
   return (
