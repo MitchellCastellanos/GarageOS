@@ -40,6 +40,12 @@ export const CAPABILITY_MIN_PLAN = {
   "import.full": "PRO",
   // Almacenamiento de llantas (Block 4): juegos guardados, entradas/salidas, ubicación.
   "tireStorage.manage": "PRO",
+  // DVI Advanced (Block 6). Core = DVI básico: checklist estándar, condición, notas, ítems
+  // personalizados, creación de estimados desde hallazgos. Pro+ = fotos, plantillas y reporte
+  // compartible con el cliente.
+  "dvi.photos": "PRO",
+  "dvi.templates": "PRO",
+  "dvi.customerReport": "PRO",
   "communications.campaigns": "PRO",
   "branding.customDomain": "PRO",
   "branding.customSender": "PRO",

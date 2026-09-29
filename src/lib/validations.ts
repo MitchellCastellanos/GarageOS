@@ -133,6 +133,8 @@ export const newInspectionSchema = z.object({
   workOrderId: z.string().optional().or(z.literal("")),
   mechanicId: z.string().optional().or(z.literal("")),
   mileage: z.number().int().min(0).optional().nullable(),
+  // Plantilla reutilizable (DVI avanzado, Pro+); vacío = checklist estándar.
+  templateId: z.string().optional().or(z.literal("")),
 });
 
 export type NewInspectionFormData = z.infer<typeof newInspectionSchema>;
@@ -221,3 +223,12 @@ export const tireStorageSchema = z.object({
   notes: z.string().max(1000).optional().or(z.literal("")),
 });
 export type TireStorageFormData = z.infer<typeof tireStorageSchema>;
+
+export const inspectionTemplateSchema = z.object({
+  name: z.string().trim().min(1, "Name is required").max(60),
+  items: z
+    .array(z.string().trim().min(1).max(60))
+    .min(1, "Add at least one item")
+    .max(40),
+});
+export type InspectionTemplateFormData = z.infer<typeof inspectionTemplateSchema>;

@@ -29,6 +29,12 @@ interface InspectionItemData {
   photos: Photo[];
 }
 
+/** Fotos = DVI avanzado: `view` muestra las existentes, `upload` permite subir nuevas (Pro+). */
+export interface PhotoAccess {
+  view: boolean;
+  upload: boolean;
+}
+
 const CONDITION_ORDER: InspectionCondition[] = ["GOOD", "ATTENTION", "SERVICE_REQUIRED"];
 
 const CONDITION_STYLE: Record<InspectionCondition, { active: string; inactive: string }> = {
@@ -37,7 +43,7 @@ const CONDITION_STYLE: Record<InspectionCondition, { active: string; inactive: s
   SERVICE_REQUIRED: { active: "bg-red-600 text-white", inactive: "text-red-700 hover:bg-red-50" },
 };
 
-function ItemRow({ item }: { item: InspectionItemData }) {
+function ItemRow({ item, photos }: { item: InspectionItemData; photos: PhotoAccess }) {
   const router = useRouter();
   const locale = useAdminLocale();
   const t = INSPECTIONS_DICT[locale];
@@ -143,8 +149,9 @@ function ItemRow({ item }: { item: InspectionItemData }) {
         className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-3"
       />
 
+      {(photos.view || photos.upload) && (
       <div className="flex flex-wrap items-center gap-2">
-        {item.photos.map((photo) => (
+        {photos.view && item.photos.map((photo) => (
           <div key={photo.id} className="relative group w-16 h-16 rounded-lg border border-slate-200 overflow-hidden">
             <Image src={photo.url} alt="" fill unoptimized className="object-cover" sizes="64px" />
             <button
@@ -157,6 +164,7 @@ function ItemRow({ item }: { item: InspectionItemData }) {
             </button>
           </div>
         ))}
+        {photos.upload && (
         <button
           type="button"
           disabled={isUploading}
@@ -166,6 +174,7 @@ function ItemRow({ item }: { item: InspectionItemData }) {
         >
           {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-5 h-5" />}
         </button>
+        )}
         <input
           ref={fileInputRef}
           type="file"
@@ -175,6 +184,7 @@ function ItemRow({ item }: { item: InspectionItemData }) {
           onChange={handleFileChange}
         />
       </div>
+      )}
     </div>
   );
 }
@@ -182,9 +192,11 @@ function ItemRow({ item }: { item: InspectionItemData }) {
 export function InspectionChecklist({
   inspectionId,
   items,
+  photos,
 }: {
   inspectionId: string;
   items: InspectionItemData[];
+  photos: PhotoAccess;
 }) {
   const router = useRouter();
   const locale = useAdminLocale();
@@ -214,7 +226,7 @@ export function InspectionChecklist({
       </div>
       <div>
         {items.map((item) => (
-          <ItemRow key={item.id} item={item} />
+          <ItemRow key={item.id} item={item} photos={photos} />
         ))}
       </div>
       <form onSubmit={handleAddItem} className="px-5 py-4 flex items-center gap-2 bg-slate-50">

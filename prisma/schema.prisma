@@ -18,6 +18,7 @@ model Shop {
   importRuns         ImportRun[]
   tireStorageSets    TireStorageSet[]
   tireStorageEvents  TireStorageEvent[]
+  inspectionTemplates InspectionTemplate[]
   userAccess         UserShopAccess[]
   staffNotifications StaffNotification[]
   documentSequences  DocumentSequence[]
@@ -1461,6 +1462,8 @@ model Inspection {
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
   items       InspectionItem[]
+  // Link público del reporte para el cliente (DVI avanzado, Block 6). null = no compartido.
+  shareToken  String?          @unique
 
   @@index([shopId])
   @@index([vehicleId])
@@ -1829,5 +1832,22 @@ enum TireStorageEventType {
   CHECK_OUT
   MOVED
 
+  @@schema("garageos")
+}
+
+/**
+ * Plantilla reutilizable de inspección (DVI avanzado, Block 6): lista ordenada de puntos a
+ * revisar que sustituye al checklist estándar al crear una inspección. Pro+.
+ */
+model InspectionTemplate {
+  id        String   @id @default(cuid())
+  shopId    String
+  shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  name      String
+  items     String[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([shopId, name])
   @@schema("garageos")
 }

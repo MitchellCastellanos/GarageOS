@@ -19,4 +19,4 @@ registerHooks({
 });
 
 export { setSession } from "./stub-auth";
-export { RedirectError } from "./stub-next";
+export { RedirectError, NotFoundError } from "./stub-next";

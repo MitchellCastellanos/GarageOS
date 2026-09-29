@@ -8,6 +8,7 @@ import { formatClientName } from "@/lib/client-name";
 import { ClientCombobox } from "@/components/invoices/ClientCombobox";
 import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
 import { INSPECTIONS_DICT } from "@/lib/admin-locale/inspections";
+import { INSPECTIONS_ADVANCED_DICT } from "@/lib/admin-locale/inspections-advanced";
 
 interface VehicleOption {
   id: string;
@@ -41,13 +42,16 @@ interface NewInspectionFormProps {
   clients: ClientOption[];
   mechanics: MechanicOption[];
   workOrders: WorkOrderOption[];
+  /** Plantillas del taller (Pro+); vacío = solo checklist estándar. */
+  templates?: { id: string; name: string }[];
   onSubmit: (data: NewInspectionFormData) => Promise<{ error?: Record<string, string[]> } | void>;
 }
 
-export function NewInspectionForm({ clients, mechanics, workOrders, onSubmit }: NewInspectionFormProps) {
+export function NewInspectionForm({ clients, mechanics, workOrders, templates = [], onSubmit }: NewInspectionFormProps) {
   const [isPending, startTransition] = useTransition();
   const locale = useAdminLocale();
   const t = INSPECTIONS_DICT[locale].form;
+  const adv = INSPECTIONS_ADVANCED_DICT[locale].templates;
 
   const {
     register,
@@ -64,6 +68,7 @@ export function NewInspectionForm({ clients, mechanics, workOrders, onSubmit }: 
       vehicleId: "",
       workOrderId: "",
       mechanicId: "",
+      templateId: "",
       mileage: undefined,
     },
   });
@@ -179,6 +184,19 @@ export function NewInspectionForm({ clients, mechanics, workOrders, onSubmit }: 
               className={inputClass(false)}
             />
           </div>
+          {templates.length > 0 && (
+            <div className="sm:col-span-3">
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">{adv.select}</label>
+              <select {...register("templateId")} className={selectClass(false)}>
+                <option value="">{adv.standard}</option>
+                {templates.map((tpl) => (
+                  <option key={tpl.id} value={tpl.id}>
+                    {tpl.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       </div>
 

@@ -195,14 +195,18 @@ Core keeps useful basic dashboard/reporting. Pro gets a real Reports area with d
 
 Do not build BI software.
 
-### 6 — DVI Basic vs Advanced — PARTIAL — P1
-Best owner: Claude.
+### 6 — DVI Basic vs Advanced — DONE (2026-09-30)
 
-Existing DVI is functional. Define/enforce:
-- Core: standard checklist, condition and notes, unlimited records.
-- Pro+: photos/media, reusable/custom templates and richer customer-facing inspection presentation where appropriate.
+Existing Inspection → InspectionItem → InspectionPhoto flow untouched for Core (standard 10-point checklist, condition, notes, custom items, "create estimate from findings", work-order/vehicle links, unlimited records).
 
-Add centralized entitlement keys and server gates.
+Advanced (Pro/Complete) entitlement keys, all in `src/config/entitlements.ts` and enforced server-side (`checkEntitlement`, which also refuses restricted shops):
+- `dvi.photos` — `uploadInspectionPhoto` refuses Core. Existing photos stay *visible* for a shop that lapses (`canView`); uploading needs the plan.
+- `dvi.templates` — reusable `InspectionTemplate` (name + ordered items) managed at `/admin/inspections/templates`; `createInspection({ templateId })` replaces the standard checklist (template must belong to the shop; Core with a `templateId` is rejected without creating anything).
+- `dvi.customerReport` — `shareInspectionReport` / `unshareInspectionReport` create/revoke an opaque token; public mobile-friendly report at `/inspection/[token]` (EN/FR by customer language: findings first, photos, full checklist; `noindex`). The public page re-checks the shop's plan on every view, so a Core/restricted shop's old links stop working.
+- UI reads `getInspectionCapabilities()`; Core sees a compact upgrade prompt instead of the photo buttons, and the share panel shows the locked notice.
+- **Migration**: `20260930130000_dvi_advanced` (additive: `InspectionTemplate`, `Inspection.shareToken`).
+- **Tests**: `tests/dvi.test.ts` (Core default checklist vs Pro template, cross-shop template, photo gate, capabilities incl. restricted Pro, template CRUD gating/dedupe, share token idempotency and scoping, public report 404s/plan re-check).
+- Not built: emailing/SMS-ing the report link from GarageOS (copy link only), per-template item conditions, photo annotations.
 
 ### 7 — Maintenance reminders Basic vs Advanced — PARTIAL — P1
 Best owner: Claude.
