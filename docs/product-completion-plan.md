@@ -163,12 +163,17 @@ Self-service import at **/admin/import** (Settings-independent page, nav: Custom
 - **Tests**: `tests/import.test.ts` (CSV/XLSX parsing, mapping, validation, dedupe incl. in-file, update semantics, Core vs Pro limits, tenant scoping, ledger receipts, transaction behaviour with mocked DB).
 - Not built (by design): generic ETL, saved mappings, background/async jobs (10k rows fit one request), undo of an import.
 
-### 3 — Inventory → Work Order consumption — PARTIAL — P0
-Best owner: Claude.
+### 3 — Inventory → Work Order consumption — DONE (2026-09-30)
 
-Inventory and movement ledger already exist. Finish parts consumption from actual job/work/invoice flow with transactional movements and safe corrections.
+Pro+ (`inventory.manage`, enforced in `createWorkOrder` / `updateWorkOrder`; Core keeps free-text PART lines). A PART line on a Work Order can now be linked to a stocked part (`WorkOrderLine.partId`; picker in the WO form shows on-hand quantity).
 
-Acceptance: using/adjusting a stocked part on a job produces correct inventory/ledger state without double consumption.
+- **Model**: consumption is **reconciled, not incremental** (`src/lib/inventory-consumption.ts`, pure deltas in `src/domain/inventory-consumption.ts`). For each (work order, part) the ledger's net (`InventoryMovement.workOrderId`) is the amount already deducted; delta = Σ line quantities − already deducted. So saving twice, editing quantity, swapping parts or removing a line always ends consistent — no double consumption, corrections are `RETURN` movements, consumption is `CONSUMED`.
+- **Transactions/concurrency**: create/update/cancel/delete run in one `$transaction` with the WO row locked (`SELECT … FOR UPDATE`); decrement is an atomic conditional `updateMany(quantityOnHand ≥ delta)` so two orders can never spend the same stock. Insufficient stock → typed `InsufficientStockError` → whole save rolled back with a localized message (same "no negative stock" rule as manual movements). Whole quantities only for stocked lines.
+- **Lifecycle**: cancelling a WO (`updateWorkOrderStatus → CANCELLED`) and deleting one release everything it consumed; invoicing does **not** touch stock (invoice lines carry no `partId`, so no double consumption); quote-derived WOs have no stocked links unless edited.
+- **Tenant/restricted**: parts validated against `shopId`; all writes via `getWritableShopId()`.
+- **Migration**: `20260930110000_work_order_parts` (additive columns/indexes/FKs `ON DELETE SET NULL`).
+- **Tests**: `tests/inventory-consumption.test.ts` (idempotent re-save, qty up/down, remove, swap part, insufficient stock, shared stock across WOs, release on cancel/delete, tenant isolation, fractional qty).
+- Not in V1 (by design): purchase orders/suppliers, reservations before approval, consumption from direct invoices.
 
 ### 4 — Tire Storage — TODO — P0
 Best owner: Claude.

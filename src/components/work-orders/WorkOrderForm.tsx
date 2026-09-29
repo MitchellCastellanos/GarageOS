@@ -40,6 +40,16 @@ interface WorkOrderFormProps {
   onSubmit: (data: WorkOrderFormData) => Promise<{ error?: Record<string, string[]> } | void>;
   initialValues?: Partial<WorkOrderFormData>;
   mode?: "create" | "edit";
+  /** Piezas de inventario seleccionables (Pro+); null/omitido = sin consumo automático. */
+  stockParts?: StockPartOption[] | null;
+}
+
+export interface StockPartOption {
+  id: string;
+  name: string;
+  sku: string | null;
+  unitPrice: number;
+  quantityOnHand: number;
 }
 
 const EMPTY_LINE_ITEM = {
@@ -48,6 +58,7 @@ const EMPTY_LINE_ITEM = {
   unitPrice: 0,
   itemType: "LABOUR" as const,
   warrantyTerm: "",
+  partId: "",
 };
 
 export function WorkOrderForm({
@@ -56,6 +67,7 @@ export function WorkOrderForm({
   onSubmit,
   initialValues,
   mode = "create",
+  stockParts,
 }: WorkOrderFormProps) {
   const [isPending, startTransition] = useTransition();
   const locale = useAdminLocale();
@@ -282,6 +294,34 @@ export function WorkOrderForm({
                   />
                   {itemErrors?.description && (
                     <p className="text-red-600 text-xs mt-1">{itemErrors.description?.message}</p>
+                  )}
+                  {stockParts && lineItems?.[index]?.itemType === "PART" && (
+                    <div className="mt-2">
+                      <select
+                        aria-label={t.stockPart.label}
+                        className={`${selectClass(false)} text-xs py-1.5`}
+                        value={lineItems?.[index]?.partId ?? ""}
+                        onChange={(e) => {
+                          const part = stockParts.find((p) => p.id === e.target.value);
+                          setValue(`lineItems.${index}.partId` as const, part?.id ?? "");
+                          if (part) {
+                            setValue(`lineItems.${index}.description` as const, part.name);
+                            setValue(`lineItems.${index}.unitPrice` as const, part.unitPrice);
+                            const q = Number(lineItems?.[index]?.quantity);
+                            if (!Number.isInteger(q) || q < 1) setValue(`lineItems.${index}.quantity` as const, 1);
+                          }
+                        }}
+                      >
+                        <option value="">{t.stockPart.none}</option>
+                        {stockParts.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name}
+                            {p.sku ? ` · ${p.sku}` : ""} ({t.stockPart.onHand(p.quantityOnHand)})
+                          </option>
+                        ))}
+                      </select>
+                      {lineItems?.[index]?.partId && <p className="text-xs text-slate-500 mt-1">{t.stockPart.hint}</p>}
+                    </div>
                   )}
                   <input
                     {...register(`lineItems.${index}.warrantyTerm` as const)}

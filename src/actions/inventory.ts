@@ -14,7 +14,7 @@ import {
 import { isUniqueConstraintError } from "@/lib/invoice-number";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import { INVENTORY_DICT } from "@/lib/admin-locale/inventory";
-import { checkEntitlement } from "@/lib/subscription";
+import { can, checkEntitlement } from "@/lib/subscription";
 
 // ── READ ────────────────────────────────────────────────────
 
@@ -58,6 +58,21 @@ export async function getLowStockPartsCount() {
     select: { quantityOnHand: true, reorderThreshold: true },
   });
   return parts.filter((p) => p.quantityOnHand <= p.reorderThreshold).length;
+}
+
+/**
+ * Piezas seleccionables en una orden de trabajo (Block 3). Vacío si el plan no incluye consumo
+ * automático de inventario — el gate real está en createWorkOrder/updateWorkOrder.
+ */
+export async function getStockedPartsForWorkOrders() {
+  const shopId = await getShopId();
+  if (!(await can(shopId, "inventory.manage"))) return null;
+  const parts = await db.inventoryPart.findMany({
+    where: { shopId, isActive: true },
+    select: { id: true, name: true, sku: true, unitPrice: true, quantityOnHand: true },
+    orderBy: { name: "asc" },
+  });
+  return parts.map((p) => ({ ...p, unitPrice: Number(p.unitPrice) }));
 }
 
 // ── CREATE ──────────────────────────────────────────────────

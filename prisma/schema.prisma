@@ -910,6 +910,7 @@ model WorkOrder {
   updatedAt                DateTime        @updatedAt
   lines                    WorkOrderLine[]
   inspections              Inspection[]
+  inventoryMovements       InventoryMovement[]
 
   @@unique([shopId, orderNumber])
   @@index([shopId, status])
@@ -938,7 +939,12 @@ model WorkOrderLine {
   itemType     LineItemType @default(LABOUR)
   warrantyTerm String?
   sortOrder    Int          @default(0)
+  // Pieza de inventario consumida por esta línea (Block 3). Solo Pro+; el consumo se
+  // concilia por orden en src/lib/inventory-consumption.ts.
+  partId       String?
+  part         InventoryPart? @relation(fields: [partId], references: [id], onDelete: SetNull)
 
+  @@index([partId])
   @@schema("garageos")
 }
 
@@ -1348,7 +1354,8 @@ model InventoryPart {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  movements InventoryMovement[]
+  movements     InventoryMovement[]
+  workOrderLines WorkOrderLine[]
 
   @@unique([shopId, sku])
   @@index([shopId, name])
@@ -1364,9 +1371,14 @@ model InventoryMovement {
   type      InventoryMovementType
   quantity  Int
   note      String?
+  // Orden de trabajo que originó el movimiento (CONSUMED al usar / RETURN al corregir o
+  // cancelar) — el neto por (orden, pieza) es lo que ya está descontado (Block 3).
+  workOrderId String?
+  workOrder   WorkOrder?            @relation(fields: [workOrderId], references: [id], onDelete: SetNull)
   createdAt DateTime              @default(now())
 
   @@index([shopId, partId, createdAt])
+  @@index([workOrderId])
   @@schema("garageos")
 }
 

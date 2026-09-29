@@ -86,6 +86,7 @@ export interface WorkOrdersDictionary {
       total: string;
     };
     warrantyPlaceholder: string;
+    stockPart: { label: string; none: string; onHand: (n: number) => string; hint: string };
     subtotalLabel: string;
     saving: string;
     saveChanges: string;
@@ -221,6 +222,7 @@ export const WORK_ORDERS_DICT: Record<AdminLocale, WorkOrdersDictionary> = {
         total: "Total",
       },
       warrantyPlaceholder: "12 meses",
+      stockPart: { label: "Pieza de inventario", none: "— No es del inventario —", onHand: (n) => `${n} en existencia`, hint: "Descuenta el stock al guardar la orden." },
       subtotalLabel: "Subtotal estimado",
       saving: "Guardando...",
       saveChanges: "Guardar cambios",
@@ -354,6 +356,7 @@ export const WORK_ORDERS_DICT: Record<AdminLocale, WorkOrdersDictionary> = {
         total: "Total",
       },
       warrantyPlaceholder: "12 months",
+      stockPart: { label: "Inventory part", none: "— Not from inventory —", onHand: (n) => `${n} on hand`, hint: "Stock is deducted when the work order is saved." },
       subtotalLabel: "Estimated subtotal",
       saving: "Saving...",
       saveChanges: "Save changes",
@@ -487,6 +490,7 @@ export const WORK_ORDERS_DICT: Record<AdminLocale, WorkOrdersDictionary> = {
         total: "Total",
       },
       warrantyPlaceholder: "12 mois",
+      stockPart: { label: "Pièce d'inventaire", none: "— Pas de l'inventaire —", onHand: (n) => `${n} en main`, hint: "Le stock est déduit à l'enregistrement de l'ordre." },
       subtotalLabel: "Sous-total estimé",
       saving: "Enregistrement...",
       saveChanges: "Enregistrer les changements",

@@ -20,6 +20,14 @@ import { sendWorkOrderReadyEmail } from "@/lib/email";
 import { sendWorkOrderReadySms } from "@/lib/sms";
 import { resolveNotifyChannelPlan } from "@/domain/sms";
 import Decimal from "decimal.js";
+import { checkEntitlement } from "@/lib/subscription";
+import {
+  InsufficientStockError,
+  InventoryLineError,
+  lockWorkOrder,
+  reconcileWorkOrderConsumption,
+  validateStockedLines,
+} from "@/lib/inventory-consumption";
 
 const WORK_ORDER_NOT_FOUND: Record<AdminLocale, string> = {
   es: "Orden de trabajo no encontrada",
@@ -62,6 +70,36 @@ const QUOTE_NOT_ACCEPTED: Record<AdminLocale, string> = {
   en: "The quote must be accepted before generating a work order",
   fr: "La soumission doit être acceptée avant de générer un ordre de travail",
 };
+
+const STOCK_ERRORS: Record<AdminLocale, { insufficient: (part: string, available: number, needed: number) => string; notFound: string; fractional: string }> = {
+  es: {
+    insufficient: (p, a, n) => `Stock insuficiente de "${p}": hay ${a}, se necesitan ${n}`,
+    notFound: "Una pieza de inventario ya no existe",
+    fractional: "Las piezas de inventario se usan en cantidades enteras",
+  },
+  en: {
+    insufficient: (p, a, n) => `Not enough stock of "${p}": ${a} on hand, ${n} needed`,
+    notFound: "An inventory part no longer exists",
+    fractional: "Inventory parts must be used in whole quantities",
+  },
+  fr: {
+    insufficient: (p, a, n) => `Stock insuffisant pour « ${p} » : ${a} en main, ${n} requis`,
+    notFound: "Une pièce d'inventaire n'existe plus",
+    fractional: "Les pièces d'inventaire doivent être utilisées en quantités entières",
+  },
+};
+
+/** Traduce los errores de consumo a `{ error }` de formulario; relanza cualquier otro. */
+function stockErrorResult(err: unknown, locale: AdminLocale): { error: { _form: string[] } } {
+  const t = STOCK_ERRORS[locale];
+  if (err instanceof InsufficientStockError) {
+    return { error: { _form: [t.insufficient(err.partName, err.available, err.needed)] } };
+  }
+  if (err instanceof InventoryLineError) {
+    return { error: { _form: [err.code === "PART_NOT_FOUND" ? t.notFound : t.fractional] } };
+  }
+  throw err;
+}
 
 const EDITABLE_STATUSES = ["OPEN", "AWAITING_APPROVAL", "APPROVED", "IN_PROGRESS"] as const;
 
@@ -134,34 +172,50 @@ export async function createWorkOrder(formData: WorkOrderFormData) {
   const { clientId, vehicleId, mechanicId, concern, diagnosis, mileageIn, mileageOut, lineItems } =
     parsed.data;
 
-  const workOrder = await db.$transaction(async (tx) => {
-    const orderNumber = await allocateNextWorkOrderNumber(tx, shopId);
+  // Consumo automático de inventario: Pro+ (server-side; ocultar el selector no cuenta).
+  if (lineItems.some((l) => l.partId)) {
+    const entitlementError = await checkEntitlement(shopId, "inventory.manage");
+    if (entitlementError) return { error: { _form: [entitlementError] } };
+  }
+  const locale = await getAdminLocale();
 
-    return tx.workOrder.create({
-      data: {
-        shopId,
-        clientId,
-        vehicleId,
-        mechanicId: mechanicId || null,
-        orderNumber,
-        status: "OPEN",
-        concern,
-        diagnosis: diagnosis || null,
-        mileageIn: mileageIn ?? null,
-        mileageOut: mileageOut ?? null,
-        lines: {
-          create: lineItems.map((item, index) => ({
-            description: item.description,
-            quantity: item.quantity.toString(),
-            unitPrice: item.unitPrice.toString(),
-            itemType: item.itemType,
-            warrantyTerm: item.warrantyTerm?.trim() || null,
-            sortOrder: index,
-          })),
+  let workOrder;
+  try {
+    workOrder = await db.$transaction(async (tx) => {
+      const orderNumber = await allocateNextWorkOrderNumber(tx, shopId);
+      await validateStockedLines(tx, shopId, lineItems);
+
+      const created = await tx.workOrder.create({
+        data: {
+          shopId,
+          clientId,
+          vehicleId,
+          mechanicId: mechanicId || null,
+          orderNumber,
+          status: "OPEN",
+          concern,
+          diagnosis: diagnosis || null,
+          mileageIn: mileageIn ?? null,
+          mileageOut: mileageOut ?? null,
+          lines: {
+            create: lineItems.map((item, index) => ({
+              description: item.description,
+              quantity: item.quantity.toString(),
+              unitPrice: item.unitPrice.toString(),
+              itemType: item.itemType,
+              warrantyTerm: item.warrantyTerm?.trim() || null,
+              partId: item.partId || null,
+              sortOrder: index,
+            })),
+          },
         },
-      },
+      });
+      await reconcileWorkOrderConsumption(tx, shopId, created.id, { orderNumber });
+      return created;
     });
-  });
+  } catch (err) {
+    return stockErrorResult(err, locale);
+  }
 
   if (lineItems.length > 0) {
     await syncSavedLineItems(shopId, lineItems);
@@ -252,32 +306,51 @@ export async function updateWorkOrder(id: string, formData: WorkOrderFormData) {
   const { clientId, vehicleId, mechanicId, concern, diagnosis, mileageIn, mileageOut, lineItems } =
     parsed.data;
 
-  await db.$transaction(async (tx) => {
-    await tx.workOrderLine.deleteMany({ where: { workOrderId: id } });
+  // Igual que en la creación: usar piezas de inventario es Pro+. Editar una orden que ya tenía
+  // piezas sin agregar nuevas sigue permitido (el ledger debe seguir cuadrando).
+  if (lineItems.some((l) => l.partId)) {
+    const previous = await db.workOrderLine.findMany({ where: { workOrderId: id, partId: { not: null } }, select: { partId: true } });
+    const known = new Set(previous.map((p) => p.partId));
+    if (lineItems.some((l) => l.partId && !known.has(l.partId))) {
+      const entitlementError = await checkEntitlement(shopId, "inventory.manage");
+      if (entitlementError) return { error: { _form: [entitlementError] } };
+    }
+  }
 
-    await tx.workOrder.update({
-      where: { id },
-      data: {
-        clientId,
-        vehicleId,
-        mechanicId: mechanicId || null,
-        concern,
-        diagnosis: diagnosis || null,
-        mileageIn: mileageIn ?? null,
-        mileageOut: mileageOut ?? null,
-        lines: {
-          create: lineItems.map((item, index) => ({
-            description: item.description,
-            quantity: item.quantity.toString(),
-            unitPrice: item.unitPrice.toString(),
-            itemType: item.itemType,
-            warrantyTerm: item.warrantyTerm?.trim() || null,
-            sortOrder: index,
-          })),
+  try {
+    await db.$transaction(async (tx) => {
+      await lockWorkOrder(tx, shopId, id);
+      await validateStockedLines(tx, shopId, lineItems);
+      await tx.workOrderLine.deleteMany({ where: { workOrderId: id } });
+
+      await tx.workOrder.update({
+        where: { id },
+        data: {
+          clientId,
+          vehicleId,
+          mechanicId: mechanicId || null,
+          concern,
+          diagnosis: diagnosis || null,
+          mileageIn: mileageIn ?? null,
+          mileageOut: mileageOut ?? null,
+          lines: {
+            create: lineItems.map((item, index) => ({
+              description: item.description,
+              quantity: item.quantity.toString(),
+              unitPrice: item.unitPrice.toString(),
+              itemType: item.itemType,
+              warrantyTerm: item.warrantyTerm?.trim() || null,
+              partId: item.partId || null,
+              sortOrder: index,
+            })),
+          },
         },
-      },
+      });
+      await reconcileWorkOrderConsumption(tx, shopId, id, { orderNumber: existing.orderNumber });
     });
-  });
+  } catch (err) {
+    return stockErrorResult(err, locale);
+  }
 
   if (lineItems.length > 0) {
     await syncSavedLineItems(shopId, lineItems);
@@ -299,10 +372,17 @@ export async function updateWorkOrderStatus(id: string, toStatus: WorkOrderStatu
     return { error: WORK_ORDER_INVALID_TRANSITION[locale] };
   }
 
-  await db.workOrder.update({ where: { id }, data: { status: toStatus } });
+  await db.$transaction(async (tx) => {
+    await tx.workOrder.update({ where: { id }, data: { status: toStatus } });
+    // Orden cancelada: las piezas reservadas vuelven al inventario.
+    if (toStatus === "CANCELLED") {
+      await reconcileWorkOrderConsumption(tx, shopId, id, { release: true, orderNumber: existing.orderNumber });
+    }
+  });
 
   revalidatePath(`/work-orders/${id}`);
   revalidatePath(ADMIN.workOrders);
+  revalidatePath(ADMIN.inventory);
   return { success: true };
 }
 
@@ -475,7 +555,12 @@ export async function deleteWorkOrder(id: string) {
   if (!existing) return { error: WORK_ORDER_NOT_FOUND[locale] };
   if (existing.invoiceId) return { error: WORK_ORDER_CANNOT_DELETE[locale] };
 
-  await db.workOrder.delete({ where: { id } });
+  await db.$transaction(async (tx) => {
+    // Devolver el stock ANTES de borrar: al borrar la orden el ledger pierde la referencia.
+    await reconcileWorkOrderConsumption(tx, shopId, id, { release: true, orderNumber: existing.orderNumber });
+    await tx.workOrder.delete({ where: { id } });
+  });
+  revalidatePath(ADMIN.inventory);
 
   revalidatePath(ADMIN.workOrders);
   redirect(ADMIN.workOrders);

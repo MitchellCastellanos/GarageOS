@@ -33,6 +33,8 @@ export const lineItemSchema = z.object({
   unitPrice: z.number().min(0, "Price cannot be negative"),
   itemType: z.enum(["LABOUR", "PART", "OTHER"]),
   warrantyTerm: z.string().max(100).optional().or(z.literal("")),
+  // Pieza de inventario (solo órdenes de trabajo, Pro+) — consume stock al guardar la orden.
+  partId: z.string().max(64).optional().or(z.literal("")),
 });
 
 export type LineItemData = z.infer<typeof lineItemSchema>;

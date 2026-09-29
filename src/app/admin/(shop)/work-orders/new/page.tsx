@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { WorkOrderForm } from "@/components/work-orders/WorkOrderForm";
 import { createWorkOrder, getWorkOrderFormData } from "@/actions/work-orders";
 import { type WorkOrderFormData } from "@/lib/validations";
+import { getStockedPartsForWorkOrders } from "@/actions/inventory";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import { WORK_ORDERS_DICT } from "@/lib/admin-locale/work-orders";
 
@@ -14,6 +15,7 @@ export default async function NewWorkOrderPage() {
   }
 
   const locale = await getAdminLocale();
+  const stockParts = await getStockedPartsForWorkOrders();
   const t = WORK_ORDERS_DICT[locale];
 
   return (
@@ -26,6 +28,7 @@ export default async function NewWorkOrderPage() {
       <WorkOrderForm
         clients={clients}
         mechanics={mechanics}
+        stockParts={stockParts}
         onSubmit={async (data: WorkOrderFormData) => {
           "use server";
           return createWorkOrder(data);
