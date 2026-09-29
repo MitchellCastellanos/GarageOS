@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Menu } from "lucide-react";
 import { Toaster } from "sonner";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { PlatformNotificationBell, type PlatformPendingCounts } from "@/components/admin/PlatformNotificationBell";
+import { getPlatformPendingCount } from "@/actions/platform";
+import { PLATFORM_MESSAGES_CHANNEL } from "@/lib/platform/pusher-channels";
 
 export function PlatformChrome({
   userName,
@@ -16,10 +18,51 @@ export function PlatformChrome({
   children: React.ReactNode;
 }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  // Fuente única de los pendientes — la campana y el punto de "Mensajes" en el
+  // nav lo comparten, para no abrir dos conexiones de Pusher por página.
+  const [counts, setCounts] = useState(pendingCounts);
+
+  async function refresh() {
+    try {
+      setCounts(await getPlatformPendingCount());
+    } catch (err) {
+      console.error("[PlatformChrome] refresh de pendientes falló:", err);
+    }
+  }
+
+  useEffect(() => {
+    if (!process.env.NEXT_PUBLIC_PUSHER_KEY) return;
+    let unsub: (() => void) | undefined;
+    let cancelled = false;
+
+    import("pusher-js").then(({ default: Pusher }) => {
+      if (cancelled) return;
+      const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, { cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER! });
+      const channel = pusher.subscribe(PLATFORM_MESSAGES_CHANNEL);
+      const handler = () => refresh();
+      channel.bind("conversation-updated", handler);
+      channel.bind("pending-changed", handler);
+      unsub = () => {
+        channel.unbind("conversation-updated", handler);
+        channel.unbind("pending-changed", handler);
+        pusher.unsubscribe(PLATFORM_MESSAGES_CHANNEL);
+        pusher.disconnect();
+      };
+    });
+
+    return () => {
+      cancelled = true;
+      unsub?.();
+    };
+  }, []);
 
   return (
     <div className="flex min-h-screen bg-slate-50">
-      <AdminSidebar mobileOpen={mobileNavOpen} onMobileClose={() => setMobileNavOpen(false)} />
+      <AdminSidebar
+        mobileOpen={mobileNavOpen}
+        onMobileClose={() => setMobileNavOpen(false)}
+        hasWaitingMessages={counts.waitingMessages > 0}
+      />
       <div className="flex-1 flex flex-col min-w-0">
         <header className="no-print h-14 flex-shrink-0 bg-white border-b border-slate-200 flex items-center gap-3 px-4 sm:px-6">
           <button
@@ -38,7 +81,7 @@ export function PlatformChrome({
               Super admin
             </span>
           </p>
-          <PlatformNotificationBell initialCounts={pendingCounts} />
+          <PlatformNotificationBell counts={counts} onOpen={refresh} />
         </header>
         <main className="flex-1 p-4 sm:p-6 overflow-auto min-w-0">{children}</main>
       </div>
