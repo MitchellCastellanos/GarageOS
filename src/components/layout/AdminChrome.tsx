@@ -19,6 +19,8 @@ interface AdminChromeProps {
   hasUnreadInbox?: boolean;
   /** Punto en Citas — una reserva/cancelación web reciente que nadie ha visto. */
   hasUnreadAppointments?: boolean;
+  showBilling?: boolean;
+  billingAttention?: boolean;
   userId: string;
   initialNotifications: StaffNotificationRow[];
   initialUnreadNotifications: number;
@@ -35,6 +37,8 @@ export function AdminChrome({
   hasUnreadSupport,
   hasUnreadInbox,
   hasUnreadAppointments,
+  showBilling,
+  billingAttention,
   userId,
   initialNotifications,
   initialUnreadNotifications,
@@ -65,6 +69,8 @@ export function AdminChrome({
           hasUnreadSupport={hasUnreadSupport}
           hasUnreadInbox={hasUnreadInbox}
           hasUnreadAppointments={hasUnreadAppointments}
+          showBilling={showBilling}
+          billingAttention={billingAttention}
           userId={userId}
         />
         <main className="flex-1 min-w-0 p-4 sm:p-6 overflow-y-auto">{children}</main>

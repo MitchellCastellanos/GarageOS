@@ -17,6 +17,7 @@ export interface LayoutDictionary {
     accounting: string;
     reminders: string;
     settings: string;
+    billing: string;
     support: string;
   };
   navGroups: {
@@ -54,6 +55,7 @@ export const LAYOUT_DICT: Record<AdminLocale, LayoutDictionary> = {
       accounting: "Contabilidad",
       reminders: "Recordatorios",
       settings: "Configuración",
+      billing: "Suscripción",
       support: "Ayuda",
     },
     navGroups: {
@@ -89,6 +91,7 @@ export const LAYOUT_DICT: Record<AdminLocale, LayoutDictionary> = {
       accounting: "Accounting",
       reminders: "Reminders",
       settings: "Settings",
+      billing: "Subscription",
       support: "Help",
     },
     navGroups: {
@@ -124,6 +127,7 @@ export const LAYOUT_DICT: Record<AdminLocale, LayoutDictionary> = {
       accounting: "Comptabilité",
       reminders: "Rappels",
       settings: "Configuration",
+      billing: "Abonnement",
       support: "Aide",
     },
     navGroups: {

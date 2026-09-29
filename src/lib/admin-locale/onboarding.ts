@@ -33,6 +33,8 @@ export interface OnboardingDictionary {
     logoChange: string;
     logoUploading: string;
     logoHint: string;
+    logoSkipHint: string;
+    continueWithoutLogo: string;
     taxIdLabel: string;
     taxIdPlaceholder: string;
     taxPresetLabel: string;
@@ -65,6 +67,10 @@ export interface OnboardingDictionary {
     finishing: string;
     supportHint: string;
     supportLink: string;
+    planTitle: string;
+    planTrial: (days: number, date: string) => string;
+    planBody: string;
+    planCta: string;
   };
   additionalLocation: {
     banner: string;
@@ -99,6 +105,8 @@ export const ONBOARDING_DICT: Record<"en" | "fr", OnboardingDictionary> = {
       logoChange: "Upload logo",
       logoUploading: "Uploading...",
       logoHint: "PNG, JPG, WEBP or SVG, up to 4 MB.",
+      logoSkipHint: "Don't have it handy? Skip it — you can add it anytime in Settings.",
+      continueWithoutLogo: "Skip logo & continue",
       taxIdLabel: "Tax ID",
       taxIdPlaceholder: "e.g. GST/QST number",
       taxPresetLabel: "Province / tax preset",
@@ -131,6 +139,10 @@ export const ONBOARDING_DICT: Record<"en" | "fr", OnboardingDictionary> = {
       finishing: "Finishing...",
       supportHint: "Stuck on anything?",
       supportLink: "Here's how to reach us",
+      planTitle: "Your plan",
+      planTrial: (days, date) => `Your free Pro trial is active — ${days} ${days === 1 ? "day" : "days"} left (until ${date}). No card needed.`,
+      planBody: "Pick a plan whenever you're ready. If you do nothing, your shop keeps the Core plan after the trial.",
+      planCta: "See plans",
     },
     additionalLocation: {
       banner: "Adding a new location — your branding and tax info carried over automatically, so this is a shorter setup.",
@@ -163,6 +175,8 @@ export const ONBOARDING_DICT: Record<"en" | "fr", OnboardingDictionary> = {
       logoChange: "Téléverser un logo",
       logoUploading: "Téléversement...",
       logoHint: "PNG, JPG, WEBP ou SVG, jusqu'à 4 Mo.",
+      logoSkipHint: "Pas sous la main? Passez cette étape — vous pourrez l'ajouter n'importe quand dans Paramètres.",
+      continueWithoutLogo: "Passer le logo et continuer",
       taxIdLabel: "Numéro de taxe",
       taxIdPlaceholder: "ex. numéro TPS/TVQ",
       taxPresetLabel: "Province / préréglage fiscal",
@@ -195,6 +209,10 @@ export const ONBOARDING_DICT: Record<"en" | "fr", OnboardingDictionary> = {
       finishing: "Finalisation...",
       supportHint: "Un pépin?",
       supportLink: "Voici comment nous joindre",
+      planTitle: "Votre forfait",
+      planTrial: (days, date) => `Votre essai gratuit de Pro est actif — ${days} ${days === 1 ? "jour" : "jours"} restants (jusqu'au ${date}). Aucune carte requise.`,
+      planBody: "Choisissez un forfait quand vous serez prêt. Sans action de votre part, votre atelier passe au forfait Core après l'essai.",
+      planCta: "Voir les forfaits",
     },
     additionalLocation: {
       banner: "Ajout d'un nouvel emplacement — votre image de marque et vos infos fiscales ont été reprises automatiquement, la configuration est donc plus courte.",
