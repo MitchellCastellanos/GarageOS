@@ -4,8 +4,17 @@ import { useState } from "react";
 import { Menu } from "lucide-react";
 import { Toaster } from "sonner";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { PlatformNotificationBell, type PlatformPendingCounts } from "@/components/admin/PlatformNotificationBell";
 
-export function PlatformChrome({ userName, children }: { userName?: string | null; children: React.ReactNode }) {
+export function PlatformChrome({
+  userName,
+  pendingCounts,
+  children,
+}: {
+  userName?: string | null;
+  pendingCounts: PlatformPendingCounts;
+  children: React.ReactNode;
+}) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   return (
@@ -23,12 +32,13 @@ export function PlatformChrome({ userName, children }: { userName?: string | nul
           >
             <Menu className="w-5 h-5" />
           </button>
-          <p className="text-sm text-slate-600 min-w-0 truncate">
+          <p className="text-sm text-slate-600 min-w-0 truncate flex-1">
             Sesión: <span className="font-medium text-slate-900">{userName}</span>
             <span className="hidden sm:inline ml-2 text-xs text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full whitespace-nowrap">
               Super admin
             </span>
           </p>
+          <PlatformNotificationBell initialCounts={pendingCounts} />
         </header>
         <main className="flex-1 p-4 sm:p-6 overflow-auto min-w-0">{children}</main>
       </div>

@@ -55,6 +55,21 @@ export async function getPlatformOverview() {
 }
 
 /**
+ * Cuenta lo que necesita atención del super admin ahora mismo — conversaciones
+ * de soporte esperando respuesta humana y solicitudes de número SMS
+ * pendientes. Alimenta la campana de PlatformChrome (visible en todo /platform,
+ * no solo en /platform/messages o la lista de talleres).
+ */
+export async function getPlatformPendingCount(): Promise<{ waitingMessages: number; pendingSmsRequests: number }> {
+  await requireSuperAdmin();
+  const [waitingMessages, pendingSmsRequests] = await Promise.all([
+    db.platformConversation.count({ where: { status: "WAITING_HUMAN" } }),
+    db.shopSmsNumber.count({ where: { status: "REQUESTED" } }),
+  ]);
+  return { waitingMessages, pendingSmsRequests };
+}
+
+/**
  * Indicadores de crecimiento para el dashboard de /platform — MRR, altas
  * recientes, % de cancelación (últimos 30 días) y cohortes por mes de alta.
  */

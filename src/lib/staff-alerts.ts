@@ -362,6 +362,52 @@ export async function alertStaffSmsNumberReleaseScheduled(input: {
   });
 }
 
+/** Truncado corto para el detalle de la campana/correo — el mensaje completo vive en el Inbox. */
+function previewText(body: string, max = 120): string {
+  const trimmed = body.trim();
+  return trimmed.length > max ? `${trimmed.slice(0, max - 1)}…` : trimmed;
+}
+
+/**
+ * Llegó un SMS nuevo de un cliente al Inbox (sin necesidad de refrescar la
+ * página ni de acordarse de entrar a Mensajes en /platform — esto es
+ * taller↔cliente, no taller↔GarageOS). Se dispara por cada mensaje entrante
+ * grabado, incluidos STOP/START (el equipo también quiere saber eso).
+ */
+export async function alertStaffNewInboxMessage(input: {
+  shopId: string;
+  shopName: string;
+  threadId: string;
+  from: string;
+  clientName: string | null;
+  body: string;
+}): Promise<void> {
+  await sendStaffAlert({
+    shopId: input.shopId,
+    shopName: input.shopName,
+    event: "STAFF_NEW_INBOX_MESSAGE",
+    ctaPath: `${ADMIN.inbox}/${input.threadId}`,
+    build: (language) => {
+      const who = input.clientName ?? input.from;
+      return language === "FR"
+        ? {
+            subject: `Nouveau message — ${who}`,
+            heading: "Nouveau message dans la boîte de réception",
+            intro: `${who} a répondu par SMS.`,
+            details: [{ label: "Message", value: previewText(input.body) }],
+            ctaLabel: "Ouvrir la conversation",
+          }
+        : {
+            subject: `New message — ${who}`,
+            heading: "New message in the Inbox",
+            intro: `${who} replied by SMS.`,
+            details: [{ label: "Message", value: previewText(input.body) }],
+            ctaLabel: "Open the conversation",
+          };
+    },
+  });
+}
+
 /** GarageOS activó el número dedicado del taller (respuesta a su solicitud). */
 export async function alertStaffSmsNumberActivated(input: { shopId: string; phoneNumber: string }): Promise<void> {
   const shop = await shopBasics(input.shopId);

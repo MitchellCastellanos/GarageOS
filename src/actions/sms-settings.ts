@@ -5,6 +5,7 @@ import { requireShopSession } from "@/lib/permissions";
 import { getSmsUsageSummary } from "@/lib/communications/sms-usage";
 import { getSharedSmsNumber, requestShopSmsNumber, SmsNumberError } from "@/lib/communications/sms-numbers";
 import { sendSupportMessage } from "@/actions/support";
+import { publishPlatformPendingChanged } from "@/lib/platform/pusher";
 
 export interface ShopSmsOverview {
   number: {
@@ -47,5 +48,6 @@ export async function requestDedicatedSmsNumber(message: string) {
     if (err instanceof SmsNumberError) return { error: err.message };
     throw err;
   }
+  await publishPlatformPendingChanged();
   return sendSupportMessage(message);
 }

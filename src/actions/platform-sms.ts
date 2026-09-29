@@ -18,6 +18,7 @@ import { getSmsUsageSummary } from "@/lib/communications/sms-usage";
 import { PLAN_LIMITS } from "@/config/entitlements";
 import { alertStaffSmsNumberActivated } from "@/lib/staff-alerts";
 import { getEffectiveSubscription } from "@/lib/subscription";
+import { publishPlatformPendingChanged } from "@/lib/platform/pusher";
 
 export async function getShopSmsAdminOverview(shopId: string) {
   await requireSuperAdmin();
@@ -59,6 +60,7 @@ export async function provisionShopSmsNumberAction(shopId: string, countryCode: 
     await alertStaffSmsNumberActivated({ shopId, phoneNumber: result.phoneNumber }).catch((err) =>
       console.error("[platform-sms] aviso de número activo falló:", err)
     );
+    await publishPlatformPendingChanged();
     revalidatePath(PLATFORM.shop(shopId));
     return { success: true, phoneNumber: result.phoneNumber };
   } catch (err) {
@@ -105,6 +107,7 @@ export async function dismissSmsNumberRequestAction(shopId: string) {
       targetType: "SHOP_SMS_NUMBER",
       targetId: shopId,
     });
+    await publishPlatformPendingChanged();
     revalidatePath(PLATFORM.shop(shopId));
     revalidatePath(PLATFORM.home);
     return { success: true };
