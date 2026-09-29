@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, FileText, ShieldCheck, Bell, History, ClipboardList, Building2 } from "lucide-react";
+import { ArrowRight, FileText, ShieldCheck, Bell, ClipboardCheck, Wrench, Smartphone } from "lucide-react";
 import { useMarketingLocale } from "@/components/marketing/MarketingLocaleProvider";
 
-const ICONS = [FileText, ShieldCheck, Bell, ClipboardList, History, Building2];
+const ICONS = [FileText, ShieldCheck, ClipboardCheck, Wrench, Smartphone, Bell];
 
 export function ToolsSection() {
   const { t } = useMarketingLocale();

@@ -7,12 +7,12 @@ import {
   Wrench,
   MessageCircle,
   Receipt,
-  History,
+  Smartphone,
   PackageSearch,
 } from "lucide-react";
 import { useMarketingLocale } from "@/components/marketing/MarketingLocaleProvider";
 
-const ICONS = [Calendar, CarFront, ClipboardCheck, Wrench, MessageCircle, Receipt, History, PackageSearch];
+const ICONS = [Calendar, CarFront, ClipboardCheck, Wrench, MessageCircle, Receipt, Smartphone, PackageSearch];
 
 export function FeatureStrip() {
   const { t } = useMarketingLocale();

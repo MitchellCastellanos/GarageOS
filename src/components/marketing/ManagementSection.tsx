@@ -1,9 +1,9 @@
 "use client";
 
-import { PackageSearch, Layers, Building2, MessageCircle } from "lucide-react";
+import { PackageSearch, Layers, Building2, Users } from "lucide-react";
 import { useMarketingLocale } from "@/components/marketing/MarketingLocaleProvider";
 
-const ICONS = [PackageSearch, Layers, Building2, MessageCircle];
+const ICONS = [PackageSearch, Layers, Building2, Users];
 
 export function ManagementSection() {
   const { t } = useMarketingLocale();

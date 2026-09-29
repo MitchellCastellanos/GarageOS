@@ -29,12 +29,14 @@ export default function TermsPage() {
             <h2 className="text-base font-semibold text-slate-900 mb-2">Subscription plans and pricing</h2>
             <p>
               GarageOS is offered in subscription plans with different included features, usage allowances, support
-              levels and organizational capabilities. Current public pricing is shown on our <Link href="/#pricing" className="font-semibold text-brand-blue hover:underline">pricing section</Link>. Unless stated otherwise, public prices are in Canadian dollars (CAD) and applicable taxes are additional.
+              levels and organizational capabilities. Current public pricing is shown on our <Link href="/pricing" className="font-semibold text-brand-blue hover:underline">pricing page</Link>. Unless stated otherwise, public prices are in Canadian dollars (CAD) and applicable taxes are additional.
             </p>
             <p className="mt-3">
               Monthly plans are billed monthly. Annual plans are billed upfront for the annual term at the price shown
-              when you subscribe. Promotional or founding-customer pricing may be limited by time, eligibility,
-              quantity or introductory period, and the regular renewal price will be disclosed with the offer.
+              when you subscribe. Any promotional pricing may be limited by time, eligibility or introductory period, and the
+              regular renewal price will be disclosed with the offer. New accounts start with a 14-day free trial; a
+              payment method is collected when you choose your plan and your first charge date and amount are shown
+              before the trial begins.
             </p>
           </div>
 
@@ -43,7 +45,7 @@ export default function TermsPage() {
             <p>
               Access to some GarageOS capabilities may depend on your subscription plan. Core business records such
               as customers, vehicles, estimates, work orders, invoices and inspections are not intended to be priced
-              by transaction count. Services with direct usage costs — such as SMS, AI, storage or third-party
+              by transaction count. Services with direct usage costs — such as SMS, storage or third-party
               services — may include plan allowances, fair-use limits or additional usage charges. Any applicable
               allowance or overage pricing will be disclosed before billing begins.
             </p>
@@ -53,7 +55,7 @@ export default function TermsPage() {
             <h2 className="text-base font-semibold text-slate-900 mb-2">Locations, users and add-ons</h2>
             <p>
               Plans may include different numbers of users or shop locations. Multi-location functionality,
-              additional locations, data migration, advanced integrations or other add-ons may carry separate fees
+              additional locations, data migration or other add-ons may carry separate fees
               as shown at the time of purchase. GarageOS will not charge a separate setup fee unless an optional paid
               onboarding, migration or custom service is clearly agreed to in advance.
             </p>

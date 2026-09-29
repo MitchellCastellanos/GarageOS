@@ -330,12 +330,14 @@ A secure, mobile-first customer window into the SAME records (no parallel invoic
 - **Tests:** `tests/portal.test.ts` (25): token/hash rules, only-hash storage, valid/expired/revoked/garbage, active-link cap, per-customer revocation, every-query scoping (customer/shop/vehicle/invoice isolation), DVI by plan, approval security (foreign/accepted/expired quote, revoked link, token reuse), staff permissions/tenant/restricted, email happy path (provider mocked) and failure path, non-enumerating public request + rate limit, EN/FR dictionary parity, mobile-first render assumptions. **Migration:** `20261002100000_customer_portal` (additive).
 - Not built (deliberate): SMS delivery of the link (email + copy-link only), customer accounts/passwords/OTP, editing profile/vehicles from the portal, online payments, uploading documents, unified portal for a customer across several locations (each location has its own customer record), portal link inside booking confirmation emails, a booking-page link to `/portal/shop/[slug]`.
 
-### 14 — Public product surface closure — PARTIAL
-Best owner: ChatGPT quick wins + Claude only where product/UI implementation is substantial.
+### 14 — Public product surface closure — DONE (2026-10-02)
 
-After corresponding product blocks are DONE, update homepage, Features, Demo, Product/Quick Start, Help/Guides, Integrations and pricing comparison so marketing never claims a missing feature as currently available.
+**Single source of truth:** `src/lib/marketing-plans.ts` builds prices from `PLAN_PRICING_CAD`, limits from `PLAN_LIMITS`, and every capability row of the comparison from `CAPABILITY_MIN_PLAN`/`planIncludes` (tier rows flip at the gate's minimum plan); `src/lib/marketing-pages.ts` (Features, Product, Integrations) derives plan badges from entitlements. `tests/public-surface.test.ts` (14) fails if a row contradicts entitlements, a capability is enforced but not shown, a plan is not a superset, EN/FR drift, or banned copy appears.
 
-Also remove stale VIN references, unsupported traction/testimonial claims and old workflow descriptions; maintain EN/FR consistency.
+**Pages changed:** `/pricing` (NEW: cards + full plan comparison + "how the 14-day trial works" + Multi-Shop note; nav/footer/terms link here), homepage (feature strip, tools and management sections rewritten to the real product; dead legacy pricing dictionary with $39/$79/Starter/"API access" removed), `/features` (rewritten, 7 groups, Pro/Complete badges), `/product`, `/integrations` (QuickBooks Online, branded email, two-way SMS via Twilio, data import; explicit "not available": card processing, calendar sync, public API), `/get-started`, `/demo` (8 steps incl. DVI, approval, Work Order, portal, reminders), `/quick-start` (13 steps), Help FAQ (trial, plans, portal, multi-location; removed "installation configuration" framing), Guides (4 new: DVI, Work Orders, Customer portal, Import; several updated), Changelog (rewritten; Google Drive claim removed — no such integration exists), Terms (Founding/AI mentions removed, trial wording).
+**Stale claims removed:** Founding Shops/Partner, $39/$79/$129 and $149/$249/$399, "Starter", "API access (coming soon)", "Customer portal when available", "Google Drive", "installation/administrator must configure delivery", the $199/additional-location price (unconfirmed). Pro stays "Most Popular"; Complete = multi-location and high-volume. SMS allowances are shown as "included / larger / largest" (numbers still provisional in `PLAN_LIMITS`). QuickBooks is described by function only — no certification claims (test-enforced).
+**EN/FR:** bilingual: homepage, header/footer, `/pricing`, `/features`, `/product`, `/integrations`, `/get-started`, `/demo`, `/quick-start`. **Still EN-only (pre-existing, not regressed):** Help FAQ, Guides, Blog, Changelog, About, Privacy, Terms, Contact, and page `<title>`/meta (server metadata is EN). Translate before a French-market push.
+- Not done: sitemap/robots/JSON-LD (none existed), real screenshots/video, per-page OG images.
 
 ### 15 — Launch hardening — VALIDATE — P0 before real customer data
 Use dedicated audit sessions.
@@ -384,10 +386,18 @@ These can be reconsidered from real customer demand after launch.
 
 ## Current next move
 
-**Blocks 0–11 are DONE in code (Block 11's real-provider validation is part of Block 15).** Next: 12 (Complete/Multi-Shop), 13, 14, 15, 16.
+**Blocks 0–14 are DONE in code.** Next: **Block 15 — Launch hardening**, then **Block 16 — Final GO/NO-GO audit**.
+
+Block 15 should start with (from Blocks 12–14):
+- Multi-Shop isolation pass (`tests/multishop.test.ts` covers the helpers; re-audit server actions for reliance on `session.user.shopId` only; `User.shopId` is the *active* location and moves on switch, so team lists show a switching owner under the active location).
+- Customer Portal: `/portal/*` GETs have no rate limiting (256-bit tokens make guessing infeasible, but add edge limits); confirm `Referrer-Policy`/`noindex` in production; verify deliverability of the link email (channel `WEB_CONTACT`); decide whether SMS delivery of the link is wanted.
+- Public site: French for Help/Guides/Blog/Terms/Privacy/metadata; visual QA of `/pricing` on real phones; sitemap/robots.
+- Manual config pending from earlier blocks (Stripe prices/webhook/tax, Intuit app, Twilio/Resend, `INTEGRATIONS_ENCRYPTION_KEY`) and the **additional-location billing decision** (Block 12).
+- Known pre-existing drift: a fresh DB from the migrations keeps a legacy `Shop.billingEmail` column that `schema.prisma` no longer declares (harmless).
 
 Rules every following block must respect:
-- Operational writes go through `getWritableShopId(permission?)` (restricted-mode + `ops.write` baseline + optional fine permission); sensitive reads through `getShopId(permission)`; new Pro+ functionality through a key in `src/config/entitlements.ts` + `checkEntitlement`/`can`/`canView`. Reports (Block 5, done) gate on `reports.view` + `reports.advanced`; money fields require `financial.view`. Block 12 should feed `shopIds` (org locations the user can access) into `src/lib/reports-service.ts` (`byLocation` already exists) rather than adding new report queries. Fiscal (Block 9): never read `Shop.taxLines`/`taxId` to render an issued document — use `Invoice.taxSnapshot`/`taxRegistration`/`currency`; new money flows must write `FinancialEvent` rows.
+- Operational writes go through `getWritableShopId(permission?)`; sensitive reads through `getShopId(permission)`; new Pro+ functionality through a key in `src/config/entitlements.ts` + `checkEntitlement`/`can`/`canView`. Any new plan-dependent public claim must be a row in `src/lib/marketing-plans.ts` (tests enforce it). Fiscal (Block 9): never read `Shop.taxLines`/`taxId` to render an issued document — use `Invoice.taxSnapshot`/`taxRegistration`/`currency`.
+- Multi-Shop: organization administration via `getOrganizationAdminContext`; accessible locations via `resolveLocationAccess` (never trust an id from the client).
 - Tests for real server actions: reuse `tests/helpers/*` (`setSession`, `patchDb`, `mockSubscription`).
-- Migrations added by Blocks 2–10 (all additive): `20260930100000_import_runs`, `…110000_work_order_parts`, `…120000_tire_storage`, `…130000_dvi_advanced`, `…140000_reminder_rules`, `…150000_user_permissions`, `20261001110000_fiscal_snapshots_refunds` (Block 9, includes the invoice tax-snapshot backfill), `20261001120000_quickbooks_online` (Block 10).
-- Still open from these blocks: live/real-provider validation (Block 15) of automated reminder SMS/email delivery, XLSX with real-world shop exports and large imports (10k rows in one request), Supabase photo storage; import error CSV is capped at the first 1,000 bad rows.
+- Migrations added by Blocks 2–13 (all additive): `20260930100000_import_runs`, `…110000_work_order_parts`, `…120000_tire_storage`, `…130000_dvi_advanced`, `…140000_reminder_rules`, `…150000_user_permissions`, `20261001110000_fiscal_snapshots_refunds`, `20261001120000_quickbooks_online`, `20261002100000_customer_portal`. The full chain was applied to a fresh PostgreSQL 16 in Block 13/14.
+- Still open from earlier blocks: real-provider validation (Block 15) of reminders, XLSX with real exports and large imports, Supabase photo storage; import error CSV capped at 1,000 rows.

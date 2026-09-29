@@ -314,7 +314,7 @@ function staffWorld(t: TestContext, opts: { role?: string; status?: "ACTIVE" | "
 test("staff can issue a link for their own customer; foreign customers are NOT_FOUND", async (t) => {
   const w = staffWorld(t);
   const res = await actions.createPortalLinkForClient("cA1");
-  assert.ok("success" in res && res.url.includes("/portal/"));
+  assert.ok("success" in res && (res as { url: string }).url.includes("/portal/"));
   assert.equal(w.rows.length, 1);
   assert.deepEqual(await actions.createPortalLinkForClient("cB1"), { error: "NOT_FOUND" });
   assert.equal(w.rows.length, 1);
