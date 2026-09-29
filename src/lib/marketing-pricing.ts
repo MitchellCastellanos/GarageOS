@@ -26,12 +26,6 @@ type MarketingPricingCopy = {
     title: string;
     description: string;
   };
-  founding: {
-    eyebrow: string;
-    title: string;
-    description: string;
-    details: string[];
-  };
 };
 
 export const MARKETING_PRICING: Record<MarketingLocale, MarketingPricingCopy> = {
@@ -39,7 +33,7 @@ export const MARKETING_PRICING: Record<MarketingLocale, MarketingPricingCopy> = 
     eyebrow: "Simple pricing",
     heading: "A complete shop system, without enterprise pricing.",
     subheading:
-      "Choose the level of automation and control your shop needs. Core transactions stay unlimited — we do not meter customers, vehicles, estimates, work orders, invoices or inspections.",
+      "Start with a 14-day free trial. Choose the level of automation and control your shop needs — $0 today, with no limits on core shop transactions.",
     monthly: "Monthly",
     yearly: "Yearly",
     annualBadge: "2 months free",
@@ -52,8 +46,8 @@ export const MARKETING_PRICING: Record<MarketingLocale, MarketingPricingCopy> = 
       {
         name: "Core",
         tagline: "Everything a small independent shop needs to run day to day.",
-        monthlyPrice: 149,
-        yearlyPrice: 1490,
+        monthlyPrice: 199,
+        yearlyPrice: 1990,
         features: [
           "Up to 3 users · 1 location",
           "Customers, vehicles, appointments & online booking",
@@ -65,13 +59,13 @@ export const MARKETING_PRICING: Record<MarketingLocale, MarketingPricingCopy> = 
           "Basic dashboard & reporting",
           "$0 self-service setup",
         ],
-        cta: "Get Started",
+        cta: "Start 14-day free trial",
       },
       {
         name: "Pro",
         tagline: "Run, automate and grow your entire shop.",
-        monthlyPrice: 249,
-        yearlyPrice: 2490,
+        monthlyPrice: 299,
+        yearlyPrice: 2990,
         features: [
           "Unlimited users · 1 location",
           "Everything in Core",
@@ -84,13 +78,13 @@ export const MARKETING_PRICING: Record<MarketingLocale, MarketingPricingCopy> = 
           "Advanced booking page customization",
           "Assisted onboarding & priority support",
         ],
-        cta: "Choose Pro",
+        cta: "Start 14-day free trial",
       },
       {
         name: "Complete",
-        tagline: "Advanced control for high-volume and more complex operations.",
-        monthlyPrice: 399,
-        yearlyPrice: 3990,
+        tagline: "Built for multi-location and high-volume operations.",
+        monthlyPrice: 449,
+        yearlyPrice: 4490,
         features: [
           "Unlimited users · 1 location",
           "Everything in Pro",
@@ -102,7 +96,7 @@ export const MARKETING_PRICING: Record<MarketingLocale, MarketingPricingCopy> = 
           "Priority support",
           "Multi-location expansion available",
         ],
-        cta: "Choose Complete",
+        cta: "Start 14-day free trial",
       },
     ],
     multiShop: {
@@ -110,24 +104,12 @@ export const MARKETING_PRICING: Record<MarketingLocale, MarketingPricingCopy> = 
       description:
         "Complete supports multi-location organizations with centralized administration and consolidated reporting. Additional locations: $199 CAD/month each.",
     },
-    founding: {
-      eyebrow: "Founding Shops Offer",
-      title: "GarageOS Pro for $149 CAD/month for your first 12 months.",
-      description:
-        "Available to the first 25 founding shops. Your regular Pro price remains clearly established at $249 CAD/month after the introductory period.",
-      details: [
-        "$0 setup",
-        "Assisted onboarding included",
-        "Standard data migration included",
-        "Founding annual option: $1,490 CAD for the first year",
-      ],
-    },
   },
   fr: {
     eyebrow: "Tarification simple",
     heading: "Un système complet pour l’atelier, sans tarification d’entreprise.",
     subheading:
-      "Choisissez le niveau d’automatisation et de contrôle dont votre atelier a besoin. Les opérations de base restent illimitées — nous ne facturons pas selon le nombre de clients, véhicules, soumissions, ordres de travail, factures ou inspections.",
+      "Commencez avec un essai gratuit de 14 jours. Choisissez le niveau d’automatisation et de contrôle dont votre atelier a besoin — 0 $ aujourd’hui, sans limite sur les opérations de base.",
     monthly: "Mensuel",
     yearly: "Annuel",
     annualBadge: "2 mois gratuits",
@@ -140,8 +122,8 @@ export const MARKETING_PRICING: Record<MarketingLocale, MarketingPricingCopy> = 
       {
         name: "Core",
         tagline: "Tout ce qu’il faut à un petit atelier indépendant pour gérer ses opérations quotidiennes.",
-        monthlyPrice: 149,
-        yearlyPrice: 1490,
+        monthlyPrice: 199,
+        yearlyPrice: 1990,
         features: [
           "Jusqu’à 3 utilisateurs · 1 établissement",
           "Clients, véhicules, rendez-vous et réservation en ligne",
@@ -153,13 +135,13 @@ export const MARKETING_PRICING: Record<MarketingLocale, MarketingPricingCopy> = 
           "Tableau de bord et rapports de base",
           "Configuration libre-service à 0 $",
         ],
-        cta: "Commencer",
+        cta: "Essai gratuit de 14 jours",
       },
       {
         name: "Pro",
         tagline: "Gérez, automatisez et développez tout votre atelier.",
-        monthlyPrice: 249,
-        yearlyPrice: 2490,
+        monthlyPrice: 299,
+        yearlyPrice: 2990,
         features: [
           "Utilisateurs illimités · 1 établissement",
           "Tout ce qui est inclus dans Core",
@@ -172,13 +154,13 @@ export const MARKETING_PRICING: Record<MarketingLocale, MarketingPricingCopy> = 
           "Personnalisation avancée de la page de réservation",
           "Accompagnement au démarrage et soutien prioritaire",
         ],
-        cta: "Choisir Pro",
+        cta: "Essai gratuit de 14 jours",
       },
       {
         name: "Complete",
-        tagline: "Contrôle avancé pour les opérations à haut volume ou plus complexes.",
-        monthlyPrice: 399,
-        yearlyPrice: 3990,
+        tagline: "Conçu pour les opérations multi-établissements et à haut volume.",
+        monthlyPrice: 449,
+        yearlyPrice: 4490,
         features: [
           "Utilisateurs illimités · 1 établissement",
           "Tout ce qui est inclus dans Pro",
@@ -190,25 +172,13 @@ export const MARKETING_PRICING: Record<MarketingLocale, MarketingPricingCopy> = 
           "Soutien prioritaire",
           "Expansion multi-établissements disponible",
         ],
-        cta: "Choisir Complete",
+        cta: "Essai gratuit de 14 jours",
       },
     ],
     multiShop: {
       title: "Multi-Shop",
       description:
         "Complete prend en charge les organisations multi-établissements avec administration centralisée et rapports consolidés. Établissements supplémentaires : 199 $ CAD/mois chacun.",
-    },
-    founding: {
-      eyebrow: "Offre ateliers fondateurs",
-      title: "GarageOS Pro à 149 $ CAD/mois pendant vos 12 premiers mois.",
-      description:
-        "Offert aux 25 premiers ateliers fondateurs. Le prix régulier de Pro demeure clairement établi à 249 $ CAD/mois après la période de lancement.",
-      details: [
-        "Configuration à 0 $",
-        "Accompagnement au démarrage inclus",
-        "Migration de données standard incluse",
-        "Option annuelle fondateur : 1 490 $ CAD pour la première année",
-      ],
     },
   },
 };
