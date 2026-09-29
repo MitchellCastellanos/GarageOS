@@ -28,6 +28,7 @@ model Shop {
   quickBooksConnection QuickBooksConnection?
   quickBooksSyncRecords QuickBooksSyncRecord[]
   quickBooksOAuthStates QuickBooksOAuthState[]
+  customerPortalAccesses CustomerPortalAccess[]
   platformNotes              PlatformNote[]
   platformAuditLogs          PlatformAuditLog[]
   platformConversations      PlatformConversation[]
@@ -363,6 +364,7 @@ model Client {
   commMessages       CommunicationMessage[]
   commThreads        CommunicationThread[]
   campaignRecipients CampaignRecipient[]
+  portalAccesses     CustomerPortalAccess[]
 
   @@schema("garageos")
 }
@@ -2068,5 +2070,30 @@ model QuickBooksOAuthState {
   createdAt DateTime  @default(now())
 
   @@index([expiresAt])
+  @@schema("garageos")
+}
+
+/**
+ * Acceso al Customer Portal (Block 13): enlace mágico de un cliente (Client = relación con UN taller).
+ * Solo se guarda el hash SHA-256 del token (nunca el token): quien lee la BD no puede entrar. Vence
+ * (`expiresAt`), se revoca (`revokedAt`) y toda consulta del portal se acota por (shopId, clientId).
+ */
+model CustomerPortalAccess {
+  id          String    @id @default(cuid())
+  shopId      String
+  shop        Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  clientId    String
+  client      Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  tokenHash   String    @unique
+  /// STAFF = enviado/generado por el taller; CUSTOMER_REQUEST = pedido por el cliente en la página del taller.
+  createdVia  String
+  createdById String?
+  createdAt   DateTime  @default(now())
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  lastUsedAt  DateTime?
+
+  @@index([clientId, revokedAt])
+  @@index([shopId])
   @@schema("garageos")
 }

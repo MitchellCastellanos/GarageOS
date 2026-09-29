@@ -419,3 +419,61 @@ export async function sendContactAcknowledgment(data: ContactAckData) {
     businessEntityId: data.threadId,
   });
 }
+
+// ── Customer Portal (Block 13) ──────────────────────────────
+
+interface PortalLinkEmailData {
+  shop: ShopEmailConfig;
+  to: string;
+  clientId: string;
+  clientName: string;
+  portalUrl: string;
+  expiresInDays: number;
+  language?: string | null;
+}
+
+const PORTAL_LINK_COPY = {
+  EN: {
+    subject: (shop: string) => `Your customer portal — ${shop}`,
+    subtitle: "Your customer portal",
+    body: (d: PortalLinkEmailData) =>
+      `Hello ${d.clientName},\n\nHere is your secure link to view your vehicles, service history, estimates and invoices with ${d.shop.name}:\n\n${d.portalUrl}\n\nThe link is personal — please don't share it. It expires in ${d.expiresInDays} days; you can ask for a new one at any time.`,
+  },
+  FR: {
+    subject: (shop: string) => `Votre portail client — ${shop}`,
+    subtitle: "Votre portail client",
+    body: (d: PortalLinkEmailData) =>
+      `Bonjour ${d.clientName},\n\nVoici votre lien sécurisé pour consulter vos véhicules, votre historique d'entretien, vos soumissions et vos factures chez ${d.shop.name} :\n\n${d.portalUrl}\n\nCe lien est personnel — ne le partagez pas. Il expire dans ${d.expiresInDays} jours; vous pouvez en demander un nouveau en tout temps.`,
+  },
+} as const;
+
+export async function sendPortalLinkEmail(data: PortalLinkEmailData): Promise<RecordAndSendResult> {
+  const lang: "EN" | "FR" = data.language === "FR" ? "FR" : "EN";
+  const copy = PORTAL_LINK_COPY[lang];
+  const paragraphs = copy.body(data).split("\n\n");
+  const bodyRich = {
+    version: 1 as const,
+    blocks: paragraphs.map((text) => ({
+      type: "paragraph" as const,
+      children: text === data.portalUrl ? [{ text, href: data.portalUrl }] : [{ text }],
+    })),
+  };
+  const element = React.createElement(PlainMessageEmail, {
+    shopName: data.shop.name,
+    headerSubtitle: copy.subtitle,
+    bodyText: copy.body(data),
+    bodyRich,
+    footerText: lang === "FR" ? `Ce courriel a été envoyé par ${data.shop.name}.` : `This email was sent by ${data.shop.name}.`,
+    lang: lang.toLowerCase(),
+  });
+  return sendTransactionalEmail({
+    shop: data.shop,
+    channel: "WEB_CONTACT",
+    to: data.to,
+    subject: copy.subject(data.shop.name),
+    react: element,
+    clientId: data.clientId,
+    businessEntityType: "CLIENT",
+    businessEntityId: data.clientId,
+  });
+}
