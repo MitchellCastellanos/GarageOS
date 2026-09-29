@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -45,12 +46,42 @@ function RailLink({
   locked?: boolean;
   unread?: boolean;
 }) {
+  // El riel de íconos se puede volver scrolleable (más items de los que caben
+  // en pantallas bajas) — un tooltip que dependiera del `overflow` del
+  // contenedor quedaría cortado o forzaría scroll horizontal. Por eso el
+  // tooltip se manda por portal a <body> con posición fija, calculada del ícono.
+  const [tooltipPos, setTooltipPos] = useState<{ top: number; left: number } | null>(null);
+  const linkRef = useRef<HTMLAnchorElement>(null);
+
+  function showTooltip() {
+    const rect = linkRef.current?.getBoundingClientRect();
+    if (rect) setTooltipPos({ top: rect.top + rect.height / 2, left: rect.right + 12 });
+  }
+  function hideTooltip() {
+    setTooltipPos(null);
+  }
+
+  // Si el riel se scrollea mientras el tooltip está abierto, la posición
+  // calculada queda vieja — más simple cerrarlo que reposicionarlo en cada
+  // scroll. "scroll" no burbujea, pero sí se puede capturar en la fase de
+  // captura desde un ancestro (aquí window) aunque no bubblee.
+  useEffect(() => {
+    if (!tooltipPos) return;
+    window.addEventListener("scroll", hideTooltip, true);
+    return () => window.removeEventListener("scroll", hideTooltip, true);
+  }, [tooltipPos]);
+
   return (
     <Link
+      ref={linkRef}
       href={href}
       aria-label={label}
+      onMouseEnter={showTooltip}
+      onMouseLeave={hideTooltip}
+      onFocus={showTooltip}
+      onBlur={hideTooltip}
       className={cn(
-        "group relative flex items-center justify-center w-11 h-11 rounded-xl transition-colors",
+        "relative flex items-center justify-center w-11 h-11 rounded-xl transition-colors flex-shrink-0",
         active
           ? "bg-blue-600 text-white"
           : "text-slate-400 hover:text-white hover:bg-slate-800"
@@ -65,13 +96,19 @@ function RailLink({
       {unread && !locked && (
         <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-slate-900" />
       )}
-      <span
-        className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-md bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 z-20"
-      >
-        {label}
-        {locked && <span className="text-amber-400 ml-1">· Pro</span>}
-        {unread && !locked && <span className="text-red-400 ml-1">· nuevo</span>}
-      </span>
+      {tooltipPos &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <span
+            style={{ position: "fixed", top: tooltipPos.top, left: tooltipPos.left, transform: "translateY(-50%)" }}
+            className="pointer-events-none whitespace-nowrap rounded-md bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white shadow-lg z-50"
+          >
+            {label}
+            {locked && <span className="text-amber-400 ml-1">· Pro</span>}
+            {unread && !locked && <span className="text-red-400 ml-1">· nuevo</span>}
+          </span>,
+          document.body
+        )}
     </Link>
   );
 }
@@ -268,7 +305,7 @@ export function Sidebar({
 
   return (
     <>
-      <aside className="no-print hidden md:flex w-[72px] flex-shrink-0 min-h-full bg-slate-900 flex-col items-center py-4">
+      <aside className="no-print hidden md:flex w-[72px] flex-shrink-0 h-full bg-slate-900 flex-col items-center py-4">
         <Link
           href={ADMIN.dashboard}
           aria-label="GarageOS"
@@ -276,7 +313,7 @@ export function Sidebar({
         >
           <GarageOSAppIcon className="w-9 h-9" />
         </Link>
-        <nav className="flex-1 flex flex-col items-center gap-1.5 overflow-y-auto">
+        <nav className="rail-nav-scroll flex-1 min-h-0 w-full flex flex-col items-center gap-1.5 overflow-y-auto overflow-x-hidden">
           <RailLink
             href={ADMIN.dashboard}
             label={t.nav.dashboard}
@@ -307,7 +344,7 @@ export function Sidebar({
           ))}
         </nav>
 
-        <div className="pt-3 mt-3 border-t border-slate-800 w-full flex flex-col items-center gap-1.5">
+        <div className="flex-shrink-0 pt-3 mt-3 border-t border-slate-800 w-full flex flex-col items-center gap-1.5">
           <RailLink
             href={ADMIN.support}
             label={t.nav.support}
