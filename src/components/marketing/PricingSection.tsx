@@ -104,25 +104,9 @@ export function PricingSection() {
           {yearly && <p>{pricing.annualNote}</p>}
         </div>
 
-        <div className="mt-10 grid lg:grid-cols-[1.4fr_1fr] gap-6">
-          <div className="rounded-2xl bg-brand-navy text-white p-6 sm:p-8">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-300">{pricing.founding.eyebrow}</p>
-            <h3 className="mt-3 text-2xl font-bold tracking-tight">{pricing.founding.title}</h3>
-            <p className="mt-3 text-sm leading-relaxed text-slate-300">{pricing.founding.description}</p>
-            <ul className="mt-5 grid sm:grid-cols-2 gap-2.5">
-              {pricing.founding.details.map((detail) => (
-                <li key={detail} className="flex items-start gap-2 text-sm text-slate-200">
-                  <Check className="w-4 h-4 text-blue-300 mt-0.5 shrink-0" />
-                  {detail}
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="rounded-2xl bg-white border border-slate-200 p-6 sm:p-8 flex flex-col justify-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-brand-blue">{pricing.multiShop.title}</p>
-            <p className="mt-3 text-sm leading-relaxed text-slate-600">{pricing.multiShop.description}</p>
-          </div>
+        <div className="mt-10 rounded-2xl bg-white border border-slate-200 p-6 sm:p-8 text-center">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-brand-blue">{pricing.multiShop.title}</p>
+          <p className="mt-3 text-sm leading-relaxed text-slate-600 max-w-2xl mx-auto">{pricing.multiShop.description}</p>
         </div>
       </div>
     </section>
