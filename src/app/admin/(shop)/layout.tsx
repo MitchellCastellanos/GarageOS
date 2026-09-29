@@ -7,18 +7,16 @@ import { db } from "@/lib/db";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import { AdminLocaleProvider } from "@/components/admin/AdminLocaleProvider";
 import { getAccessibleShops } from "@/actions/locations";
-import { can, getEffectiveSubscription } from "@/lib/subscription";
+import { canView, getEffectiveSubscription } from "@/lib/subscription";
 import { hasUnreadSupportMessage } from "@/actions/support";
 import { hasUnreadInboxThreads } from "@/lib/communications/inbox";
 import { getMyStaffNotifications } from "@/actions/staff-notifications";
 import { ImpersonationBanner } from "@/components/admin/ImpersonationBanner";
 import { EmailVerificationBanner } from "@/components/admin/EmailVerificationBanner";
 import type { PlanBadge } from "@/components/layout/Topbar";
-import { SubscriptionBanner, type SubscriptionBannerKind } from "@/components/admin/SubscriptionBanner";
+import { daysUntil } from "@/domain/subscription-state";
+import { SubscriptionBanner, type SubscriptionBannerData } from "@/components/admin/SubscriptionBanner";
 
-function daysUntil(date: Date): number {
-  return Math.ceil((date.getTime() - Date.now()) / 86_400_000);
-}
 
 export default async function DashboardLayout({
   children,
@@ -46,8 +44,8 @@ export default async function DashboardLayout({
     }),
     getAdminLocale(),
     getAccessibleShops(),
-    can(session.user.shopId, "inventory.manage"),
-    can(session.user.shopId, "communications.campaigns"),
+    canView(session.user.shopId, "inventory.manage"),
+    canView(session.user.shopId, "communications.campaigns"),
     db.user.findUnique({
       where: { id: session.user.id },
       select: { email: true, emailVerified: true },
@@ -65,30 +63,38 @@ export default async function DashboardLayout({
 
   const isOwner = session.user.role === "OWNER";
   let planBadge: PlanBadge | null = null;
-  let billingBanner: { kind: SubscriptionBannerKind; daysLeft: number } | null = null;
+  let billingBanner: SubscriptionBannerData | null = null;
   if (isOwner) {
     const sub = await getEffectiveSubscription(session.user.shopId);
     const trialDays = sub.isTrialing && sub.trialEndsAt ? Math.max(daysUntil(sub.trialEndsAt), 0) : 0;
     planBadge = {
-      plan: sub.plan,
-      state: sub.isTrialExpired
-        ? "trialExpired"
-        : sub.status === "PAST_DUE"
-          ? "pastDue"
-          : sub.isTrialing
-            ? "trialing"
-            : sub.status === "ACTIVE"
-              ? "active"
-              : "free",
+      plan: sub.plan ?? sub.subscribedPlan,
+      state:
+        sub.accessState === "RESTRICTED" || sub.accessState === "SETUP_REQUIRED"
+          ? sub.isTrialExpired
+            ? "trialExpired"
+            : "free"
+          : sub.accessState === "PAST_DUE"
+            ? "pastDue"
+            : sub.accessState === "TRIALING"
+              ? "trialing"
+              : "active",
       trialDays,
     };
-    if (sub.isTrialExpired) {
-      billingBanner = { kind: "trialExpired", daysLeft: 0 };
-    } else if (sub.status === "PAST_DUE") {
-      billingBanner = { kind: "pastDue", daysLeft: 0 };
-    } else if (sub.isTrialing && sub.trialEndsAt) {
-      const daysLeft = daysUntil(sub.trialEndsAt);
-      if (daysLeft <= 7) billingBanner = { kind: "trialEnding", daysLeft: Math.max(daysLeft, 0) };
+    if (sub.accessState === "RESTRICTED") {
+      billingBanner = { kind: "restricted", hasPlan: sub.subscribedPlan != null };
+    } else if (sub.accessState === "PAST_DUE" && sub.plan) {
+      billingBanner = { kind: "pastDue", plan: sub.plan };
+    } else if (sub.accessState === "TRIALING" && sub.plan && sub.trialEndsAt) {
+      billingBanner = {
+        kind: "trial",
+        plan: sub.plan,
+        daysLeft: Math.max(daysUntil(sub.trialEndsAt), 0),
+        chargeDate: sub.trialEndsAt.toISOString(),
+        amountCad: sub.nextCharge?.amountCad ?? null,
+        interval: sub.billingInterval,
+        hasPaymentMethod: sub.hasStripeSubscription,
+      };
     }
   }
 
@@ -109,7 +115,7 @@ export default async function DashboardLayout({
         <ImpersonationBanner shopName={session.impersonation.shopName} startedByName={session.impersonation.startedByName} />
       )}
       {currentUser && !currentUser.emailVerified && <EmailVerificationBanner email={currentUser.email} />}
-      {billingBanner && <SubscriptionBanner kind={billingBanner.kind} daysLeft={billingBanner.daysLeft} />}
+      {billingBanner && <SubscriptionBanner data={billingBanner} />}
       <AdminChrome
         shopName={shop?.name}
         shopLogoUrl={shop?.logoUrl}

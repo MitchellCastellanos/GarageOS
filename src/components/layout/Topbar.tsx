@@ -19,7 +19,8 @@ import type { StaffNotificationRow } from "@/actions/staff-notifications";
 import { SETTINGS_DICT } from "@/lib/admin-locale/settings";
 
 export interface PlanBadge {
-  plan: Plan;
+  /** Plan contratado/elegido (null = todavía no eligió). */
+  plan: Plan | null;
   state: "trialing" | "trialExpired" | "pastDue" | "active" | "free";
   trialDays: number;
 }
@@ -68,7 +69,7 @@ export function Topbar({
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const planNeedsAttention = planBadge?.state === "trialExpired" || planBadge?.state === "pastDue";
+  const planNeedsAttention = planBadge?.state === "trialExpired" || planBadge?.state === "pastDue" || planBadge?.state === "free";
   const planStatusText = planBadge
     ? {
         trialing: t.topbar.plan.trial(planBadge.trialDays),
@@ -244,7 +245,7 @@ export function Topbar({
                   className="flex items-center gap-2 mx-1.5 my-1 px-2.5 py-2 rounded-md hover:bg-slate-50"
                 >
                   <span className="flex-1 min-w-0">
-                    <span className="block text-sm font-semibold text-slate-900">{PLAN_LABELS[planBadge.plan]}</span>
+                    <span className="block text-sm font-semibold text-slate-900">{planBadge.plan ? PLAN_LABELS[planBadge.plan] : APP_NAME}</span>
                     <span
                       className={`block text-xs ${
                         planNeedsAttention ? "text-red-600" : planBadge.state === "trialing" ? "text-blue-600" : "text-slate-500"

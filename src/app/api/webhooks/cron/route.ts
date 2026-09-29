@@ -4,6 +4,7 @@ import { sendReminderEmail } from "@/lib/email";
 import { shopToEmailConfig } from "@/lib/email-config";
 import { SYSTEM_ACTOR, recordAppointmentEvent } from "@/lib/appointment-events";
 import { runSmsNumberLifecycle } from "@/lib/communications/sms-numbers";
+import { createOperatingChecker } from "@/lib/subscription";
 import { isTwilioConfigured } from "@/lib/communications/twilio";
 
 // Cron Job — corre diariamente a las 8am (configurado en vercel.json)
@@ -44,8 +45,16 @@ export async function GET(request: Request) {
     appointmentReminders: { sent: 0, skipped: 0, errors: 0 },
   };
 
+  // Un taller restringido (sin pago vigente) no envía recordatorios automáticos.
+  const canOperate = createOperatingChecker();
+
   for (const reminder of dueReminders) {
     const client = reminder.vehicle.client;
+
+    if (!(await canOperate(reminder.shopId))) {
+      results.serviceReminders.skipped++;
+      continue;
+    }
 
     if (!client.email) {
       results.serviceReminders.skipped++;
@@ -88,6 +97,7 @@ export async function GET(request: Request) {
   const now = new Date();
 
   for (const shop of shopsWithAppointments) {
+    if (!(await canOperate(shop.id))) continue;
     const windowEnd = new Date(now.getTime() + shop.appointmentReminderHours * 60 * 60 * 1000);
 
     const dueAppointments = await db.appointment.findMany({

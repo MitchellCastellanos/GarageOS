@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireOwner } from "@/lib/permissions";
 import { ADMIN } from "@/lib/routes";
+import { getEffectiveSubscription } from "@/lib/subscription";
 import { getShopServiceCatalog } from "@/lib/booking-slots";
 
 /**
@@ -55,6 +56,13 @@ export async function getOnboardingContext() {
 export async function completeOnboarding() {
   const session = await requireOwner();
   const shopId = session.user.shopId!;
+
+  // Server-side: no se puede terminar el onboarding (ni entrar a GarageOS) sin
+  // haber elegido plan y dejado un método de pago en Stripe (trial respaldado
+  // por tarjeta) o tener una suscripción ya activa. Saltarse el paso por URL no sirve.
+  const sub = await getEffectiveSubscription(shopId);
+  const paymentBacked = sub.canWrite && (sub.hasStripeSubscription || sub.accessState === "ACTIVE");
+  if (!paymentBacked) return { error: "PLAN_REQUIRED" };
 
   await db.shop.update({
     where: { id: shopId },

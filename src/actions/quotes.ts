@@ -5,7 +5,7 @@ import { ADMIN, PLATFORM, adminPath } from "@/lib/routes";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { getShopId } from "@/lib/shop-context";
+import { getShopId, getWritableShopId } from "@/lib/shop-context";
 import { quoteSchema, type QuoteFormData } from "@/lib/validations";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import {
@@ -141,7 +141,7 @@ export async function getQuoteById(id: string) {
 // ── CREATE ──────────────────────────────────────────────────
 
 export async function createQuote(formData: QuoteFormData) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
 
   const parsed = quoteSchema.safeParse(formData);
   if (!parsed.success) {
@@ -207,7 +207,7 @@ export async function createQuote(formData: QuoteFormData) {
 // ── UPDATE ──────────────────────────────────────────────────
 
 export async function updateQuote(id: string, formData: QuoteFormData) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   const locale = await getAdminLocale();
 
   const existing = await db.quote.findFirst({
@@ -282,7 +282,7 @@ export async function updateQuote(id: string, formData: QuoteFormData) {
 // ── STATUS ──────────────────────────────────────────────────
 
 export async function markQuoteAsSent(id: string) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   const quote = await db.quote.findFirst({ where: { id, shopId } });
   if (!quote) return;
 
@@ -300,7 +300,7 @@ export async function markQuoteAsSent(id: string) {
 const EMAILABLE_STATUSES = ["DRAFT", "SENT", "ACCEPTED"] as const;
 
 export async function sendQuoteByEmail(id: string, formData?: FormData) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   const locale = await getAdminLocale();
 
   const quote = await db.quote.findFirst({
@@ -398,7 +398,7 @@ export async function sendQuoteByEmail(id: string, formData?: FormData) {
 }
 
 export async function sendQuoteBySms(id: string) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   const locale = await getAdminLocale();
   const quote = await db.quote.findFirst({
     where: { id, shopId },
@@ -456,7 +456,7 @@ export async function sendQuoteBySms(id: string) {
 }
 
 export async function markQuoteAsAccepted(id: string) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   const locale = await getAdminLocale();
   const result = await db.quote.updateMany({
     where: { id, shopId, status: { in: ["SENT", "DRAFT"] } },
@@ -469,7 +469,7 @@ export async function markQuoteAsAccepted(id: string) {
 }
 
 export async function markQuoteAsRejected(id: string) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   const locale = await getAdminLocale();
   const result = await db.quote.updateMany({
     where: { id, shopId, status: { in: ["SENT", "DRAFT"] } },
@@ -482,7 +482,7 @@ export async function markQuoteAsRejected(id: string) {
 }
 
 export async function convertQuoteToInvoice(id: string) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   const locale = await getAdminLocale();
 
   const quote = await db.quote.findFirst({
@@ -565,7 +565,7 @@ export async function convertQuoteToInvoice(id: string) {
 const VOIDABLE_STATUSES = ["DRAFT", "SENT", "ACCEPTED", "REJECTED", "EXPIRED"] as const;
 
 export async function cancelQuote(id: string) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   const locale = await getAdminLocale();
 
   const result = await db.quote.updateMany({
@@ -587,7 +587,7 @@ export async function cancelQuote(id: string) {
 }
 
 export async function deleteQuote(id: string) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   const locale = await getAdminLocale();
 
   const result = await db.quote.deleteMany({

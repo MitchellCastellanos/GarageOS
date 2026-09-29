@@ -72,9 +72,20 @@ export interface OnboardingDictionary {
     supportHint: string;
     supportLink: string;
     planTitle: string;
-    planTrial: (days: number, date: string) => string;
+    planTrial: (plan: string, days: number, date: string) => string;
+    planCharge: (date: string, amount: string) => string;
     planBody: string;
     planCta: string;
+  };
+  stepPlan: {
+    title: string;
+    subtitle: string;
+    confirming: string;
+    trialStarted: (plan: string) => string;
+    planActive: (plan: string) => string;
+    continue: string;
+    cancelled: string;
+    notConfirmed: string;
   };
   additionalLocation: {
     banner: string;
@@ -148,9 +159,20 @@ export const ONBOARDING_DICT: Record<"en" | "fr", OnboardingDictionary> = {
       supportHint: "Stuck on anything?",
       supportLink: "Here's how to reach us",
       planTitle: "Your plan",
-      planTrial: (days, date) => `Your free Pro trial is active — ${days} ${days === 1 ? "day" : "days"} left (until ${date}). No card needed.`,
-      planBody: "Pick a plan whenever you're ready. If you do nothing, your shop keeps the Core plan after the trial.",
-      planCta: "See plans",
+      planTrial: (plan, days, date) => `Your ${plan} free trial is active — ${days} ${days === 1 ? "day" : "days"} left (until ${date}).`,
+      planCharge: (date, amount) => `Your first charge is ${amount} CAD + tax on ${date}.`,
+      planBody: "Cancel any time before then from Billing and you won't be charged.",
+      planCta: "Manage billing",
+    },
+    stepPlan: {
+      title: "Choose your plan — free for 14 days",
+      subtitle: "Pick the plan you want to try and add a payment method. You pay $0 today; billing starts automatically after the trial unless you cancel.",
+      confirming: "Confirming your payment method with Stripe...",
+      trialStarted: (plan) => `Your ${plan} free trial has started`,
+      planActive: (plan) => `Your ${plan} plan is active`,
+      continue: "Continue",
+      cancelled: "Checkout was cancelled — no payment method was saved. Pick a plan to continue.",
+      notConfirmed: "We couldn't confirm your payment method yet. Give it a few seconds and refresh, or try again.",
     },
     additionalLocation: {
       banner: "Adding a new location — your branding and tax info carried over automatically, so this is a shorter setup.",
@@ -222,9 +244,20 @@ export const ONBOARDING_DICT: Record<"en" | "fr", OnboardingDictionary> = {
       supportHint: "Un pépin?",
       supportLink: "Voici comment nous joindre",
       planTitle: "Votre forfait",
-      planTrial: (days, date) => `Votre essai gratuit de Pro est actif — ${days} ${days === 1 ? "jour" : "jours"} restants (jusqu'au ${date}). Aucune carte requise.`,
-      planBody: "Choisissez un forfait quand vous serez prêt. Sans action de votre part, votre atelier passe au forfait Core après l'essai.",
-      planCta: "Voir les forfaits",
+      planTrial: (plan, days, date) => `Votre essai gratuit ${plan} est actif — ${days} ${days === 1 ? "jour" : "jours"} restants (jusqu'au ${date}).`,
+      planCharge: (date, amount) => `Votre premier prélèvement est de ${amount} CAD + taxes le ${date}.`,
+      planBody: "Annulez à tout moment avant cette date depuis Facturation et vous ne serez pas facturé.",
+      planCta: "Gérer la facturation",
+    },
+    stepPlan: {
+      title: "Choisissez votre forfait — gratuit pendant 14 jours",
+      subtitle: "Choisissez le forfait à essayer et ajoutez un mode de paiement. Vous payez 0 $ aujourd'hui; la facturation commence automatiquement après l'essai, sauf annulation.",
+      confirming: "Confirmation de votre mode de paiement avec Stripe...",
+      trialStarted: (plan) => `Votre essai gratuit ${plan} a commencé`,
+      planActive: (plan) => `Votre forfait ${plan} est actif`,
+      continue: "Continuer",
+      cancelled: "Le paiement a été annulé — aucun mode de paiement n'a été enregistré. Choisissez un forfait pour continuer.",
+      notConfirmed: "Nous n'avons pas encore pu confirmer votre mode de paiement. Patientez quelques secondes et actualisez, ou réessayez.",
     },
     additionalLocation: {
       banner: "Ajout d'un nouvel emplacement — votre image de marque et vos infos fiscales ont été reprises automatiquement, la configuration est donc plus courte.",

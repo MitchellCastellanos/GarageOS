@@ -5,7 +5,7 @@ import { ADMIN } from "@/lib/routes";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { getShopId } from "@/lib/shop-context";
+import { getShopId, getWritableShopId } from "@/lib/shop-context";
 import {
   newInspectionSchema,
   inspectionItemUpdateSchema,
@@ -113,7 +113,7 @@ export async function getInspectionFormData() {
 // ── CREATE ──────────────────────────────────────────────────
 
 export async function createInspection(formData: NewInspectionFormData) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
 
   const parsed = newInspectionSchema.safeParse(formData);
   if (!parsed.success) {
@@ -145,7 +145,7 @@ export async function createInspection(formData: NewInspectionFormData) {
 }
 
 export async function addInspectionItem(inspectionId: string, category: string) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   const locale = await getAdminLocale();
 
   const inspection = await db.inspection.findFirst({
@@ -173,7 +173,7 @@ export async function updateInspectionItem(
   itemId: string,
   data: { condition: string; notes?: string }
 ) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   const locale = await getAdminLocale();
 
   const parsed = inspectionItemUpdateSchema.safeParse(data);
@@ -199,7 +199,7 @@ export async function updateInspectionItem(
 }
 
 export async function deleteInspectionItem(itemId: string) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   const locale = await getAdminLocale();
 
   const item = await db.inspectionItem.findFirst({
@@ -218,7 +218,7 @@ export async function deleteInspectionItem(itemId: string) {
 const MAX_PHOTO_SIZE = 8 * 1024 * 1024;
 
 export async function uploadInspectionPhoto(itemId: string, formData: FormData) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   const locale = await getAdminLocale();
 
   const item = await db.inspectionItem.findFirst({
@@ -254,7 +254,7 @@ export async function uploadInspectionPhoto(itemId: string, formData: FormData) 
 }
 
 export async function deleteInspectionPhoto(photoId: string) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   const locale = await getAdminLocale();
 
   const photo = await db.inspectionPhoto.findFirst({
@@ -272,7 +272,7 @@ export async function deleteInspectionPhoto(photoId: string) {
 // ── DELETE ──────────────────────────────────────────────────
 
 export async function deleteInspection(id: string) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   const locale = await getAdminLocale();
 
   const result = await db.inspection.deleteMany({ where: { id, shopId } });
@@ -285,7 +285,7 @@ export async function deleteInspection(id: string) {
 // ── CONVERT FINDINGS TO QUOTE ───────────────────────────────
 
 export async function createQuoteFromInspection(inspectionId: string) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   const locale = await getAdminLocale();
   const t = INSPECTIONS_DICT[locale];
 

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { ADMIN, adminPath } from "@/lib/routes";
 import { db } from "@/lib/db";
-import { getShopId } from "@/lib/shop-context";
+import { assertShopWritable, getShopId, getWritableShopId } from "@/lib/shop-context";
 import { requireShopSession } from "@/lib/permissions";
 import { isThreadUnread, sendInboxMessage, sendInboxSms } from "@/lib/communications/inbox";
 import { shopHasDedicatedSmsNumber } from "@/lib/communications/sms-numbers";
@@ -57,7 +57,7 @@ export async function getThreadDetail(threadId: string) {
 }
 
 export async function archiveThreadAction(threadId: string) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   await db.communicationThread.updateMany({
     where: { id: threadId, shopId },
     data: { status: "ARCHIVED" },
@@ -68,7 +68,7 @@ export async function archiveThreadAction(threadId: string) {
 }
 
 export async function reopenThreadAction(threadId: string) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   await db.communicationThread.updateMany({
     where: { id: threadId, shopId },
     data: { status: "OPEN" },
@@ -119,6 +119,7 @@ function smsErrorMessage(err: unknown): string {
 export async function replyToThreadAction(threadId: string, formData: FormData) {
   const session = await requireShopSession();
   const shopId = session.user.shopId!;
+  await assertShopWritable(shopId);
 
   const thread = await db.communicationThread.findFirst({ where: { id: threadId, shopId } });
   if (!thread) return { error: "Conversation not found" };
@@ -186,6 +187,7 @@ export async function replyToThreadAction(threadId: string, formData: FormData) 
 export async function composeMessageAction(formData: FormData) {
   const session = await requireShopSession();
   const shopId = session.user.shopId!;
+  await assertShopWritable(shopId);
 
   const to = splitAddresses(formData.get("to"));
   if (to.length === 0) return { error: "Add at least one recipient" };
@@ -231,6 +233,7 @@ export async function composeMessageAction(formData: FormData) {
 export async function composeSmsAction(formData: FormData) {
   const session = await requireShopSession();
   const shopId = session.user.shopId!;
+  await assertShopWritable(shopId);
 
   const body = readSmsBody(formData);
   if (!body) return { error: "The message cannot be empty" };

@@ -7,6 +7,7 @@
 
 import Stripe from "stripe";
 import type { Plan } from "@/config/entitlements";
+import type { TrialPlan } from "@/domain/subscription-state";
 
 let client: Stripe | null = null;
 
@@ -18,7 +19,8 @@ export function getStripeClient(): Stripe {
   return client;
 }
 
-export type BillingInterval = "MONTHLY" | "YEARLY";
+import type { BillingInterval } from "@/domain/subscription-state";
+export type { BillingInterval };
 
 /** plan+intervalo → Price ID de Stripe, leído de env. Un plan/intervalo sin price ID configurado no se puede comprar. */
 function priceEnvVar(plan: Plan, interval: BillingInterval): string {
@@ -55,15 +57,24 @@ export function findPlanSubscriptionItem<T extends { price: { id: string } }>(it
 }
 
 export interface CreateCheckoutSessionParams {
+  /** Shop dueño de la Subscription (en multi-sucursal, el Shop raíz) — va a client_reference_id y a la metadata. */
   shopId: string;
   plan: Plan;
   interval: BillingInterval;
-  customerEmail: string;
-  existingStripeCustomerId: string | null;
+  /** Customer de Stripe ya creado/vinculado a este taller (ver ensureStripeCustomer) — evita clientes duplicados. */
+  stripeCustomerId: string;
+  /** Trial a aplicar — lo decide el SERVIDOR (decideTrialPlan), nunca el cliente. */
+  trial: TrialPlan;
   successUrl: string;
   cancelUrl: string;
 }
 
+/**
+ * Checkout hospedado en modo suscripción con método de pago OBLIGATORIO
+ * (`payment_method_collection: "always"`) — la tarjeta la captura Stripe, jamás
+ * GarageOS. Con trial, el cobro de hoy es $0 y Stripe cobra solo al terminar.
+ * Si el trial termina sin método de pago válido, la suscripción se cancela.
+ */
 export async function createCheckoutSession(params: CreateCheckoutSessionParams): Promise<Stripe.Checkout.Session> {
   const stripe = getStripeClient();
   const priceId = getPriceId(params.plan, params.interval);
@@ -80,22 +91,49 @@ export async function createCheckoutSession(params: CreateCheckoutSessionParams)
   const overagePriceId = getSmsOverageItemPriceId();
   if (overagePriceId) lineItems.push({ price: overagePriceId });
 
-  return stripe.checkout.sessions.create({
-    mode: "subscription",
-    line_items: lineItems,
-    client_reference_id: params.shopId,
-    customer: params.existingStripeCustomerId ?? undefined,
-    customer_email: params.existingStripeCustomerId ? undefined : params.customerEmail,
-    subscription_data: {
-      metadata: { shopId: params.shopId },
+  const subscriptionData: Stripe.Checkout.SessionCreateParams.SubscriptionData = {
+    metadata: { shopId: params.shopId },
+  };
+  if (params.trial.kind === "fresh") {
+    subscriptionData.trial_period_days = params.trial.days;
+  } else if (params.trial.kind === "until") {
+    subscriptionData.trial_end = Math.floor(params.trial.endsAt.getTime() / 1000);
+  }
+  if (params.trial.kind !== "none") {
+    subscriptionData.trial_settings = { end_behavior: { missing_payment_method: "cancel" } };
+  }
+
+  // Idempotency: dos clics/recargas en la misma ventana de 15 min devuelven la
+  // MISMA sesión en vez de abrir varias (que podrían completarse las dos).
+  const bucket = Math.floor(Date.now() / (15 * 60 * 1000));
+  return stripe.checkout.sessions.create(
+    {
+      mode: "subscription",
+      line_items: lineItems,
+      client_reference_id: params.shopId,
+      customer: params.stripeCustomerId,
+      customer_update: { address: "auto", name: "auto" },
+      payment_method_collection: "always",
+      subscription_data: subscriptionData,
+      metadata: { shopId: params.shopId, plan: params.plan, interval: params.interval },
+      allow_promotion_codes: true,
+      billing_address_collection: "required",
+      automatic_tax: { enabled: true },
+      tax_id_collection: { enabled: true },
+      success_url: params.successUrl,
+      cancel_url: params.cancelUrl,
     },
-    allow_promotion_codes: true,
-    billing_address_collection: "auto",
-    automatic_tax: { enabled: true },
-    tax_id_collection: { enabled: true },
-    success_url: params.successUrl,
-    cancel_url: params.cancelUrl,
-  });
+    { idempotencyKey: `checkout:${params.shopId}:${params.plan}:${params.interval}:${params.trial.kind}:${bucket}` }
+  );
+}
+
+/** Crea el Customer de Stripe del taller. Idempotente por shopId: dos llamadas simultáneas devuelven el mismo Customer. */
+export async function createStripeCustomer(params: { shopId: string; email: string; name: string }): Promise<string> {
+  const customer = await getStripeClient().customers.create(
+    { email: params.email || undefined, name: params.name, metadata: { shopId: params.shopId } },
+    { idempotencyKey: `customer:${params.shopId}` }
+  );
+  return customer.id;
 }
 
 export async function createBillingPortalSession(params: {
@@ -121,9 +159,10 @@ export async function updateStripeSubscriptionPrice(
 ): Promise<Stripe.Subscription> {
   const stripe = getStripeClient();
   const subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
-  const itemId = subscription.items.data[0]?.id;
+  // El item de PLAN — no items.data[0]: el de excedente de SMS puede ir primero.
+  const itemId = findPlanSubscriptionItem(subscription.items.data)?.id;
   if (!itemId) {
-    throw new Error(`La suscripción de Stripe ${stripeSubscriptionId} no tiene items`);
+    throw new Error(`La suscripción de Stripe ${stripeSubscriptionId} no tiene item de plan`);
   }
   return stripe.subscriptions.update(stripeSubscriptionId, {
     items: [{ id: itemId, price: newPriceId }],

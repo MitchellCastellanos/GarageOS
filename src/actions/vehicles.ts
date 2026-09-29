@@ -5,7 +5,7 @@ import { ADMIN, PLATFORM, adminPath } from "@/lib/routes";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { getShopId } from "@/lib/shop-context";
+import { getShopId, getWritableShopId } from "@/lib/shop-context";
 import { vehicleSchema, type VehicleFormData } from "@/lib/validations";
 
 export async function getVehicleById(vehicleId: string) {
@@ -46,7 +46,7 @@ export async function getVehicleById(vehicleId: string) {
 }
 
 export async function createVehicle(clientId: string, formData: VehicleFormData) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
 
   // Verificar que el cliente pertenece a este shop
   const client = await db.client.findFirst({ where: { id: clientId, shopId } });
@@ -77,7 +77,7 @@ export async function createVehicle(clientId: string, formData: VehicleFormData)
 }
 
 export async function updateVehicle(vehicleId: string, formData: VehicleFormData) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
 
   const vehicle = await db.vehicle.findFirst({
     where: { id: vehicleId, client: { shopId } },
@@ -109,7 +109,7 @@ export async function updateVehicle(vehicleId: string, formData: VehicleFormData
 }
 
 export async function deleteVehicle(vehicleId: string, clientId: string) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
 
   await db.vehicle.deleteMany({
     where: { id: vehicleId, client: { shopId } },

@@ -9,7 +9,7 @@ import { ADMIN, PLATFORM, adminPath } from "@/lib/routes";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { getShopId } from "@/lib/shop-context";
+import { getShopId, getWritableShopId } from "@/lib/shop-context";
 import { clientSchema, type ClientFormData } from "@/lib/validations";
 
 // ── READ ────────────────────────────────────────────────────
@@ -72,7 +72,7 @@ export async function getClientById(id: string) {
 // ── CREATE ──────────────────────────────────────────────────
 
 export async function createClient(formData: ClientFormData) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
 
   const parsed = clientSchema.safeParse(formData);
   if (!parsed.success) {
@@ -104,7 +104,7 @@ export async function createClient(formData: ClientFormData) {
 // ── UPDATE ──────────────────────────────────────────────────
 
 export async function updateClient(id: string, formData: ClientFormData) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
 
   const parsed = clientSchema.safeParse(formData);
   if (!parsed.success) {
@@ -136,7 +136,7 @@ export async function updateClient(id: string, formData: ClientFormData) {
 // ── DELETE ──────────────────────────────────────────────────
 
 export async function deleteClient(id: string) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
 
   // deleteMany con shopId garantiza que no puedas borrar clientes de otro shop
   await db.client.deleteMany({ where: { id, shopId } });
@@ -148,7 +148,7 @@ export async function deleteClient(id: string) {
 // ── CONSENTIMIENTO DE MARKETING (Communications Platform §12) ─
 
 export async function setClientMarketingConsent(id: string, consent: boolean) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
 
   await db.client.updateMany({
     where: { id, shopId },

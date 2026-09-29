@@ -13,6 +13,8 @@ import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
 import { ONBOARDING_DICT, toOnboardingLocale } from "@/lib/admin-locale/onboarding";
 import { StepShell } from "@/components/onboarding/StepShell";
 import { ADMIN } from "@/lib/routes";
+import { ONBOARDING_PLAN_STEP } from "@/config/onboarding";
+import { PLAN_LABELS } from "@/config/entitlements";
 
 interface Step6ShareProps {
   step: number;
@@ -33,7 +35,7 @@ export function Step6Share({ step, totalSteps, onBack }: Step6ShareProps) {
   const router = useRouter();
   const [shop, setShop] = useState<BookingPageShop | null>(null);
   const [finishing, startFinishing] = useTransition();
-  const [trial, setTrial] = useState<{ daysLeft: number; endsOn: string } | null>(null);
+  const [trial, setTrial] = useState<{ plan: string; daysLeft: number; endsOn: string; amount: string | null } | null>(null);
 
   useEffect(() => {
     getBookingPageSettings().then((data) => {
@@ -41,11 +43,16 @@ export function Step6Share({ step, totalSteps, onBack }: Step6ShareProps) {
     });
     getBillingOverview()
       .then(({ subscription }) => {
-        if (!subscription.isTrialing || !subscription.trialEndsAt) return;
+        if (!subscription.isTrialing || !subscription.trialEndsAt || !subscription.plan) return;
         const endsAt = new Date(subscription.trialEndsAt);
+        const intl = locale === "fr" ? "fr-CA" : "en-CA";
         setTrial({
+          plan: PLAN_LABELS[subscription.plan],
           daysLeft: Math.max(Math.ceil((endsAt.getTime() - Date.now()) / 86_400_000), 0),
-          endsOn: endsAt.toLocaleDateString(locale === "fr" ? "fr-CA" : "en-CA"),
+          endsOn: endsAt.toLocaleDateString(intl, { year: "numeric", month: "long", day: "numeric" }),
+          amount: subscription.nextCharge
+            ? new Intl.NumberFormat(intl, { style: "currency", currency: "CAD", maximumFractionDigits: 0 }).format(subscription.nextCharge.amountCad)
+            : null,
         });
       })
       .catch(() => {});
@@ -55,6 +62,7 @@ export function Step6Share({ step, totalSteps, onBack }: Step6ShareProps) {
     startFinishing(async () => {
       const result = await completeOnboarding();
       if (result?.success) router.push(ADMIN.dashboard);
+      else if (result?.error === "PLAN_REQUIRED") router.push(`${ADMIN.onboarding}?step=${ONBOARDING_PLAN_STEP}`);
       else toast.error("Error");
     });
   }
@@ -78,8 +86,9 @@ export function Step6Share({ step, totalSteps, onBack }: Step6ShareProps) {
             <div className="space-y-1">
               <p className="text-sm font-semibold text-slate-900">{t.planTitle}</p>
               <p className="text-sm text-slate-700">
-                {t.planTrial(trial.daysLeft, trial.endsOn)}
+                {t.planTrial(trial.plan, trial.daysLeft, trial.endsOn)}
               </p>
+              {trial.amount && <p className="text-sm text-slate-700">{t.planCharge(trial.endsOn, trial.amount)}</p>}
               <p className="text-xs text-slate-500">{t.planBody}</p>
               <Link href={ADMIN.billing} target="_blank" className="inline-block text-sm font-medium text-blue-600 hover:underline">
                 {t.planCta}

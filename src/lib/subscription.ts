@@ -1,8 +1,4 @@
-// Resolución de plan/entitlements — ver docs/subscription-plans.md. Toda
-// pantalla o server action que necesite saber "¿este taller puede hacer X?"
-// pasa por acá, nunca por una comparación de plan directa.
-
-import type { Prisma, Plan as DbPlan, SubscriptionStatus } from "@prisma/client";
+import type { Prisma, SubscriptionStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import {
   type Plan,
@@ -11,20 +7,28 @@ import {
   minPlanFor,
   PLAN_LIMITS,
 } from "@/config/entitlements";
-
-/** Plan que recibe un taller sin fila de Subscription todavía (no debería pasar salvo bug/backfill pendiente). */
-const DEFAULT_PLAN: Plan = "CORE";
-
-/** Duración del trial de Pro que arranca automáticamente en cada signup nuevo. */
-const TRIAL_DAYS = 14;
+import {
+  type AccessState,
+  type BillingInterval,
+  type NextCharge,
+  decideTrialPlan,
+  nextChargeFor,
+  resolveAccess,
+} from "@/domain/subscription-state";
 
 export interface EffectiveSubscription {
-  /** Plan realmente vigente para enforcement — ya resuelve trial vencido / pago fallido. */
-  plan: Plan;
-  /** Plan contratado en Stripe, aunque el status ya no lo haga efectivo (p.ej. CANCELED). */
+  /**
+   * Plan que da entitlements HOY. null cuando no hay acceso operativo
+   * (SETUP_REQUIRED o RESTRICTED) — nunca cae a un plan gratuito, no existe.
+   */
+  plan: Plan | null;
+  /** Plan elegido/contratado, aunque hoy no dé entitlements (p.ej. CANCELED) — para mostrar y para lectura. */
   subscribedPlan: Plan | null;
+  accessState: AccessState;
+  /** El taller puede hacer escrituras operativas (ver requireWriteAccess). */
+  canWrite: boolean;
   status: SubscriptionStatus | "NONE";
-  billingInterval: "MONTHLY" | "YEARLY" | null;
+  billingInterval: BillingInterval | null;
   trialEndsAt: Date | null;
   currentPeriodEnd: Date | null;
   cancelAtPeriodEnd: boolean;
@@ -32,12 +36,22 @@ export interface EffectiveSubscription {
   stripeSubscriptionId: string | null;
   isTrialing: boolean;
   isTrialExpired: boolean;
+  /** true si no hay fila de Subscription (bug/backfill) — estado de recuperación, no Core. */
+  subscriptionMissing: boolean;
+  /** Hay una suscripción de Stripe con método de pago (trial respaldado por tarjeta). */
+  hasStripeSubscription: boolean;
+  /** Próximo cobro conocido (fin del trial o del período) — precio de la configuración del servidor. */
+  nextCharge: NextCharge | null;
+  /** true si un Checkout nuevo daría trial de 14 días (nunca ha tenido suscripción Stripe). */
+  trialEligible: boolean;
 }
 
-function fallbackSubscription(): EffectiveSubscription {
+function missingSubscription(): EffectiveSubscription {
   return {
-    plan: DEFAULT_PLAN,
+    plan: null,
     subscribedPlan: null,
+    accessState: "RESTRICTED",
+    canWrite: false,
     status: "NONE",
     billingInterval: null,
     trialEndsAt: null,
@@ -47,6 +61,10 @@ function fallbackSubscription(): EffectiveSubscription {
     stripeSubscriptionId: null,
     isTrialing: false,
     isTrialExpired: false,
+    subscriptionMissing: true,
+    hasStripeSubscription: false,
+    nextCharge: null,
+    trialEligible: false,
   };
 }
 
@@ -54,9 +72,10 @@ function fallbackSubscription(): EffectiveSubscription {
  * Resuelve la Subscription "real" de un taller. Un taller multi-sucursal
  * (Shop.organizationId set) no tiene su propia fila — comparte la de
  * cualquier Shop de su organización (siempre el Shop raíz, ver comentario
- * del modelo en schema.prisma).
+ * del modelo en schema.prisma). La fila trae su propio `shopId`: es el
+ * "dueño" de la suscripción y a quien apuntan Stripe (metadata) y Facturación.
  */
-async function findSubscriptionRow(shopId: string) {
+export async function findSubscriptionRow(shopId: string) {
   const shop = await db.shop.findUnique({
     where: { id: shopId },
     select: { organizationId: true, subscription: true },
@@ -72,43 +91,17 @@ async function findSubscriptionRow(shopId: string) {
   return sibling?.subscription ?? null;
 }
 
-/** Traduce el plan efectivo tomando en cuenta trial vencido / suscripción sin pagar. */
-function resolveEffectivePlan(row: {
-  plan: DbPlan;
-  status: SubscriptionStatus;
-  trialEndsAt: Date | null;
-}): { plan: Plan; isTrialing: boolean; isTrialExpired: boolean } {
-  const now = new Date();
-
-  if (row.status === "TRIALING") {
-    const expired = row.trialEndsAt != null && row.trialEndsAt.getTime() < now.getTime();
-    if (expired) return { plan: DEFAULT_PLAN, isTrialing: false, isTrialExpired: true };
-    return { plan: row.plan, isTrialing: true, isTrialExpired: false };
-  }
-
-  if (row.status === "ACTIVE") {
-    return { plan: row.plan, isTrialing: false, isTrialExpired: false };
-  }
-
-  // PAST_DUE conserva el plan por una gracia corta administrada por Stripe
-  // (reintentos de cobro) — Stripe mueve el estado a CANCELED/UNPAID cuando
-  // se agota, momento en el que sí bajamos al plan por defecto.
-  if (row.status === "PAST_DUE") {
-    return { plan: row.plan, isTrialing: false, isTrialExpired: false };
-  }
-
-  return { plan: DEFAULT_PLAN, isTrialing: false, isTrialExpired: false };
-}
-
 export async function getEffectiveSubscription(shopId: string): Promise<EffectiveSubscription> {
   const row = await findSubscriptionRow(shopId);
-  if (!row) return fallbackSubscription();
+  if (!row) return missingSubscription();
 
-  const { plan, isTrialing, isTrialExpired } = resolveEffectivePlan(row);
+  const access = resolveAccess(row);
 
   return {
-    plan,
+    plan: access.plan,
     subscribedPlan: row.plan,
+    accessState: access.accessState,
+    canWrite: access.canWrite,
     status: row.status,
     billingInterval: row.billingInterval,
     trialEndsAt: row.trialEndsAt,
@@ -116,14 +109,31 @@ export async function getEffectiveSubscription(shopId: string): Promise<Effectiv
     cancelAtPeriodEnd: row.cancelAtPeriodEnd,
     stripeCustomerId: row.stripeCustomerId,
     stripeSubscriptionId: row.stripeSubscriptionId,
-    isTrialing,
-    isTrialExpired,
+    isTrialing: access.isTrialing,
+    isTrialExpired: access.isTrialExpired,
+    subscriptionMissing: false,
+    hasStripeSubscription: row.stripeSubscriptionId != null,
+    nextCharge: nextChargeFor(row, access),
+    trialEligible: decideTrialPlan(row).kind !== "none",
   };
 }
 
+/** ¿Tiene el plan vigente esta capacidad? Sin acceso operativo (restringido / sin plan) → false. */
 export async function can(shopId: string, capability: CapabilityKey): Promise<boolean> {
   const { plan } = await getEffectiveSubscription(shopId);
-  return planIncludes(plan, capability);
+  return plan != null && planIncludes(plan, capability);
+}
+
+/**
+ * Como `can`, pero para decidir si MOSTRAR datos existentes (lectura): un
+ * taller restringido conserva la vista de lo que ya creó bajo su plan
+ * contratado. Nunca usar para autorizar una escritura — para eso `can` /
+ * `requireEntitlement` / `requireWriteAccess`.
+ */
+export async function canView(shopId: string, capability: CapabilityKey): Promise<boolean> {
+  const { plan, subscribedPlan } = await getEffectiveSubscription(shopId);
+  const viewPlan = plan ?? subscribedPlan;
+  return viewPlan != null && planIncludes(viewPlan, capability);
 }
 
 export class EntitlementError extends Error {
@@ -131,6 +141,47 @@ export class EntitlementError extends Error {
     super(`Esta función requiere el plan ${requiredPlan} o superior.`);
     this.name = "EntitlementError";
   }
+}
+
+/** Escritura operativa bloqueada: el taller no tiene un pago vigente (RESTRICTED / SETUP_REQUIRED). */
+export class SubscriptionRestrictedError extends Error {
+  constructor(public readonly accessState: AccessState) {
+    super(
+      accessState === "SETUP_REQUIRED"
+        ? "Completa la selección de plan para empezar a usar GarageOS."
+        : "Tu suscripción no está al día — actualiza tu método de pago en Configuración → Facturación para volver a editar."
+    );
+    this.name = "SubscriptionRestrictedError";
+  }
+}
+
+/**
+ * Enforcement de servidor de escrituras operativas — punto ÚNICO. Toda
+ * server action que cree/edite/borre datos del taller debe pasar por aquí
+ * (vía getWritableShopId en src/lib/shop-context.ts). Los botones
+ * deshabilitados en la UI no cuentan como seguridad.
+ * Lecturas, Facturación, exportaciones y autenticación NO pasan por aquí.
+ */
+export async function requireWriteAccess(shopId: string): Promise<EffectiveSubscription> {
+  const sub = await getEffectiveSubscription(shopId);
+  if (!sub.canWrite) throw new SubscriptionRestrictedError(sub.accessState);
+  return sub;
+}
+
+/**
+ * Para jobs en segundo plano (cron): ¿puede este taller operar (enviar
+ * recordatorios/campañas automáticos)? Cachea por corrida para no releer la
+ * suscripción por cada mensaje. Un taller restringido no sigue operando solo.
+ */
+export function createOperatingChecker(): (shopId: string) => Promise<boolean> {
+  const cache = new Map<string, boolean>();
+  return async (shopId) => {
+    const hit = cache.get(shopId);
+    if (hit !== undefined) return hit;
+    const ok = (await getEffectiveSubscription(shopId)).canWrite;
+    cache.set(shopId, ok);
+    return ok;
+  };
 }
 
 /** Enforcement de servidor — usar al inicio de toda server action que escriba algo gateado. Lanza si no está entitled. */
@@ -145,8 +196,9 @@ export async function requireEntitlement(shopId: string, capability: CapabilityK
  * `requireEntitlement` solo donde ya exista un try/catch alrededor.
  */
 export async function checkEntitlement(shopId: string, capability: CapabilityKey): Promise<string | null> {
-  const allowed = await can(shopId, capability);
-  if (allowed) return null;
+  const sub = await getEffectiveSubscription(shopId);
+  if (!sub.canWrite) return new SubscriptionRestrictedError(sub.accessState).message;
+  if (sub.plan && planIncludes(sub.plan, capability)) return null;
   return `Esta función requiere el plan ${minPlanFor(capability)} o superior — actualiza tu plan en Configuración → Facturación.`;
 }
 
@@ -191,6 +243,7 @@ export async function getUserCount(shopId: string): Promise<number> {
 /** true si el taller todavía puede agregar un usuario más bajo su plan actual. */
 export async function canAddUser(shopId: string): Promise<{ allowed: boolean; limit: number | null }> {
   const { plan } = await getEffectiveSubscription(shopId);
+  if (!plan) return { allowed: false, limit: 0 };
   const limit = PLAN_LIMITS[plan].users;
   if (limit == null) return { allowed: true, limit: null };
   const count = await getUserCount(shopId);
@@ -198,17 +251,18 @@ export async function canAddUser(shopId: string): Promise<{ allowed: boolean; li
 }
 
 /**
- * Crea la Subscription inicial de un taller nuevo — Pro en trial de
- * {@link TRIAL_DAYS} días. Se llama dentro de la misma transacción que crea
- * el Shop en cada punto de signup (ver src/app/api/auth/signup/route.ts,
- * src/lib/auth.ts, src/actions/platform.ts).
+ * Crea la Subscription inicial de un taller nuevo en AWAITING_PLAN: sin plan,
+ * sin acceso operativo, sin trial. El dueño elige plan + método de pago en el
+ * onboarding y ahí Stripe crea el trial de 14 días (ver startCheckoutAction /
+ * src/lib/stripe-sync.ts). Debe llamarse DENTRO de la misma transacción que
+ * crea el Shop (signup email, signup Google, alta desde /platform) para que
+ * nunca exista un taller sin fila de suscripción.
  */
-export async function createDefaultSubscription(
+export async function createPendingSubscription(
   tx: Prisma.TransactionClient,
   shopId: string
 ): Promise<void> {
-  const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
   await tx.subscription.create({
-    data: { shopId, plan: "PRO", status: "TRIALING", trialEndsAt },
+    data: { shopId, plan: null, status: "AWAITING_PLAN" },
   });
 }

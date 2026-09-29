@@ -6,7 +6,7 @@ import type { PlatformEmailLanguage } from "@/lib/platform/locale";
 
 export interface PlanChangedEmailProps {
   shopName: string;
-  previousPlan: Plan;
+  previousPlan: Plan | null;
   newPlan: Plan;
   reason: string;
   language?: PlatformEmailLanguage;
@@ -63,7 +63,7 @@ export function PlanChangedEmail({ shopName, previousPlan, newPlan, reason, lang
       footerText={t.footer}
     >
       <Text style={s.bodyText}>{t.greeting(shopName)}</Text>
-      <Text style={s.bodyText}>{t.changed(PLAN_LABELS[previousPlan], PLAN_LABELS[newPlan])}</Text>
+      <Text style={s.bodyText}>{t.changed(previousPlan ? PLAN_LABELS[previousPlan] : "—", PLAN_LABELS[newPlan])}</Text>
       <div style={s.card}>
         <Text style={s.cardLabel}>{t.reasonLabel}</Text>
         <Text style={s.cardValue}>{reason}</Text>

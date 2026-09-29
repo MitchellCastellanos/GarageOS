@@ -13,8 +13,10 @@ import { computeOverageSegments, nextUsageAlert, smsBillingPeriod, smsUsageAlert
 export async function getSmsAllowance(shopId: string): Promise<number> {
   const shop = await db.shop.findUnique({ where: { id: shopId }, select: { smsMonthlyAllowanceOverride: true } });
   if (shop?.smsMonthlyAllowanceOverride != null) return Math.max(0, shop.smsMonthlyAllowanceOverride);
-  const { plan } = await getEffectiveSubscription(shopId);
-  return PLAN_LIMITS[plan].smsSegmentsPerMonth;
+  const { plan, subscribedPlan } = await getEffectiveSubscription(shopId);
+  const allowancePlan = plan ?? subscribedPlan;
+  // Sin plan (taller sin elegir / sin fila) no hay cupo: no existe un plan gratuito.
+  return allowancePlan ? PLAN_LIMITS[allowancePlan].smsSegmentsPerMonth : 0;
 }
 
 /**

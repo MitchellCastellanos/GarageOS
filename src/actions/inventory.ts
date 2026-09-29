@@ -4,7 +4,7 @@ import { ADMIN } from "@/lib/routes";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { getShopId } from "@/lib/shop-context";
+import { getShopId, getWritableShopId } from "@/lib/shop-context";
 import {
   inventoryPartSchema,
   inventoryMovementSchema,
@@ -63,7 +63,7 @@ export async function getLowStockPartsCount() {
 // ── CREATE ──────────────────────────────────────────────────
 
 export async function createInventoryPart(formData: InventoryPartFormData) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   const locale = await getAdminLocale();
   const t = INVENTORY_DICT[locale];
 
@@ -118,7 +118,7 @@ export async function createInventoryPart(formData: InventoryPartFormData) {
 // ── UPDATE ──────────────────────────────────────────────────
 
 export async function updateInventoryPart(id: string, formData: InventoryPartFormData) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   const locale = await getAdminLocale();
   const t = INVENTORY_DICT[locale];
 
@@ -163,7 +163,7 @@ export async function recordInventoryMovement(
   partId: string,
   formData: InventoryMovementFormData
 ) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   const locale = await getAdminLocale();
   const t = INVENTORY_DICT[locale];
 
@@ -215,7 +215,7 @@ export async function recordInventoryMovement(
 // ── DELETE ──────────────────────────────────────────────────
 
 export async function deleteInventoryPart(id: string) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   await db.inventoryPart.deleteMany({ where: { id, shopId } });
   revalidatePath(ADMIN.inventory);
   redirect(ADMIN.inventory);

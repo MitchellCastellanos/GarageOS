@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { WorkOrderStatus, JobStatus } from "@prisma/client";
 import { db } from "@/lib/db";
-import { getShopId } from "@/lib/shop-context";
+import { getShopId, getWritableShopId } from "@/lib/shop-context";
 import { workOrderSchema, type WorkOrderFormData } from "@/lib/validations";
 import { allocateNextInvoiceNumber, allocateNextWorkOrderNumber } from "@/lib/invoice-number";
 import { calculateTaxAmount, roundTaxRate, sumTaxLineRates, parseShopTaxLines } from "@/lib/taxes";
@@ -124,7 +124,7 @@ export async function getWorkOrderFormData() {
 // ── CREATE ──────────────────────────────────────────────────
 
 export async function createWorkOrder(formData: WorkOrderFormData) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
 
   const parsed = workOrderSchema.safeParse(formData);
   if (!parsed.success) {
@@ -172,7 +172,7 @@ export async function createWorkOrder(formData: WorkOrderFormData) {
 }
 
 export async function createWorkOrdersFromQuote(quoteId: string) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   const locale = await getAdminLocale();
 
   const quote = await db.quote.findFirst({
@@ -233,7 +233,7 @@ export async function createWorkOrdersFromQuote(quoteId: string) {
 // ── UPDATE ──────────────────────────────────────────────────
 
 export async function updateWorkOrder(id: string, formData: WorkOrderFormData) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   const locale = await getAdminLocale();
 
   const existing = await db.workOrder.findFirst({
@@ -289,7 +289,7 @@ export async function updateWorkOrder(id: string, formData: WorkOrderFormData) {
 }
 
 export async function updateWorkOrderStatus(id: string, toStatus: WorkOrderStatus) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   const locale = await getAdminLocale();
 
   const existing = await db.workOrder.findFirst({ where: { id, shopId } });
@@ -307,7 +307,7 @@ export async function updateWorkOrderStatus(id: string, toStatus: WorkOrderStatu
 }
 
 export async function updateJobStatus(id: string, jobStatus: JobStatus) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   const locale = await getAdminLocale();
 
   const workOrder = await db.workOrder.findFirst({
@@ -394,7 +394,7 @@ export async function updateJobStatus(id: string, jobStatus: JobStatus) {
 }
 
 export async function convertWorkOrderToInvoice(id: string) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   const locale = await getAdminLocale();
 
   const workOrder = await db.workOrder.findFirst({
@@ -468,7 +468,7 @@ export async function convertWorkOrderToInvoice(id: string) {
 }
 
 export async function deleteWorkOrder(id: string) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   const locale = await getAdminLocale();
 
   const existing = await db.workOrder.findFirst({ where: { id, shopId } });
