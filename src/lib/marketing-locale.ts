@@ -109,22 +109,6 @@ export interface MarketingDictionary {
     quote: string;
     quoteAuthor: string;
   };
-  pricing: {
-    eyebrow: string;
-    heading: string;
-    monthly: string;
-    yearly: string;
-    save: string;
-    perMonth: string;
-    mostPopular: string;
-    plans: {
-      name: string;
-      tagline: string;
-      monthlyPrice: number;
-      features: string[];
-      cta: string;
-    }[];
-  };
   ctaBanner: {
     eyebrow: string;
     heading: string;
@@ -305,13 +289,13 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
     },
     featureStrip: [
       "Appointments & Booking",
-      "Vehicle Check-In",
-      "Estimates & Approvals",
-      "Parts & Labour",
-      "Customer Messaging",
-      "Invoicing & Payments",
-      "Vehicle History",
-      "Inventory & Reports",
+      "Customers & Vehicles",
+      "Inspections & Estimates",
+      "Work Orders & Parts",
+      "Email & SMS",
+      "Invoices & Payments",
+      "Customer Portal",
+      "Reports & Inventory",
     ],
     workflow: {
       eyebrow: "One connected workflow",
@@ -354,27 +338,30 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
         {
           title: "Clear, itemized estimates",
           description:
-            "Capture the vehicle's condition and the proposed work, then price it out — no retyping between the estimate and the invoice.",
+            "Price the proposed work once — no retyping between the estimate, the Work Order and the invoice.",
         },
         {
           title: "Customer approvals",
           description: "Send a clear estimate and keep a traceable record of what the customer approved and when.",
         },
         {
-          title: "Keep customers in the loop",
-          description: "Send branded updates by email or text, including letting a customer know their vehicle is ready.",
+          title: "Digital inspections",
+          description:
+            "Record findings on a checklist and turn them into an estimate. On Pro, add photos, reusable templates and a report customers can open on their phone.",
         },
         {
-          title: "Maintenance reminders",
-          description: "Keep future service needs attached to the customer and vehicle so the next visit doesn't get forgotten.",
+          title: "Work Orders that track parts",
+          description:
+            "Follow each job through to Ready for Pickup. On Pro, parts come off inventory automatically as you use them.",
         },
         {
-          title: "Complete vehicle history",
-          description: "Appointments, estimates and invoices all stay connected to the vehicle record.",
+          title: "A customer portal",
+          description:
+            "Customers see their vehicles, estimates, invoices and service history from their phone — under your shop's brand.",
         },
         {
-          title: "Built to run the shop",
-          description: "Inventory, reports, team access and multi-location tools give owners visibility beyond a single job.",
+          title: "Reminders that bring customers back",
+          description: "Send maintenance reminders by email or text. On Pro, they're created automatically from the work you complete.",
         },
       ],
       seeAll: "See all features",
@@ -384,18 +371,21 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
       heading: "Run more than the job.",
       description: "The tools an owner needs to run the whole shop, not just a single appointment.",
       cards: [
-        { title: "Inventory & parts", description: "Track stock and movement history." },
         {
-          title: "Reports & visibility",
-          description: "See shop activity and business performance without rebuilding the day in spreadsheets.",
+          title: "Inventory & tire storage",
+          description: "Track parts and their movements, use them on Work Orders, and manage seasonal tire storage.",
         },
         {
-          title: "Multi-location",
-          description: "Operate multiple shop locations with shared access where configured.",
+          title: "Reports & books",
+          description: "Sales, receivables and job reports, Accounting Light and QuickBooks Online sync — no spreadsheets to rebuild the day.",
         },
         {
-          title: "Communications & branding",
-          description: "Manage customer messaging and keep the shop's brand in front of customers.",
+          title: "Multi-Shop",
+          description: "Add locations, switch between them, and see consolidated and per-location reports from one organization.",
+        },
+        {
+          title: "Team, imports & control",
+          description: "Roles and permissions, and import your customers and vehicles from your old system.",
         },
       ],
     },
@@ -439,58 +429,6 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
       quote: "A modern tool for real mechanics.",
       quoteAuthor: "The GarageOS Team",
     },
-    pricing: {
-      eyebrow: "Simple pricing",
-      heading: "Choose the plan that fits your shop.",
-      monthly: "Monthly",
-      yearly: "Yearly",
-      save: "Save 20%",
-      perMonth: "/ month",
-      mostPopular: "Most Popular",
-      plans: [
-        {
-          name: "Core",
-          tagline: "Everything a small independent shop needs to run day to day.",
-          monthlyPrice: 199,
-          features: [
-            "Up to 2 users",
-            "Appointments & scheduling",
-            "Invoicing & estimates",
-            "Customer & vehicle records",
-            "Email support",
-          ],
-          cta: "Start Free Trial",
-        },
-        {
-          name: "Pro",
-          tagline: "Everything you need to run your shop.",
-          monthlyPrice: 299,
-          features: [
-            "Up to 5 users",
-            "All Starter features",
-            "Inventory & parts tracking",
-            "Branded emails & documents",
-            "Reports & analytics",
-            "Priority support",
-          ],
-          cta: "Start Free Trial",
-        },
-        {
-          name: "Complete",
-          tagline: "For growing shops with more control.",
-          monthlyPrice: 449,
-          features: [
-            "Unlimited users",
-            "All Pro features",
-            "Advanced reporting",
-            "Multi-location support",
-            "API access (coming soon)",
-            "Dedicated support",
-          ],
-          cta: "Start Free Trial",
-        },
-      ],
-    },
     ctaBanner: {
       eyebrow: "Ready to get started?",
       heading: "Run your next job in GarageOS.",
@@ -507,7 +445,7 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
             { label: "Features", href: "/features" },
             { label: "Demo", href: "/demo" },
             { label: "Integrations", href: "/integrations" },
-            { label: "Pricing", href: "/#pricing" },
+            { label: "Pricing", href: "/pricing" },
           ],
         },
         resources: {
@@ -702,13 +640,13 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
     },
     featureStrip: [
       "Rendez-vous et réservation",
-      "Accueil du véhicule",
-      "Soumissions et approbations",
-      "Pièces et main-d'œuvre",
-      "Communication client",
-      "Facturation et paiements",
-      "Historique des véhicules",
-      "Inventaire et rapports",
+      "Clients et véhicules",
+      "Inspections et soumissions",
+      "Bons de travail et pièces",
+      "Courriel et SMS",
+      "Factures et paiements",
+      "Portail client",
+      "Rapports et inventaire",
     ],
     workflow: {
       eyebrow: "Un flux de travail connecté",
@@ -751,27 +689,30 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
         {
           title: "Des soumissions claires et détaillées",
           description:
-            "Notez l'état du véhicule et le travail proposé, puis établissez le prix — sans ressaisir entre la soumission et la facture.",
+            "Établissez le prix du travail une seule fois — sans ressaisir entre la soumission, le bon de travail et la facture.",
         },
         {
           title: "Approbations client",
           description: "Envoyez une soumission claire et gardez une trace de ce que le client a approuvé, et quand.",
         },
         {
-          title: "Gardez vos clients informés",
-          description: "Envoyez des mises à jour à votre image par courriel ou texto, y compris pour aviser un client que son véhicule est prêt.",
+          title: "Inspections numériques",
+          description:
+            "Notez les constats sur une liste de vérification et transformez-les en soumission. Avec Pro : photos, modèles réutilisables et rapport que le client ouvre sur son téléphone.",
         },
         {
-          title: "Rappels de service",
-          description: "Gardez les prochains besoins de service liés au client et au véhicule pour ne pas oublier la prochaine visite.",
+          title: "Des bons de travail qui suivent les pièces",
+          description:
+            "Suivez chaque travail jusqu'à « Prêt à récupérer ». Avec Pro, les pièces sortent de l'inventaire automatiquement au fil de leur utilisation.",
         },
         {
-          title: "Historique complet du véhicule",
-          description: "Rendez-vous, soumissions et factures restent tous liés au dossier du véhicule.",
+          title: "Un portail client",
+          description:
+            "Vos clients consultent leurs véhicules, soumissions, factures et historique d'entretien depuis leur téléphone — aux couleurs de votre atelier.",
         },
         {
-          title: "Conçu pour gérer l'atelier",
-          description: "Inventaire, rapports, accès d'équipe et outils multi-établissements donnent aux propriétaires une vue au-delà d'un seul dossier.",
+          title: "Des rappels qui ramènent les clients",
+          description: "Envoyez des rappels d'entretien par courriel ou texto. Avec Pro, ils sont créés automatiquement à partir des travaux terminés.",
         },
       ],
       seeAll: "Voir toutes les fonctionnalités",
@@ -781,18 +722,21 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
       heading: "Gérez plus que le dossier.",
       description: "Les outils dont un propriétaire a besoin pour gérer tout l'atelier, pas seulement un rendez-vous.",
       cards: [
-        { title: "Inventaire et pièces", description: "Suivez le stock et l'historique des mouvements." },
         {
-          title: "Rapports et visibilité",
-          description: "Voyez l'activité de l'atelier et la performance de l'entreprise sans reconstruire la journée dans des feuilles de calcul.",
+          title: "Inventaire et entreposage de pneus",
+          description: "Suivez les pièces et leurs mouvements, utilisez-les dans les bons de travail et gérez l'entreposage saisonnier des pneus.",
         },
         {
-          title: "Multi-établissements",
-          description: "Gérez plusieurs emplacements avec un accès partagé lorsque configuré.",
+          title: "Rapports et comptabilité",
+          description: "Rapports de ventes, de comptes à recevoir et de travaux, Comptabilité allégée et synchronisation QuickBooks Online — sans feuilles de calcul.",
         },
         {
-          title: "Communications et image de marque",
-          description: "Gérez la messagerie client et gardez l'image de votre atelier devant vos clients.",
+          title: "Multi-atelier",
+          description: "Ajoutez des emplacements, passez de l'un à l'autre et consultez des rapports consolidés et par emplacement, au sein d'une même organisation.",
+        },
+        {
+          title: "Équipe, importation et contrôle",
+          description: "Rôles et permissions, et importation de vos clients et véhicules depuis votre ancien système.",
         },
       ],
     },
@@ -831,62 +775,10 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
       eyebrow: "Plus qu'un logiciel",
       heading: "Conçu pour les garages indépendants — pas pour un processus d'entreprise.",
       description:
-        "GarageOS donne à la réception et au propriétaire un seul endroit clair pour gérer la journée, tout en gardant l'interaction des techniciens simple quand c'est nécessaire. Ça fonctionne pour un atelier à un seul établissement et peut grandir vers plusieurs établissements.",
+        "GarageOS donne à la réception et au propriétaire un seul endroit clair pour gérer la journée, tout en gardant l'interaction des techniciens simple quand c'est nécessaire. Ça fonctionne pour un atelier à un seul emplacement et peut grandir vers plusieurs emplacements.",
       cta: "Essai gratuit",
       quote: "Un outil moderne pour de vrais mécaniciens.",
       quoteAuthor: "L'équipe GarageOS",
-    },
-    pricing: {
-      eyebrow: "Tarification simple",
-      heading: "Choisissez le forfait qui convient à votre atelier.",
-      monthly: "Mensuel",
-      yearly: "Annuel",
-      save: "Économisez 20 %",
-      perMonth: "/ mois",
-      mostPopular: "Le plus populaire",
-      plans: [
-        {
-          name: "Débutant",
-          tagline: "Parfait pour les petits ateliers qui démarrent.",
-          monthlyPrice: 39,
-          features: [
-            "Jusqu'à 2 utilisateurs",
-            "Rendez-vous et horaire",
-            "Facturation et soumissions",
-            "Dossiers clients et véhicules",
-            "Soutien par courriel",
-          ],
-          cta: "Essai gratuit",
-        },
-        {
-          name: "Pro",
-          tagline: "Tout ce qu'il faut pour gérer votre atelier.",
-          monthlyPrice: 299,
-          features: [
-            "Jusqu'à 5 utilisateurs",
-            "Toutes les fonctionnalités Débutant",
-            "Suivi de l'inventaire et des pièces",
-            "Courriels et documents à votre image",
-            "Rapports et analyses",
-            "Soutien prioritaire",
-          ],
-          cta: "Essai gratuit",
-        },
-        {
-          name: "Entreprise",
-          tagline: "Pour les ateliers en croissance qui veulent plus de contrôle.",
-          monthlyPrice: 449,
-          features: [
-            "Utilisateurs illimités",
-            "Toutes les fonctionnalités Pro",
-            "Rapports avancés",
-            "Support multi-établissements",
-            "Accès API (bientôt disponible)",
-            "Soutien dédié",
-          ],
-          cta: "Essai gratuit",
-        },
-      ],
     },
     ctaBanner: {
       eyebrow: "Prêt à commencer?",
@@ -904,7 +796,7 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
             { label: "Fonctionnalités", href: "/features" },
             { label: "Démo", href: "/demo" },
             { label: "Intégrations", href: "/integrations" },
-            { label: "Tarifs", href: "/#pricing" },
+            { label: "Tarifs", href: "/pricing" },
           ],
         },
         resources: {

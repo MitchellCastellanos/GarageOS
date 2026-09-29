@@ -102,6 +102,11 @@ export function PricingSection() {
         <div className="mt-6 text-center text-xs text-slate-500 space-y-1">
           <p>{pricing.currencyNote}</p>
           {yearly && <p>{pricing.annualNote}</p>}
+          <p>
+            <Link href="/pricing" className="font-semibold text-brand-blue hover:text-brand-blue-dark">
+              {pricing.compare} →
+            </Link>
+          </p>
         </div>
 
         <div className="mt-10 rounded-2xl bg-white border border-slate-200 p-6 sm:p-8 text-center">

@@ -394,7 +394,7 @@ export default async function DashboardPage() {
         </div>
         <div className="mt-4 flex flex-col gap-3 rounded-xl bg-blue-50 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div><p className="text-xs font-semibold uppercase tracking-wider text-blue-600">{t.modules.planLabel}</p><p className="mt-1 font-semibold text-slate-900">{t.modules.planName}</p><p className="mt-1 text-sm text-slate-600">{t.modules.planHint}</p></div>
-          <Link href="/#pricing" className="inline-flex items-center gap-1 text-sm font-semibold text-blue-700 hover:text-blue-900">{t.modules.planLink}<ArrowUpRight className="h-4 w-4" /></Link>
+          <Link href="/pricing" className="inline-flex items-center gap-1 text-sm font-semibold text-blue-700 hover:text-blue-900">{t.modules.planLink}<ArrowUpRight className="h-4 w-4" /></Link>
         </div>
       </section>
 

@@ -2,6 +2,7 @@
 import { agingBucket, toCsv, type ResolvedRange } from "@/domain/reports";
 import type {
   CustomersReport,
+  LocationComparisonReport,
   InventoryReport,
   OperationsReport,
   OverviewReport,
@@ -88,4 +89,14 @@ export function overviewCsv(d: OverviewReport): string {
     ["Customers", "New", d.newClients, null],
   ];
   return toCsv(HEAD, rows);
+}
+
+export function locationsCsv(d: LocationComparisonReport): string {
+  const line = (name: string, r: LocationComparisonReport["totals"]): Row => [
+    name, r.paidInvoices, r.revenue, -r.refunds, r.net, r.average, r.outstanding, r.workOrdersCreated, r.workOrdersOpen, r.newClients,
+  ];
+  return toCsv(
+    ["Location", "Paid invoices", "Revenue", "Refunds", "Net", "Average invoice", "Outstanding", "Work orders opened", "Work orders open now", "New customers"],
+    [...d.rows.map((r) => line(r.name, r)), line("Total", d.totals)]
+  );
 }

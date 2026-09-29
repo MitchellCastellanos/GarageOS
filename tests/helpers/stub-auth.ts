@@ -9,3 +9,4 @@ export function setSession(s: TestSession | null) {
 export async function auth() {
   return current;
 }
+export async function unstable_update() {}

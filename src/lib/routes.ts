@@ -13,6 +13,7 @@ export const ADMIN = {
   reminders: "/admin/reminders",
   accounting: "/admin/accounting",
   reports: "/admin/reports",
+  organization: "/admin/organization",
   caja: "/admin/caja",
   inbox: "/admin/inbox",
   campaigns: "/admin/campaigns",

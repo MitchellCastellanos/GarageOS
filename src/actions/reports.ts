@@ -3,9 +3,12 @@
 import { db } from "@/lib/db";
 import { getEffectivePermissions, requirePermissions } from "@/lib/access";
 import { canView } from "@/lib/subscription";
+import { resolveLocationAccess } from "@/lib/organization";
+import { resolveLocationScope } from "@/domain/locations";
 import {
   BASIC_KINDS,
   BASIC_PRESETS,
+  MULTI_LOCATION_KINDS,
   FINANCIAL_KINDS,
   ReportRangeError,
   isReportKind,
@@ -17,6 +20,7 @@ import type { Permission } from "@/domain/permissions";
 import {
   getCustomersReport,
   getInventoryReport,
+  getLocationComparison,
   getOperationsReport,
   getOverviewReport,
   getReceivablesReport,
@@ -26,6 +30,7 @@ import {
 import {
   customersCsv,
   inventoryCsv,
+  locationsCsv,
   operationsCsv,
   overviewCsv,
   rangeLabel,
@@ -33,13 +38,15 @@ import {
   salesCsv,
 } from "@/lib/reports-export";
 
-export type ReportInput = { kind: string; preset?: string | null; from?: string | null; to?: string | null };
-export type ReportError = "INVALID_KIND" | "INVALID_RANGE" | "UPGRADE_REQUIRED" | "NO_SHOP";
+/** `location`: "active" (por defecto) | "all" (todas las ubicaciones accesibles) | id de una ubicación accesible. */
+export type ReportInput = { kind: string; preset?: string | null; from?: string | null; to?: string | null; location?: string | null };
+export type ReportError = "INVALID_KIND" | "INVALID_RANGE" | "UPGRADE_REQUIRED" | "MULTI_LOCATION_REQUIRED" | "NO_LOCATION_ACCESS" | "NO_SHOP";
 
 export interface ReportContext {
   shopId: string;
   advanced: boolean;
   scope: ReportScope;
+  scopeMode: "active" | "all" | "one";
 }
 
 /**
@@ -61,6 +68,19 @@ async function buildContext(input: ReportInput, opts: { forExport?: boolean } = 
     db.shop.findFirst({ where: { id: shopId }, select: { timezone: true } }),
   ]);
   if (!shop) return { error: "NO_SHOP" };
+  // Multi-Shop: consolidar/comparar/filtrar por otra ubicación exige el entitlement (lectura: canView) y
+  // que las ubicaciones pedidas estén entre las accesibles del usuario — nunca se confía en un id enviado.
+  let shopIds = [shopId];
+  let scopeMode: ReportContext["scopeMode"] = "active";
+  const wantsLocations = MULTI_LOCATION_KINDS.includes(kind) || (input.location != null && input.location !== "active");
+  if (wantsLocations) {
+    if (!(await canView(shopId, "reports.multiLocation"))) return { error: "MULTI_LOCATION_REQUIRED" };
+    const access = await resolveLocationAccess(session.user.id, shopId);
+    const resolved = resolveLocationScope(input.location ?? "all", shopId, access.locations.map((l) => l.id));
+    if (!resolved.ok) return { error: resolved.error };
+    shopIds = resolved.shopIds;
+    scopeMode = resolved.mode;
+  }
   if (!advanced && (!BASIC_KINDS.includes(kind) || opts.forExport)) return { error: "UPGRADE_REQUIRED" };
 
   let range: ResolvedRange;
@@ -71,7 +91,7 @@ async function buildContext(input: ReportInput, opts: { forExport?: boolean } = 
     throw e;
   }
   return {
-    ctx: { shopId, advanced, scope: { shopIds: [shopId], range, includeFinancial: perms.has("financial.view") } },
+    ctx: { shopId, advanced, scopeMode, scope: { shopIds, range, includeFinancial: perms.has("financial.view") } },
     kind,
     range,
   };
@@ -92,8 +112,13 @@ export async function getReport(input: ReportInput) {
     : kind === "receivables" ? await getReceivablesReport(scope)
     : kind === "operations" ? await getOperationsReport(scope)
     : kind === "customers" ? await getCustomersReport(scope)
+    : kind === "locations" ? await getLocationComparison(scope)
     : await getInventoryReport(scope);
-  return { kind, advanced: ctx.advanced, range: serializeRange(range), data } as const;
+  // Nombres de las ubicaciones del alcance (para etiquetar byLocation / filtros en la UI).
+  const locations = scope.shopIds.length > 1 || ctx.scopeMode !== "active"
+    ? await db.shop.findMany({ where: { id: { in: scope.shopIds } }, select: { id: true, name: true }, orderBy: { createdAt: "asc" } })
+    : [];
+  return { kind, advanced: ctx.advanced, range: serializeRange(range), data, scopeMode: ctx.scopeMode, locations } as const;
 }
 
 /** CSV del reporte (Pro+). Devuelve el contenido; el cliente lo descarga como archivo. */
@@ -108,6 +133,16 @@ export async function exportReportCsv(input: ReportInput) {
   else if (kind === "operations") csv = operationsCsv(await getOperationsReport(scope));
   else if (kind === "customers") csv = customersCsv(await getCustomersReport(scope));
   else if (kind === "inventory") csv = inventoryCsv(await getInventoryReport(scope));
+  else if (kind === "locations") csv = locationsCsv(await getLocationComparison(scope));
   else csv = overviewCsv(await getOverviewReport(scope));
   return { filename: `garageos-${kind}-${rangeLabel(range)}.csv`, csv } as const;
+}
+
+/** Ubicaciones que el usuario puede elegir en el filtro de reportes (vacío sin Multi-Shop o con una sola). */
+export async function getReportLocationOptions(): Promise<{ enabled: boolean; locations: { id: string; name: string }[]; activeShopId: string }> {
+  const session = await requirePermissions(["reports.view"]);
+  const shopId = session.user.shopId!;
+  if (!(await canView(shopId, "reports.multiLocation"))) return { enabled: false, locations: [], activeShopId: shopId };
+  const access = await resolveLocationAccess(session.user.id, shopId);
+  return { enabled: access.locations.length > 1, locations: access.locations, activeShopId: shopId };
 }

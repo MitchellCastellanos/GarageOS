@@ -18,6 +18,7 @@ export interface LayoutDictionary {
     caja: string;
     accounting: string;
     reports: string;
+    organization: string;
     reminders: string;
     settings: string;
     support: string;
@@ -67,6 +68,7 @@ export const LAYOUT_DICT: Record<AdminLocale, LayoutDictionary> = {
       caja: "Caja",
       accounting: "Contabilidad",
       reports: "Reportes",
+      organization: "Organización",
       reminders: "Recordatorios",
       settings: "Configuración",
       support: "Ayuda",
@@ -114,6 +116,7 @@ export const LAYOUT_DICT: Record<AdminLocale, LayoutDictionary> = {
       caja: "Cash drawer",
       accounting: "Accounting",
       reports: "Reports",
+      organization: "Organization",
       reminders: "Reminders",
       settings: "Settings",
       support: "Help",
@@ -161,6 +164,7 @@ export const LAYOUT_DICT: Record<AdminLocale, LayoutDictionary> = {
       caja: "Caisse",
       accounting: "Comptabilité",
       reports: "Rapports",
+      organization: "Organisation",
       reminders: "Rappels",
       settings: "Configuration",
       support: "Aide",

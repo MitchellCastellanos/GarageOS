@@ -13,11 +13,27 @@ export const metadata: Metadata = {
 const FAQS = [
   {
     q: "What is GarageOS?",
-    a: "GarageOS is management software for independent auto shops — appointments, estimates, approvals, invoicing, reminders and customer communication, all in one place.",
+    a: "GarageOS is management software for independent auto shops — booking, inspections, estimates and approvals, Work Orders, invoicing, reminders, a customer portal and customer communication, all in one place.",
   },
   {
     q: "How do I get started?",
-    a: "Your shop owner or manager sets up your account and invites your team. From there you can log in and start managing appointments, clients and invoices. If your shop already has an account, the Quick Start checklist walks through setting it up.",
+    a: "Create an account, confirm your email, choose your plan and add a payment method to start the 14-day free trial — you pay $0 today. Then follow the Quick Start checklist to set up your shop and invite your team.",
+  },
+  {
+    q: "How does the free trial work?",
+    a: "You choose Core, Pro or Complete and add a payment method during setup. Nothing is charged for 14 days; we show the exact date and amount of your first charge, and your subscription starts automatically afterwards. You can cancel from Billing before the trial ends.",
+  },
+  {
+    q: "Can I change plans later?",
+    a: "Yes. Manage your plan and payment method from Settings → Billing. Features that need a higher plan show what's required, and existing data is kept.",
+  },
+  {
+    q: "Do customers get a portal?",
+    a: "Yes, on every plan. Open a customer and email them a secure link to see their vehicles, appointments, estimates, invoices and service history. Links expire after 30 days and you can revoke them at any time.",
+  },
+  {
+    q: "Can I run more than one location?",
+    a: "Yes, with the Complete plan (Multi-Shop): add locations under one organization, switch between them and see consolidated or per-location reports. Each location keeps its own customers, work and invoices.",
   },
   {
     q: "Can customers book appointments online?",
@@ -41,11 +57,11 @@ const FAQS = [
   },
   {
     q: "Why did an email or text message not arrive?",
-    a: "Check the recipient details and the result of the send action. Email and SMS require delivery services to be configured for the installation. For email, also ask the recipient to check spam. If sending fails, keep the document and ask your administrator to check delivery configuration before retrying.",
+    a: "Check the recipient details and the result of the send action. For email, ask the recipient to check spam and confirm the address is spelled correctly. Text messages need your shop's dedicated number to be active and respect a customer's STOP request. If sending fails, keep the document and try again, or contact us if it keeps failing.",
   },
   {
     q: "Why is a setting or action missing from my account?",
-    a: "Access depends on your role and shop assignment. Ask the shop administrator to review them. Each team member should use their own account rather than sharing another person's credentials.",
+    a: "Access depends on your role, your plan and (with Multi-Shop) the locations you've been given. Ask the shop owner to review them. Each team member should use their own account rather than sharing another person's credentials.",
   },
   {
     q: "Who do I contact if I run into a problem?",
