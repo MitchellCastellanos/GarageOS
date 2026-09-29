@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/access";
 import { ADMIN } from "@/lib/routes";
 import { getAccountingPageData } from "@/actions/documents";
 import { DOC_CATEGORIES } from "@/lib/validations";
@@ -9,6 +10,7 @@ import { CAJA_DICT } from "@/lib/admin-locale/caja";
 
 // Server Component: fetches documents y los pasa al Client
 export default async function AccountingPage() {
+  await requirePagePermission("financial.view");
   const { documents } = await getAccountingPageData();
   const locale = await getAdminLocale();
   const t = CAJA_DICT[locale].accountingPage;

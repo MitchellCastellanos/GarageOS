@@ -1,6 +1,4 @@
-import { redirect } from "next/navigation";
-import { requireShopSession } from "@/lib/permissions";
-import { ADMIN } from "@/lib/routes";
+import { requirePagePermission } from "@/lib/access";
 import { getShopId } from "@/lib/shop-context";
 import { canView } from "@/lib/subscription";
 import { getAdminLocale } from "@/lib/get-admin-locale";
@@ -10,9 +8,8 @@ import { ImportWizard } from "@/components/import/ImportWizard";
 import { IMPORT_LIMITS } from "@/domain/import";
 
 export default async function ImportPage() {
-  const session = await requireShopSession();
-  // Importar datos masivos es cosa del dueño (enforcement también en las server actions).
-  if (session.user.role !== "OWNER") redirect(ADMIN.dashboard);
+  // `import.run`: dueño por defecto, delegable en Pro+ (enforcement también en las server actions).
+  await requirePagePermission("import.run");
 
   const locale = await getAdminLocale();
   const t = IMPORT_DICT[locale];

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { ADMIN, adminPath } from "@/lib/routes";
 import { db } from "@/lib/db";
 import { assertShopWritable, getShopId, getWritableShopId } from "@/lib/shop-context";
-import { requireShopSession } from "@/lib/permissions";
+import { requirePermissions } from "@/lib/access";
 import { isThreadUnread, sendInboxMessage, sendInboxSms } from "@/lib/communications/inbox";
 import { shopHasDedicatedSmsNumber } from "@/lib/communications/sms-numbers";
 import { isSuppressed } from "@/lib/communications/suppression";
@@ -117,7 +117,7 @@ function smsErrorMessage(err: unknown): string {
 }
 
 export async function replyToThreadAction(threadId: string, formData: FormData) {
-  const session = await requireShopSession();
+  const session = await requirePermissions(["ops.write"]);
   const shopId = session.user.shopId!;
   await assertShopWritable(shopId);
 
@@ -185,7 +185,7 @@ export async function replyToThreadAction(threadId: string, formData: FormData) 
 }
 
 export async function composeMessageAction(formData: FormData) {
-  const session = await requireShopSession();
+  const session = await requirePermissions(["ops.write"]);
   const shopId = session.user.shopId!;
   await assertShopWritable(shopId);
 
@@ -231,7 +231,7 @@ export async function composeMessageAction(formData: FormData) {
 
 /** Nueva conversación SMS desde el Inbox — a un cliente (su teléfono) o a un número suelto. */
 export async function composeSmsAction(formData: FormData) {
-  const session = await requireShopSession();
+  const session = await requirePermissions(["ops.write"]);
   const shopId = session.user.shopId!;
   await assertShopWritable(shopId);
 

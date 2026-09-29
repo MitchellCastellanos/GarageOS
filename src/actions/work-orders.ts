@@ -485,7 +485,7 @@ export async function updateJobStatus(id: string, jobStatus: JobStatus) {
 }
 
 export async function convertWorkOrderToInvoice(id: string) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("invoices.write");
   const locale = await getAdminLocale();
 
   const workOrder = await db.workOrder.findFirst({

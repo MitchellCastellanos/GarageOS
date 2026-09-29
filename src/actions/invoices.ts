@@ -172,7 +172,7 @@ function isValidPaymentStoragePath(
 // ── READ ────────────────────────────────────────────────────
 
 export async function getInvoices(status?: string) {
-  const shopId = await getShopId();
+  const shopId = await getShopId("invoices.view");
 
   return db.invoice.findMany({
     where: {
@@ -192,7 +192,7 @@ export async function getInvoices(status?: string) {
 }
 
 export async function getInvoiceById(id: string) {
-  const shopId = await getShopId();
+  const shopId = await getShopId("invoices.view");
 
   const invoice = await db.invoice.findFirst({
     where: { id, shopId },
@@ -219,7 +219,7 @@ export async function getInvoiceById(id: string) {
 // ── CREATE ──────────────────────────────────────────────────
 
 export async function createInvoice(formData: InvoiceFormData) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("invoices.write");
   const locale = await getAdminLocale();
   const msg = INVOICE_ACTION_MESSAGES[locale];
 
@@ -345,7 +345,7 @@ function validateInvoiceSendable(
 }
 
 export async function sendInvoiceByEmail(id: string, formData?: FormData) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("invoices.write");
   const locale = await getAdminLocale();
   const msg = INVOICE_ACTION_MESSAGES[locale];
 
@@ -437,7 +437,7 @@ export async function sendInvoiceByEmail(id: string, formData?: FormData) {
 }
 
 export async function sendInvoiceBySms(id: string, formData?: FormData) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("invoices.write");
   const locale = await getAdminLocale();
   const msg = INVOICE_ACTION_MESSAGES[locale];
 
@@ -529,7 +529,7 @@ export async function sendInvoiceBySms(id: string, formData?: FormData) {
 }
 
 export async function markInvoiceAsPaid(id: string, formData: FormData) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("payments.write");
   const session = await auth();
   const locale = await getAdminLocale();
   const msg = INVOICE_ACTION_MESSAGES[locale];
@@ -691,7 +691,7 @@ export async function markInvoiceAsPaid(id: string, formData: FormData) {
 }
 
 export async function revertInvoiceToPending(id: string) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("payments.write");
   const locale = await getAdminLocale();
   const msg = INVOICE_ACTION_MESSAGES[locale];
   await db.cashDrawerEntry.deleteMany({
@@ -719,7 +719,7 @@ export async function revertInvoiceToPending(id: string) {
 const VOIDABLE_STATUSES = ["DRAFT", "SENT", "PAID", "OVERDUE"] as const;
 
 export async function cancelInvoice(id: string) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("invoices.write");
   const locale = await getAdminLocale();
   const msg = INVOICE_ACTION_MESSAGES[locale];
 
@@ -756,7 +756,7 @@ export async function cancelInvoice(id: string) {
 }
 
 export async function deleteInvoice(id: string) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("invoices.write");
   const locale = await getAdminLocale();
   const msg = INVOICE_ACTION_MESSAGES[locale];
 
@@ -776,7 +776,7 @@ export async function deleteInvoice(id: string) {
 // ── Guardar URL del PDF generado ───────────────────────────
 
 export async function savePdfUrl(id: string, pdfUrl: string) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("invoices.write");
   await db.invoice.updateMany({
     where: { id, shopId },
     data: { pdfUrl },
@@ -787,7 +787,7 @@ export async function savePdfUrl(id: string, pdfUrl: string) {
 // ── UPDATE ──────────────────────────────────────────────────
 
 export async function updateInvoice(id: string, formData: InvoiceFormData) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("invoices.write");
   const locale = await getAdminLocale();
   const msg = INVOICE_ACTION_MESSAGES[locale];
 
@@ -868,7 +868,7 @@ export async function updateInvoice(id: string, formData: InvoiceFormData) {
 // ── Datos para el formulario de nueva factura ───────────────
 
 export async function getInvoiceFormData() {
-  const shopId = await getShopId();
+  const shopId = await getShopId("invoices.view");
 
   const [clients, shop] = await Promise.all([
     db.client.findMany({

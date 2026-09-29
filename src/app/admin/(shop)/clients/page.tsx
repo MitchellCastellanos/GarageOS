@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/access";
 import { ADMIN, PLATFORM, adminPath } from "@/lib/routes";
 import Link from "next/link";
 import { getClients } from "@/actions/clients";
@@ -14,6 +15,7 @@ interface Props {
 // Esta es una Server Component — corre en el servidor, tiene acceso directo a la DB.
 // Los searchParams (query string) llegan como prop sin necesidad de useSearchParams().
 export default async function ClientsPage({ searchParams }: Props) {
+  await requirePagePermission("customers.view");
   const { q } = await searchParams;
   const [clients, locale] = await Promise.all([getClients(q), getAdminLocale()]);
   const t = CLIENTS_DICT[locale];

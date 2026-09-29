@@ -129,7 +129,12 @@ export default async function SettingsPage() {
     tabs.push({
       id: "team",
       label: t.tabs.team,
-      content: <TeamManagement members={team} currentUserId={session.user.id} seatLimit={seatLimit} />,
+      content: <TeamManagement
+          members={team}
+          currentUserId={session.user.id}
+          seatLimit={seatLimit}
+          advancedPermissions={plan != null && planIncludes(plan, "permissions.advanced")}
+        />,
     });
 
     const [locations, orgUsers] = await Promise.all([

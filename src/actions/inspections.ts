@@ -130,7 +130,7 @@ export async function getInspectionCapabilities() {
 // ── CREATE ──────────────────────────────────────────────────
 
 export async function createInspection(formData: NewInspectionFormData) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("dvi.write");
 
   const parsed = newInspectionSchema.safeParse(formData);
   if (!parsed.success) {
@@ -172,7 +172,7 @@ export async function createInspection(formData: NewInspectionFormData) {
 }
 
 export async function addInspectionItem(inspectionId: string, category: string) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("dvi.write");
   const locale = await getAdminLocale();
 
   const inspection = await db.inspection.findFirst({
@@ -200,7 +200,7 @@ export async function updateInspectionItem(
   itemId: string,
   data: { condition: string; notes?: string }
 ) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("dvi.write");
   const locale = await getAdminLocale();
 
   const parsed = inspectionItemUpdateSchema.safeParse(data);
@@ -226,7 +226,7 @@ export async function updateInspectionItem(
 }
 
 export async function deleteInspectionItem(itemId: string) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("dvi.write");
   const locale = await getAdminLocale();
 
   const item = await db.inspectionItem.findFirst({
@@ -245,7 +245,7 @@ export async function deleteInspectionItem(itemId: string) {
 const MAX_PHOTO_SIZE = 8 * 1024 * 1024;
 
 export async function uploadInspectionPhoto(itemId: string, formData: FormData) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("dvi.write");
   const locale = await getAdminLocale();
 
   const item = await db.inspectionItem.findFirst({
@@ -285,7 +285,7 @@ export async function uploadInspectionPhoto(itemId: string, formData: FormData) 
 }
 
 export async function deleteInspectionPhoto(photoId: string) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("dvi.write");
   const locale = await getAdminLocale();
 
   const photo = await db.inspectionPhoto.findFirst({
@@ -303,7 +303,7 @@ export async function deleteInspectionPhoto(photoId: string) {
 // ── DELETE ──────────────────────────────────────────────────
 
 export async function deleteInspection(id: string) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("dvi.write");
   const locale = await getAdminLocale();
 
   const result = await db.inspection.deleteMany({ where: { id, shopId } });
@@ -316,7 +316,7 @@ export async function deleteInspection(id: string) {
 // ── CONVERT FINDINGS TO QUOTE ───────────────────────────────
 
 export async function createQuoteFromInspection(inspectionId: string) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("dvi.write");
   const locale = await getAdminLocale();
   const t = INSPECTIONS_DICT[locale];
 
@@ -379,7 +379,7 @@ export async function createQuoteFromInspection(inspectionId: string) {
 
 /** Activa el link público del reporte (Pro+) y devuelve su ruta. Idempotente: reutiliza el token. */
 export async function shareInspectionReport(id: string) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("dvi.write");
   const locale = await getAdminLocale();
   const entitlementError = await checkEntitlement(shopId, "dvi.customerReport");
   if (entitlementError) return { error: entitlementError };
@@ -399,7 +399,7 @@ export async function shareInspectionReport(id: string) {
 }
 
 export async function unshareInspectionReport(id: string) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("dvi.write");
   const locale = await getAdminLocale();
   const result = await db.inspection.updateMany({ where: { id, shopId }, data: { shareToken: null } });
   if (result.count === 0) return { error: INSPECTION_NOT_FOUND[locale] };

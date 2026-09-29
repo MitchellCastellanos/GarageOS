@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/access";
 import { ADMIN, PLATFORM, adminPath } from "@/lib/routes";
 import { redirect } from "next/navigation";
 import { InvoiceForm } from "@/components/invoices/InvoiceForm";
@@ -9,6 +10,7 @@ import { INVOICES_DICT } from "@/lib/admin-locale/invoices";
 import { parseShopTaxLines } from "@/lib/taxes";
 
 export default async function NewInvoicePage() {
+  await requirePagePermission("invoices.view");
   const { clients, shop } = await getInvoiceFormData();
   const locale = await getAdminLocale();
   const t = INVOICES_DICT[locale].form;

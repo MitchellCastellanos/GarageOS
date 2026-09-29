@@ -16,7 +16,7 @@ export async function getInspectionTemplates() {
 }
 
 export async function createInspectionTemplate(data: InspectionTemplateFormData) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("dvi.write");
   const entitlementError = await checkEntitlement(shopId, "dvi.templates");
   if (entitlementError) return { error: entitlementError };
 
@@ -42,7 +42,7 @@ export async function createInspectionTemplate(data: InspectionTemplateFormData)
 }
 
 export async function deleteInspectionTemplate(id: string) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("dvi.write");
   // Borrar es limpieza: no exige plan vigente de Pro (sí escritura permitida). Scoped por taller.
   const res = await db.inspectionTemplate.deleteMany({ where: { id, shopId } });
   revalidatePath(`${ADMIN.inspections}/templates`);

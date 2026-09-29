@@ -1,3 +1,4 @@
+import { getEffectivePermissions } from "@/lib/access";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { AdminChrome } from "@/components/layout/AdminChrome";
@@ -105,6 +106,16 @@ export default async function DashboardLayout({
     ...(tireStorageEntitled ? [] : [ADMIN.tireStorage]),
   ];
 
+  // Nav oculto por permisos (Block 8): el enforcement real está en las server actions/páginas.
+  const perms = await getEffectivePermissions(session);
+  const hiddenNavHrefs: string[] = [
+    ...(perms.has("financial.view") ? [] : [ADMIN.accounting, ADMIN.caja]),
+    ...(perms.has("campaigns.manage") ? [] : [ADMIN.campaigns]),
+    ...(perms.has("invoices.view") ? [] : [ADMIN.invoices]),
+    ...(perms.has("customers.view") ? [] : [ADMIN.clients]),
+    ...(perms.has("import.run") ? [] : [ADMIN.import]),
+  ];
+
   // Punto inicial en Citas (reserva/cancelación web sin ver) — el resto de la
   // sesión lo actualiza en vivo el propio Sidebar por Pusher.
   const hasUnreadAppointments = staffNotifications.notifications.some(
@@ -125,6 +136,7 @@ export default async function DashboardLayout({
         accessibleShops={accessibleShops}
         currentShopId={session.user.shopId}
         lockedNavHrefs={lockedNavHrefs}
+        hiddenNavHrefs={hiddenNavHrefs}
         hasUnreadSupport={hasUnreadSupport}
         hasUnreadInbox={hasUnreadInbox}
         hasUnreadAppointments={hasUnreadAppointments}

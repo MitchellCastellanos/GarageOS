@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/access";
 import { ADMIN, PLATFORM, adminPath } from "@/lib/routes";
 import { redirect } from "next/navigation";
 import Link from "next/link";
@@ -15,6 +16,7 @@ interface PageProps {
 }
 
 export default async function EditInvoicePage({ params }: PageProps) {
+  await requirePagePermission("invoices.view");
   const { id } = await params;
 
   const [invoice, { clients, shop }, locale] = await Promise.all([

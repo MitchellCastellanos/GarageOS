@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/access";
 import { ADMIN } from "@/lib/routes";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
@@ -6,6 +7,7 @@ import { getAdminLocale } from "@/lib/get-admin-locale";
 import { CAMPAIGNS_DICT } from "@/lib/admin-locale/campaigns";
 
 export default async function NewCampaignPage() {
+  await requirePagePermission("campaigns.manage");
   const locale = await getAdminLocale();
   const t = CAMPAIGNS_DICT[locale];
 

@@ -21,7 +21,7 @@ export async function createReminderRule(input: {
   intervalKm?: number | null;
   leadDays?: number | null;
 }) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("settings.manage");
   const entitlementError = await checkEntitlement(shopId, "reminders.automation");
   if (entitlementError) return { error: entitlementError };
 
@@ -34,7 +34,7 @@ export async function createReminderRule(input: {
 }
 
 export async function setReminderRuleActive(id: string, isActive: boolean) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("settings.manage");
   if (isActive) {
     const entitlementError = await checkEntitlement(shopId, "reminders.automation");
     if (entitlementError) return { error: entitlementError };
@@ -45,7 +45,7 @@ export async function setReminderRuleActive(id: string, isActive: boolean) {
 }
 
 export async function deleteReminderRule(id: string) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("settings.manage");
   // Borrar una regla no borra los recordatorios ya creados (ruleId pasa a null).
   const res = await db.reminderRule.deleteMany({ where: { id, shopId } });
   revalidatePath(`${ADMIN.reminders}/rules`);

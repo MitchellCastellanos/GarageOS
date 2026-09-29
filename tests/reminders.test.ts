@@ -115,7 +115,7 @@ test("cron delivery: only Pro/operating shops, customer's channel preference, SE
     dueDate: new Date("2027-03-01T00:00:00Z"),
     dueMileage: 48_000,
     shop: { id: "shop-A", name: "Garage", phone: "514", email: null },
-    vehicle: { year: 2018, make: "Ford", model: "F150", licensePlate: "ABC", mileageUnit: "KM", client: { id: "c1", firstName: "Ann", lastName: "Lee", phone: null, email: null, language: "EN", notifyChannel: "AUTO" } },
+    vehicle: { year: 2018, make: "Ford", model: "F150", licensePlate: "ABC", mileageUnit: "KM", client: { id: "c1", firstName: "Ann", lastName: "Lee", phone: null, email: null as string | null, language: "EN", notifyChannel: "AUTO" } },
   };
   const find = patchDb(t, "serviceReminder", "findMany", async () => [base]);
   const mark = patchDb(t, "serviceReminder", "updateMany", async () => ({ count: 1 }));

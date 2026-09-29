@@ -67,8 +67,8 @@ test("import: Pro can preview inventory; non-owners and restricted shops are blo
   assert.ok(res.ok && res.report?.summary.create === 1);
 
   setSession({ user: { id: "u2", role: "MECHANIC", shopId: "shop-A" } });
-  await assert.rejects(importActions.previewImportAction(csvForm("First name\nAnn\n")), /owner/i);
-  await assert.rejects(importActions.commitImportAction(csvForm("First name\nAnn\n")), /owner/i);
+  await assert.rejects(importActions.previewImportAction(csvForm("First name\nAnn\n")), /permiso/i);
+  await assert.rejects(importActions.commitImportAction(csvForm("First name\nAnn\n")), /permiso/i);
 
   owner();
   mockShopAndSub(t, "PRO", "UNPAID");

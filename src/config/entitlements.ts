@@ -51,6 +51,9 @@ export const CAPABILITY_MIN_PLAN = {
   // anticipación configurable, canal preferido del cliente (SMS/email) y segmento de campañas
   // "servicio próximo".
   "reminders.automation": "PRO",
+  // Permisos finos por usuario (Block 8): otorgar/revocar permisos delegables sobre los del rol.
+  // Core mantiene los tres roles básicos con permisos por defecto.
+  "permissions.advanced": "PRO",
   "communications.campaigns": "PRO",
   "branding.customDomain": "PRO",
   "branding.customSender": "PRO",

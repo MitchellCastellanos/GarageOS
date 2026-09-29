@@ -246,6 +246,10 @@ model User {
   // Solo aplica a role OWNER — si un taller tiene varios dueños, cada uno
   // decide si quiere recibir los correos de facturación/cambios de plan.
   receiveBillingNotifications Boolean @default(true)
+  // Permisos finos por usuario (Block 8, Pro+): otorgados / revocados sobre los del rol.
+  // Solo cuentan con `permissions.advanced`; ver src/domain/permissions.ts.
+  permissionGrants String[]       @default([])
+  permissionDenies String[]       @default([])
   createdAt       DateTime        @default(now())
 
   accounts     Account[]

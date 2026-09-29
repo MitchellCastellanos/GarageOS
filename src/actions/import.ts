@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireOwner } from "@/lib/permissions";
+import { requirePermissions } from "@/lib/access";
 import { getWritableShopId } from "@/lib/shop-context";
 import { can } from "@/lib/subscription";
 import { db } from "@/lib/db";
@@ -61,9 +61,9 @@ interface ParsedRequest {
 }
 
 async function readRequest(formData: FormData): Promise<ParsedRequest | { error: ImportActionError }> {
-  // Solo el dueño importa datos masivos; getWritableShopId aplica RESTRICTED mode.
-  const session = await requireOwner();
-  const shopId = await getWritableShopId();
+  // `import.run`: solo el dueño por defecto (delegable en Pro+); getWritableShopId aplica RESTRICTED mode.
+  const session = await requirePermissions(["import.run"]);
+  const shopId = await getWritableShopId("import.run");
 
   const file = formData.get("file");
   const entity = formData.get("entity");
@@ -166,8 +166,8 @@ export async function commitImportAction(formData: FormData): Promise<ImportComm
 }
 
 export async function getRecentImportRuns() {
-  await requireOwner();
-  const shopId = await getWritableShopId().catch(() => null);
+  await requirePermissions(["import.run"]);
+  const shopId = await getWritableShopId("import.run").catch(() => null);
   if (!shopId) return [];
   return db.importRun.findMany({ where: { shopId }, orderBy: { createdAt: "desc" }, take: 8 });
 }

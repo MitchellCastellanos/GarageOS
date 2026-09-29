@@ -15,6 +15,7 @@ import { Loader2, UserPlus, KeyRound, Trash2, MailWarning, CheckCircle2 } from "
 import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
 import { SETTINGS_DICT } from "@/lib/admin-locale/settings";
 import { UpgradeCTA } from "@/components/billing/UpgradeCTA";
+import { MemberPermissions } from "@/components/settings/MemberPermissions";
 
 type Role = "OWNER" | "MECHANIC" | "VIEWER";
 
@@ -26,15 +27,19 @@ interface TeamMember {
   createdAt: Date;
   emailVerified: Date | null;
   receiveBillingNotifications: boolean;
+  permissionGrants: string[];
+  permissionDenies: string[];
 }
 
 interface TeamManagementProps {
   members: TeamMember[];
   currentUserId: string;
   seatLimit: number | null;
+  /** Plan con permisos finos (Pro+). */
+  advancedPermissions?: boolean;
 }
 
-export function TeamManagement({ members, currentUserId, seatLimit }: TeamManagementProps) {
+export function TeamManagement({ members, currentUserId, seatLimit, advancedPermissions = false }: TeamManagementProps) {
   const locale = useAdminLocale();
   const t = SETTINGS_DICT[locale];
   const seatLimitReached = seatLimit != null && members.length >= seatLimit;
@@ -275,6 +280,16 @@ export function TeamManagement({ members, currentUserId, seatLimit }: TeamManage
                 )}
               </div>
             </div>
+
+            {member.role !== "OWNER" && (
+              <MemberPermissions
+                userId={member.id}
+                role={member.role}
+                grants={member.permissionGrants}
+                denies={member.permissionDenies}
+                advanced={advancedPermissions}
+              />
+            )}
 
             {resetUserId === member.id && (
               <form onSubmit={handleReset} className="flex flex-wrap items-end gap-2 pt-1">

@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/access";
 import { getCashDrawerEntries } from "@/actions/cash-drawer";
 import { CashDrawerClient } from "@/components/caja/CashDrawerClient";
 import { getAdminLocale } from "@/lib/get-admin-locale";
@@ -8,6 +9,7 @@ interface PageProps {
 }
 
 export default async function CajaPage({ searchParams }: PageProps) {
+  await requirePagePermission("financial.view");
   const { date } = await searchParams;
   const { entries, summary, date: selectedDate } = await getCashDrawerEntries(date);
   const locale = await getAdminLocale();

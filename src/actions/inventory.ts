@@ -78,7 +78,7 @@ export async function getStockedPartsForWorkOrders() {
 // ── CREATE ──────────────────────────────────────────────────
 
 export async function createInventoryPart(formData: InventoryPartFormData) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("inventory.write");
   const locale = await getAdminLocale();
   const t = INVENTORY_DICT[locale];
 
@@ -133,7 +133,7 @@ export async function createInventoryPart(formData: InventoryPartFormData) {
 // ── UPDATE ──────────────────────────────────────────────────
 
 export async function updateInventoryPart(id: string, formData: InventoryPartFormData) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("inventory.write");
   const locale = await getAdminLocale();
   const t = INVENTORY_DICT[locale];
 
@@ -178,7 +178,7 @@ export async function recordInventoryMovement(
   partId: string,
   formData: InventoryMovementFormData
 ) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("inventory.write");
   const locale = await getAdminLocale();
   const t = INVENTORY_DICT[locale];
 

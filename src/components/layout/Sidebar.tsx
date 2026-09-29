@@ -81,6 +81,7 @@ export function Sidebar({
   mobileOpen,
   onMobileClose,
   lockedNavHrefs,
+  hiddenNavHrefs,
   hasUnreadSupport,
   hasUnreadInbox,
   hasUnreadAppointments,
@@ -89,12 +90,15 @@ export function Sidebar({
   mobileOpen: boolean;
   onMobileClose: () => void;
   lockedNavHrefs?: string[];
+  /** Rutas que el rol/permisos del usuario no permiten (Block 8) — se ocultan, no se bloquean. */
+  hiddenNavHrefs?: string[];
   hasUnreadSupport?: boolean;
   hasUnreadInbox?: boolean;
   hasUnreadAppointments?: boolean;
   userId?: string;
 }) {
   const lockedSet = new Set(lockedNavHrefs ?? []);
+  const hiddenSet = new Set(hiddenNavHrefs ?? []);
   const pathname = usePathname();
   const locale = useAdminLocale();
   const t = LAYOUT_DICT[locale];
@@ -238,7 +242,7 @@ export function Sidebar({
   ];
 
   const groups: RailNavGroup[] = navGroupDefs.map((group) => {
-    const items = group.items.map((item) => ({
+    const items = group.items.filter((item) => !hiddenSet.has(item.href)).map((item) => ({
       ...item,
       active: pathname.startsWith(item.href),
       locked: lockedSet.has(item.href),

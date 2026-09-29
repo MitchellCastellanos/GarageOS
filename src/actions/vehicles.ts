@@ -9,7 +9,7 @@ import { getShopId, getWritableShopId } from "@/lib/shop-context";
 import { vehicleSchema, type VehicleFormData } from "@/lib/validations";
 
 export async function getVehicleById(vehicleId: string) {
-  const shopId = await getShopId();
+  const shopId = await getShopId("customers.view");
 
   // Verificamos acceso via el cliente dueño del vehículo
   const vehicle = await db.vehicle.findFirst({
@@ -46,7 +46,7 @@ export async function getVehicleById(vehicleId: string) {
 }
 
 export async function createVehicle(clientId: string, formData: VehicleFormData) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("customers.write");
 
   // Verificar que el cliente pertenece a este shop
   const client = await db.client.findFirst({ where: { id: clientId, shopId } });
@@ -77,7 +77,7 @@ export async function createVehicle(clientId: string, formData: VehicleFormData)
 }
 
 export async function updateVehicle(vehicleId: string, formData: VehicleFormData) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("customers.write");
 
   const vehicle = await db.vehicle.findFirst({
     where: { id: vehicleId, client: { shopId } },
@@ -109,7 +109,7 @@ export async function updateVehicle(vehicleId: string, formData: VehicleFormData
 }
 
 export async function deleteVehicle(vehicleId: string, clientId: string) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("customers.write");
 
   await db.vehicle.deleteMany({
     where: { id: vehicleId, client: { shopId } },

@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/access";
 import { ADMIN, adminPath } from "@/lib/routes";
 import { getClientById } from "@/actions/clients";
 import { getTireSetsForClient } from "@/actions/tire-storage";
@@ -32,6 +33,7 @@ interface Props {
 }
 
 export default async function ClientDetailPage({ params }: Props) {
+  await requirePagePermission("customers.view");
   const { id } = await params;
   const [client, locale, tireSets] = await Promise.all([getClientById(id), getAdminLocale(), getTireSetsForClient(id)]);
   const t = CLIENTS_DICT[locale];
