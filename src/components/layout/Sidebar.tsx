@@ -76,6 +76,45 @@ function RailLink({
   );
 }
 
+function MobileNavLink({
+  href,
+  label,
+  icon: Icon,
+  active,
+  locked,
+  unread,
+  onClick,
+}: {
+  href: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  active: boolean;
+  locked?: boolean;
+  unread?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium",
+        active ? "bg-blue-600 text-white" : "text-slate-300 hover:bg-slate-800"
+      )}
+    >
+      <Icon className="w-4.5 h-4.5 flex-shrink-0" />
+      {label}
+      {locked && (
+        <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-semibold text-amber-400">
+          <Lock className="w-3 h-3" />
+          Pro
+        </span>
+      )}
+      {unread && !locked && <span className="ml-auto w-2 h-2 rounded-full bg-red-500" />}
+    </Link>
+  );
+}
+
 export function Sidebar({
   mobileOpen,
   onMobileClose,
@@ -190,21 +229,41 @@ export function Sidebar({
     };
   }, [mobileOpen, onMobileClose]);
 
-  const navItems = [
-    { label: t.nav.dashboard, href: ADMIN.dashboard, icon: LayoutDashboard },
-    { label: t.nav.inbox, href: ADMIN.inbox, icon: Inbox },
-    { label: t.nav.appointments, href: ADMIN.appointments, icon: Calendar },
-    { label: t.nav.clients, href: ADMIN.clients, icon: Users },
-    { label: t.nav.quotes, href: ADMIN.quotes, icon: FileSpreadsheet },
-    { label: t.nav.workOrders, href: ADMIN.workOrders, icon: Wrench },
-    { label: t.nav.inspections, href: ADMIN.inspections, icon: ClipboardCheck },
-    { label: t.nav.invoices, href: ADMIN.invoices, icon: FileText },
-    { label: t.nav.inventory, href: ADMIN.inventory, icon: Package },
-    { label: t.nav.campaigns, href: ADMIN.campaigns, icon: Megaphone },
-    { label: t.nav.caja, href: ADMIN.caja, icon: Banknote },
-    { label: t.nav.accounting, href: ADMIN.accounting, icon: FolderOpen },
-    { label: t.nav.reminders, href: ADMIN.reminders, icon: Bell },
-    { label: t.nav.support, href: ADMIN.support, icon: LifeBuoy },
+  // Mismas 4 categorías que el grid de "módulos" del dashboard, para que
+  // ambas navegaciones cuenten la misma historia del negocio.
+  const navGroups = [
+    {
+      label: t.navGroups.operations,
+      items: [
+        { label: t.nav.appointments, href: ADMIN.appointments, icon: Calendar },
+        { label: t.nav.workOrders, href: ADMIN.workOrders, icon: Wrench },
+        { label: t.nav.inspections, href: ADMIN.inspections, icon: ClipboardCheck },
+        { label: t.nav.quotes, href: ADMIN.quotes, icon: FileSpreadsheet },
+        { label: t.nav.reminders, href: ADMIN.reminders, icon: Bell },
+      ],
+    },
+    {
+      label: t.navGroups.customers,
+      items: [
+        { label: t.nav.clients, href: ADMIN.clients, icon: Users },
+        { label: t.nav.invoices, href: ADMIN.invoices, icon: FileText },
+        { label: t.nav.accounting, href: ADMIN.accounting, icon: FolderOpen },
+      ],
+    },
+    {
+      label: t.navGroups.communications,
+      items: [
+        { label: t.nav.inbox, href: ADMIN.inbox, icon: Inbox },
+        { label: t.nav.campaigns, href: ADMIN.campaigns, icon: Megaphone },
+      ],
+    },
+    {
+      label: t.navGroups.finance,
+      items: [
+        { label: t.nav.caja, href: ADMIN.caja, icon: Banknote },
+        { label: t.nav.inventory, href: ADMIN.inventory, icon: Package },
+      ],
+    },
   ];
 
   return (
@@ -217,31 +276,46 @@ export function Sidebar({
         >
           <GarageOSAppIcon className="w-9 h-9" />
         </Link>
-        <nav className="flex-1 flex flex-col items-center gap-1.5">
-          {navItems.map((item) => {
-            const isActive =
-              item.href === ADMIN.dashboard
-                ? pathname === ADMIN.dashboard
-                : pathname.startsWith(item.href);
-            return (
-              <RailLink
-                key={item.href}
-                href={item.href}
-                label={item.label}
-                icon={item.icon}
-                active={isActive}
-                locked={lockedSet.has(item.href)}
-                unread={
-                  (item.href === ADMIN.support && hasUnreadSupport) ||
-                  (item.href === ADMIN.inbox && showInboxDot) ||
-                  (item.href === ADMIN.appointments && showAppointmentsDot)
-                }
+        <nav className="flex-1 flex flex-col items-center gap-1.5 overflow-y-auto">
+          <RailLink
+            href={ADMIN.dashboard}
+            label={t.nav.dashboard}
+            icon={LayoutDashboard}
+            active={pathname === ADMIN.dashboard}
+          />
+          {navGroups.map((group, groupIndex) => (
+            <div key={group.label} className="flex flex-col items-center gap-1.5">
+              <div
+                aria-hidden="true"
+                className={cn("w-6 border-t border-slate-800", groupIndex === 0 ? "mt-1.5 mb-1" : "my-1")}
               />
-            );
-          })}
+              {group.items.map((item) => (
+                <RailLink
+                  key={item.href}
+                  href={item.href}
+                  label={item.label}
+                  icon={item.icon}
+                  active={pathname.startsWith(item.href)}
+                  locked={lockedSet.has(item.href)}
+                  unread={
+                    (item.href === ADMIN.inbox && showInboxDot) ||
+                    (item.href === ADMIN.appointments && showAppointmentsDot)
+                  }
+                />
+              ))}
+            </div>
+          ))}
         </nav>
 
-        <div className="pt-3 mt-3 border-t border-slate-800 w-full flex flex-col items-center">
+        <div className="pt-3 mt-3 border-t border-slate-800 w-full flex flex-col items-center gap-1.5">
+          <RailLink
+            href={ADMIN.support}
+            label={t.nav.support}
+            icon={LifeBuoy}
+            active={pathname.startsWith(ADMIN.support)}
+            locked={lockedSet.has(ADMIN.support)}
+            unread={hasUnreadSupport}
+          />
           <RailLink
             href={ADMIN.settings}
             label={t.nav.settings}
@@ -291,46 +365,53 @@ export function Sidebar({
                 </button>
               </div>
               <nav className="space-y-1">
-                {navItems.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={onMobileClose}
-                    className={cn(
-                      "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium",
-                      pathname.startsWith(item.href)
-                        ? "bg-blue-600 text-white"
-                        : "text-slate-300 hover:bg-slate-800"
-                    )}
-                  >
-                    <item.icon className="w-4.5 h-4.5 flex-shrink-0" />
-                    {item.label}
-                    {lockedSet.has(item.href) && (
-                      <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-semibold text-amber-400">
-                        <Lock className="w-3 h-3" />
-                        Pro
-                      </span>
-                    )}
-                    {((item.href === ADMIN.support && hasUnreadSupport) ||
-                      (item.href === ADMIN.inbox && showInboxDot) ||
-                      (item.href === ADMIN.appointments && showAppointmentsDot)) &&
-                      !lockedSet.has(item.href) && <span className="ml-auto w-2 h-2 rounded-full bg-red-500" />}
-                  </Link>
+                <MobileNavLink
+                  href={ADMIN.dashboard}
+                  label={t.nav.dashboard}
+                  icon={LayoutDashboard}
+                  active={pathname === ADMIN.dashboard}
+                  onClick={onMobileClose}
+                />
+                {navGroups.map((group) => (
+                  <div key={group.label}>
+                    <div className="border-t border-slate-800 my-2" />
+                    <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                      {group.label}
+                    </p>
+                    {group.items.map((item) => (
+                      <MobileNavLink
+                        key={item.href}
+                        href={item.href}
+                        label={item.label}
+                        icon={item.icon}
+                        active={pathname.startsWith(item.href)}
+                        locked={lockedSet.has(item.href)}
+                        unread={
+                          (item.href === ADMIN.inbox && showInboxDot) ||
+                          (item.href === ADMIN.appointments && showAppointmentsDot)
+                        }
+                        onClick={onMobileClose}
+                      />
+                    ))}
+                  </div>
                 ))}
                 <div className="border-t border-slate-800 my-2" />
-                <Link
-                  href={ADMIN.settings}
+                <MobileNavLink
+                  href={ADMIN.support}
+                  label={t.nav.support}
+                  icon={LifeBuoy}
+                  active={pathname.startsWith(ADMIN.support)}
+                  locked={lockedSet.has(ADMIN.support)}
+                  unread={hasUnreadSupport}
                   onClick={onMobileClose}
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium",
-                    pathname.startsWith(ADMIN.settings)
-                      ? "bg-blue-600 text-white"
-                      : "text-slate-300 hover:bg-slate-800"
-                  )}
-                >
-                  <Settings className="w-4.5 h-4.5 flex-shrink-0" />
-                  {t.nav.settings}
-                </Link>
+                />
+                <MobileNavLink
+                  href={ADMIN.settings}
+                  label={t.nav.settings}
+                  icon={Settings}
+                  active={pathname.startsWith(ADMIN.settings)}
+                  onClick={onMobileClose}
+                />
               </nav>
             </motion.aside>
           </>

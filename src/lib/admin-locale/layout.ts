@@ -19,6 +19,12 @@ export interface LayoutDictionary {
     settings: string;
     support: string;
   };
+  navGroups: {
+    operations: string;
+    customers: string;
+    communications: string;
+    finance: string;
+  };
   topbar: {
     openMenu: string;
     closeMenu: string;
@@ -50,6 +56,12 @@ export const LAYOUT_DICT: Record<AdminLocale, LayoutDictionary> = {
       settings: "Configuración",
       support: "Ayuda",
     },
+    navGroups: {
+      operations: "Operación",
+      customers: "Clientes",
+      communications: "Comunicación",
+      finance: "Finanzas",
+    },
     topbar: {
       openMenu: "Abrir menú",
       closeMenu: "Cerrar menú",
@@ -79,6 +91,12 @@ export const LAYOUT_DICT: Record<AdminLocale, LayoutDictionary> = {
       settings: "Settings",
       support: "Help",
     },
+    navGroups: {
+      operations: "Operations",
+      customers: "Customers",
+      communications: "Communications",
+      finance: "Finance",
+    },
     topbar: {
       openMenu: "Open menu",
       closeMenu: "Close menu",
@@ -107,6 +125,12 @@ export const LAYOUT_DICT: Record<AdminLocale, LayoutDictionary> = {
       reminders: "Rappels",
       settings: "Configuration",
       support: "Aide",
+    },
+    navGroups: {
+      operations: "Opérations",
+      customers: "Clients",
+      communications: "Communications",
+      finance: "Finances",
     },
     topbar: {
       openMenu: "Ouvrir le menu",

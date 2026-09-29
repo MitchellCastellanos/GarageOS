@@ -10,12 +10,12 @@ const support = {
   phone: process.env.NEXT_PUBLIC_SUPPORT_PHONE ?? "",
   whatsapp: process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP ?? "",
   url: process.env.NEXT_PUBLIC_SUPPORT_URL ?? "",
-  tagline: process.env.NEXT_PUBLIC_SUPPORT_TAGLINE ?? "Soporte técnico, actualizaciones y nuevas funciones",
 };
 
 export function SupportCard() {
   const locale = useAdminLocale();
   const t = SUPPORT_DICT[locale];
+  const tagline = process.env.NEXT_PUBLIC_SUPPORT_TAGLINE ?? t.contactCard.defaultTagline;
   const whatsappHref = support.whatsapp
     ? `https://wa.me/${support.whatsapp.replace(/\D/g, "")}`
     : null;
@@ -26,7 +26,7 @@ export function SupportCard() {
         {t.contactCard.needHelp}
       </p>
       <h2 className="font-semibold text-lg">{support.name}</h2>
-      <p className="text-slate-300 text-sm mt-1">{support.tagline}</p>
+      <p className="text-slate-300 text-sm mt-1">{tagline}</p>
 
       <div className="mt-4 flex flex-col gap-2">
         {support.url && (

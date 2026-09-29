@@ -60,10 +60,6 @@ export interface DashboardDictionary {
     uploadDocument: string;
     cashRegister: string;
   };
-  remindersAlert: {
-    pending: (count: number) => string;
-    viewReminders: string;
-  };
   commandCenter: {
     eyebrow: string;
     title: string;
@@ -90,6 +86,10 @@ export interface DashboardDictionary {
     planName: string;
     planHint: string;
     planLink: string;
+  };
+  analyticsSection: {
+    title: string;
+    subtitle: string;
   };
 }
 
@@ -145,11 +145,6 @@ export const DASHBOARD_DICT: Record<AdminLocale, DashboardDictionary> = {
       uploadDocument: "Subir documento",
       cashRegister: "Caja / efectivo",
     },
-    remindersAlert: {
-      pending: (count) =>
-        `${count} recordatorio${count !== 1 ? "s" : ""} pendiente${count !== 1 ? "s" : ""}`,
-      viewReminders: "Ver recordatorios →",
-    },
     commandCenter: {
       eyebrow: "Centro de control",
       title: "Lo importante para hoy",
@@ -176,6 +171,10 @@ export const DASHBOARD_DICT: Record<AdminLocale, DashboardDictionary> = {
       planName: "GarageOS Pro",
       planHint: "Reportes, documentos de marca y soporte prioritario.",
       planLink: "Conocer los planes",
+    },
+    analyticsSection: {
+      title: "Reportes y análisis",
+      subtitle: "El histórico del taller: ingresos, estado de facturas y clientes.",
     },
   },
   en: {
@@ -229,10 +228,6 @@ export const DASHBOARD_DICT: Record<AdminLocale, DashboardDictionary> = {
       uploadDocument: "Upload document",
       cashRegister: "Cash register",
     },
-    remindersAlert: {
-      pending: (count) => `${count} pending reminder${count !== 1 ? "s" : ""}`,
-      viewReminders: "View reminders →",
-    },
     commandCenter: {
       eyebrow: "Command center",
       title: "What matters today",
@@ -259,6 +254,10 @@ export const DASHBOARD_DICT: Record<AdminLocale, DashboardDictionary> = {
       planName: "GarageOS Pro",
       planHint: "Reports, branded documents, and priority support.",
       planLink: "Explore plans",
+    },
+    analyticsSection: {
+      title: "Reports & analytics",
+      subtitle: "Your shop's history: revenue, invoice status, and clients.",
     },
   },
   fr: {
@@ -312,10 +311,6 @@ export const DASHBOARD_DICT: Record<AdminLocale, DashboardDictionary> = {
       uploadDocument: "Téléverser un document",
       cashRegister: "Caisse / espèces",
     },
-    remindersAlert: {
-      pending: (count) => `${count} rappel${count !== 1 ? "s" : ""} en attente`,
-      viewReminders: "Voir les rappels →",
-    },
     commandCenter: {
       eyebrow: "Centre de contrôle",
       title: "L’essentiel pour aujourd’hui",
@@ -342,6 +337,10 @@ export const DASHBOARD_DICT: Record<AdminLocale, DashboardDictionary> = {
       planName: "GarageOS Pro",
       planHint: "Rapports, documents à votre image et soutien prioritaire.",
       planLink: "Voir les forfaits",
+    },
+    analyticsSection: {
+      title: "Rapports et analyses",
+      subtitle: "L'historique de l'atelier : revenus, statut des factures et clients.",
     },
   },
 };
