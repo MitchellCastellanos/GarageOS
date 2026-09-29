@@ -13,12 +13,11 @@ import {
 } from "@/lib/validations";
 import { INSPECTION_CHECKLIST_CATEGORIES, isFinding } from "@/domain/inspection";
 import { allocateNextQuoteNumber } from "@/lib/invoice-number";
-import { calculateTaxAmount, roundTaxRate, sumTaxLineRates, parseShopTaxLines } from "@/lib/taxes";
+import { computeDocumentTax } from "@/lib/fiscal";
 import { uploadToStorage } from "@/lib/storage";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import type { AdminLocale } from "@/lib/admin-locale";
 import { INSPECTIONS_DICT } from "@/lib/admin-locale/inspections";
-import Decimal from "decimal.js";
 import { randomBytes } from "node:crypto";
 import { can, canView, checkEntitlement } from "@/lib/subscription";
 
@@ -329,12 +328,10 @@ export async function createQuoteFromInspection(inspectionId: string) {
   const findings = inspection.items.filter((item) => isFinding(item.condition));
   if (findings.length === 0) return { error: NO_FINDINGS[locale] };
 
-  const shop = await db.shop.findUnique({ where: { id: shopId }, select: { taxLines: true } });
-  const defaultTaxRate = sumTaxLineRates(parseShopTaxLines(shop?.taxLines));
+  const fiscal = await computeDocumentTax(shopId, 0, null);
 
   const quote = await db.$transaction(async (tx) => {
     const quoteNumber = await allocateNextQuoteNumber(tx, shopId);
-    const taxAmount = calculateTaxAmount(new Decimal(0), defaultTaxRate);
 
     return tx.quote.create({
       data: {
@@ -343,9 +340,10 @@ export async function createQuoteFromInspection(inspectionId: string) {
         quoteNumber,
         status: "DRAFT",
         subtotal: "0.00",
-        taxRate: roundTaxRate(defaultTaxRate),
-        taxAmount: taxAmount.toFixed(2),
-        total: taxAmount.toFixed(2),
+        taxRate: fiscal.taxRate.toString(),
+        taxAmount: "0.00",
+        total: "0.00",
+        taxSnapshot: fiscal.taxSnapshotJson,
         vehicles: {
           create: {
             vehicleId: inspection.vehicleId,

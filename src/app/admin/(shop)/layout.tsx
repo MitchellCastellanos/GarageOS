@@ -110,6 +110,7 @@ export default async function DashboardLayout({
   const perms = await getEffectivePermissions(session);
   const hiddenNavHrefs: string[] = [
     ...(perms.has("financial.view") ? [] : [ADMIN.accounting, ADMIN.caja]),
+    ...(perms.has("reports.view") ? [] : [ADMIN.reports]),
     ...(perms.has("campaigns.manage") ? [] : [ADMIN.campaigns]),
     ...(perms.has("invoices.view") ? [] : [ADMIN.invoices]),
     ...(perms.has("customers.view") ? [] : [ADMIN.clients]),

@@ -23,6 +23,11 @@ model Shop {
   userAccess         UserShopAccess[]
   staffNotifications StaffNotification[]
   documentSequences  DocumentSequence[]
+  invoiceRefunds     InvoiceRefund[]
+  financialEvents    FinancialEvent[]
+  quickBooksConnection QuickBooksConnection?
+  quickBooksSyncRecords QuickBooksSyncRecord[]
+  quickBooksOAuthStates QuickBooksOAuthState[]
   platformNotes              PlatformNote[]
   platformAuditLogs          PlatformAuditLog[]
   platformConversations      PlatformConversation[]
@@ -436,9 +441,17 @@ model Invoice {
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
 
+  // Fiscal snapshot (Block 9): impuestos por línea, número de registro fiscal del taller y moneda
+  // FIJADOS al emitir la factura. El PDF y los reportes leen de aquí — cambiar Shop.taxLines /
+  // Shop.taxId después NUNCA reescribe una factura histórica. Ver src/domain/fiscal.ts.
+  taxSnapshot       Json?
+  taxRegistration   String?
+  currency          String              @default("CAD")
+
   vehicles          InvoiceVehicle[]
   paymentEntries    InvoicePaymentEntry[]
   cashDrawerEntries CashDrawerEntry[]
+  refunds           InvoiceRefund[]
 
   @@unique([shopId, invoiceNumber])
   @@schema("garageos")
@@ -483,6 +496,9 @@ model InvoicePaymentEntry {
 enum InvoicePaymentEntryMethod {
   CARD
   CASH
+  ETRANSFER
+  CHEQUE
+  OTHER
 
   @@schema("garageos")
 }
@@ -502,6 +518,55 @@ enum InvoiceLanguage {
   EN
   FR
 
+  @@schema("garageos")
+}
+
+/**
+ * Reembolso de una factura pagada (Block 9). Inmutable: no se edita ni se borra; la factura
+ * conserva su total y su snapshot, y el neto = total − Σ reembolsos. `taxLines` reparte el
+ * impuesto reembolsado por línea del snapshot (GST/QST…) para que el resumen de impuestos netos
+ * sea exacto. Sin onDelete cascade: una factura con reembolsos no se puede borrar.
+ */
+model InvoiceRefund {
+  id          String                    @id @default(cuid())
+  shopId      String
+  shop        Shop                      @relation(fields: [shopId], references: [id])
+  invoiceId   String
+  invoice     Invoice                   @relation(fields: [invoiceId], references: [id])
+  /// Monto reembolsado al cliente, impuestos incluidos.
+  amount      Decimal                   @db.Decimal(10, 2)
+  /// Parte de `amount` que corresponde a impuestos (suma de taxLines).
+  taxAmount   Decimal                   @db.Decimal(10, 2)
+  taxLines    Json                      @default("[]")
+  method      InvoicePaymentEntryMethod
+  reason      String
+  refundedAt  DateTime                  @default(now())
+  createdById String?
+  createdAt   DateTime                  @default(now())
+
+  @@index([shopId, refundedAt])
+  @@index([invoiceId])
+  @@schema("garageos")
+}
+
+/**
+ * Bitácora financiera append-only (Block 9): emisión, edición, pago, reversa de pago, anulación,
+ * borrado de borradores y reembolsos. No se actualiza ni se borra desde la aplicación. Sin FK a la
+ * factura a propósito: el registro sobrevive aunque un borrador se elimine.
+ */
+model FinancialEvent {
+  id        String   @id @default(cuid())
+  shopId    String
+  shop      Shop     @relation(fields: [shopId], references: [id])
+  invoiceId String?
+  type      String
+  actorId   String?
+  amount    Decimal? @db.Decimal(10, 2)
+  data      Json     @default("{}")
+  createdAt DateTime @default(now())
+
+  @@index([shopId, createdAt])
+  @@index([invoiceId])
   @@schema("garageos")
 }
 
@@ -573,6 +638,8 @@ model Quote {
   notes                   String?         @db.Text
   createdAt               DateTime        @default(now())
   updatedAt               DateTime        @updatedAt
+  // Ver Invoice.taxSnapshot — se copia a la factura al convertir.
+  taxSnapshot             Json?
 
   vehicles QuoteVehicle[]
 
@@ -1896,5 +1963,110 @@ model InspectionTemplate {
   updatedAt DateTime @updatedAt
 
   @@unique([shopId, name])
+  @@schema("garageos")
+}
+
+
+// ── QuickBooks Online (Block 10, Pro+) ───────────────────────────────────────
+
+enum QuickBooksConnectionStatus {
+  ACTIVE
+  /** El refresh token ya no sirve (revocado/vencido): hay que volver a conectar. */
+  NEEDS_RECONNECT
+  DISCONNECTED
+
+  @@schema("garageos")
+}
+
+enum QuickBooksSyncStatus {
+  PENDING
+  SYNCED
+  ERROR
+  /** Retirado en QuickBooks (pago borrado por reversa / factura anulada). */
+  REMOVED
+
+  @@schema("garageos")
+}
+
+/**
+ * Conexión OAuth de UN taller con UNA compañía de QuickBooks Online. Los tokens se guardan
+ * cifrados (AES-256-GCM, src/lib/integrations-crypto.ts) y nunca salen del servidor.
+ */
+model QuickBooksConnection {
+  id                    String                     @id @default(cuid())
+  shopId                String                     @unique
+  shop                  Shop                       @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  realmId               String
+  companyName           String?
+  environment           String
+  accessTokenEnc        String
+  refreshTokenEnc       String
+  accessTokenExpiresAt  DateTime
+  refreshTokenExpiresAt DateTime
+  status                QuickBooksConnectionStatus @default(ACTIVE)
+  lastError             String?
+  connectedById         String?
+  connectedAt           DateTime                   @default(now())
+  disconnectedAt        DateTime?
+  /// Solo se sincronizan facturas emitidas desde esta fecha (por defecto: el día de la conexión).
+  syncStartDate         DateTime
+  /// Mapeo de cuentas/impuestos de QuickBooks: { incomeAccountId, depositAccountId, taxCodeId, zeroTaxCodeId }.
+  settings              Json                       @default("{}")
+  lastSyncAt            DateTime?
+  /// Candado de sincronización (una corrida por conexión a la vez).
+  syncingSince          DateTime?
+  createdAt             DateTime                   @default(now())
+  updatedAt             DateTime                   @updatedAt
+
+  @@schema("garageos")
+}
+
+/**
+ * Estado de sincronización + ID externo por entidad de GarageOS. La llave única (taller, tipo, id
+ * local) hace la sincronización idempotente: una entidad ya vinculada se ACTUALIZA, nunca se
+ * duplica. `realmId` separa compañías: al reconectar a otra compañía los vínculos anteriores no se reutilizan.
+ */
+model QuickBooksSyncRecord {
+  id            String               @id @default(cuid())
+  shopId        String
+  shop          Shop                 @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  realmId       String
+  entityType    String
+  localId       String
+  /// Documento padre en GarageOS (factura de un pago/reembolso): detecta pagos retirados por reversa.
+  parentLocalId String?
+  qboId         String?
+  qboSyncToken  String?
+  status        QuickBooksSyncStatus @default(PENDING)
+  /// Hash del contenido enviado por última vez: sin cambios → no se reenvía.
+  fingerprint   String?
+  attempts      Int                  @default(0)
+  lastAttemptAt DateTime?
+  nextRetryAt   DateTime?
+  lastError     String?
+  /// Avisos no fatales (p. ej. QuickBooks calculó un impuesto distinto por centavos).
+  warning       String?
+  syncedAt      DateTime?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  @@unique([shopId, realmId, entityType, localId])
+  @@index([shopId, status])
+  @@index([shopId, parentLocalId])
+  @@schema("garageos")
+}
+
+/** Nonce de un solo uso del flujo OAuth (anti-CSRF + anti-replay), ligado a taller y usuario. */
+model QuickBooksOAuthState {
+  id        String    @id @default(cuid())
+  nonce     String    @unique
+  shopId    String
+  shop      Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  userId    String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([expiresAt])
   @@schema("garageos")
 }

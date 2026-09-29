@@ -28,6 +28,7 @@ import {
   LifeBuoy,
   Upload,
   CircleDot,
+  BarChart3,
 } from "lucide-react";
 
 import { ADMIN } from "@/lib/routes";
@@ -236,6 +237,7 @@ export function Sidebar({
       icon: Wallet,
       items: [
         { label: t.nav.caja, href: ADMIN.caja, icon: Banknote },
+        { label: t.nav.reports, href: ADMIN.reports, icon: BarChart3 },
         { label: t.nav.inventory, href: ADMIN.inventory, icon: Package },
       ],
     },

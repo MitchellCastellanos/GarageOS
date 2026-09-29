@@ -20,7 +20,10 @@ import {
   allocateNextInvoiceNumber,
   isUniqueConstraintError,
 } from "@/lib/invoice-number";
-import { calculateTaxAmount, roundTaxRate } from "@/lib/taxes";
+import { computeDocumentTax } from "@/lib/fiscal";
+import { recordFinancialEvent } from "@/lib/financial-events";
+import { persistInvoicePayment } from "@/lib/invoice-payment-service";
+import { allocateRefundTax, effectiveTaxSnapshot, isPaymentMethod, PAYMENT_METHODS, refundableBalance, validatePaymentEntries } from "@/domain/fiscal";
 import { serializeInvoiceForPdf } from "@/lib/invoice-serialize";
 import { generateInvoicePdf } from "@/lib/pdf";
 import { sendInvoiceEmail } from "@/lib/email";
@@ -49,6 +52,7 @@ import { ensureCashInFromInvoice } from "@/actions/cash-drawer";
 import { auth } from "@/lib/auth";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import type { AdminLocale } from "@/lib/admin-locale";
+import type { Prisma } from "@prisma/client";
 import Decimal from "decimal.js";
 import { z } from "zod";
 
@@ -75,6 +79,13 @@ const INVOICE_ACTION_MESSAGES: Record<
     notPaidStatus: string;
     cannotCancel: string;
     editOnlyPending: string;
+    deleteNotAllowed: string;
+    hasRefunds: string;
+    refundInvalidAmount: string;
+    refundInvalidMethod: string;
+    refundReasonRequired: string;
+    refundNotPaid: string;
+    refundExceeds: (balance: string) => string;
   }
 > = {
   es: {
@@ -98,6 +109,13 @@ const INVOICE_ACTION_MESSAGES: Record<
     notPaidStatus: "La factura no está en estado Pagada",
     cannotCancel: "No se puede anular esta factura",
     editOnlyPending: "Factura no encontrada o no disponible para edición (solo pendientes)",
+    deleteNotAllowed: "Una factura emitida no se puede borrar — anúlala para conservar el registro.",
+    hasRefunds: "Esta factura tiene reembolsos registrados y no se puede revertir ni anular.",
+    refundInvalidAmount: "Monto de reembolso inválido",
+    refundInvalidMethod: "Método de reembolso inválido",
+    refundReasonRequired: "Indica el motivo del reembolso",
+    refundNotPaid: "Solo se pueden reembolsar facturas pagadas",
+    refundExceeds: (balance) => `El reembolso excede el saldo reembolsable (${balance})`,
   },
   en: {
     numberAllocationFailed: "Could not assign a unique invoice number. Please try again in a few seconds.",
@@ -120,6 +138,13 @@ const INVOICE_ACTION_MESSAGES: Record<
     notPaidStatus: "The invoice is not in Paid status",
     cannotCancel: "This invoice cannot be voided",
     editOnlyPending: "Invoice not found or not available for editing (pending only)",
+    deleteNotAllowed: "An issued invoice can't be deleted — void it so the record is kept.",
+    hasRefunds: "This invoice has refunds recorded and can't be reverted or voided.",
+    refundInvalidAmount: "Invalid refund amount",
+    refundInvalidMethod: "Invalid refund method",
+    refundReasonRequired: "Enter the reason for the refund",
+    refundNotPaid: "Only paid invoices can be refunded",
+    refundExceeds: (balance) => `The refund exceeds the refundable balance (${balance})`,
   },
   fr: {
     numberAllocationFailed: "Impossible d'attribuer un numéro de facture unique. Réessayez dans quelques secondes.",
@@ -142,11 +167,18 @@ const INVOICE_ACTION_MESSAGES: Record<
     notPaidStatus: "La facture n'est pas au statut Payée",
     cannotCancel: "Cette facture ne peut pas être annulée",
     editOnlyPending: "Facture introuvable ou non disponible pour modification (en attente seulement)",
+    deleteNotAllowed: "Une facture émise ne peut pas être supprimée — annulez-la pour conserver le dossier.",
+    hasRefunds: "Cette facture a des remboursements enregistrés et ne peut être ni rétablie ni annulée.",
+    refundInvalidAmount: "Montant de remboursement invalide",
+    refundInvalidMethod: "Mode de remboursement invalide",
+    refundReasonRequired: "Indiquez le motif du remboursement",
+    refundNotPaid: "Seules les factures payées peuvent être remboursées",
+    refundExceeds: (balance) => `Le remboursement dépasse le solde remboursable (${balance})`,
   },
 };
 
 const paymentEntrySchema = z.object({
-  method: z.enum(["CARD", "CASH"]),
+  method: z.enum(PAYMENT_METHODS),
   amount: z.number().positive(),
   receiptPath: z.string().min(1).optional(),
 });
@@ -203,6 +235,7 @@ export async function getInvoiceById(id: string) {
         orderBy: { sortOrder: "asc" },
       },
       paymentEntries: { orderBy: { sortOrder: "asc" } },
+      refunds: { orderBy: { refundedAt: "asc" } },
       cashDrawerEntries: {
         where: { type: "CASH_IN" },
         orderBy: { createdAt: "desc" },
@@ -239,17 +272,20 @@ export async function createInvoice(formData: InvoiceFormData) {
     return sum.plus(new Decimal(item.quantity).times(item.unitPrice));
   }, new Decimal(0));
 
-  const taxAmount = calculateTaxAmount(subtotal, taxRate);
-  const total = subtotal.plus(taxAmount);
+  const fiscal = await computeDocumentTax(shopId, subtotal, taxRate);
+  const actorId = (await auth())?.user?.id ?? null;
 
   const invoiceData = {
     shopId,
     clientId,
     status: "SENT" as const,
     subtotal: subtotal.toFixed(2),
-    taxRate: roundTaxRate(taxRate),
-    taxAmount: taxAmount.toFixed(2),
-    total: total.toFixed(2),
+    taxRate: fiscal.taxRate.toString(),
+    taxAmount: fiscal.taxAmount.toFixed(2),
+    total: fiscal.total.toFixed(2),
+    taxSnapshot: fiscal.taxSnapshotJson,
+    taxRegistration: fiscal.taxRegistration,
+    currency: fiscal.currency,
     language,
     notes: notes || null,
     dueAt: dueAt ? new Date(dueAt) : null,
@@ -279,9 +315,23 @@ export async function createInvoice(formData: InvoiceFormData) {
     try {
       invoice = await db.$transaction(async (tx) => {
         const invoiceNumber = await allocateNextInvoiceNumber(tx, shopId);
-        return tx.invoice.create({
+        const created = await tx.invoice.create({
           data: { ...invoiceData, invoiceNumber },
         });
+        await recordFinancialEvent(tx, {
+          shopId,
+          invoiceId: created.id,
+          type: "INVOICE_ISSUED",
+          actorId: actorId,
+          amount: fiscal.total.toFixed(2),
+          data: {
+            invoiceNumber,
+            subtotal: subtotal.toFixed(2),
+            taxAmount: fiscal.taxAmount.toFixed(2),
+            taxLines: fiscal.snapshot.lines,
+          },
+        });
+        return created;
       });
       break;
     } catch (err) {
@@ -565,23 +615,13 @@ export async function markInvoiceAsPaid(id: string, formData: FormData) {
 
   const { paymentMode: mode, entries: validEntries } = parsed.data;
   const target = paymentTargetAmount(invoice.total.toString());
-  const paidSum = validEntries.reduce(
-    (s, e) => s.plus(e.amount),
-    new Decimal(0)
-  );
+  const paidSum = validEntries.reduce((s, e) => s.plus(e.amount), new Decimal(0));
 
-  if (!paidSum.equals(target)) {
-    return {
-      error: msg.paidTotalMismatch(paidSum.toFixed(2), target.toFixed(2)),
-    };
-  }
-
-  if (mode === "CARD" && validEntries.some((e) => e.method !== "CARD")) {
-    return { error: msg.cardModeMismatch };
-  }
-  if (mode === "CASH" && validEntries.some((e) => e.method !== "CASH")) {
-    return { error: msg.cashModeMismatch };
-  }
+  const invalid = validatePaymentEntries(mode, validEntries, invoice.total.toString());
+  if (invalid === "MISMATCH") return { error: msg.paidTotalMismatch(paidSum.toFixed(2), target.toFixed(2)) };
+  if (invalid === "CARD_MODE") return { error: msg.cardModeMismatch };
+  if (invalid === "CASH_MODE") return { error: msg.cashModeMismatch };
+  if (invalid) return { error: msg.incompletePaymentData };
 
   const cardEntries = validEntries.filter((e) => e.method === "CARD");
 
@@ -615,27 +655,16 @@ export async function markInvoiceAsPaid(id: string, formData: FormData) {
     sortOrder: i,
   }));
 
-  await db.$transaction(async (tx) => {
-    await tx.invoicePaymentEntry.deleteMany({ where: { invoiceId: id } });
-    await tx.invoice.update({
-      where: { id },
-      data: {
-        status: "PAID",
-        paidAt: new Date(),
-        paymentMode: mode,
-        paymentExtraPaths: extraPaths,
-      },
-    });
-    await tx.invoicePaymentEntry.createMany({
-      data: paymentRows.map((row) => ({
-        invoiceId: id,
-        method: row.method,
-        amount: row.amount,
-        receiptPath: row.receiptPath,
-        sortOrder: row.sortOrder,
-      })),
-    });
+  const persisted = await persistInvoicePayment({
+    shopId,
+    invoiceId: id,
+    invoiceNumber: invoice.invoiceNumber,
+    mode,
+    rows: paymentRows,
+    extraPaths,
+    actorId: session?.user?.id ?? null,
   });
+  if (!persisted) return { error: msg.notPending };
 
   const pdfInvoice = serializeInvoiceForPdf(invoice);
   const invoicePdfBuffer = await generateInvoicePdf(pdfInvoice);
@@ -690,26 +719,42 @@ export async function markInvoiceAsPaid(id: string, formData: FormData) {
   return { success: true };
 }
 
-export async function revertInvoiceToPending(id: string) {
+export async function revertInvoiceToPending(id: string): Promise<{ success?: boolean; error?: string }> {
   const shopId = await getWritableShopId("payments.write");
   const locale = await getAdminLocale();
   const msg = INVOICE_ACTION_MESSAGES[locale];
-  await db.cashDrawerEntry.deleteMany({
-    where: { shopId, linkedInvoiceId: id, type: "CASH_IN" },
+  const actorId = (await auth())?.user?.id ?? null;
+
+  const outcome = await db.$transaction(async (tx) => {
+    const invoice = await tx.invoice.findFirst({
+      where: { id, shopId, status: "PAID" },
+      include: { paymentEntries: true, refunds: { select: { id: true } } },
+    });
+    if (!invoice) return { error: msg.notPaidStatus };
+    // Un pago con reembolsos ya no se puede deshacer: el historial de reembolsos quedaría huérfano.
+    if (invoice.refunds.length > 0) return { error: msg.hasRefunds };
+
+    await tx.cashDrawerEntry.deleteMany({ where: { shopId, linkedInvoiceId: id, type: "CASH_IN" } });
+    await tx.invoicePaymentEntry.deleteMany({ where: { invoiceId: id } });
+    await tx.invoice.updateMany({
+      where: { id, shopId, status: "PAID" },
+      data: { status: "SENT", paidAt: null, paymentMode: null, paymentExtraPaths: [] },
+    });
+    await recordFinancialEvent(tx, {
+      shopId,
+      invoiceId: id,
+      type: "PAYMENT_REVERSED",
+      actorId,
+      amount: invoice.total.toString(),
+      data: {
+        invoiceNumber: invoice.invoiceNumber,
+        payments: invoice.paymentEntries.map((p) => ({ method: p.method, amount: p.amount.toString() })),
+      },
+    });
+    return { success: true as const };
   });
-  await db.invoicePaymentEntry.deleteMany({
-    where: { invoice: { id, shopId } },
-  });
-  const result = await db.invoice.updateMany({
-    where: { id, shopId, status: "PAID" },
-    data: {
-      status: "SENT",
-      paidAt: null,
-      paymentMode: null,
-      paymentExtraPaths: [],
-    },
-  });
-  if (result.count === 0) return { error: msg.notPaidStatus };
+  if ("error" in outcome) return outcome;
+
   revalidatePath(`/invoices/${id}`);
   revalidatePath(ADMIN.invoices);
   revalidatePath(ADMIN.caja);
@@ -718,35 +763,42 @@ export async function revertInvoiceToPending(id: string) {
 
 const VOIDABLE_STATUSES = ["DRAFT", "SENT", "PAID", "OVERDUE"] as const;
 
-export async function cancelInvoice(id: string) {
+export async function cancelInvoice(id: string): Promise<{ success?: boolean; error?: string }> {
   const shopId = await getWritableShopId("invoices.write");
   const locale = await getAdminLocale();
   const msg = INVOICE_ACTION_MESSAGES[locale];
+  const actorId = (await auth())?.user?.id ?? null;
 
-  const result = await db.invoice.updateMany({
-    where: {
-      id,
+  const outcome = await db.$transaction(async (tx) => {
+    const invoice = await tx.invoice.findFirst({
+      where: { id, shopId, status: { in: [...VOIDABLE_STATUSES] } },
+      include: { paymentEntries: true, refunds: { select: { id: true } } },
+    });
+    if (!invoice) return { error: msg.cannotCancel };
+    if (invoice.refunds.length > 0) return { error: msg.hasRefunds };
+
+    await tx.invoice.updateMany({
+      where: { id, shopId, status: { in: [...VOIDABLE_STATUSES] } },
+      data: { status: "CANCELLED", paidAt: null, paymentMode: null, paymentExtraPaths: [] },
+    });
+    await tx.cashDrawerEntry.deleteMany({ where: { shopId, linkedInvoiceId: id, type: "CASH_IN" } });
+    await tx.invoicePaymentEntry.deleteMany({ where: { invoiceId: id } });
+    await recordFinancialEvent(tx, {
       shopId,
-      status: { in: [...VOIDABLE_STATUSES] },
-    },
-    data: {
-      status: "CANCELLED",
-      paidAt: null,
-      paymentMode: null,
-      paymentExtraPaths: [],
-    },
+      invoiceId: id,
+      type: "INVOICE_VOIDED",
+      actorId,
+      amount: invoice.total.toString(),
+      data: {
+        invoiceNumber: invoice.invoiceNumber,
+        previousStatus: invoice.status,
+        taxAmount: invoice.taxAmount.toString(),
+        removedPayments: invoice.paymentEntries.map((p) => ({ method: p.method, amount: p.amount.toString() })),
+      },
+    });
+    return { success: true as const };
   });
-
-  if (result.count === 0) {
-    return { error: msg.cannotCancel };
-  }
-
-  await db.cashDrawerEntry.deleteMany({
-    where: { shopId, linkedInvoiceId: id, type: "CASH_IN" },
-  });
-  await db.invoicePaymentEntry.deleteMany({
-    where: { invoice: { id, shopId } },
-  });
+  if ("error" in outcome) return outcome;
 
   revalidatePath(`/invoices/${id}`);
   revalidatePath(ADMIN.invoices);
@@ -755,22 +807,154 @@ export async function cancelInvoice(id: string) {
   return { success: true };
 }
 
+/**
+ * Borrado: solo borradores / facturas pendientes que nunca se enviaron, sin pagos ni reembolsos.
+ * Una factura emitida se ANULA (queda el registro y la numeración); borrar deja una traza en la
+ * bitácora financiera.
+ */
 export async function deleteInvoice(id: string) {
   const shopId = await getWritableShopId("invoices.write");
   const locale = await getAdminLocale();
   const msg = INVOICE_ACTION_MESSAGES[locale];
+  const actorId = (await auth())?.user?.id ?? null;
 
-  const result = await db.invoice.deleteMany({
-    where: { id, shopId },
+  const outcome = await db.$transaction(async (tx) => {
+    const invoice = await tx.invoice.findFirst({
+      where: { id, shopId },
+      select: {
+        invoiceNumber: true, status: true, total: true, taxAmount: true, sentAt: true, emailSendCount: true, smsSendCount: true,
+        _count: { select: { paymentEntries: true, refunds: true } },
+      },
+    });
+    if (!invoice) return { error: msg.notFound };
+    const neverIssued =
+      (invoice.status === "DRAFT" || invoice.status === "SENT") &&
+      !invoice.sentAt && invoice.emailSendCount === 0 && invoice.smsSendCount === 0;
+    if (!neverIssued || invoice._count.paymentEntries > 0 || invoice._count.refunds > 0) {
+      return { error: msg.deleteNotAllowed };
+    }
+    await tx.invoice.deleteMany({ where: { id, shopId } });
+    await recordFinancialEvent(tx, {
+      shopId,
+      invoiceId: id,
+      type: "INVOICE_DELETED",
+      actorId,
+      amount: invoice.total.toString(),
+      data: { invoiceNumber: invoice.invoiceNumber, status: invoice.status, taxAmount: invoice.taxAmount.toString() },
+    });
+    return { success: true as const };
   });
-
-  if (result.count === 0) {
-    return { error: msg.notFound };
-  }
+  if ("error" in outcome) return outcome;
 
   revalidatePath(ADMIN.invoices);
   revalidatePath(ADMIN.dashboard);
   redirect(ADMIN.invoices);
+}
+
+// ── Reembolsos (Block 9) ────────────────────────────────────
+
+export interface RefundInput {
+  amount: number | string;
+  method: string;
+  reason: string;
+}
+
+/**
+ * Reembolso total o parcial de una factura PAGADA. La factura conserva su total y su snapshot fiscal;
+ * el reembolso queda como registro inmutable con el impuesto repartido por línea (GST/QST…). Las
+ * facturas con reembolsos no se pueden revertir/anular/borrar. Permiso propio: `refunds.write`
+ * (por defecto solo el dueño). Un reembolso en efectivo descuenta de la caja.
+ */
+export async function refundInvoice(id: string, input: RefundInput) {
+  const shopId = await getWritableShopId("refunds.write");
+  const locale = await getAdminLocale();
+  const msg = INVOICE_ACTION_MESSAGES[locale];
+  const session = await auth();
+
+  const raw = typeof input.amount === "string" ? input.amount.trim() : String(input.amount);
+  let amount: Decimal;
+  try {
+    amount = new Decimal(raw);
+  } catch {
+    return { error: msg.refundInvalidAmount };
+  }
+  if (!amount.isFinite() || amount.lte(0) || amount.decimalPlaces() > 2) return { error: msg.refundInvalidAmount };
+  if (!isPaymentMethod(input.method)) return { error: msg.refundInvalidMethod };
+  const method = input.method;
+  const reason = String(input.reason ?? "").trim();
+  if (reason.length < 3) return { error: msg.refundReasonRequired };
+  if (reason.length > 500) return { error: msg.refundReasonRequired };
+
+  const outcome = await db.$transaction(async (tx) => {
+    // Bloquea la fila de la factura: dos reembolsos simultáneos se serializan y no pueden exceder el total.
+    const locked = await tx.invoice.updateMany({ where: { id, shopId, status: "PAID" }, data: { updatedAt: new Date() } });
+    if (locked.count === 0) return { error: msg.refundNotPaid };
+
+    const invoice = await tx.invoice.findFirst({
+      where: { id, shopId },
+      include: { refunds: { orderBy: { createdAt: "asc" } } },
+    });
+    if (!invoice) return { error: msg.notFound };
+
+    const balance = refundableBalance(invoice.total.toString(), invoice.refunds);
+    if (amount.gt(balance)) return { error: msg.refundExceeds(formatCurrency(balance.toNumber())) };
+
+    const snapshot = effectiveTaxSnapshot(invoice);
+    const allocation = allocateRefundTax(snapshot, invoice.total.toString(), invoice.taxAmount.toString(), amount, invoice.refunds);
+
+    const refund = await tx.invoiceRefund.create({
+      data: {
+        shopId,
+        invoiceId: id,
+        amount: amount.toFixed(2),
+        taxAmount: allocation.taxAmount.toFixed(2),
+        taxLines: allocation.taxLines as unknown as Prisma.InputJsonValue,
+        method,
+        reason,
+        createdById: session?.user?.id ?? null,
+      },
+    });
+
+    if (method === "CASH") {
+      await tx.cashDrawerEntry.create({
+        data: {
+          shopId,
+          type: "CASH_OUT",
+          amount: amount.toFixed(2),
+          description: `Reembolso — ${invoice.invoiceNumber}`,
+          linkedInvoiceId: id,
+          paymentMethod: "CASH",
+          createdById: session?.user?.id ?? null,
+        },
+      });
+    }
+
+    await recordFinancialEvent(tx, {
+      shopId,
+      invoiceId: id,
+      type: "REFUND_RECORDED",
+      actorId: session?.user?.id ?? null,
+      amount: amount.toFixed(2),
+      data: {
+        invoiceNumber: invoice.invoiceNumber,
+        refundId: refund.id,
+        method,
+        reason,
+        taxAmount: allocation.taxAmount.toFixed(2),
+        taxLines: allocation.taxLines,
+        remainingRefundable: balance.minus(amount).toFixed(2),
+      },
+    });
+    return { success: true as const, refundId: refund.id };
+  });
+  if ("error" in outcome) return outcome;
+
+  revalidatePath(`/invoices/${id}`);
+  revalidatePath(ADMIN.invoices);
+  revalidatePath(ADMIN.dashboard);
+  revalidatePath(ADMIN.accounting);
+  revalidatePath(ADMIN.caja);
+  return outcome;
 }
 
 // ── Guardar URL del PDF generado ───────────────────────────
@@ -816,21 +1000,34 @@ export async function updateInvoice(id: string, formData: InvoiceFormData) {
     return sum.plus(new Decimal(item.quantity).times(item.unitPrice));
   }, new Decimal(0));
 
-  const taxAmount = calculateTaxAmount(subtotal, taxRate);
-  const total = subtotal.plus(taxAmount);
+  const fiscal = await computeDocumentTax(shopId, subtotal, taxRate, existing);
 
   await db.$transaction(async (tx) => {
     // onDelete: Cascade en InvoiceVehicle → InvoiceLineItem se borran con él
     await tx.invoiceVehicle.deleteMany({ where: { invoiceId: id } });
+
+    await recordFinancialEvent(tx, {
+      shopId,
+      invoiceId: id,
+      type: "INVOICE_UPDATED",
+      actorId: (await auth())?.user?.id ?? null,
+      amount: fiscal.total.toFixed(2),
+      data: {
+        invoiceNumber: existing.invoiceNumber,
+        before: { subtotal: existing.subtotal.toString(), taxAmount: existing.taxAmount.toString(), total: existing.total.toString() },
+        after: { subtotal: subtotal.toFixed(2), taxAmount: fiscal.taxAmount.toFixed(2), total: fiscal.total.toFixed(2) },
+      },
+    });
 
     await tx.invoice.update({
       where: { id },
       data: {
         clientId,
         subtotal: subtotal.toFixed(2),
-        taxRate: roundTaxRate(taxRate),
-        taxAmount: taxAmount.toFixed(2),
-        total: total.toFixed(2),
+        taxRate: fiscal.taxRate.toString(),
+        taxAmount: fiscal.taxAmount.toFixed(2),
+        total: fiscal.total.toFixed(2),
+        taxSnapshot: fiscal.taxSnapshotJson,
         language,
         notes: notes || null,
         dueAt: dueAt ? new Date(dueAt) : null,

@@ -143,14 +143,17 @@ export default async function DashboardPage() {
     db.inspection.count({ where: { shopId } }),
   ]);
 
-  const thisMonthRevenue = paidInvoicesThisMonth.reduce(
-    (sum, inv) => sum + getInvoiceRecordedRevenue(inv),
-    0
-  );
-  const lastMonthRevenue = paidInvoicesLastMonth.reduce(
-    (sum, inv) => sum + getInvoiceRecordedRevenue(inv),
-    0
-  );
+  // Ingresos netos de reembolsos (Block 9): un reembolso resta en el mes en que se pagó.
+  const [refundsThisMonth, refundsLastMonth] = await Promise.all([
+    db.invoiceRefund.aggregate({ where: { shopId, refundedAt: { gte: startOfMonth } }, _sum: { amount: true } }),
+    db.invoiceRefund.aggregate({ where: { shopId, refundedAt: { gte: startOfLastMonth, lte: endOfLastMonth } }, _sum: { amount: true } }),
+  ]);
+  const thisMonthRevenue =
+    paidInvoicesThisMonth.reduce((sum, inv) => sum + getInvoiceRecordedRevenue(inv), 0) -
+    Number(refundsThisMonth._sum.amount ?? 0);
+  const lastMonthRevenue =
+    paidInvoicesLastMonth.reduce((sum, inv) => sum + getInvoiceRecordedRevenue(inv), 0) -
+    Number(refundsLastMonth._sum.amount ?? 0);
 
   // ── Procesar datos para charts (serializar: sin Decimal ni Date) ──
 

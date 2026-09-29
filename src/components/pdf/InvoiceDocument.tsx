@@ -10,7 +10,7 @@ import {
   Font,
 } from "@react-pdf/renderer";
 import { formatClientName } from "@/lib/client-name";
-import { calculateTaxBreakdown, parseShopTaxLines } from "@/lib/taxes";
+import { documentTaxView } from "@/domain/fiscal";
 import { getInvoiceStrings, type InvoiceLanguage } from "@/lib/invoice-i18n";
 import { invoiceStatusLabelForPdf } from "@/lib/invoice-status";
 
@@ -40,6 +40,10 @@ interface InvoiceData {
   language?: InvoiceLanguage | string | null;
   notes?: string | null;
   documentKind?: "invoice" | "quote";
+  /** Snapshot fiscal fijado al emitir (Block 9): tiene prioridad sobre la configuración actual del taller. */
+  taxSnapshot?: unknown;
+  taxRegistration?: string | null;
+  currency?: string | null;
   client: {
     firstName: string;
     lastName?: string | null;
@@ -669,11 +673,16 @@ function InvoiceHeader({
             <ContactLine label={t.phone} value={invoice.shop.phone} />
             <ContactLine label={t.address} value={invoice.shop.address} />
             {(() => {
-              if (!invoice.shop.taxId) return null;
-              const segments = parseTaxRegistration(invoice.shop.taxId);
+              // Facturas: registro fijado al emitir (null si el taller no tenía). Cotizaciones: el actual.
+              const registration =
+                invoice.taxRegistration !== undefined
+                  ? invoice.taxRegistration
+                  : (invoice.shop.taxId ?? null);
+              if (!registration) return null;
+              const segments = parseTaxRegistration(registration);
               if (!segments) {
                 return (
-                  <ContactLine label={t.taxRegistration} value={invoice.shop.taxId} />
+                  <ContactLine label={t.taxRegistration} value={registration} />
                 );
               }
               return segments.map((seg) => (
@@ -738,16 +747,18 @@ export function InvoiceDocument({ invoice }: { invoice: InvoiceData }) {
   const statusColors = STATUS_COLORS[invoice.status] ?? STATUS_COLORS.DRAFT;
   const statusLabel = invoiceStatusLabelForPdf(t.statuses, invoice.status);
   const showPaidWatermark = !isQuote && invoice.status === "PAID";
-  const currency = invoice.shop.currency ?? "CAD";
+  // Un documento con snapshot NUNCA se re-deriva de la configuración actual del taller.
+  const currency = invoice.currency ?? invoice.shop.currency ?? "CAD";
   const docTitle = isQuote
     ? `Cotización ${invoice.invoiceNumber}`
     : t.documentTitle(invoice.invoiceNumber);
 
-  const { lines: taxLineAmounts, taxAmount } = calculateTaxBreakdown(
-    invoice.subtotal,
-    invoice.taxRate,
-    parseShopTaxLines(invoice.shop.taxLines)
-  );
+  const { lines: taxLineAmounts, taxAmount } = documentTaxView({
+    taxSnapshot: invoice.taxSnapshot,
+    subtotal: invoice.subtotal,
+    taxRate: invoice.taxRate,
+    shopTaxLines: invoice.shop.taxLines,
+  });
 
   const allLineItems = invoice.vehicles.flatMap((v) => v.lineItems);
   const warrantyItems = allLineItems.filter(

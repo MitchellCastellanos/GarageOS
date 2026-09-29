@@ -13,7 +13,7 @@ import {
   allocateNextQuoteNumber,
   isUniqueConstraintError,
 } from "@/lib/invoice-number";
-import { calculateTaxAmount, roundTaxRate } from "@/lib/taxes";
+import { computeDocumentTax, fiscalForConvertedDocument } from "@/lib/fiscal";
 import { serializeQuoteForPdf } from "@/lib/quote-serialize";
 import { generateQuotePdf } from "@/lib/pdf";
 import { sendQuoteEmail } from "@/lib/email";
@@ -156,8 +156,7 @@ export async function createQuote(formData: QuoteFormData) {
     return sum.plus(new Decimal(item.quantity).times(item.unitPrice));
   }, new Decimal(0));
 
-  const taxAmount = calculateTaxAmount(subtotal, taxRate);
-  const total = subtotal.plus(taxAmount);
+  const fiscal = await computeDocumentTax(shopId, subtotal, taxRate);
 
   const quote = await db.$transaction(async (tx) => {
     const quoteNumber = await allocateNextQuoteNumber(tx, shopId);
@@ -169,9 +168,10 @@ export async function createQuote(formData: QuoteFormData) {
         quoteNumber,
         status: "DRAFT",
         subtotal: subtotal.toFixed(2),
-        taxRate: roundTaxRate(taxRate),
-        taxAmount: taxAmount.toFixed(2),
-        total: total.toFixed(2),
+        taxRate: fiscal.taxRate.toString(),
+        taxAmount: fiscal.taxAmount.toFixed(2),
+        total: fiscal.total.toFixed(2),
+        taxSnapshot: fiscal.taxSnapshotJson,
         language,
         notes: notes || null,
         validUntil: dueAt ? new Date(dueAt) : null,
@@ -231,8 +231,7 @@ export async function updateQuote(id: string, formData: QuoteFormData) {
     return sum.plus(new Decimal(item.quantity).times(item.unitPrice));
   }, new Decimal(0));
 
-  const taxAmount = calculateTaxAmount(subtotal, taxRate);
-  const total = subtotal.plus(taxAmount);
+  const fiscal = await computeDocumentTax(shopId, subtotal, taxRate, existing);
 
   await db.$transaction(async (tx) => {
     // onDelete: Cascade en QuoteVehicle → QuoteLineItem se borran con él
@@ -243,9 +242,10 @@ export async function updateQuote(id: string, formData: QuoteFormData) {
       data: {
         clientId,
         subtotal: subtotal.toFixed(2),
-        taxRate: roundTaxRate(taxRate),
-        taxAmount: taxAmount.toFixed(2),
-        total: total.toFixed(2),
+        taxRate: fiscal.taxRate.toString(),
+        taxAmount: fiscal.taxAmount.toFixed(2),
+        total: fiscal.total.toFixed(2),
+        taxSnapshot: fiscal.taxSnapshotJson,
         language,
         notes: notes || null,
         validUntil: dueAt ? new Date(dueAt) : null,
@@ -507,6 +507,8 @@ export async function convertQuoteToInvoice(id: string) {
     return { error: QUOTE_CANNOT_CONVERT[locale] };
   }
 
+  const fiscal = await fiscalForConvertedDocument(shopId, quote);
+
   const invoice = await db.$transaction(async (tx) => {
     const invoiceNumber = await allocateNextInvoiceNumber(tx, shopId);
 
@@ -520,6 +522,9 @@ export async function convertQuoteToInvoice(id: string) {
         taxRate: quote.taxRate,
         taxAmount: quote.taxAmount,
         total: quote.total,
+        taxSnapshot: fiscal.taxSnapshotJson,
+        taxRegistration: fiscal.taxRegistration,
+        currency: fiscal.currency,
         language: quote.language,
         notes: quote.notes,
         dueAt: quote.validUntil,

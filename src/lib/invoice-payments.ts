@@ -3,7 +3,7 @@ import Decimal from "decimal.js";
 export type InvoicePaymentMode = "CARD" | "CASH" | "MIXED";
 
 export type PaymentEntryInput = {
-  method: "CARD" | "CASH";
+  method: "CARD" | "CASH" | "ETRANSFER" | "CHEQUE" | "OTHER";
   amount: number;
   /** Path en Supabase, subido vía POST /api/invoices/[id]/payment-receipt */
   receiptPath?: string;
@@ -24,19 +24,21 @@ export function sumPaymentEntries(entries: { amount: string | number }[]): numbe
     .toNumber();
 }
 
+const PAYMENT_LABELS: Record<string, string> = {
+  CARD: "Tarjeta",
+  CASH: "Efectivo",
+  ETRANSFER: "Interac e-Transfer",
+  CHEQUE: "Cheque",
+  OTHER: "Otro",
+};
+
 /** Etiquetas: Tarjeta #1, Efectivo #1, etc. (mismo orden que sortOrder). */
-export function labelPaymentEntries(
-  entries: { method: "CARD" | "CASH" | string }[]
-): string[] {
-  let cardN = 0;
-  let cashN = 0;
+export function labelPaymentEntries(entries: { method: string }[]): string[] {
+  const counts = new Map<string, number>();
   return entries.map((e) => {
-    if (e.method === "CARD") {
-      cardN += 1;
-      return `Tarjeta #${cardN}`;
-    }
-    cashN += 1;
-    return `Efectivo #${cashN}`;
+    const n = (counts.get(e.method) ?? 0) + 1;
+    counts.set(e.method, n);
+    return `${PAYMENT_LABELS[e.method] ?? e.method} #${n}`;
   });
 }
 

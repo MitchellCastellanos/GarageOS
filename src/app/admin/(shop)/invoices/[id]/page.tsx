@@ -1,11 +1,12 @@
-import { requirePagePermission } from "@/lib/access";
+import { currentUserCan, requirePagePermission } from "@/lib/access";
 import { ADMIN, PLATFORM, adminPath } from "@/lib/routes";
 import Link from "next/link";
 import { ArrowLeft, Download, Pencil } from "lucide-react";
 import { getInvoiceById } from "@/actions/invoices";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { formatClientName } from "@/lib/client-name";
-import { calculateTaxBreakdown, parseShopTaxLines } from "@/lib/taxes";
+import { effectiveTaxSnapshot, refundableBalance } from "@/domain/fiscal";
+import { ACCOUNTING_DICT } from "@/lib/admin-locale/accounting";
 import { INVOICE_LANGUAGES } from "@/lib/invoice-i18n";
 import { InvoiceActions } from "@/components/invoices/InvoiceActions";
 import {
@@ -30,11 +31,19 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
   const t = INVOICES_DICT[locale];
   const ITEM_TYPE_LABEL = t.itemTypes;
 
-  const { lines: taxLineAmounts } = calculateTaxBreakdown(
-    invoice.subtotal.toString(),
-    invoice.taxRate.toString(),
-    parseShopTaxLines(invoice.shop.taxLines)
-  );
+  const a = ACCOUNTING_DICT[locale];
+  // Impuestos del snapshot fiscal fijado al emitir — nunca de la configuración actual del taller.
+  const taxLineAmounts = effectiveTaxSnapshot(invoice).lines.map((l) => ({
+    name: l.name,
+    pct: (Number(l.rate) * 100).toFixed(3).replace(/\.?0+$/, ""),
+    amount: l.amount,
+  }));
+  const canRefund = await currentUserCan("refunds.write");
+  const refundedTotal = invoice.refunds.reduce((sum, r) => sum + Number(r.amount), 0);
+  const refundBalance = refundableBalance(invoice.total.toString(), invoice.refunds).toNumber();
+  const neverIssued =
+    (invoice.status === "DRAFT" || invoice.status === "SENT") &&
+    !invoice.sentAt && invoice.emailSendCount === 0 && invoice.smsSendCount === 0 && invoice.paymentEntries.length === 0;
   const langLabel =
     INVOICE_LANGUAGES.find((l) => l.value === invoice.language)?.label ?? invoice.language;
 
@@ -131,6 +140,10 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
             smsSendCount={invoice.smsSendCount}
             total={Number(invoice.total)}
             isPaid={invoice.status === "PAID"}
+            canRefund={canRefund}
+            refundBalance={refundBalance}
+            canDelete={neverIssued}
+            hasRefunds={invoice.refunds.length > 0}
           />
         </div>
       </div>
@@ -297,6 +310,12 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
                 {formatCurrency(Number(invoice.total))}
               </span>
             </div>
+            {invoice.refunds.length > 0 && (
+              <div className="flex justify-between text-sm pt-2">
+                <span className="text-slate-600">{a.refund.netTotal}</span>
+                <span className="font-semibold text-slate-900">{formatCurrency(Number(invoice.total) - refundedTotal)}</span>
+              </div>
+            )}
             {invoice.paidAt && (
               <div className="mt-2 space-y-1">
                 <p className="text-xs text-emerald-600">
@@ -314,6 +333,24 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
           </div>
         </div>
       </div>
+
+      {invoice.refunds.length > 0 && (
+        <div className="bg-white rounded-xl border border-slate-200 p-5">
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">{a.refund.historyTitle}</p>
+          <ul className="space-y-2">
+            {invoice.refunds.map((r) => (
+              <li key={r.id} className="text-sm text-slate-700 flex justify-between gap-4">
+                <span>
+                  {a.refund.refundedOn(formatDate(r.refundedAt))} · {a.methods[r.method as keyof typeof a.methods] ?? r.method} · {r.reason}
+                </span>
+                <span className="font-medium whitespace-nowrap">
+                  −{formatCurrency(Number(r.amount))} <span className="text-xs text-slate-400">({a.refund.taxPart(formatCurrency(Number(r.taxAmount)))})</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {invoice.status === "PAID" && invoice.paymentEntries.length > 0 && (
         <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-5">
