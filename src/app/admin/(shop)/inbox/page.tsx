@@ -9,6 +9,7 @@ import { db } from "@/lib/db";
 import { getShopId } from "@/lib/shop-context";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import { INBOX_DICT, type InboxDictionary } from "@/lib/admin-locale/inbox";
+import { InboxAutoRefresh } from "@/components/inbox/InboxAutoRefresh";
 
 interface PageProps { searchParams: Promise<{ status?: string }>; }
 
@@ -37,6 +38,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
 
   return (
     <div className="space-y-6">
+      <InboxAutoRefresh />
       <div className="flex items-center justify-between">
         <div><h1 className="text-2xl font-bold text-slate-900">{t.list.pageTitle}</h1><p className="text-slate-500 text-sm mt-1">{t.list.countLabel(threads.length)}</p></div>
         <div className="flex flex-wrap gap-2">

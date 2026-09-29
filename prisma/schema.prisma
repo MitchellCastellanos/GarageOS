@@ -1263,6 +1263,12 @@ model CommunicationMessage {
   // no aplica — no es SMS, o el cobro de excedente no estaba configurado
   // todavía). Ver src/lib/communications/sms-usage.ts.
   billedOverageSegments Int?
+  // Reporte del excedente a Stripe: overageReportedAt marca que el meter event ya
+  // se aceptó (idempotente por `sms-overage:<id>`); mientras sea null y
+  // billedOverageSegments > 0, el cron lo reintenta (retryPendingSmsOverage).
+  overageReportedAt     DateTime?
+  overageReportAttempts Int                  @default(0)
+  overageReportError    String?              @db.Text
   errorMessage       String?              @db.Text
   sentAt             DateTime?
   deliveredAt        DateTime?
@@ -1278,6 +1284,7 @@ model CommunicationMessage {
   @@index([shopId, channel, direction, createdAt])
   @@index([clientId])
   @@index([threadId])
+  @@index([channel, direction, overageReportedAt])
   @@schema("garageos")
 }
 

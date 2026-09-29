@@ -9,6 +9,7 @@ import { db } from "@/lib/db";
 import { Prisma, type CommChannel, type CommDirection, type CommMessageType } from "@prisma/client";
 import { resolveSenderIdentity } from "@/lib/communications/sender-identity";
 import { isSuppressed } from "@/lib/communications/suppression";
+import { getEffectiveSubscription } from "@/lib/subscription";
 
 export interface RecordAndSendParams {
   shopId: string;
@@ -41,7 +42,10 @@ export interface RecordAndSendParams {
 export interface RecordAndSendResult {
   deduped: boolean;
   providerMessageId: string | null;
+  /** null si el historial no se pudo escribir (el mensaje igual salió). */
   messageId: string | null;
+  /** Segmentos reales que reportó el proveedor (SMS), si los hubo. */
+  segments?: number | null;
 }
 
 function isUniqueConstraintViolation(err: unknown): boolean {
@@ -126,6 +130,11 @@ async function reserveMessageId(params: RecordAndSendParams): Promise<
  * compartida del remitente GarageOS mientras no exista un plan/entitlement real. */
 const HOURLY_RATE_LIMIT: Record<CommChannel, number> = { EMAIL: 300, SMS: 100 };
 
+/** Mensajes que un taller sin pago vigente no puede disparar solo (campañas y recordatorios). */
+function isAutomatedOutreach(params: RecordAndSendParams): boolean {
+  return params.messageType === "CAMPAIGN" || params.purpose === "REMINDER";
+}
+
 export async function recordAndSend(params: RecordAndSendParams): Promise<RecordAndSendResult> {
   const shop = await db.shop.findUnique({
     where: { id: params.shopId },
@@ -133,6 +142,13 @@ export async function recordAndSend(params: RecordAndSendParams): Promise<Record
   });
   if (shop?.communicationsSuspendedAt) {
     throw new Error("This shop's communications are suspended by the platform.");
+  }
+
+  // Última barrera de estado de cuenta: un taller restringido no envía campañas ni
+  // recordatorios (los crons ya lo filtran; esto cubre cualquier otro camino).
+  // Lo transaccional (citas, facturas, inbox) sigue su propio gating en la acción.
+  if (isAutomatedOutreach(params) && !(await getEffectiveSubscription(params.shopId)).canWrite) {
+    throw new Error("This shop's subscription is not active — automated outreach is paused.");
   }
 
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
@@ -153,33 +169,57 @@ export async function recordAndSend(params: RecordAndSendParams): Promise<Record
     }
   }
 
-  const reserved = await reserveMessageId(params);
-  if (reserved.deduped) {
+  // El historial es bitácora, no requisito: si no se puede escribir (DB degradada),
+  // el aviso al cliente igual sale — se pierde el registro, no el mensaje.
+  let reserved: Awaited<ReturnType<typeof reserveMessageId>> | null = null;
+  try {
+    reserved = await reserveMessageId(params);
+  } catch (err) {
+    console.error(`[outbox] no se pudo registrar el mensaje (${params.purpose}, ${params.shopId}); se envía sin historial:`, err);
+  }
+  if (reserved?.deduped) {
     return { deduped: true, providerMessageId: reserved.providerMessageId, messageId: reserved.messageId };
   }
-  const { messageId } = reserved;
+  const messageId = reserved?.messageId ?? null;
 
+  let result: Awaited<ReturnType<RecordAndSendParams["send"]>>;
   try {
-    const result = await params.send();
-    await db.communicationMessage.update({
-      where: { id: messageId },
-      data: {
-        status: "SENT",
-        sentAt: new Date(),
-        providerMessageId: result.providerMessageId ?? null,
-        ...(result.segments != null ? { segments: result.segments } : {}),
-      },
-    });
-    return { deduped: false, providerMessageId: result.providerMessageId ?? null, messageId };
+    result = await params.send();
   } catch (err) {
-    await db.communicationMessage.update({
-      where: { id: messageId },
-      data: {
-        status: "FAILED",
-        failedAt: new Date(),
-        errorMessage: err instanceof Error ? err.message : String(err),
-      },
-    });
+    if (messageId) {
+      await db.communicationMessage
+        .update({
+          where: { id: messageId },
+          data: {
+            status: "FAILED",
+            failedAt: new Date(),
+            errorMessage: err instanceof Error ? err.message : String(err),
+          },
+        })
+        .catch((updateErr) => console.error(`[outbox] no se pudo marcar FAILED (${messageId}):`, updateErr));
+    }
     throw err;
   }
+
+  // El proveedor ya aceptó el mensaje: un fallo al anotarlo nunca debe propagarse
+  // (el llamador lo tomaría por fallo y reintentaría/caería a otro canal = duplicado).
+  if (messageId) {
+    await db.communicationMessage
+      .update({
+        where: { id: messageId },
+        data: {
+          status: "SENT",
+          sentAt: new Date(),
+          providerMessageId: result.providerMessageId ?? null,
+          ...(result.segments != null ? { segments: result.segments } : {}),
+        },
+      })
+      .catch((err) => console.error(`[outbox] enviado pero no se pudo anotar SENT (${messageId}):`, err));
+  }
+  return {
+    deduped: false,
+    providerMessageId: result.providerMessageId ?? null,
+    messageId,
+    segments: result.segments ?? null,
+  };
 }

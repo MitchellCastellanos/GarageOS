@@ -8,7 +8,13 @@
 import { db } from "@/lib/db";
 import { PLAN_LIMITS } from "@/config/entitlements";
 import { getEffectiveSubscription } from "@/lib/subscription";
-import { computeOverageSegments, nextUsageAlert, smsBillingPeriod, smsUsageAlertLevel } from "@/domain/sms";
+import {
+  computeOverageSegments,
+  nextUsageAlert,
+  SMS_OVERAGE_PRICE_CAD_PER_SEGMENT,
+  smsBillingPeriod,
+  smsUsageAlertLevel,
+} from "@/domain/sms";
 
 export async function getSmsAllowance(shopId: string): Promise<number> {
   const shop = await db.shop.findUnique({ where: { id: shopId }, select: { smsMonthlyAllowanceOverride: true } });
@@ -50,6 +56,10 @@ export interface SmsUsageSummary {
   allowance: number;
   isOverride: boolean;
   percent: number;
+  /** Segmentos por encima del cupo este mes (0 dentro del cupo). */
+  overageSegments: number;
+  /** Estimado (CAD) al precio de lista del excedente — Stripe factura de verdad. */
+  estimatedOverageCad: number;
 }
 
 export async function getSmsUsageSummary(shopId: string, now: Date = new Date()): Promise<SmsUsageSummary> {
@@ -66,6 +76,8 @@ export async function getSmsUsageSummary(shopId: string, now: Date = new Date())
     allowance,
     isOverride: shop?.smsMonthlyAllowanceOverride != null,
     percent: allowance > 0 ? Math.min(100, Math.round((used / allowance) * 100)) : 100,
+    overageSegments: Math.max(0, used - allowance),
+    estimatedOverageCad: Math.round(Math.max(0, used - allowance) * SMS_OVERAGE_PRICE_CAD_PER_SEGMENT * 100) / 100,
   };
 }
 
@@ -107,4 +119,111 @@ export async function checkSmsUsageAlerts(
   });
   if (claimed.count !== 1) return;
   await notify({ level, used, allowance });
+}
+
+// ── Reporte del excedente a Stripe (con recuperación) ────────────────────────
+
+/** Tras esto un mensaje sin reportar se abandona (Stripe ya no acepta timestamps tan viejos). */
+const OVERAGE_RETRY_MAX_AGE_DAYS = 30;
+const OVERAGE_RETRY_MAX_ATTEMPTS = 25;
+
+export type OverageSettleResult = "reported" | "already_reported" | "not_applicable" | "not_configured" | "failed";
+
+/**
+ * Reporta a Stripe el excedente de UN mensaje y persiste el resultado. Idempotente
+ * en dos niveles: overageReportedAt (no se vuelve a intentar) e `identifier`
+ * `sms-overage:<messageId>` en el meter event (Stripe descarta el duplicado si
+ * un reporte se aceptó pero no alcanzamos a guardarlo). Nunca lanza.
+ */
+export async function settleSmsOverage(messageId: string): Promise<OverageSettleResult> {
+  try {
+    const message = await db.communicationMessage.findUnique({
+      where: { id: messageId },
+      select: {
+        id: true,
+        shopId: true,
+        channel: true,
+        direction: true,
+        billedOverageSegments: true,
+        overageReportedAt: true,
+        providerMessageId: true,
+        createdAt: true,
+      },
+    });
+    if (!message || message.channel !== "SMS" || message.direction !== "OUTBOUND") return "not_applicable";
+    if (!message.billedOverageSegments || message.billedOverageSegments <= 0) return "not_applicable";
+    if (message.overageReportedAt) return "already_reported";
+    if (!message.providerMessageId) return "not_applicable"; // nunca salió: no se cobra
+
+    const stripe = await import("@/lib/stripe");
+    if (!stripe.isSmsOverageBillingConfigured()) return "not_configured";
+
+    const { stripeCustomerId } = await getEffectiveSubscription(message.shopId);
+    if (!stripeCustomerId) return "not_configured";
+
+    const ok = await stripe.reportSmsOverageUsage({
+      stripeCustomerId,
+      segments: message.billedOverageSegments,
+      messageId: message.id,
+      occurredAt: message.createdAt,
+    });
+
+    if (ok) {
+      await db.communicationMessage.updateMany({
+        where: { id: message.id, overageReportedAt: null },
+        data: { overageReportedAt: new Date(), overageReportError: null },
+      });
+      return "reported";
+    }
+    await db.communicationMessage.update({
+      where: { id: message.id },
+      data: { overageReportAttempts: { increment: 1 }, overageReportError: "Stripe meter event was not accepted" },
+    });
+    return "failed";
+  } catch (err) {
+    console.error(`[sms-usage] settleSmsOverage falló (${messageId}):`, err);
+    return "failed";
+  }
+}
+
+export interface OverageRetryResult {
+  scanned: number;
+  reported: number;
+  failed: number;
+  skipped: number;
+}
+
+/**
+ * Cron: reintenta los excedentes que no se pudieron reportar (Stripe caído, cliente
+ * sin suscripción todavía, meter sin configurar en su momento). Acotado por corrida.
+ */
+export async function retryPendingSmsOverage(now: Date = new Date(), limit = 200): Promise<OverageRetryResult> {
+  const result: OverageRetryResult = { scanned: 0, reported: 0, failed: 0, skipped: 0 };
+  const stripe = await import("@/lib/stripe");
+  if (!stripe.isSmsOverageBillingConfigured()) return result;
+
+  const since = new Date(now.getTime() - OVERAGE_RETRY_MAX_AGE_DAYS * 24 * 60 * 60 * 1000);
+  const pending = await db.communicationMessage.findMany({
+    where: {
+      channel: "SMS",
+      direction: "OUTBOUND",
+      billedOverageSegments: { gt: 0 },
+      overageReportedAt: null,
+      providerMessageId: { not: null },
+      overageReportAttempts: { lt: OVERAGE_RETRY_MAX_ATTEMPTS },
+      createdAt: { gte: since },
+    },
+    orderBy: { createdAt: "asc" },
+    take: limit,
+    select: { id: true },
+  });
+
+  for (const { id } of pending) {
+    result.scanned++;
+    const outcome = await settleSmsOverage(id);
+    if (outcome === "reported") result.reported++;
+    else if (outcome === "failed") result.failed++;
+    else result.skipped++;
+  }
+  return result;
 }

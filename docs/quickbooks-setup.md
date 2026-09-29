@@ -19,7 +19,7 @@ QuickBooks Online is a **Pro+** feature (`quickbooks.sync`). GarageOS **pushes**
    | `CRON_SECRET` | Already used by the other crons; the daily sync at 10:00 UTC (`vercel.json`) uses it. |
 
 4. **Production access** — Intuit requires the app to complete their *production questionnaire / app assessment* (privacy policy + EULA URLs, security answers) before production keys can connect real customer companies. Sandbox keys work immediately with an Intuit sandbox company (developer.intuit.com → Sandbox).
-5. **Migration** `20260930170000_quickbooks_online` (additive) runs automatically on deploy.
+5. **Migration** `20261001120000_quickbooks_online` (additive) runs automatically on deploy.
 
 Until steps 1–3 are done the Integrations tab shows "not set up on this installation" (the connect flow refuses to start) — nothing else in GarageOS is affected.
 
