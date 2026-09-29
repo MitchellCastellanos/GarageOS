@@ -15,6 +15,7 @@ model Shop {
   inspections        Inspection[]
   inventoryParts     InventoryPart[]
   inventoryMovements InventoryMovement[]
+  importRuns         ImportRun[]
   userAccess         UserShopAccess[]
   staffNotifications StaffNotification[]
   documentSequences  DocumentSequence[]
@@ -1703,5 +1704,29 @@ model UserNotificationPreference {
   email  Boolean @default(true)
 
   @@unique([userId, event])
+  @@schema("garageos")
+}
+
+/**
+ * Bitácora de importaciones de datos (Block 2): una fila por importación confirmada,
+ * con el resumen — no guarda el archivo ni los datos de las filas.
+ */
+model ImportRun {
+  id               String   @id @default(cuid())
+  shopId           String
+  shop             Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  userId           String?
+  entity           String
+  fileName         String
+  duplicates       String
+  totalRows        Int
+  created          Int
+  updated          Int
+  skipped          Int
+  errors           Int
+  customersCreated Int      @default(0)
+  createdAt        DateTime @default(now())
+
+  @@index([shopId, createdAt])
   @@schema("garageos")
 }

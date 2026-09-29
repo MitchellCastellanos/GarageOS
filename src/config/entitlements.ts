@@ -34,6 +34,10 @@ export function planAtLeast(plan: Plan, minPlan: Plan): boolean {
  */
 export const CAPABILITY_MIN_PLAN = {
   "inventory.manage": "PRO",
+  // Importación completa (Block 2): inventario, archivos hasta IMPORT_LIMITS.fullMaxRows filas y
+  // duplicados "actualizar". La importación básica (clientes + vehículos, CSV/XLSX, hasta
+  // IMPORT_LIMITS.basicMaxRows filas, duplicados "omitir") está en todos los planes.
+  "import.full": "PRO",
   "communications.campaigns": "PRO",
   "branding.customDomain": "PRO",
   "branding.customSender": "PRO",

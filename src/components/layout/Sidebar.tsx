@@ -26,6 +26,7 @@ import {
   Lock,
   X,
   LifeBuoy,
+  Upload,
 } from "lucide-react";
 
 import { ADMIN } from "@/lib/routes";
@@ -213,6 +214,7 @@ export function Sidebar({
         { label: t.nav.clients, href: ADMIN.clients, icon: Users },
         { label: t.nav.invoices, href: ADMIN.invoices, icon: FileText },
         { label: t.nav.accounting, href: ADMIN.accounting, icon: FolderOpen },
+        { label: t.nav.importData, href: ADMIN.import, icon: Upload },
       ],
     },
     {

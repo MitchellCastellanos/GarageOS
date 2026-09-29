@@ -149,14 +149,19 @@ Deliberately not gated (owner-level configuration, not shop operation): `setting
 
 Known limits / follow-ups (not blockers): additional-location Stripe quantity billing remains Block 12; Stripe `trial_end` must be ≥48 h ahead so a legacy trial with <48 h left is bumped to 48 h at Checkout; a Stripe-backed trial whose conversion webhook never arrives restricts 48 h after trial end (self-heals on the next event/portal action).
 
-### 2 — Data Import / Migration — TODO — P0
-Best owner: Claude.
+### 2 — Data Import / Migration — DONE (2026-09-30)
 
-CSV/Excel customers, vehicles and inventory; mapping, validation, preview, error reporting, safe import and tenant isolation.
+Self-service import at **/admin/import** (Settings-independent page, nav: Customers group → "Import data"; owner-only).
 
-Core: basic self-service. Pro/Complete: full import tooling. Complete includes standard assisted migration service operationally.
-
-Acceptance: a real shop can bring a non-trivial existing customer/vehicle dataset into GarageOS without manual re-entry.
+- **Entities**: customers, vehicles (each row carries its owner: email / phone / name; missing owners are created automatically, so one "customers + vehicles" export works), inventory (Pro+).
+- **Files**: CSV (UTF-8 or Windows-1252, `,` `;` tab, quotes/BOM) and XLSX (`read-excel-file`, first sheet), ≤ 4 MB. Wizard: file → auto column mapping (EN/FR header synonyms, editable) → validate (nothing written) → row-level errors + duplicates + summary → confirm → result summary, "download rows with errors (CSV)", recent-import log.
+- **Duplicates**: customers match by email → phone (last 10 digits) → name (only when the row has neither email nor phone); vehicles by owner + normalised plate or VIN; parts by SKU (case-insensitive), else name. Repeats inside the same file are skipped too. Strategy `skip` (default) or `update` (fills non-empty values only, never blanks data; inventory update never changes quantity).
+- **Safety**: `src/actions/import.ts` = `requireOwner` + `getWritableShopId()` (restricted shops refused) + entitlement/limit check server-side; the file is re-parsed and **re-planned inside the transaction** at commit (the client preview is never trusted); all-or-nothing per file, invalid rows skipped and reported; every lookup/write scoped by `shopId` (vehicles via `client.shopId`); initial stock goes through the `InventoryMovement` RECEIVE ledger; `ImportRun` table logs each import (summary only).
+- **Packaging** (`import.full`, PRO in `src/config/entitlements.ts`): Core = customers + vehicles, CSV/XLSX, ≤ 500 rows/file, duplicates `skip` only. Pro/Complete = also inventory, ≤ 10,000 rows/file, `update` strategy. Assisted migration for Complete stays an operational service (no tooling built).
+- **Code**: `src/domain/import.ts` (pure parse/map/validate/plan), `src/lib/import-file.ts`, `src/lib/import-service.ts`, `src/actions/import.ts`, `src/components/import/ImportWizard.tsx`, `src/lib/admin-locale/import.ts` (EN/FR).
+- **Migration**: `20260930100000_import_runs` (additive `ImportRun`).
+- **Tests**: `tests/import.test.ts` (CSV/XLSX parsing, mapping, validation, dedupe incl. in-file, update semantics, Core vs Pro limits, tenant scoping, ledger receipts, transaction behaviour with mocked DB).
+- Not built (by design): generic ETL, saved mappings, background/async jobs (10k rows fit one request), undo of an import.
 
 ### 3 — Inventory → Work Order consumption — PARTIAL — P0
 Best owner: Claude.
