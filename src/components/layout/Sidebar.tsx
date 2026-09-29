@@ -26,6 +26,8 @@ import {
   Lock,
   X,
   LifeBuoy,
+  Upload,
+  CircleDot,
 } from "lucide-react";
 
 import { ADMIN } from "@/lib/routes";
@@ -79,6 +81,7 @@ export function Sidebar({
   mobileOpen,
   onMobileClose,
   lockedNavHrefs,
+  hiddenNavHrefs,
   hasUnreadSupport,
   hasUnreadInbox,
   hasUnreadAppointments,
@@ -87,12 +90,15 @@ export function Sidebar({
   mobileOpen: boolean;
   onMobileClose: () => void;
   lockedNavHrefs?: string[];
+  /** Rutas que el rol/permisos del usuario no permiten (Block 8) — se ocultan, no se bloquean. */
+  hiddenNavHrefs?: string[];
   hasUnreadSupport?: boolean;
   hasUnreadInbox?: boolean;
   hasUnreadAppointments?: boolean;
   userId?: string;
 }) {
   const lockedSet = new Set(lockedNavHrefs ?? []);
+  const hiddenSet = new Set(hiddenNavHrefs ?? []);
   const pathname = usePathname();
   const locale = useAdminLocale();
   const t = LAYOUT_DICT[locale];
@@ -204,6 +210,7 @@ export function Sidebar({
         { label: t.nav.inspections, href: ADMIN.inspections, icon: ClipboardCheck },
         { label: t.nav.quotes, href: ADMIN.quotes, icon: FileSpreadsheet },
         { label: t.nav.reminders, href: ADMIN.reminders, icon: Bell },
+        { label: t.nav.tireStorage, href: ADMIN.tireStorage, icon: CircleDot },
       ],
     },
     {
@@ -213,6 +220,7 @@ export function Sidebar({
         { label: t.nav.clients, href: ADMIN.clients, icon: Users },
         { label: t.nav.invoices, href: ADMIN.invoices, icon: FileText },
         { label: t.nav.accounting, href: ADMIN.accounting, icon: FolderOpen },
+        { label: t.nav.importData, href: ADMIN.import, icon: Upload },
       ],
     },
     {
@@ -234,7 +242,7 @@ export function Sidebar({
   ];
 
   const groups: RailNavGroup[] = navGroupDefs.map((group) => {
-    const items = group.items.map((item) => ({
+    const items = group.items.filter((item) => !hiddenSet.has(item.href)).map((item) => ({
       ...item,
       active: pathname.startsWith(item.href),
       locked: lockedSet.has(item.href),

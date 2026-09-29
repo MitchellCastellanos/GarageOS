@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/access";
 import { ADMIN, adminPath } from "@/lib/routes";
 import Link from "next/link";
 import { FileText, Plus } from "lucide-react";
@@ -17,6 +18,7 @@ interface PageProps {
 }
 
 export default async function InvoicesPage({ searchParams }: PageProps) {
+  await requirePagePermission("invoices.view");
   const { status } = await searchParams;
   const activeTab = status ?? "ALL";
   const [invoices, locale] = await Promise.all([getInvoices(activeTab), getAdminLocale()]);

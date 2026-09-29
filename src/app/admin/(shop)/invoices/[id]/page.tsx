@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/access";
 import { ADMIN, PLATFORM, adminPath } from "@/lib/routes";
 import Link from "next/link";
 import { ArrowLeft, Download, Pencil } from "lucide-react";
@@ -23,6 +24,7 @@ interface PageProps {
 }
 
 export default async function InvoiceDetailPage({ params }: PageProps) {
+  await requirePagePermission("invoices.view");
   const { id } = await params;
   const [invoice, locale] = await Promise.all([getInvoiceById(id), getAdminLocale()]);
   const t = INVOICES_DICT[locale];

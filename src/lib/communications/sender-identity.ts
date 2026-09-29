@@ -43,7 +43,7 @@ const IMPLEMENTED_EMAIL_CHANNELS: EmailChannel[] = (
 
 /** Purposes SMS actuales — mismo número compartido hasta que exista aislamiento por taller (Fase 6). */
 /** Purposes con ruta SMS — INBOX es la conversación bidireccional (solo con número dedicado). */
-export const SMS_PURPOSES = ["APPOINTMENT", "INVOICE", "QUOTE", "WORK_ORDER", "INBOX"] as const;
+export const SMS_PURPOSES = ["APPOINTMENT", "INVOICE", "QUOTE", "WORK_ORDER", "REMINDER", "INBOX"] as const;
 
 export type ProvisionableShop = ShopEmailConfig & { id: string; slug?: string | null };
 

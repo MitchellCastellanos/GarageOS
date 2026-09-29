@@ -3,11 +3,12 @@ import { redirect } from "next/navigation";
 import { NewInspectionForm } from "@/components/inspections/NewInspectionForm";
 import { createInspection, getInspectionFormData } from "@/actions/inspections";
 import { type NewInspectionFormData } from "@/lib/validations";
+import { getInspectionTemplates } from "@/actions/inspection-templates";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import { INSPECTIONS_DICT } from "@/lib/admin-locale/inspections";
 
 export default async function NewInspectionPage() {
-  const { clients, mechanics, workOrders } = await getInspectionFormData();
+  const [{ clients, mechanics, workOrders }, templates] = await Promise.all([getInspectionFormData(), getInspectionTemplates()]);
 
   if (clients.length === 0) {
     redirect(`${ADMIN.clients}/new?hint=inspection`);
@@ -27,6 +28,7 @@ export default async function NewInspectionPage() {
         clients={clients}
         mechanics={mechanics}
         workOrders={workOrders}
+        templates={templates.map((x) => ({ id: x.id, name: x.name }))}
         onSubmit={async (data: NewInspectionFormData) => {
           "use server";
           return createInspection(data);

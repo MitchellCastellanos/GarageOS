@@ -34,6 +34,26 @@ export function planAtLeast(plan: Plan, minPlan: Plan): boolean {
  */
 export const CAPABILITY_MIN_PLAN = {
   "inventory.manage": "PRO",
+  // Importación completa (Block 2): inventario, archivos hasta IMPORT_LIMITS.fullMaxRows filas y
+  // duplicados "actualizar". La importación básica (clientes + vehículos, CSV/XLSX, hasta
+  // IMPORT_LIMITS.basicMaxRows filas, duplicados "omitir") está en todos los planes.
+  "import.full": "PRO",
+  // Almacenamiento de llantas (Block 4): juegos guardados, entradas/salidas, ubicación.
+  "tireStorage.manage": "PRO",
+  // DVI Advanced (Block 6). Core = DVI básico: checklist estándar, condición, notas, ítems
+  // personalizados, creación de estimados desde hallazgos. Pro+ = fotos, plantillas y reporte
+  // compartible con el cliente.
+  "dvi.photos": "PRO",
+  "dvi.templates": "PRO",
+  "dvi.customerReport": "PRO",
+  // Recordatorios avanzados (Block 7). Core = recordatorios manuales por vehículo + envío diario
+  // por email (7 días antes). Pro+ = reglas recurrentes ligadas al servicio realizado, aviso con
+  // anticipación configurable, canal preferido del cliente (SMS/email) y segmento de campañas
+  // "servicio próximo".
+  "reminders.automation": "PRO",
+  // Permisos finos por usuario (Block 8): otorgar/revocar permisos delegables sobre los del rol.
+  // Core mantiene los tres roles básicos con permisos por defecto.
+  "permissions.advanced": "PRO",
   "communications.campaigns": "PRO",
   "branding.customDomain": "PRO",
   "branding.customSender": "PRO",

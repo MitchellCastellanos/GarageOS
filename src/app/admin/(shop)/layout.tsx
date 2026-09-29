@@ -1,3 +1,4 @@
+import { getEffectivePermissions } from "@/lib/access";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { AdminChrome } from "@/components/layout/AdminChrome";
@@ -37,7 +38,7 @@ export default async function DashboardLayout({
     redirect(ADMIN.login);
   }
 
-  const [shop, locale, accessibleShops, inventoryEntitled, campaignsEntitled, currentUser, hasUnreadSupport, hasUnreadInbox, staffNotifications] = await Promise.all([
+  const [shop, locale, accessibleShops, inventoryEntitled, campaignsEntitled, tireStorageEntitled, currentUser, hasUnreadSupport, hasUnreadInbox, staffNotifications] = await Promise.all([
     db.shop.findUnique({
       where: { id: session.user.shopId },
       select: { name: true, logoUrl: true, onboardingCompletedAt: true },
@@ -46,6 +47,7 @@ export default async function DashboardLayout({
     getAccessibleShops(),
     canView(session.user.shopId, "inventory.manage"),
     canView(session.user.shopId, "communications.campaigns"),
+    canView(session.user.shopId, "tireStorage.manage"),
     db.user.findUnique({
       where: { id: session.user.id },
       select: { email: true, emailVerified: true },
@@ -101,6 +103,17 @@ export default async function DashboardLayout({
   const lockedNavHrefs = [
     ...(inventoryEntitled ? [] : [ADMIN.inventory]),
     ...(campaignsEntitled ? [] : [ADMIN.campaigns]),
+    ...(tireStorageEntitled ? [] : [ADMIN.tireStorage]),
+  ];
+
+  // Nav oculto por permisos (Block 8): el enforcement real está en las server actions/páginas.
+  const perms = await getEffectivePermissions(session);
+  const hiddenNavHrefs: string[] = [
+    ...(perms.has("financial.view") ? [] : [ADMIN.accounting, ADMIN.caja]),
+    ...(perms.has("campaigns.manage") ? [] : [ADMIN.campaigns]),
+    ...(perms.has("invoices.view") ? [] : [ADMIN.invoices]),
+    ...(perms.has("customers.view") ? [] : [ADMIN.clients]),
+    ...(perms.has("import.run") ? [] : [ADMIN.import]),
   ];
 
   // Punto inicial en Citas (reserva/cancelación web sin ver) — el resto de la
@@ -123,6 +136,7 @@ export default async function DashboardLayout({
         accessibleShops={accessibleShops}
         currentShopId={session.user.shopId}
         lockedNavHrefs={lockedNavHrefs}
+        hiddenNavHrefs={hiddenNavHrefs}
         hasUnreadSupport={hasUnreadSupport}
         hasUnreadInbox={hasUnreadInbox}
         hasUnreadAppointments={hasUnreadAppointments}

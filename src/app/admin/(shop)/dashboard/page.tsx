@@ -37,6 +37,7 @@ import { getAdminLocale } from "@/lib/get-admin-locale";
 import type { AdminLocale } from "@/lib/admin-locale";
 import { DASHBOARD_DICT, monthShort } from "@/lib/admin-locale/dashboard";
 import { LAYOUT_DICT } from "@/lib/admin-locale/layout";
+import { getEffectivePermissions } from "@/lib/access";
 
 const PIE_STATUSES = ["PENDING", "PAID", "OVERDUE", "CANCELLED"] as const;
 
@@ -50,6 +51,9 @@ export default async function DashboardPage() {
   if (!shopId) {
     return <div className="text-center py-20 text-slate-500">{t.loadingShop}</div>;
   }
+
+  // Ingresos/reportes solo con permiso financiero (Block 8); el resto del tablero es operativo.
+  const canFinance = (await getEffectivePermissions(session!)).has("financial.view");
 
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -219,7 +223,7 @@ export default async function DashboardPage() {
     { label: t.breakdown.mixedPayments, value: monthBreakdown.mixedPayments },
   ];
 
-  const metrics = [
+  const allMetrics = [
     {
       label: t.metrics.clients,
       value: clientCount.toString(),
@@ -254,6 +258,8 @@ export default async function DashboardPage() {
       href: "/reminders",
     },
   ];
+
+  const metrics = canFinance ? allMetrics : allMetrics.filter((m) => m.label !== t.metrics.revenueThisMonth);
 
   return (
     <div className="space-y-6">
@@ -415,6 +421,8 @@ export default async function DashboardPage() {
         </div>
       </section>
 
+      {canFinance && (
+        <>
       {/* ── Reportes y análisis: separado de la operación del día ── */}
       <div className="pt-2">
         <h2 className="text-lg font-semibold text-slate-900">{t.analyticsSection.title}</h2>
@@ -530,6 +538,8 @@ export default async function DashboardPage() {
           )}
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }

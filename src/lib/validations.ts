@@ -33,6 +33,8 @@ export const lineItemSchema = z.object({
   unitPrice: z.number().min(0, "Price cannot be negative"),
   itemType: z.enum(["LABOUR", "PART", "OTHER"]),
   warrantyTerm: z.string().max(100).optional().or(z.literal("")),
+  // Pieza de inventario (solo órdenes de trabajo, Pro+) — consume stock al guardar la orden.
+  partId: z.string().max(64).optional().or(z.literal("")),
 });
 
 export type LineItemData = z.infer<typeof lineItemSchema>;
@@ -131,6 +133,8 @@ export const newInspectionSchema = z.object({
   workOrderId: z.string().optional().or(z.literal("")),
   mechanicId: z.string().optional().or(z.literal("")),
   mileage: z.number().int().min(0).optional().nullable(),
+  // Plantilla reutilizable (DVI avanzado, Pro+); vacío = checklist estándar.
+  templateId: z.string().optional().or(z.literal("")),
 });
 
 export type NewInspectionFormData = z.infer<typeof newInspectionSchema>;
@@ -204,3 +208,27 @@ export const shopLocationSchema = z.object({
 });
 
 export type ShopLocationFormData = z.infer<typeof shopLocationSchema>;
+
+export const tireStorageSchema = z.object({
+  clientId: z.string().min(1, "Select a client"),
+  vehicleId: z.string().optional().or(z.literal("")),
+  season: z.enum(["WINTER", "SUMMER", "ALL_SEASON"]),
+  brand: z.string().max(60).optional().or(z.literal("")),
+  model: z.string().max(60).optional().or(z.literal("")),
+  size: z.string().min(1, "Tire size is required").max(30),
+  quantity: z.number().int().min(1).max(12),
+  condition: z.enum(["NEW", "GOOD", "FAIR", "WORN"]),
+  withRims: z.boolean(),
+  storageLocation: z.string().max(40).optional().or(z.literal("")),
+  notes: z.string().max(1000).optional().or(z.literal("")),
+});
+export type TireStorageFormData = z.infer<typeof tireStorageSchema>;
+
+export const inspectionTemplateSchema = z.object({
+  name: z.string().trim().min(1, "Name is required").max(60),
+  items: z
+    .array(z.string().trim().min(1).max(60))
+    .min(1, "Add at least one item")
+    .max(40),
+});
+export type InspectionTemplateFormData = z.infer<typeof inspectionTemplateSchema>;

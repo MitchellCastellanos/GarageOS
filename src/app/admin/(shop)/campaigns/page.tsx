@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/access";
 import { ADMIN, adminPath } from "@/lib/routes";
 import Link from "next/link";
 import { Megaphone, Plus } from "lucide-react";
@@ -18,6 +19,7 @@ const STATUS_BADGE: Record<string, string> = {
 };
 
 export default async function CampaignsPage() {
+  await requirePagePermission("campaigns.manage");
   const locale = await getAdminLocale();
   const t = CAMPAIGNS_DICT[locale];
   const shopId = await getShopId();

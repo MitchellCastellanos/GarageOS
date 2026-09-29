@@ -7,6 +7,7 @@ import { formatClientName } from "@/lib/client-name";
 import { countFindings } from "@/domain/inspection";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import { INSPECTIONS_DICT } from "@/lib/admin-locale/inspections";
+import { INSPECTIONS_ADVANCED_DICT } from "@/lib/admin-locale/inspections-advanced";
 
 export default async function InspectionsPage() {
   const inspections = await getInspections();
@@ -22,13 +23,21 @@ export default async function InspectionsPage() {
             {inspections.length} {inspections.length !== 1 ? t.list.countSuffix : t.list.countSuffixSingular}
           </p>
         </div>
-        <Link
-          href={`${ADMIN.inspections}/new`}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          {t.list.newInspection}
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href={`${ADMIN.inspections}/templates`}
+            className="border border-slate-300 text-slate-700 text-sm font-medium px-4 py-2.5 rounded-lg"
+          >
+            {INSPECTIONS_ADVANCED_DICT[locale].templates.manage}
+          </Link>
+          <Link
+            href={`${ADMIN.inspections}/new`}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            {t.list.newInspection}
+          </Link>
+        </div>
       </div>
 
       {inspections.length === 0 ? (

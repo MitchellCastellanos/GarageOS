@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { getEffectivePermissions } from "@/lib/access";
 import { db } from "@/lib/db";
 import { uploadToStorage } from "@/lib/storage";
 import { INVOICE_PENDING_STATUSES } from "@/lib/invoice-status";
@@ -21,6 +22,10 @@ export async function POST(
   const shopId = session?.user?.shopId;
   if (!shopId) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
+  if (!(await getEffectivePermissions(session as never)).has("payments.write")) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const { id } = await params;

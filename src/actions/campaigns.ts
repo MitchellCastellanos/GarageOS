@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { ADMIN, adminPath } from "@/lib/routes";
 import { db } from "@/lib/db";
 import { getShopId } from "@/lib/shop-context";
-import { requireOwner } from "@/lib/permissions";
+import { requirePermissions } from "@/lib/access";
 import {
   resolveSegmentClients,
   isValidSegmentDefinition,
@@ -16,12 +16,12 @@ import type { InvoiceLanguage } from "@prisma/client";
 import type { Prisma } from "@prisma/client";
 
 export async function listCampaigns() {
-  const shopId = await getShopId();
+  const shopId = await getShopId("campaigns.manage");
   return db.campaign.findMany({ where: { shopId }, orderBy: { createdAt: "desc" } });
 }
 
 export async function getCampaignDetail(id: string) {
-  const shopId = await getShopId();
+  const shopId = await getShopId("campaigns.manage");
   const campaign = await db.campaign.findFirst({ where: { id, shopId } });
   if (!campaign) return null;
 
@@ -43,6 +43,10 @@ function parseSegmentFromForm(formData: FormData): SegmentDefinition {
   if (type === "INACTIVE_MONTHS") {
     return { type: "INACTIVE_MONTHS", months: Number(formData.get("months")) || 6 };
   }
+  if (type === "SERVICE_DUE") {
+    const days = Number(formData.get("days"));
+    return { type: "SERVICE_DUE", days: Number.isInteger(days) && days >= 0 ? days : 30 };
+  }
   if (type === "MANUAL") {
     const ids = ((formData.get("clientIds") as string) ?? "")
       .split(",")
@@ -54,7 +58,7 @@ function parseSegmentFromForm(formData: FormData): SegmentDefinition {
 }
 
 export async function previewAudienceAction(formData: FormData) {
-  const shopId = await getShopId();
+  const shopId = await getShopId("campaigns.manage");
   const segment = parseSegmentFromForm(formData);
   const clients = await resolveSegmentClients(shopId, segment);
   return {
@@ -68,7 +72,7 @@ export async function previewAudienceAction(formData: FormData) {
 }
 
 export async function createCampaignAction(formData: FormData) {
-  const session = await requireOwner();
+  const session = await requirePermissions(["campaigns.manage"]);
   const shopId = session.user.shopId!;
 
   const entitlementError = await checkEntitlement(shopId, "communications.campaigns");
@@ -99,7 +103,7 @@ export async function createCampaignAction(formData: FormData) {
 }
 
 export async function sendTestEmailAction(campaignId: string) {
-  const session = await requireOwner();
+  const session = await requirePermissions(["campaigns.manage"]);
   const shopId = session.user.shopId!;
   const testEmail = session.user.email;
   if (!testEmail) return { error: "Your account has no email address" };
@@ -118,7 +122,7 @@ export async function sendTestEmailAction(campaignId: string) {
 }
 
 async function scheduleCampaign(campaignId: string, scheduledFor: Date) {
-  const session = await requireOwner();
+  const session = await requirePermissions(["campaigns.manage"]);
   const shopId = session.user.shopId!;
 
   const entitlementError = await checkEntitlement(shopId, "communications.campaigns");
@@ -159,7 +163,7 @@ export async function sendNowAction(campaignId: string) {
 }
 
 export async function cancelCampaignAction(campaignId: string) {
-  const session = await requireOwner();
+  const session = await requirePermissions(["campaigns.manage"]);
   const shopId = session.user.shopId!;
   await db.campaign.updateMany({
     where: { id: campaignId, shopId, status: { in: ["DRAFT", "SCHEDULED"] } },

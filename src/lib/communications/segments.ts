@@ -9,6 +9,8 @@ export type SegmentDefinition =
   | { type: "ALL_CONSENTED" }
   | { type: "LANGUAGE"; language: InvoiceLanguage }
   | { type: "INACTIVE_MONTHS"; months: number }
+  // Clientes con un recordatorio de servicio (pendiente o ya avisado) que vence en ≤ N días o ya venció.
+  | { type: "SERVICE_DUE"; days: number }
   | { type: "MANUAL"; clientIds: string[] };
 
 export function isValidSegmentDefinition(value: unknown): value is SegmentDefinition {
@@ -21,6 +23,8 @@ export function isValidSegmentDefinition(value: unknown): value is SegmentDefini
       return v.language === "EN" || v.language === "FR";
     case "INACTIVE_MONTHS":
       return typeof v.months === "number" && v.months > 0;
+    case "SERVICE_DUE":
+      return typeof v.days === "number" && Number.isInteger(v.days) && v.days >= 0 && v.days <= 365;
     case "MANUAL":
       return Array.isArray(v.clientIds) && v.clientIds.every((id) => typeof id === "string");
     default:
@@ -60,6 +64,18 @@ export async function resolveSegmentClients(shopId: string, segment: SegmentDefi
       });
     }
 
+    case "SERVICE_DUE": {
+      const horizon = new Date(Date.now() + segment.days * 86_400_000);
+      return db.client.findMany({
+        where: {
+          ...base,
+          vehicles: {
+            some: { reminders: { some: { shopId, status: { in: ["PENDING", "SENT"] }, dueDate: { lte: horizon } } } },
+          },
+        },
+      });
+    }
+
     case "MANUAL":
       return db.client.findMany({ where: { ...base, id: { in: segment.clientIds } } });
   }
@@ -69,5 +85,6 @@ export const SEGMENT_LABELS: Record<SegmentDefinition["type"], string> = {
   ALL_CONSENTED: "Todos los clientes con consentimiento",
   LANGUAGE: "Por idioma",
   INACTIVE_MONTHS: "Inactivos hace X meses",
+  SERVICE_DUE: "Servicio próximo o vencido",
   MANUAL: "Selección manual",
 };

@@ -15,6 +15,11 @@ model Shop {
   inspections        Inspection[]
   inventoryParts     InventoryPart[]
   inventoryMovements InventoryMovement[]
+  importRuns         ImportRun[]
+  tireStorageSets    TireStorageSet[]
+  tireStorageEvents  TireStorageEvent[]
+  inspectionTemplates InspectionTemplate[]
+  reminderRules      ReminderRule[]
   userAccess         UserShopAccess[]
   staffNotifications StaffNotification[]
   documentSequences  DocumentSequence[]
@@ -241,6 +246,10 @@ model User {
   // Solo aplica a role OWNER — si un taller tiene varios dueños, cada uno
   // decide si quiere recibir los correos de facturación/cambios de plan.
   receiveBillingNotifications Boolean @default(true)
+  // Permisos finos por usuario (Block 8, Pro+): otorgados / revocados sobre los del rol.
+  // Solo cuentan con `permissions.advanced`; ver src/domain/permissions.ts.
+  permissionGrants String[]       @default([])
+  permissionDenies String[]       @default([])
   createdAt       DateTime        @default(now())
 
   accounts     Account[]
@@ -342,6 +351,7 @@ model Client {
   notifyChannel          ClientNotifyChannel @default(AUTO)
 
   vehicles           Vehicle[]
+  tireStorageSets    TireStorageSet[]
   invoices           Invoice[]
   quotes             Quote[]
   appointments       Appointment[]
@@ -372,6 +382,7 @@ model Vehicle {
   quoteVehicles   QuoteVehicle[]
   appointments    Appointment[]
   reminders       ServiceReminder[]
+  tireStorageSets TireStorageSet[]
 
   @@schema("garageos")
 }
@@ -792,7 +803,41 @@ model ServiceReminder {
   status      ReminderStatus @default(PENDING)
   sentAt      DateTime?
   createdAt   DateTime       @default(now())
+  // Recordatorios automáticos (Block 7, Pro+): creados por una ReminderRule al completar una
+  // orden de trabajo; se envían a partir de `remindAt` por el canal preferido del cliente.
+  ruleId      String?
+  rule        ReminderRule?  @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+  workOrderId String?
+  workOrder   WorkOrder?     @relation(fields: [workOrderId], references: [id], onDelete: SetNull)
+  remindAt    DateTime?
 
+  // Una regla genera a lo sumo un recordatorio por orden de trabajo (idempotencia).
+  @@unique([ruleId, workOrderId])
+  @@index([shopId, status])
+  @@schema("garageos")
+}
+
+/**
+ * Regla de mantenimiento recurrente (Block 7, Pro+): cuando una orden de trabajo se completa y
+ * alguna línea contiene `keyword`, se agenda el siguiente servicio (`intervalMonths` y/o
+ * `intervalKm` después) y se avisa `leadDays` antes.
+ */
+model ReminderRule {
+  id             String   @id @default(cuid())
+  shopId         String
+  shop           Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  name           String
+  keyword        String
+  intervalMonths Int?
+  intervalKm     Int?
+  leadDays       Int      @default(14)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  reminders ServiceReminder[]
+
+  @@index([shopId, isActive])
   @@schema("garageos")
 }
 
@@ -909,6 +954,8 @@ model WorkOrder {
   updatedAt                DateTime        @updatedAt
   lines                    WorkOrderLine[]
   inspections              Inspection[]
+  inventoryMovements       InventoryMovement[]
+  serviceReminders         ServiceReminder[]
 
   @@unique([shopId, orderNumber])
   @@index([shopId, status])
@@ -937,7 +984,12 @@ model WorkOrderLine {
   itemType     LineItemType @default(LABOUR)
   warrantyTerm String?
   sortOrder    Int          @default(0)
+  // Pieza de inventario consumida por esta línea (Block 3). Solo Pro+; el consumo se
+  // concilia por orden en src/lib/inventory-consumption.ts.
+  partId       String?
+  part         InventoryPart? @relation(fields: [partId], references: [id], onDelete: SetNull)
 
+  @@index([partId])
   @@schema("garageos")
 }
 
@@ -1347,7 +1399,8 @@ model InventoryPart {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  movements InventoryMovement[]
+  movements     InventoryMovement[]
+  workOrderLines WorkOrderLine[]
 
   @@unique([shopId, sku])
   @@index([shopId, name])
@@ -1363,9 +1416,14 @@ model InventoryMovement {
   type      InventoryMovementType
   quantity  Int
   note      String?
+  // Orden de trabajo que originó el movimiento (CONSUMED al usar / RETURN al corregir o
+  // cancelar) — el neto por (orden, pieza) es lo que ya está descontado (Block 3).
+  workOrderId String?
+  workOrder   WorkOrder?            @relation(fields: [workOrderId], references: [id], onDelete: SetNull)
   createdAt DateTime              @default(now())
 
   @@index([shopId, partId, createdAt])
+  @@index([workOrderId])
   @@schema("garageos")
 }
 
@@ -1444,6 +1502,8 @@ model Inspection {
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
   items       InspectionItem[]
+  // Link público del reporte para el cliente (DVI avanzado, Block 6). null = no compartido.
+  shareToken  String?          @unique
 
   @@index([shopId])
   @@index([vehicleId])
@@ -1703,5 +1763,131 @@ model UserNotificationPreference {
   email  Boolean @default(true)
 
   @@unique([userId, event])
+  @@schema("garageos")
+}
+
+/**
+ * Bitácora de importaciones de datos (Block 2): una fila por importación confirmada,
+ * con el resumen — no guarda el archivo ni los datos de las filas.
+ */
+model ImportRun {
+  id               String   @id @default(cuid())
+  shopId           String
+  shop             Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  userId           String?
+  entity           String
+  fileName         String
+  duplicates       String
+  totalRows        Int
+  created          Int
+  updated          Int
+  skipped          Int
+  errors           Int
+  customersCreated Int      @default(0)
+  createdAt        DateTime @default(now())
+
+  @@index([shopId, createdAt])
+  @@schema("garageos")
+}
+
+/**
+ * Tire Storage (Block 4, Pro+): un juego de llantas guardado por un cliente (y opcionalmente un
+ * vehículo). `status` refleja si están físicamente en el taller; el historial de entradas,
+ * salidas y cambios de ubicación vive en TireStorageEvent.
+ */
+model TireStorageSet {
+  id              String            @id @default(cuid())
+  shopId          String
+  shop            Shop              @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  clientId        String
+  client          Client            @relation(fields: [clientId], references: [id])
+  vehicleId       String?
+  vehicle         Vehicle?          @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  season          TireSeason
+  brand           String?
+  model           String?
+  /// Medida normalizada, p.ej. 225/45R17.
+  size            String
+  quantity        Int               @default(4)
+  condition       TireCondition     @default(GOOD)
+  withRims        Boolean           @default(false)
+  storageLocation String?
+  status          TireStorageStatus @default(STORED)
+  checkedInAt     DateTime          @default(now())
+  checkedOutAt    DateTime?
+  notes           String?           @db.Text
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  events TireStorageEvent[]
+
+  @@index([shopId, status])
+  @@index([shopId, clientId])
+  @@index([vehicleId])
+  @@schema("garageos")
+}
+
+model TireStorageEvent {
+  id        String           @id @default(cuid())
+  shopId    String
+  shop      Shop             @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  setId     String
+  set       TireStorageSet   @relation(fields: [setId], references: [id], onDelete: Cascade)
+  type      TireStorageEventType
+  location  String?
+  note      String?
+  userId    String?
+  createdAt DateTime         @default(now())
+
+  @@index([setId, createdAt])
+  @@schema("garageos")
+}
+
+enum TireSeason {
+  WINTER
+  SUMMER
+  ALL_SEASON
+
+  @@schema("garageos")
+}
+
+enum TireCondition {
+  NEW
+  GOOD
+  FAIR
+  WORN
+
+  @@schema("garageos")
+}
+
+enum TireStorageStatus {
+  STORED
+  CHECKED_OUT
+
+  @@schema("garageos")
+}
+
+enum TireStorageEventType {
+  CHECK_IN
+  CHECK_OUT
+  MOVED
+
+  @@schema("garageos")
+}
+
+/**
+ * Plantilla reutilizable de inspección (DVI avanzado, Block 6): lista ordenada de puntos a
+ * revisar que sustituye al checklist estándar al crear una inspección. Pro+.
+ */
+model InspectionTemplate {
+  id        String   @id @default(cuid())
+  shopId    String
+  shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  name      String
+  items     String[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([shopId, name])
   @@schema("garageos")
 }

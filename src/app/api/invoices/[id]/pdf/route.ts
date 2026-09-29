@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { getEffectivePermissions } from "@/lib/access";
 import { db } from "@/lib/db";
 import { generateInvoicePdf } from "@/lib/pdf";
 import { serializeInvoiceForPdf } from "@/lib/invoice-serialize";
@@ -17,6 +18,10 @@ export async function GET(
   const session = await auth();
   if (!session?.user?.shopId) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
+  if (!(await getEffectivePermissions(session as never)).has("invoices.view")) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const { id } = await params;

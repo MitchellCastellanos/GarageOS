@@ -1,5 +1,9 @@
+import { requirePagePermission } from "@/lib/access";
 import { ADMIN, adminPath } from "@/lib/routes";
 import { getClientById } from "@/actions/clients";
+import { getTireSetsForClient } from "@/actions/tire-storage";
+import { TireSetsSection } from "@/components/tire-storage/TireSetsSection";
+import { TIRE_STORAGE_DICT } from "@/lib/admin-locale/tire-storage";
 import { deleteClient } from "@/actions/clients";
 import { formatDate, formatCurrency } from "@/lib/utils";
 import { formatClientName } from "@/lib/client-name";
@@ -29,8 +33,9 @@ interface Props {
 }
 
 export default async function ClientDetailPage({ params }: Props) {
+  await requirePagePermission("customers.view");
   const { id } = await params;
-  const [client, locale] = await Promise.all([getClientById(id), getAdminLocale()]);
+  const [client, locale, tireSets] = await Promise.all([getClientById(id), getAdminLocale(), getTireSetsForClient(id)]);
   const t = CLIENTS_DICT[locale];
 
   return (
@@ -222,6 +227,14 @@ export default async function ClientDetailPage({ params }: Props) {
           )}
         </div>
       </div>
+
+      {tireSets && (
+        <TireSetsSection
+          sets={tireSets}
+          t={TIRE_STORAGE_DICT[locale]}
+          checkInHref={adminPath(`/tire-storage/new?clientId=${id}`)}
+        />
+      )}
     </div>
   );
 }

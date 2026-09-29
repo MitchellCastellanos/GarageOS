@@ -19,6 +19,8 @@ import { getAdminLocale } from "@/lib/get-admin-locale";
 import type { AdminLocale } from "@/lib/admin-locale";
 import { INSPECTIONS_DICT } from "@/lib/admin-locale/inspections";
 import Decimal from "decimal.js";
+import { randomBytes } from "node:crypto";
+import { can, canView, checkEntitlement } from "@/lib/subscription";
 
 const INSPECTION_NOT_FOUND: Record<AdminLocale, string> = {
   es: "Inspección no encontrada",
@@ -110,17 +112,42 @@ export async function getInspectionFormData() {
   return { clients, mechanics, workOrders };
 }
 
+/**
+ * Qué partes del DVI avanzado puede ver/usar el taller (Block 6). `*View` = mostrar datos que
+ * ya existen (un taller que baja de plan conserva la vista); el resto = crear/usar hoy.
+ */
+export async function getInspectionCapabilities() {
+  const shopId = await getShopId();
+  const [photosView, photos, templates, report] = await Promise.all([
+    canView(shopId, "dvi.photos"),
+    can(shopId, "dvi.photos"),
+    can(shopId, "dvi.templates"),
+    can(shopId, "dvi.customerReport"),
+  ]);
+  return { photosView, photos, templates, report };
+}
+
 // ── CREATE ──────────────────────────────────────────────────
 
 export async function createInspection(formData: NewInspectionFormData) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("dvi.write");
 
   const parsed = newInspectionSchema.safeParse(formData);
   if (!parsed.success) {
     return { error: parsed.error.flatten().fieldErrors };
   }
 
-  const { clientId, vehicleId, workOrderId, mechanicId, mileage } = parsed.data;
+  const { clientId, vehicleId, workOrderId, mechanicId, mileage, templateId } = parsed.data;
+
+  // Plantilla personalizada = DVI avanzado (Pro+); sin templateId, checklist estándar para todos.
+  let checklist: readonly string[] = INSPECTION_CHECKLIST_CATEGORIES;
+  if (templateId) {
+    const entitlementError = await checkEntitlement(shopId, "dvi.templates");
+    if (entitlementError) return { error: { templateId: [entitlementError] } };
+    const template = await db.inspectionTemplate.findFirst({ where: { id: templateId, shopId } });
+    if (!template) return { error: { templateId: [INSPECTION_NOT_FOUND[await getAdminLocale()]] } };
+    checklist = template.items;
+  }
 
   const inspection = await db.inspection.create({
     data: {
@@ -131,7 +158,7 @@ export async function createInspection(formData: NewInspectionFormData) {
       mechanicId: mechanicId || null,
       mileage: mileage ?? null,
       items: {
-        create: INSPECTION_CHECKLIST_CATEGORIES.map((category, index) => ({
+        create: checklist.map((category, index) => ({
           category,
           condition: "GOOD",
           sortOrder: index,
@@ -145,7 +172,7 @@ export async function createInspection(formData: NewInspectionFormData) {
 }
 
 export async function addInspectionItem(inspectionId: string, category: string) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("dvi.write");
   const locale = await getAdminLocale();
 
   const inspection = await db.inspection.findFirst({
@@ -173,7 +200,7 @@ export async function updateInspectionItem(
   itemId: string,
   data: { condition: string; notes?: string }
 ) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("dvi.write");
   const locale = await getAdminLocale();
 
   const parsed = inspectionItemUpdateSchema.safeParse(data);
@@ -199,7 +226,7 @@ export async function updateInspectionItem(
 }
 
 export async function deleteInspectionItem(itemId: string) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("dvi.write");
   const locale = await getAdminLocale();
 
   const item = await db.inspectionItem.findFirst({
@@ -218,13 +245,17 @@ export async function deleteInspectionItem(itemId: string) {
 const MAX_PHOTO_SIZE = 8 * 1024 * 1024;
 
 export async function uploadInspectionPhoto(itemId: string, formData: FormData) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("dvi.write");
   const locale = await getAdminLocale();
 
   const item = await db.inspectionItem.findFirst({
     where: { id: itemId, inspection: { shopId } },
   });
   if (!item) return { error: ITEM_NOT_FOUND[locale] };
+
+  // Fotos = DVI avanzado (Pro+). Ocultar el botón no cuenta como seguridad: gate en servidor.
+  const entitlementError = await checkEntitlement(shopId, "dvi.photos");
+  if (entitlementError) return { error: entitlementError };
 
   const file = formData.get("file") as File | null;
   if (!file) return { error: UPLOAD_ERROR[locale] };
@@ -254,7 +285,7 @@ export async function uploadInspectionPhoto(itemId: string, formData: FormData) 
 }
 
 export async function deleteInspectionPhoto(photoId: string) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("dvi.write");
   const locale = await getAdminLocale();
 
   const photo = await db.inspectionPhoto.findFirst({
@@ -272,7 +303,7 @@ export async function deleteInspectionPhoto(photoId: string) {
 // ── DELETE ──────────────────────────────────────────────────
 
 export async function deleteInspection(id: string) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("dvi.write");
   const locale = await getAdminLocale();
 
   const result = await db.inspection.deleteMany({ where: { id, shopId } });
@@ -285,7 +316,7 @@ export async function deleteInspection(id: string) {
 // ── CONVERT FINDINGS TO QUOTE ───────────────────────────────
 
 export async function createQuoteFromInspection(inspectionId: string) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("dvi.write");
   const locale = await getAdminLocale();
   const t = INSPECTIONS_DICT[locale];
 
@@ -342,4 +373,36 @@ export async function createQuoteFromInspection(inspectionId: string) {
   revalidatePath(`/inspections/${inspectionId}`);
   revalidatePath(ADMIN.quotes);
   redirect(`${ADMIN.quotes}/${quote.id}/edit`);
+}
+
+// ── CUSTOMER REPORT (DVI avanzado) ──────────────────────────
+
+/** Activa el link público del reporte (Pro+) y devuelve su ruta. Idempotente: reutiliza el token. */
+export async function shareInspectionReport(id: string) {
+  const shopId = await getWritableShopId("dvi.write");
+  const locale = await getAdminLocale();
+  const entitlementError = await checkEntitlement(shopId, "dvi.customerReport");
+  if (entitlementError) return { error: entitlementError };
+
+  const inspection = await db.inspection.findFirst({ where: { id, shopId }, select: { id: true, shareToken: true } });
+  if (!inspection) return { error: INSPECTION_NOT_FOUND[locale] };
+
+  const token = inspection.shareToken ?? randomBytes(24).toString("base64url");
+  if (!inspection.shareToken) {
+    await db.inspection.updateMany({ where: { id, shopId, shareToken: null }, data: { shareToken: token } });
+    // Dos clics simultáneos: gana el primero; releemos para devolver el token vigente.
+    const current = await db.inspection.findFirst({ where: { id, shopId }, select: { shareToken: true } });
+    revalidatePath(`/inspections/${id}`);
+    return { success: true, path: `/inspection/${current?.shareToken ?? token}` };
+  }
+  return { success: true, path: `/inspection/${token}` };
+}
+
+export async function unshareInspectionReport(id: string) {
+  const shopId = await getWritableShopId("dvi.write");
+  const locale = await getAdminLocale();
+  const result = await db.inspection.updateMany({ where: { id, shopId }, data: { shareToken: null } });
+  if (result.count === 0) return { error: INSPECTION_NOT_FOUND[locale] };
+  revalidatePath(`/inspections/${id}`);
+  return { success: true };
 }

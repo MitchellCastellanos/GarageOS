@@ -1,7 +1,11 @@
 import { ADMIN } from "@/lib/routes";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { getInspectionById } from "@/actions/inspections";
+import { getInspectionById, getInspectionCapabilities } from "@/actions/inspections";
+import { headers } from "next/headers";
+import { ShareReportPanel } from "@/components/inspections/ShareReportPanel";
+import { UpgradeCTA } from "@/components/billing/UpgradeCTA";
+import { INSPECTIONS_ADVANCED_DICT } from "@/lib/admin-locale/inspections-advanced";
 import { publicUrlForStoragePath } from "@/lib/storage";
 import { formatDate } from "@/lib/utils";
 import { formatClientName } from "@/lib/client-name";
@@ -17,8 +21,11 @@ interface PageProps {
 
 export default async function InspectionDetailPage({ params }: PageProps) {
   const { id } = await params;
-  const inspection = await getInspectionById(id);
+  const [inspection, caps] = await Promise.all([getInspectionById(id), getInspectionCapabilities()]);
   const locale = await getAdminLocale();
+  const adv = INSPECTIONS_ADVANCED_DICT[locale];
+  const h = await headers();
+  const origin = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("host") ?? ""}`;
   const t = INSPECTIONS_DICT[locale];
 
   const findings = countFindings(inspection.items);
@@ -27,7 +34,7 @@ export default async function InspectionDetailPage({ params }: PageProps) {
     category: item.category,
     condition: item.condition,
     notes: item.notes,
-    photos: item.photos.map((photo) => ({
+    photos: (caps.photosView ? item.photos : []).map((photo) => ({
       id: photo.id,
       url: publicUrlForStoragePath(photo.storagePath),
     })),
@@ -85,7 +92,18 @@ export default async function InspectionDetailPage({ params }: PageProps) {
         {findings > 0 ? t.detail.findingsSummary(findings) : t.detail.noFindings}
       </div>
 
-      <InspectionChecklist inspectionId={inspection.id} items={items} />
+      {!caps.photosView && !caps.photos && (
+        <UpgradeCTA compact requiredPlan="PRO" title={adv.photosLocked.title} description={adv.photosLocked.description} />
+      )}
+
+      <InspectionChecklist inspectionId={inspection.id} items={items} photos={{ view: caps.photosView, upload: caps.photos }} />
+
+      <ShareReportPanel
+        inspectionId={inspection.id}
+        initialPath={inspection.shareToken ? `/inspection/${inspection.shareToken}` : null}
+        canShare={caps.report}
+        origin={origin}
+      />
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/access";
 import { notFound } from "next/navigation";
 import { ADMIN } from "@/lib/routes";
 import Link from "next/link";
@@ -13,6 +14,7 @@ interface PageProps {
 }
 
 export default async function CampaignDetailPage({ params }: PageProps) {
+  await requirePagePermission("campaigns.manage");
   const locale = await getAdminLocale();
   const t = CAMPAIGNS_DICT[locale];
   const { id } = await params;

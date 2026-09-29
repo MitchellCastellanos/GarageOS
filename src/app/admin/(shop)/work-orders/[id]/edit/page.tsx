@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { WorkOrderForm } from "@/components/work-orders/WorkOrderForm";
 import { getWorkOrderById, getWorkOrderFormData, updateWorkOrder } from "@/actions/work-orders";
 import { type WorkOrderFormData } from "@/lib/validations";
+import { getStockedPartsForWorkOrders } from "@/actions/inventory";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import { WORK_ORDERS_DICT } from "@/lib/admin-locale/work-orders";
 
@@ -25,6 +26,7 @@ export default async function EditWorkOrderPage({ params }: PageProps) {
   }
 
   const t = WORK_ORDERS_DICT[locale];
+  const stockParts = await getStockedPartsForWorkOrders();
 
   const initialValues: Partial<WorkOrderFormData> = {
     clientId: workOrder.clientId,
@@ -40,6 +42,7 @@ export default async function EditWorkOrderPage({ params }: PageProps) {
       unitPrice: Number(line.unitPrice),
       itemType: line.itemType,
       warrantyTerm: line.warrantyTerm ?? "",
+      partId: line.partId ?? "",
     })),
   };
 
@@ -53,6 +56,7 @@ export default async function EditWorkOrderPage({ params }: PageProps) {
       <WorkOrderForm
         clients={clients}
         mechanics={mechanics}
+        stockParts={stockParts}
         mode="edit"
         initialValues={initialValues}
         onSubmit={async (data: WorkOrderFormData) => {

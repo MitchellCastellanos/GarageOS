@@ -5,7 +5,8 @@ import { ADMIN, PLATFORM, adminPath } from "@/lib/routes";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireOwner, requireSession } from "@/lib/permissions";
-import { canAddUser } from "@/lib/subscription";
+import { canAddUser, checkEntitlement } from "@/lib/subscription";
+import { isRole, sanitizeOverrides } from "@/domain/permissions";
 import { sendVerificationEmail } from "@/lib/email-verification";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
@@ -38,6 +39,8 @@ export async function getTeamMembers() {
       createdAt: true,
       emailVerified: true,
       receiveBillingNotifications: true,
+      permissionGrants: true,
+      permissionDenies: true,
     },
     orderBy: [{ role: "asc" }, { name: "asc" }],
   });
@@ -159,7 +162,38 @@ export async function updateTeamMemberRole(formData: FormData) {
     }
   }
 
-  await db.user.update({ where: { id: userId }, data: { role: parsedRole.data } });
+  // Cambiar de rol descarta los ajustes finos: eran relativos al rol anterior.
+  await db.user.update({
+    where: { id: userId },
+    data: { role: parsedRole.data, permissionGrants: [], permissionDenies: [] },
+  });
+  revalidatePath(ADMIN.settings);
+  return { success: true };
+}
+
+// ── PERMISOS FINOS (Pro+) ───────────────────────────────────
+
+/**
+ * Otorga/revoca permisos delegables a un usuario del taller (Block 8). Solo el dueño, solo Pro+
+ * (`permissions.advanced`), nunca sobre un OWNER ni sobre usuarios de otro taller; se guardan
+ * relativos al rol (solo diferencias) para que cambiar de rol no deje residuos.
+ */
+export async function setTeamMemberPermissions(userId: string, input: { grants: string[]; denies: string[] }) {
+  const session = await requireOwner();
+  const shopId = session.user.shopId!;
+
+  const entitlementError = await checkEntitlement(shopId, "permissions.advanced");
+  if (entitlementError) return { error: entitlementError };
+
+  const target = await db.user.findFirst({ where: { id: userId, shopId }, select: { id: true, role: true } });
+  if (!target) return { error: "User not found" };
+  if (!isRole(target.role) || target.role === "OWNER") return { error: "Owner permissions can't be restricted" };
+
+  const { grants, denies } = sanitizeOverrides(input, target.role);
+  await db.user.updateMany({
+    where: { id: userId, shopId },
+    data: { permissionGrants: [...grants], permissionDenies: [...denies] },
+  });
   revalidatePath(ADMIN.settings);
   return { success: true };
 }

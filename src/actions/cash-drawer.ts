@@ -11,7 +11,7 @@ import { summarizeCashDrawerDay } from "@/lib/cash-drawer";
 import Decimal from "decimal.js";
 
 export async function getCashDrawerEntries(date?: string) {
-  const shopId = await getShopId();
+  const shopId = await getShopId("financial.view");
   const shop = await db.shop.findUnique({
     where: { id: shopId },
     select: { timezone: true },
@@ -40,7 +40,7 @@ export async function getCashDrawerEntries(date?: string) {
 }
 
 export async function createCashDrawerEntry(formData: CashDrawerEntryFormData) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("financial.view");
   const session = await auth();
 
   const parsed = cashDrawerEntrySchema.safeParse(formData);
@@ -114,7 +114,7 @@ export async function ensureCashInFromInvoice(params: {
 }
 
 export async function deleteCashDrawerEntry(id: string) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("financial.view");
   const result = await db.cashDrawerEntry.deleteMany({
     where: { id, shopId, linkedInvoiceId: null },
   });

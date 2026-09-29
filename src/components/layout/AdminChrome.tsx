@@ -14,6 +14,8 @@ interface AdminChromeProps {
   currentShopId: string;
   /** Rutas de nav que el plan actual no incluye — se muestran con un candado, no se ocultan. */
   lockedNavHrefs?: string[];
+  /** Rutas ocultas por permisos del usuario (Block 8). */
+  hiddenNavHrefs?: string[];
   /** Punto en el ícono de Ayuda — hay una respuesta de GarageOS que el taller no ha visto todavía. */
   hasUnreadSupport?: boolean;
   /** Punto en Bandeja de entrada — un cliente escribió (SMS o email) y nadie abrió el hilo. */
@@ -34,6 +36,7 @@ export function AdminChrome({
   accessibleShops,
   currentShopId,
   lockedNavHrefs,
+  hiddenNavHrefs,
   hasUnreadSupport,
   hasUnreadInbox,
   hasUnreadAppointments,
@@ -66,6 +69,7 @@ export function AdminChrome({
           mobileOpen={mobileNavOpen}
           onMobileClose={closeMobileNav}
           lockedNavHrefs={lockedNavHrefs}
+          hiddenNavHrefs={hiddenNavHrefs}
           hasUnreadSupport={hasUnreadSupport}
           hasUnreadInbox={hasUnreadInbox}
           hasUnreadAppointments={hasUnreadAppointments}

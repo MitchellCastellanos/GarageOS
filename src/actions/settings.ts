@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { getShopId } from "@/lib/shop-context";
 import { requireShopSession } from "@/lib/permissions";
+import { requirePermissions } from "@/lib/access";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { uploadShopLogoToStorage } from "@/lib/storage";
@@ -41,7 +42,7 @@ const shopSchema = z.object({
 });
 
 export async function updateShopSettings(formData: FormData) {
-  const session = await requireShopSession();
+  const session = await requirePermissions(["settings.manage"]);
   const shopId = session.user.shopId!;
 
   const raw = {
@@ -154,7 +155,7 @@ const etransferSchema = z
   });
 
 export async function updateEtransferSettings(formData: FormData) {
-  const shopId = await getShopId();
+  const shopId = await getShopId("settings.manage");
 
   const parsed = etransferSchema.safeParse({
     etransferEnabled: formData.get("etransferEnabled") === "on",
@@ -191,7 +192,7 @@ const taxLinesSchema = z
   .max(5, "Maximum 5 tax lines");
 
 export async function updateShopTaxLines(formData: FormData) {
-  const shopId = await getShopId();
+  const shopId = await getShopId("settings.manage");
 
   let raw: unknown;
   try {
@@ -240,7 +241,7 @@ export async function checkShopSlugAvailability(slug: string) {
 }
 
 export async function updateShopSlug(formData: FormData) {
-  const shopId = await getShopId();
+  const shopId = await getShopId("settings.manage");
 
   const parsed = slugSchema.safeParse(formData.get("slug"));
   if (!parsed.success) {
@@ -265,7 +266,7 @@ export async function updateShopSlug(formData: FormData) {
 }
 
 export async function uploadShopLogo(formData: FormData) {
-  const shopId = await getShopId();
+  const shopId = await getShopId("settings.manage");
 
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return {

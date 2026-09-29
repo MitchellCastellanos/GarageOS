@@ -4,15 +4,16 @@ import { ADMIN } from "@/lib/routes";
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { requireShopSession } from "@/lib/permissions";
+import { requirePermissions } from "@/lib/access";
 import { assertShopWritable } from "@/lib/shop-context";
 import { uploadToStorage, publicUrlForStoragePath } from "@/lib/storage";
 import { DOC_CATEGORIES, type DocCategory } from "@/lib/validations";
 import { ensureFullShopDate, parseShopDateTime } from "@/lib/shop-timezone";
 import { formatClientName } from "@/lib/client-name";
 
+// Contabilidad/documentos contables = permiso financiero (Block 8).
 async function getSession() {
-  return requireShopSession();
+  return requirePermissions(["financial.view"]);
 }
 
 export async function getDocuments(category?: DocCategory) {
@@ -59,7 +60,7 @@ export async function getAccountingPageData() {
 }
 
 export async function uploadDocument(formData: FormData) {
-  const session = await getSession();
+  const session = await requirePermissions(["financial.view", "ops.write"]);
   const shopId = session.user.shopId!;
   await assertShopWritable(shopId);
 

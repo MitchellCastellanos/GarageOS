@@ -482,7 +482,7 @@ export async function markQuoteAsRejected(id: string) {
 }
 
 export async function convertQuoteToInvoice(id: string) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("invoices.write");
   const locale = await getAdminLocale();
 
   const quote = await db.quote.findFirst({

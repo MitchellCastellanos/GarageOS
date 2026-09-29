@@ -149,26 +149,44 @@ Deliberately not gated (owner-level configuration, not shop operation): `setting
 
 Known limits / follow-ups (not blockers): additional-location Stripe quantity billing remains Block 12; Stripe `trial_end` must be ≥48 h ahead so a legacy trial with <48 h left is bumped to 48 h at Checkout; a Stripe-backed trial whose conversion webhook never arrives restricts 48 h after trial end (self-heals on the next event/portal action).
 
-### 2 — Data Import / Migration — TODO — P0
-Best owner: Claude.
+### 2 — Data Import / Migration — DONE (2026-09-30)
 
-CSV/Excel customers, vehicles and inventory; mapping, validation, preview, error reporting, safe import and tenant isolation.
+Self-service import at **/admin/import** (Settings-independent page, nav: Customers group → "Import data"; owner-only).
 
-Core: basic self-service. Pro/Complete: full import tooling. Complete includes standard assisted migration service operationally.
+- **Entities**: customers, vehicles (each row carries its owner: email / phone / name; missing owners are created automatically, so one "customers + vehicles" export works), inventory (Pro+).
+- **Files**: CSV (UTF-8 or Windows-1252, `,` `;` tab, quotes/BOM) and XLSX (`read-excel-file`, first sheet), ≤ 4 MB. Wizard: file → auto column mapping (EN/FR header synonyms, editable) → validate (nothing written) → row-level errors + duplicates + summary → confirm → result summary, "download rows with errors (CSV)", recent-import log.
+- **Duplicates**: customers match by email → phone (last 10 digits) → name (only when the row has neither email nor phone); vehicles by owner + normalised plate or VIN; parts by SKU (case-insensitive), else name. Repeats inside the same file are skipped too. Strategy `skip` (default) or `update` (fills non-empty values only, never blanks data; inventory update never changes quantity).
+- **Safety**: `src/actions/import.ts` = `requireOwner` + `getWritableShopId()` (restricted shops refused) + entitlement/limit check server-side; the file is re-parsed and **re-planned inside the transaction** at commit (the client preview is never trusted); all-or-nothing per file, invalid rows skipped and reported; every lookup/write scoped by `shopId` (vehicles via `client.shopId`); initial stock goes through the `InventoryMovement` RECEIVE ledger; `ImportRun` table logs each import (summary only).
+- **Packaging** (`import.full`, PRO in `src/config/entitlements.ts`): Core = customers + vehicles, CSV/XLSX, ≤ 500 rows/file, duplicates `skip` only. Pro/Complete = also inventory, ≤ 10,000 rows/file, `update` strategy. Assisted migration for Complete stays an operational service (no tooling built).
+- **Code**: `src/domain/import.ts` (pure parse/map/validate/plan), `src/lib/import-file.ts`, `src/lib/import-service.ts`, `src/actions/import.ts`, `src/components/import/ImportWizard.tsx`, `src/lib/admin-locale/import.ts` (EN/FR).
+- **Migration**: `20260930100000_import_runs` (additive `ImportRun`).
+- **Tests**: `tests/import.test.ts` (CSV/XLSX parsing, mapping, validation, dedupe incl. in-file, update semantics, Core vs Pro limits, tenant scoping, ledger receipts, transaction behaviour with mocked DB).
+- Not built (by design): generic ETL, saved mappings, background/async jobs (10k rows fit one request), undo of an import.
 
-Acceptance: a real shop can bring a non-trivial existing customer/vehicle dataset into GarageOS without manual re-entry.
+### 3 — Inventory → Work Order consumption — DONE (2026-09-30)
 
-### 3 — Inventory → Work Order consumption — PARTIAL — P0
-Best owner: Claude.
+Pro+ (`inventory.manage`, enforced in `createWorkOrder` / `updateWorkOrder`; Core keeps free-text PART lines). A PART line on a Work Order can now be linked to a stocked part (`WorkOrderLine.partId`; picker in the WO form shows on-hand quantity).
 
-Inventory and movement ledger already exist. Finish parts consumption from actual job/work/invoice flow with transactional movements and safe corrections.
+- **Model**: consumption is **reconciled, not incremental** (`src/lib/inventory-consumption.ts`, pure deltas in `src/domain/inventory-consumption.ts`). For each (work order, part) the ledger's net (`InventoryMovement.workOrderId`) is the amount already deducted; delta = Σ line quantities − already deducted. So saving twice, editing quantity, swapping parts or removing a line always ends consistent — no double consumption, corrections are `RETURN` movements, consumption is `CONSUMED`.
+- **Transactions/concurrency**: create/update/cancel/delete run in one `$transaction` with the WO row locked (`SELECT … FOR UPDATE`); decrement is an atomic conditional `updateMany(quantityOnHand ≥ delta)` so two orders can never spend the same stock. Insufficient stock → typed `InsufficientStockError` → whole save rolled back with a localized message (same "no negative stock" rule as manual movements). Whole quantities only for stocked lines.
+- **Lifecycle**: cancelling a WO (`updateWorkOrderStatus → CANCELLED`) and deleting one release everything it consumed; invoicing does **not** touch stock (invoice lines carry no `partId`, so no double consumption); quote-derived WOs have no stocked links unless edited.
+- **Tenant/restricted**: parts validated against `shopId`; all writes via `getWritableShopId()`.
+- **Migration**: `20260930110000_work_order_parts` (additive columns/indexes/FKs `ON DELETE SET NULL`).
+- **Tests**: `tests/inventory-consumption.test.ts` (idempotent re-save, qty up/down, remove, swap part, insufficient stock, shared stock across WOs, release on cancel/delete, tenant isolation, fractional qty).
+- Not in V1 (by design): purchase orders/suppliers, reservations before approval, consumption from direct invoices.
 
-Acceptance: using/adjusting a stocked part on a job produces correct inventory/ledger state without double consumption.
+### 4 — Tire Storage — DONE (2026-09-30)
 
-### 4 — Tire Storage — TODO — P0
-Best owner: Claude.
+Pro+ (`tireStorage.manage`, PRO in `src/config/entitlements.ts`), enforced server-side in every write in `src/actions/tire-storage.ts` (`getWritableShopId()` + `checkEntitlement`); reads return nothing/`null` for Core (Pro shops that lapse keep *view* via `canView`, like Inventory).
 
-Pro+. Tire sets per vehicle, season, dimensions, condition, physical storage location, notes and check-in/out. QR/labels only if low-cost after core flow is solid.
+- **Model**: `TireStorageSet` (client, optional vehicle, season WINTER/SUMMER/ALL_SEASON, brand/model, normalised size `225/45R17`, quantity, condition NEW/GOOD/FAIR/WORN, with-rims, storage location, status STORED/CHECKED_OUT, checked-in/out dates, notes) + `TireStorageEvent` history (CHECK_IN / CHECK_OUT / MOVED with location, note, user).
+- **Workflow**: check in (`/admin/tire-storage/new`, prefilled from customer/vehicle pages) → move location → check out (note) → check back in (season swap, new location). Transitions are atomic conditional updates (`status` in the `where`) so double clicks/races can't check out twice; client and vehicle ownership are validated against the shop (vehicle must belong to the client).
+- **UI**: `/admin/tire-storage` list with search (customer, phone, plate, vehicle, size, brand, location) + status/season filters, detail with history and actions, edit form, "Tire storage" section on customer and vehicle detail pages, sidebar entry (lock icon + upgrade CTA for Core), EN/FR.
+- **Migration**: `20260930120000_tire_storage` (additive; client FK is RESTRICT — a customer with tire sets can't be deleted until they're removed, consistent with work orders/invoices; vehicle FK SET NULL).
+- **Tests**: `tests/tire-storage.test.ts` (real actions through the new `tests/helpers/action-harness.ts` — size normalisation, Pro check-in, Core refused, restricted shop refused, foreign client/vehicle, check-out/check-in/move state machine + history, tenant isolation, read gating).
+- Not built: printed labels/QR (skipped to keep the block small), deleting tire sets (history is kept; check out instead).
+
+**Test infrastructure added**: `tests/helpers/{action-harness,stub-auth,stub-next,db-mock}.ts` let node:test import real server actions with a fake session (`setSession`) and a patched `db`. Later blocks (and Block 15) should reuse them.
 
 ### 5 — Reports & Analytics — PARTIAL — P0
 Best owner: Claude.
@@ -177,24 +195,44 @@ Core keeps useful basic dashboard/reporting. Pro gets a real Reports area with d
 
 Do not build BI software.
 
-### 6 — DVI Basic vs Advanced — PARTIAL — P1
-Best owner: Claude.
+### 6 — DVI Basic vs Advanced — DONE (2026-09-30)
 
-Existing DVI is functional. Define/enforce:
-- Core: standard checklist, condition and notes, unlimited records.
-- Pro+: photos/media, reusable/custom templates and richer customer-facing inspection presentation where appropriate.
+Existing Inspection → InspectionItem → InspectionPhoto flow untouched for Core (standard 10-point checklist, condition, notes, custom items, "create estimate from findings", work-order/vehicle links, unlimited records).
 
-Add centralized entitlement keys and server gates.
+Advanced (Pro/Complete) entitlement keys, all in `src/config/entitlements.ts` and enforced server-side (`checkEntitlement`, which also refuses restricted shops):
+- `dvi.photos` — `uploadInspectionPhoto` refuses Core. Existing photos stay *visible* for a shop that lapses (`canView`); uploading needs the plan.
+- `dvi.templates` — reusable `InspectionTemplate` (name + ordered items) managed at `/admin/inspections/templates`; `createInspection({ templateId })` replaces the standard checklist (template must belong to the shop; Core with a `templateId` is rejected without creating anything).
+- `dvi.customerReport` — `shareInspectionReport` / `unshareInspectionReport` create/revoke an opaque token; public mobile-friendly report at `/inspection/[token]` (EN/FR by customer language: findings first, photos, full checklist; `noindex`). The public page re-checks the shop's plan on every view, so a Core/restricted shop's old links stop working.
+- UI reads `getInspectionCapabilities()`; Core sees a compact upgrade prompt instead of the photo buttons, and the share panel shows the locked notice.
+- **Migration**: `20260930130000_dvi_advanced` (additive: `InspectionTemplate`, `Inspection.shareToken`).
+- **Tests**: `tests/dvi.test.ts` (Core default checklist vs Pro template, cross-shop template, photo gate, capabilities incl. restricted Pro, template CRUD gating/dedupe, share token idempotency and scoping, public report 404s/plan re-check).
+- Not built: emailing/SMS-ing the report link from GarageOS (copy link only), per-template item conditions, photo annotations.
 
-### 7 — Maintenance reminders Basic vs Advanced — PARTIAL — P1
-Best owner: Claude.
+### 7 — Maintenance reminders Basic vs Advanced — DONE (2026-09-30)
 
-Existing reminders remain Core-capable. Pro+ adds meaningful automation/rules/recurring or service-driven workflows and campaign integration. Avoid building a giant CRM.
+**Core (Basic, unchanged)**: manual reminders per vehicle (service, due date/mileage, notes), "Send now" by email, daily cron email 7 days before the due date (manual reminders only, `ruleId: null`), dismiss, status tabs. Restricted shops don't send (existing `createOperatingChecker`).
 
-### 8 — Roles & permissions — PARTIAL — P1
-Best owner: Claude.
+**Pro/Complete (Advanced)** — `reminders.automation` (PRO, `src/config/entitlements.ts`), enforced server-side:
+- **Recurring service-driven rules** (`ReminderRule`, `/admin/reminders/rules`): name + keyword matched (case/accent-insensitive) against the completed work order's lines + repeat interval (months, required because sending is date-driven) + optional km/miles (shown on the reminder) + lead days (0–90).
+- **Automation**: `updateWorkOrderStatus → COMPLETED` calls `createRemindersForCompletedWorkOrder` (Pro only; failures never block the status change). One reminder per (rule, work order) — unique key makes retries idempotent; a new one for the same rule+vehicle dismisses the previous pending one. Auto reminders show an "Auto" badge.
+- **Delivery**: cron (`/api/webhooks/cron`) → `deliverDueAutomatedReminders`: sends from `remindAt` (due − lead days) using the customer's notify preference (`resolveNotifyChannelPlan`: SMS first with email fallback, or both) through the existing communications stack (`sendServiceReminderSms`, purpose `REMINDER`; `sendReminderEmail`); skips restricted shops and shops that lost the plan; ignores reminders > 45 days stale; marks SENT with a `status: PENDING` guard.
+- **Campaign integration**: new segment `SERVICE_DUE` (clients with a pending/sent reminder due within N days or overdue), reusing the campaigns consent filters; campaigns remain Pro (`communications.campaigns`).
+- **Migration**: `20260930140000_reminder_rules` (additive: `ReminderRule`, `ServiceReminder.ruleId/workOrderId/remindAt` + unique `(ruleId, workOrderId)`).
+- **Tests**: `tests/reminders.test.ts` (matching, date math, validation, Core refused / Pro CRUD scoped / restricted redirect, auto-creation idempotency and replacement, Core skip, cron skips, segment validation + shop scoping).
+- Known gaps (not blockers): the cron's actual SMS/email send path for automated reminders is covered by the shared, already-tested comms helpers but has no dedicated end-to-end test (Block 11/15 real-provider validation); mileage is informational only (no odometer tracking); no per-rule channel override.
+- **Manual**: none (the existing daily cron `/api/webhooks/cron` runs the new step; `CRON_SECRET` unchanged). Shops provisioned before this change get the `REMINDER` SMS route on their next sender-identity provisioning; sending does not depend on it.
 
-Finish meaningful OWNER/MECHANIC/VIEWER separation. Core receives sane basic roles; Pro+ receives finer permissions around financials, reports, customers, invoices, DVI and configuration.
+### 8 — Roles & permissions — DONE (2026-09-30)
+
+**Model** (`src/domain/permissions.ts`, pure): three roles in every plan — OWNER (everything), MECHANIC (operates the whole job flow incl. invoicing/payments/inventory/DVI; no accounting/reports/campaigns/import/config), VIEWER (read customers + invoices only, no writes). Permissions: `ops.write` (baseline for ANY operational write), `customers.view/write`, `invoices.view/write`, `payments.write`, `inventory.write`, `dvi.write`, `financial.view`, `reports.view`, `campaigns.manage`, `import.run`, `settings.manage` (never delegable).
+
+**Pro+ finer permissions** (`permissions.advanced`, PRO): the owner can grant/revoke the delegable permissions per user (`User.permissionGrants/permissionDenies`, stored as differences from the role default; changing a role clears them; owners can't be restricted). Overrides are ignored by the resolver on Core (e.g. after a downgrade), and re-read from the DB on every request (not in the JWT). UI: Settings → Team → per-member "Permissions" checklist (locked notice on Core); `setTeamMemberPermissions` is owner-only, entitlement-gated, tenant-scoped, sanitised.
+
+**Enforcement (central, server-side)**: `src/lib/access.ts` (`getEffectivePermissions`, `requirePermissions`, `requirePagePermission`, `PermissionDeniedError`) behind `getShopId(permission?)` / `getWritableShopId(permission?)` in `src/lib/shop-context.ts` — **`getWritableShopId()` now also requires `ops.write`**, so every operational action that already used it (all of them, per Block 1) instantly refuses VIEWERs. Sweep: customers/vehicles (`customers.*`), invoices/payments (`invoices.*`, `payments.write`; WO/quote → invoice conversion needs `invoices.write`), cash drawer + accounting documents + invoice CSV export + dashboard revenue/analytics (`financial.view`), inventory (`inventory.write`), DVI incl. photos/templates/report links (`dvi.write`), campaigns (`campaigns.manage`), import (`import.run`), reminder rules (`settings.manage`), inbox writes (`ops.write`), invoice PDF (`invoices.view`) and payment-proof upload (`payments.write`) API routes. **Bug fixed**: `updateShopSettings`, `updateEtransferSettings`, `updateShopTaxLines`, `updateShopSlug`, `uploadShopLogo` had no role check (any staff user could call them) — now `settings.manage` (owner only). UI: sidebar hides entries the user can't use; pages redirect to the dashboard.
+- Tenant/location boundaries unchanged (`shopId` comes from the session; permissions are resolved per active location's plan).
+- **Migration**: `20260930150000_user_permissions` (additive columns, default `{}`).
+- **Tests**: `tests/permissions.test.ts` (role matrix, override rules, VIEWER write refusal, MECHANIC vs finance/config, Core ignores overrides, Pro revoke/grant, non-delegable settings, API/page gating, team permission action scoping) + updated import test.
+- Decisions/limits: shop settings, team, billing, domains, locations remain owner-only in every plan (not delegable in V1); `reports.view` is defined and delegable but the Reports area itself is Block 5; per-location roles for Complete/Multi-Shop are Block 12; the 3 built-in roles are not customisable/renameable (no IAM by design).
 
 ### 9 — Quebec/Canada fiscal normalization + Accounting Light — PARTIAL/TODO — P0/P1
 Best owner: Claude in a dedicated block.
@@ -279,4 +317,10 @@ These can be reconsidered from real customer demand after launch.
 
 ## Current next move
 
-**Block 2 (Data Import / Migration) is the next implementation handoff.** Block 1 is code-complete; the manual Stripe configuration listed under it must be done before selling. Every new operational server action must use `getWritableShopId()` so restricted mode stays enforced.
+**Blocks 0–4 and 6–8 are DONE. The next implementation handoff is Block 5 (Reports & Analytics)** — then 9 (fiscal + Accounting Light), 11 (communications hardening), 12 (Complete/Multi-Shop), 10, 13, 14, 15, 16.
+
+Rules every following block must respect:
+- Operational writes go through `getWritableShopId(permission?)` (restricted-mode + `ops.write` baseline + optional fine permission); sensitive reads through `getShopId(permission)`; new Pro+ functionality through a key in `src/config/entitlements.ts` + `checkEntitlement`/`can`/`canView`. Reports (Block 5) should gate on the existing `reports.view` permission and a new entitlement key for Advanced; Reports must not leak revenue to users without `financial.view`.
+- Tests for real server actions: reuse `tests/helpers/*` (`setSession`, `patchDb`, `mockSubscription`).
+- Migrations added by Blocks 2–8 (all additive): `20260930100000_import_runs`, `…110000_work_order_parts`, `…120000_tire_storage`, `…130000_dvi_advanced`, `…140000_reminder_rules`, `…150000_user_permissions`.
+- Still open from these blocks: live/real-provider validation (Block 15) of automated reminder SMS/email delivery, XLSX with real-world shop exports and large imports (10k rows in one request), Supabase photo storage; import error CSV is capped at the first 1,000 bad rows.

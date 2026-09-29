@@ -15,7 +15,7 @@ import { clientSchema, type ClientFormData } from "@/lib/validations";
 // ── READ ────────────────────────────────────────────────────
 
 export async function getClients(search?: string) {
-  const shopId = await getShopId();
+  const shopId = await getShopId("customers.view");
 
   return db.client.findMany({
     where: {
@@ -50,7 +50,7 @@ export async function getClients(search?: string) {
 }
 
 export async function getClientById(id: string) {
-  const shopId = await getShopId();
+  const shopId = await getShopId("customers.view");
 
   const client = await db.client.findFirst({
     where: { id, shopId }, // siempre scoped al shop — seguridad multi-tenant
@@ -72,7 +72,7 @@ export async function getClientById(id: string) {
 // ── CREATE ──────────────────────────────────────────────────
 
 export async function createClient(formData: ClientFormData) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("customers.write");
 
   const parsed = clientSchema.safeParse(formData);
   if (!parsed.success) {
@@ -104,7 +104,7 @@ export async function createClient(formData: ClientFormData) {
 // ── UPDATE ──────────────────────────────────────────────────
 
 export async function updateClient(id: string, formData: ClientFormData) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("customers.write");
 
   const parsed = clientSchema.safeParse(formData);
   if (!parsed.success) {
@@ -136,7 +136,7 @@ export async function updateClient(id: string, formData: ClientFormData) {
 // ── DELETE ──────────────────────────────────────────────────
 
 export async function deleteClient(id: string) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("customers.write");
 
   // deleteMany con shopId garantiza que no puedas borrar clientes de otro shop
   await db.client.deleteMany({ where: { id, shopId } });
@@ -148,7 +148,7 @@ export async function deleteClient(id: string) {
 // ── CONSENTIMIENTO DE MARKETING (Communications Platform §12) ─
 
 export async function setClientMarketingConsent(id: string, consent: boolean) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("customers.write");
 
   await db.client.updateMany({
     where: { id, shopId },

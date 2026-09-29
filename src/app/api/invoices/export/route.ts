@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { getEffectivePermissions } from "@/lib/access";
 import { db } from "@/lib/db";
 import { formatClientName } from "@/lib/client-name";
 import { ensureFullShopDate, parseShopDateTime } from "@/lib/shop-timezone";
@@ -15,6 +16,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Not authorized" }, { status: 401 });
   }
   const shopId = session.user.shopId;
+  // Exportar ingresos = permiso financiero (Block 8).
+  if (!(await getEffectivePermissions(session as never)).has("financial.view")) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const { searchParams } = new URL(request.url);
   const from = searchParams.get("from");
