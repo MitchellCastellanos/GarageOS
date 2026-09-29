@@ -9,6 +9,7 @@ export const STAFF_EVENT_KEYS = [
   "STAFF_SMS_USAGE",
   "STAFF_SMS_NUMBER_RELEASE_SCHEDULED",
   "STAFF_SMS_NUMBER_ACTIVATED",
+  "STAFF_NEW_INBOX_MESSAGE",
 ] as const;
 
 export type StaffEventKey = (typeof STAFF_EVENT_KEYS)[number];
@@ -20,6 +21,7 @@ export const STAFF_EVENT_LABELS: Record<StaffEventKey, { EN: string; FR: string 
   STAFF_SMS_USAGE: { EN: "SMS usage (80% / 100%)", FR: "Utilisation des SMS (80 % / 100 %)" },
   STAFF_SMS_NUMBER_RELEASE_SCHEDULED: { EN: "SMS number release scheduled", FR: "Libération du numéro SMS programmée" },
   STAFF_SMS_NUMBER_ACTIVATED: { EN: "SMS number activated", FR: "Numéro SMS activé" },
+  STAFF_NEW_INBOX_MESSAGE: { EN: "New message in the Inbox", FR: "Nouveau message dans la boîte de réception" },
 };
 
 export interface StaffNotificationPreference {

@@ -16,6 +16,7 @@ import { parseSmsKeyword, type SmsKeyword } from "@/domain/sms";
 import { addSuppression, removeSuppression } from "@/lib/communications/suppression";
 import { getSharedSmsNumber, LIVE_NUMBER_STATUSES } from "@/lib/communications/sms-numbers";
 import { getSharedNumberAccountSid } from "@/lib/communications/twilio";
+import { formatClientName } from "@/lib/client-name";
 
 export interface InboundSmsInput {
   messageSid: string;
@@ -171,5 +172,37 @@ export async function handleInboundSms(input: InboundSmsInput): Promise<InboundS
     },
   });
 
+  await notifyStaffOfInboundSms({ shopId: primary, threadId, from, body: input.body, client: clients[0] ?? null });
+
   return { status: "recorded", shopId: primary, threadId, keyword };
+}
+
+/** Best-effort — un fallo al avisar al equipo nunca debe tumbar el webhook (el mensaje ya se guardó). */
+async function notifyStaffOfInboundSms(input: {
+  shopId: string;
+  threadId: string;
+  from: string;
+  body: string;
+  client: { id: string } | null;
+}): Promise<void> {
+  try {
+    const [shop, client] = await Promise.all([
+      db.shop.findUnique({ where: { id: input.shopId }, select: { name: true } }),
+      input.client
+        ? db.client.findUnique({ where: { id: input.client.id }, select: { firstName: true, lastName: true } })
+        : null,
+    ]);
+    if (!shop) return;
+    const { alertStaffNewInboxMessage } = await import("@/lib/staff-alerts");
+    await alertStaffNewInboxMessage({
+      shopId: input.shopId,
+      shopName: shop.name,
+      threadId: input.threadId,
+      from: input.from,
+      clientName: client ? formatClientName(client) : null,
+      body: input.body,
+    });
+  } catch (err) {
+    console.error(`[sms-inbound] aviso al equipo falló (hilo ${input.threadId}):`, err);
+  }
 }

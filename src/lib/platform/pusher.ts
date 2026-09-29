@@ -1,5 +1,8 @@
 import "server-only";
 import Pusher from "pusher";
+import { platformConversationChannel, PLATFORM_MESSAGES_CHANNEL } from "@/lib/platform/pusher-channels";
+
+export { platformConversationChannel, PLATFORM_MESSAGES_CHANNEL };
 
 export const platformRealtimeConfigured = Boolean(
   process.env.PUSHER_APP_ID && process.env.PUSHER_KEY && process.env.PUSHER_SECRET && process.env.PUSHER_CLUSTER
@@ -20,14 +23,6 @@ function getClient(): Pusher | null {
   }
   return client;
 }
-
-/** Por conversación — el formulario del taller y el detalle en /platform/messages/[id] se suscriben aquí. */
-export function platformConversationChannel(conversationId: string): string {
-  return `platform-conversation-${conversationId}`;
-}
-
-/** Canal compartido — la bandeja de /platform/messages se suscribe aquí para saber cuándo refrescar la lista. */
-export const PLATFORM_MESSAGES_CHANNEL = "platform-messages-admin";
 
 export interface PlatformMessagePayload {
   id: string;
@@ -54,5 +49,21 @@ export async function publishPlatformConversationUpdate(conversationId: string):
     await pusher.trigger(PLATFORM_MESSAGES_CHANNEL, "conversation-updated", { conversationId });
   } catch (e) {
     console.error("[platform/pusher] publishPlatformConversationUpdate falló:", e);
+  }
+}
+
+/**
+ * Algo que cuenta para el indicador de pendientes del super admin cambió
+ * (una solicitud de número SMS nueva, aprobada o descartada) — la campana de
+ * PlatformChrome escucha esto en el mismo canal que las conversaciones para
+ * saber cuándo refrescar el conteo.
+ */
+export async function publishPlatformPendingChanged(): Promise<void> {
+  const pusher = getClient();
+  if (!pusher) return;
+  try {
+    await pusher.trigger(PLATFORM_MESSAGES_CHANNEL, "pending-changed", {});
+  } catch (e) {
+    console.error("[platform/pusher] publishPlatformPendingChanged falló:", e);
   }
 }

@@ -62,6 +62,12 @@ function mockInboundBasics(t: TestContext, opts: { dedicatedShopId: string | nul
   const threadCreate = mockDb(t, "communicationThread", "create", async () => ({ id: "thread-1" }));
   const threadUpdate = mockDb(t, "communicationThread", "update", async () => ({}));
   const messageCreate = mockDb(t, "communicationMessage", "create", async () => ({ id: "m-new" }));
+  // Aviso al equipo (notifyStaffOfInboundSms) — best-effort y ya probado aparte
+  // en staff-notify.test.ts; acá solo evitamos que intente una conexión real.
+  mockDb(t, "shop", "findUnique", async () => ({ name: "Garage A" }));
+  mockDb(t, "client", "findUnique", async () => ({ firstName: "Anne", lastName: null }));
+  mockDb(t, "user", "findMany", async () => []);
+  mockDb(t, "user", "findFirst", async () => null);
   return { numberLookup, threadCreate, threadUpdate, messageCreate };
 }
 
