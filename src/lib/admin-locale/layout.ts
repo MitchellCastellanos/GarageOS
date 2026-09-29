@@ -17,6 +17,7 @@ export interface LayoutDictionary {
     tireStorage: string;
     caja: string;
     accounting: string;
+    reports: string;
     reminders: string;
     settings: string;
     support: string;
@@ -65,6 +66,7 @@ export const LAYOUT_DICT: Record<AdminLocale, LayoutDictionary> = {
       tireStorage: "Almacén de llantas",
       caja: "Caja",
       accounting: "Contabilidad",
+      reports: "Reportes",
       reminders: "Recordatorios",
       settings: "Configuración",
       support: "Ayuda",
@@ -111,6 +113,7 @@ export const LAYOUT_DICT: Record<AdminLocale, LayoutDictionary> = {
       tireStorage: "Tire storage",
       caja: "Cash drawer",
       accounting: "Accounting",
+      reports: "Reports",
       reminders: "Reminders",
       settings: "Settings",
       support: "Help",
@@ -157,6 +160,7 @@ export const LAYOUT_DICT: Record<AdminLocale, LayoutDictionary> = {
       tireStorage: "Entreposage de pneus",
       caja: "Caisse",
       accounting: "Comptabilité",
+      reports: "Rapports",
       reminders: "Rappels",
       settings: "Configuration",
       support: "Aide",

@@ -188,12 +188,19 @@ Pro+ (`tireStorage.manage`, PRO in `src/config/entitlements.ts`), enforced serve
 
 **Test infrastructure added**: `tests/helpers/{action-harness,stub-auth,stub-next,db-mock}.ts` let node:test import real server actions with a fake session (`setSession`) and a patched `db`. Later blocks (and Block 15) should reuse them.
 
-### 5 — Reports & Analytics — PARTIAL — P0
-Best owner: Claude.
+### 5 — Reports & Analytics — DONE (2026-09-30) — P0
 
-Core keeps useful basic dashboard/reporting. Pro gets a real Reports area with date filters, exports and useful shop KPIs such as revenue, jobs, ARO, approvals, labour/parts, customer activity/retention and inventory where data supports it. Complete adds location comparison/consolidation.
+Audit: before this block only the dashboard had revenue tiles/6-month chart (client-side-ish, paid-invoice totals) — no Reports area, no date ranges, no exports, no receivables, no work-order/quote/customer/inventory reporting.
 
-Do not build BI software.
+**Model** (`src/domain/reports.ts` pure, `src/lib/reports-service.ts` queries, `src/lib/reports-export.ts` CSV, `src/actions/reports.ts` authz, UI `/admin/reports`):
+- Entitlement `reports.advanced` (PRO). **Core** = basic Overview only (this month / last month / last 30 days: paid revenue + daily series, outstanding total, work orders opened/open now, new customers) — no custom ranges, no other reports, no export. **Pro/Complete** = Sales (totals/tax/ARO, series by day/week/month auto-picked, by payment method, labour/parts/other, top items), Receivables (aging buckets + oldest unpaid), Jobs & quotes (work orders by status, completed, avg days to complete, open now; quotes by status, approval rate, value sent/accepted), Customers (new, active, returning, retention, top customers), Inventory (low stock, stock value at cost, units used), every preset + custom range (max 731 days) and **CSV export** for each report.
+- **Authorization is server-side and central** (`buildContext` in the action): `reports.view` for anything; `financial.view` additionally for Sales/Receivables, and money fields inside Overview/Customers/Jobs/Inventory are `null` without it (no revenue leak). Plan is checked with `canView` — a restricted Pro shop keeps read-only reports and export (Block 1: data access, not a write); a missing subscription row gets nothing. Blocked requests are rejected **before** any data query.
+- **Tenant isolation**: the shop always comes from the session; every query filters `shopId IN (scope.shopIds)`. Dates are shop-timezone days (`Shop.timezone`), revenue is counted on `paidAt` (same as the dashboard).
+- Aggregation is server-side (grouped counts/aggregates where Prisma can; narrow column selects bucketed in Node for series) — the browser only receives aggregates. CSV cells are formula-injection-safe (`=+-@` prefixed) with UTF-8 BOM.
+- **Complete foundation**: the service takes `shopIds[]` and Sales returns `byLocation`; the action passes only the active shop today. Cross-location scope resolution/UI is Block 12.
+- Nav: Reports under Finance (hidden without `reports.view`), ES falls back to EN like other newer dictionaries.
+- **Tests**: `tests/reports.test.ts` (range/timezone/presets, buckets, aging, CSV safety, tenant isolation, permissions incl. delegated `reports.view` without `financial.view`, Core vs Pro, restricted Pro, missing subscription, invalid ranges, exports, KPIs).
+- Not built (deliberate): scheduled/emailed reports, charts beyond simple bars, per-mechanic productivity, location comparison UI/consolidation (Block 12). Days-to-complete uses `updatedAt` of completed/invoiced work orders (no completion timestamp exists).
 
 ### 6 — DVI Basic vs Advanced — DONE (2026-09-30)
 

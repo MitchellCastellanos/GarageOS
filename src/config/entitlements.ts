@@ -61,6 +61,9 @@ export const CAPABILITY_MIN_PLAN = {
   // pública de reservas. Classic, logo, color, fotos, íconos y destacados
   // quedan en todos los planes (ver src/lib/booking-page.ts).
   "bookingPage.advancedDesign": "PRO",
+  // Reportes avanzados (Block 5): rangos personalizados, reportes de ventas/cuentas por cobrar/
+  // operación/clientes/inventario y exportación CSV. Core conserva el resumen básico.
+  "reports.advanced": "PRO",
   "organization.multiLocation": "COMPLETE",
 } as const satisfies Record<string, Plan>;
 
