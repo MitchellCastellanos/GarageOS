@@ -224,6 +224,21 @@ const slugSchema = z
   .max(60, "Maximum 60 characters")
   .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "Use lowercase letters, numbers and hyphens only (no leading or trailing hyphen)");
 
+export async function checkShopSlugAvailability(slug: string) {
+  const shopId = await getShopId();
+
+  const parsed = slugSchema.safeParse(slug);
+  if (!parsed.success) {
+    return { available: false as const, error: parsed.error.issues[0]?.message ?? "Invalid identifier" };
+  }
+
+  const taken = await db.shop.findFirst({
+    where: { slug: parsed.data, id: { not: shopId } },
+    select: { id: true },
+  });
+  return { available: !taken, slug: parsed.data };
+}
+
 export async function updateShopSlug(formData: FormData) {
   const shopId = await getShopId();
 

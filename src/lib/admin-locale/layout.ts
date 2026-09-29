@@ -17,7 +17,6 @@ export interface LayoutDictionary {
     accounting: string;
     reminders: string;
     settings: string;
-    billing: string;
     support: string;
   };
   navGroups: {
@@ -34,6 +33,15 @@ export interface LayoutDictionary {
     defaultUserName: string;
     settings: string;
     signOut: string;
+    plan: {
+      trial: (days: number) => string;
+      trialExpired: string;
+      pastDue: string;
+      active: string;
+      free: string;
+      upgrade: string;
+      manage: string;
+    };
   };
 }
 
@@ -55,7 +63,6 @@ export const LAYOUT_DICT: Record<AdminLocale, LayoutDictionary> = {
       accounting: "Contabilidad",
       reminders: "Recordatorios",
       settings: "Configuración",
-      billing: "Suscripción",
       support: "Ayuda",
     },
     navGroups: {
@@ -72,6 +79,15 @@ export const LAYOUT_DICT: Record<AdminLocale, LayoutDictionary> = {
       defaultUserName: "Usuario",
       settings: "Configuración",
       signOut: "Salir",
+      plan: {
+        trial: (days) => `Prueba · ${days} ${days === 1 ? "día" : "días"}`,
+        trialExpired: "Prueba vencida",
+        pastDue: "Pago pendiente",
+        active: "Activo",
+        free: "Sin suscripción",
+        upgrade: "Mejorar",
+        manage: "Administrar",
+      },
     },
   },
   en: {
@@ -91,7 +107,6 @@ export const LAYOUT_DICT: Record<AdminLocale, LayoutDictionary> = {
       accounting: "Accounting",
       reminders: "Reminders",
       settings: "Settings",
-      billing: "Subscription",
       support: "Help",
     },
     navGroups: {
@@ -108,6 +123,15 @@ export const LAYOUT_DICT: Record<AdminLocale, LayoutDictionary> = {
       defaultUserName: "User",
       settings: "Settings",
       signOut: "Sign out",
+      plan: {
+        trial: (days) => `Trial · ${days} ${days === 1 ? "day" : "days"} left`,
+        trialExpired: "Trial ended",
+        pastDue: "Payment due",
+        active: "Active",
+        free: "Free",
+        upgrade: "Upgrade",
+        manage: "Manage",
+      },
     },
   },
   fr: {
@@ -127,7 +151,6 @@ export const LAYOUT_DICT: Record<AdminLocale, LayoutDictionary> = {
       accounting: "Comptabilité",
       reminders: "Rappels",
       settings: "Configuration",
-      billing: "Abonnement",
       support: "Aide",
     },
     navGroups: {
@@ -144,6 +167,15 @@ export const LAYOUT_DICT: Record<AdminLocale, LayoutDictionary> = {
       defaultUserName: "Utilisateur",
       settings: "Configuration",
       signOut: "Déconnexion",
+      plan: {
+        trial: (days) => `Essai · ${days} ${days === 1 ? "jour" : "jours"}`,
+        trialExpired: "Essai terminé",
+        pastDue: "Paiement en attente",
+        active: "Actif",
+        free: "Gratuit",
+        upgrade: "Améliorer",
+        manage: "Gérer",
+      },
     },
   },
 };

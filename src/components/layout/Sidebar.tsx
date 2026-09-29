@@ -26,7 +26,6 @@ import {
   Lock,
   X,
   LifeBuoy,
-  CreditCard,
 } from "lucide-react";
 
 import { ADMIN } from "@/lib/routes";
@@ -83,8 +82,6 @@ export function Sidebar({
   hasUnreadSupport,
   hasUnreadInbox,
   hasUnreadAppointments,
-  showBilling,
-  billingAttention,
   userId,
 }: {
   mobileOpen: boolean;
@@ -93,10 +90,6 @@ export function Sidebar({
   hasUnreadSupport?: boolean;
   hasUnreadInbox?: boolean;
   hasUnreadAppointments?: boolean;
-  /** Solo el dueño ve la entrada de suscripción. */
-  showBilling?: boolean;
-  /** Punto de atención: prueba por vencer/vencida o pago pendiente. */
-  billingAttention?: boolean;
   userId?: string;
 }) {
   const lockedSet = new Set(lockedNavHrefs ?? []);
@@ -289,16 +282,6 @@ export function Sidebar({
             locked={lockedSet.has(ADMIN.support)}
             unread={hasUnreadSupport ?? false}
           />
-          {showBilling && (
-            <RailLink
-              href={ADMIN.billing}
-              label={t.nav.billing}
-              icon={CreditCard}
-              active={false}
-              locked={false}
-              unread={billingAttention ?? false}
-            />
-          )}
           <RailLink
             href={ADMIN.settings}
             label={t.nav.settings}
@@ -378,16 +361,6 @@ export function Sidebar({
                   unread={hasUnreadSupport}
                   onClick={onMobileClose}
                 />
-                {showBilling && (
-                  <MobileNavLink
-                    href={ADMIN.billing}
-                    label={t.nav.billing}
-                    icon={CreditCard}
-                    active={false}
-                    unread={billingAttention}
-                    onClick={onMobileClose}
-                  />
-                )}
                 <MobileNavLink
                   href={ADMIN.settings}
                   label={t.nav.settings}

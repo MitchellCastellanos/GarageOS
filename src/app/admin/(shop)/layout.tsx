@@ -13,6 +13,7 @@ import { hasUnreadInboxThreads } from "@/lib/communications/inbox";
 import { getMyStaffNotifications } from "@/actions/staff-notifications";
 import { ImpersonationBanner } from "@/components/admin/ImpersonationBanner";
 import { EmailVerificationBanner } from "@/components/admin/EmailVerificationBanner";
+import type { PlanBadge } from "@/components/layout/Topbar";
 import { SubscriptionBanner, type SubscriptionBannerKind } from "@/components/admin/SubscriptionBanner";
 
 function daysUntil(date: Date): number {
@@ -63,9 +64,24 @@ export default async function DashboardLayout({
   }
 
   const isOwner = session.user.role === "OWNER";
+  let planBadge: PlanBadge | null = null;
   let billingBanner: { kind: SubscriptionBannerKind; daysLeft: number } | null = null;
   if (isOwner) {
     const sub = await getEffectiveSubscription(session.user.shopId);
+    const trialDays = sub.isTrialing && sub.trialEndsAt ? Math.max(daysUntil(sub.trialEndsAt), 0) : 0;
+    planBadge = {
+      plan: sub.plan,
+      state: sub.isTrialExpired
+        ? "trialExpired"
+        : sub.status === "PAST_DUE"
+          ? "pastDue"
+          : sub.isTrialing
+            ? "trialing"
+            : sub.status === "ACTIVE"
+              ? "active"
+              : "free",
+      trialDays,
+    };
     if (sub.isTrialExpired) {
       billingBanner = { kind: "trialExpired", daysLeft: 0 };
     } else if (sub.status === "PAST_DUE") {
@@ -104,8 +120,7 @@ export default async function DashboardLayout({
         hasUnreadSupport={hasUnreadSupport}
         hasUnreadInbox={hasUnreadInbox}
         hasUnreadAppointments={hasUnreadAppointments}
-        showBilling={isOwner}
-        billingAttention={billingBanner !== null}
+        planBadge={planBadge}
         userId={session.user.id}
         initialNotifications={staffNotifications.notifications}
         initialUnreadNotifications={staffNotifications.unreadCount}

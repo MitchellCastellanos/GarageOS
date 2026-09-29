@@ -23,6 +23,10 @@ export interface OnboardingDictionary {
     emailPlaceholder: string;
     slugLabel: string;
     slugHint: string;
+    slugCheck: string;
+    slugChecking: string;
+    slugAvailable: string;
+    slugTaken: string;
     continue: string;
     saving: string;
   };
@@ -95,6 +99,10 @@ export const ONBOARDING_DICT: Record<"en" | "fr", OnboardingDictionary> = {
       emailPlaceholder: "hello@yourshop.com",
       slugLabel: "Your booking page URL",
       slugHint: "This is the link customers will use to book with you — you can change it later in Settings.",
+      slugCheck: "Check availability",
+      slugChecking: "Checking...",
+      slugAvailable: "Available!",
+      slugTaken: "Already taken — try another.",
       continue: "Continue",
       saving: "Saving...",
     },
@@ -165,6 +173,10 @@ export const ONBOARDING_DICT: Record<"en" | "fr", OnboardingDictionary> = {
       emailPlaceholder: "bonjour@votregarage.com",
       slugLabel: "URL de votre page de réservation",
       slugHint: "C'est le lien que vos clients utiliseront pour réserver — vous pourrez le changer plus tard dans Paramètres.",
+      slugCheck: "Vérifier la disponibilité",
+      slugChecking: "Vérification...",
+      slugAvailable: "Disponible!",
+      slugTaken: "Déjà utilisé — essayez un autre.",
       continue: "Continuer",
       saving: "Enregistrement...",
     },
