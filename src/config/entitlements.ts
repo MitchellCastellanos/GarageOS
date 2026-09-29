@@ -77,7 +77,7 @@ export const PLAN_LIMITS: Record<
 
 /** Precio público de referencia (CAD) — debe reflejar docs/subscription-plans.md. */
 export const PLAN_PRICING_CAD: Record<Plan, { monthly: number; yearly: number }> = {
-  CORE: { monthly: 149, yearly: 1490 },
-  PRO: { monthly: 249, yearly: 2490 },
-  COMPLETE: { monthly: 399, yearly: 3990 },
+  CORE: { monthly: 199, yearly: 1990 },
+  PRO: { monthly: 299, yearly: 2990 },
+  COMPLETE: { monthly: 449, yearly: 4490 },
 };
