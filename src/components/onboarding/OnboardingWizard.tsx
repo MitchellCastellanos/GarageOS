@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import type { EffectiveSubscription } from "@/lib/subscription";
+import { ONBOARDING_FINISH_STEP, ONBOARDING_PLAN_STEP } from "@/config/onboarding";
 import type { WorkingHoursRow } from "@/lib/working-hours";
 import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
 import { ONBOARDING_DICT, toOnboardingLocale } from "@/lib/admin-locale/onboarding";
@@ -10,6 +12,7 @@ import { Step2Fiscal } from "@/components/onboarding/steps/Step2Fiscal";
 import { Step3Services } from "@/components/onboarding/steps/Step3Services";
 import { Step4Hours } from "@/components/onboarding/steps/Step4Hours";
 import { Step5Design } from "@/components/onboarding/steps/Step5Design";
+import { StepPlan } from "@/components/onboarding/steps/StepPlan";
 import { Step6Share } from "@/components/onboarding/steps/Step6Share";
 
 interface ServiceCatalogRow {
@@ -40,11 +43,13 @@ interface OnboardingWizardProps {
   copiedFromShopName?: string;
   initialServices: ServiceCatalogRow[];
   workingHours: WorkingHoursRow[];
+  subscription: EffectiveSubscription;
 }
 
 /** Pasos que corren siempre vs. los que se saltan en una ubicación adicional (fiscal/logo/diseño ya se copiaron al crearla, ver actions/locations.ts). */
-const FULL_FLOW: readonly number[] = [1, 2, 3, 4, 5, 6];
-const SHORT_FLOW: readonly number[] = [1, 3, 4, 6];
+const FULL_FLOW: readonly number[] = [1, 2, 3, 4, 5, ONBOARDING_PLAN_STEP, ONBOARDING_FINISH_STEP];
+// Las ubicaciones adicionales comparten la suscripción de su organización: no eligen plan otra vez.
+const SHORT_FLOW: readonly number[] = [1, 3, 4, ONBOARDING_FINISH_STEP];
 
 export function OnboardingWizard({
   shop,
@@ -53,6 +58,7 @@ export function OnboardingWizard({
   copiedFromShopName,
   initialServices,
   workingHours,
+  subscription,
 }: OnboardingWizardProps) {
   const locale = useAdminLocale();
   const t = ONBOARDING_DICT[toOnboardingLocale(locale)];
@@ -137,7 +143,11 @@ export function OnboardingWizard({
           onBack={goBack}
         />
       );
-    case 6:
+    case ONBOARDING_PLAN_STEP:
+      return (
+        <StepPlan step={displayStep} totalSteps={totalSteps} subscription={subscription} onNext={goNext} onBack={goBack} />
+      );
+    case ONBOARDING_FINISH_STEP:
       return <Step6Share step={displayStep} totalSteps={totalSteps} onBack={goBack} />;
     default:
       return null;

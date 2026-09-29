@@ -7,7 +7,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { Prisma } from "@prisma/client";
 import { isTransactionConflictError } from "@/lib/db-errors";
-import { getShopId } from "@/lib/shop-context";
+import { getShopId, getWritableShopId } from "@/lib/shop-context";
 import { appointmentSchema, appointmentEditSchema, type AppointmentEditFormData, type AppointmentFormData } from "@/lib/validations";
 import { generateAppointmentManageToken, ensureAppointmentManageToken } from "@/lib/appointment-token";
 import { buildAppointmentManageUrl, type NotifyAppointmentEventResult } from "@/lib/appointment-notify";
@@ -254,7 +254,7 @@ function loadAppointmentForEvent(id: string, shopId: string) {
 // ── CREATE / UPDATE ─────────────────────────────────────────
 
 export async function createAppointment(formData: AppointmentFormData) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   const timeZone = await getShopTimezone(shopId);
   const locale = await getAdminLocale();
   const actor = await getStaffActor();
@@ -330,7 +330,7 @@ export async function createAppointment(formData: AppointmentFormData) {
 }
 
 export async function updateAppointment(id: string, formData: AppointmentEditFormData) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   const timeZone = await getShopTimezone(shopId);
   const locale = await getAdminLocale();
   const actor = await getStaffActor();
@@ -440,7 +440,7 @@ export async function updateAppointment(id: string, formData: AppointmentEditFor
 }
 
 export async function updateAppointmentStatus(id: string, status: AppointmentEditFormData["status"]) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   const locale = await getAdminLocale();
 
   const existing = await db.appointment.findFirst({
@@ -487,7 +487,7 @@ export async function updateAppointmentStatus(id: string, status: AppointmentEdi
 }
 
 export async function cancelAppointment(id: string) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   const locale = await getAdminLocale();
   const actor = await getStaffActor();
 
@@ -545,7 +545,7 @@ export async function getAppointmentHistoryForAdmin(id: string) {
 // ── Reenvíos manuales (SMS principal, email de respaldo) ──────
 
 export async function sendAppointmentConfirmation(id: string) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   const locale = await getAdminLocale();
   const actor = await getStaffActor();
 
@@ -579,7 +579,7 @@ export async function sendAppointmentConfirmation(id: string) {
 }
 
 export async function sendAppointmentReminder(id: string) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   const locale = await getAdminLocale();
   const actor = await getStaffActor();
 

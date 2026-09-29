@@ -13,7 +13,7 @@ import { ADMIN, PLATFORM, adminPath } from "@/lib/routes";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { getShopId } from "@/lib/shop-context";
+import { getShopId, getWritableShopId } from "@/lib/shop-context";
 import { invoiceSchema, type InvoiceFormData } from "@/lib/validations";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import {
@@ -219,7 +219,7 @@ export async function getInvoiceById(id: string) {
 // ── CREATE ──────────────────────────────────────────────────
 
 export async function createInvoice(formData: InvoiceFormData) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   const locale = await getAdminLocale();
   const msg = INVOICE_ACTION_MESSAGES[locale];
 
@@ -345,7 +345,7 @@ function validateInvoiceSendable(
 }
 
 export async function sendInvoiceByEmail(id: string, formData?: FormData) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   const locale = await getAdminLocale();
   const msg = INVOICE_ACTION_MESSAGES[locale];
 
@@ -437,7 +437,7 @@ export async function sendInvoiceByEmail(id: string, formData?: FormData) {
 }
 
 export async function sendInvoiceBySms(id: string, formData?: FormData) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   const locale = await getAdminLocale();
   const msg = INVOICE_ACTION_MESSAGES[locale];
 
@@ -529,7 +529,7 @@ export async function sendInvoiceBySms(id: string, formData?: FormData) {
 }
 
 export async function markInvoiceAsPaid(id: string, formData: FormData) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   const session = await auth();
   const locale = await getAdminLocale();
   const msg = INVOICE_ACTION_MESSAGES[locale];
@@ -691,7 +691,7 @@ export async function markInvoiceAsPaid(id: string, formData: FormData) {
 }
 
 export async function revertInvoiceToPending(id: string) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   const locale = await getAdminLocale();
   const msg = INVOICE_ACTION_MESSAGES[locale];
   await db.cashDrawerEntry.deleteMany({
@@ -719,7 +719,7 @@ export async function revertInvoiceToPending(id: string) {
 const VOIDABLE_STATUSES = ["DRAFT", "SENT", "PAID", "OVERDUE"] as const;
 
 export async function cancelInvoice(id: string) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   const locale = await getAdminLocale();
   const msg = INVOICE_ACTION_MESSAGES[locale];
 
@@ -756,7 +756,7 @@ export async function cancelInvoice(id: string) {
 }
 
 export async function deleteInvoice(id: string) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   const locale = await getAdminLocale();
   const msg = INVOICE_ACTION_MESSAGES[locale];
 
@@ -776,7 +776,7 @@ export async function deleteInvoice(id: string) {
 // ── Guardar URL del PDF generado ───────────────────────────
 
 export async function savePdfUrl(id: string, pdfUrl: string) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   await db.invoice.updateMany({
     where: { id, shopId },
     data: { pdfUrl },
@@ -787,7 +787,7 @@ export async function savePdfUrl(id: string, pdfUrl: string) {
 // ── UPDATE ──────────────────────────────────────────────────
 
 export async function updateInvoice(id: string, formData: InvoiceFormData) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   const locale = await getAdminLocale();
   const msg = INVOICE_ACTION_MESSAGES[locale];
 

@@ -5,6 +5,7 @@ import { ADMIN } from "@/lib/routes";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireShopSession } from "@/lib/permissions";
+import { assertShopWritable } from "@/lib/shop-context";
 import { uploadToStorage, publicUrlForStoragePath } from "@/lib/storage";
 import { DOC_CATEGORIES, type DocCategory } from "@/lib/validations";
 import { ensureFullShopDate, parseShopDateTime } from "@/lib/shop-timezone";
@@ -60,6 +61,7 @@ export async function getAccountingPageData() {
 export async function uploadDocument(formData: FormData) {
   const session = await getSession();
   const shopId = session.user.shopId!;
+  await assertShopWritable(shopId);
 
   const file = formData.get("file") as File | null;
   const category = formData.get("category") as DocCategory | null;

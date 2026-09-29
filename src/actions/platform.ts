@@ -7,7 +7,8 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireSuperAdmin } from "@/lib/permissions";
 import { provisionDefaultSenderIdentities } from "@/lib/communications/sender-identity";
-import { createDefaultSubscription, resolveBillingNotificationRecipients } from "@/lib/subscription";
+import { isLiveStripeStatus } from "@/domain/subscription-state";
+import { createPendingSubscription, resolveBillingNotificationRecipients } from "@/lib/subscription";
 import { sendVerificationEmail } from "@/lib/email-verification";
 import { auth, unstable_update } from "@/lib/auth";
 import { logPlatformAction, getShopAuditLog } from "@/lib/platform/audit";
@@ -100,6 +101,7 @@ export async function getPlatformGrowth() {
   for (const sub of subscriptions) {
     byStatus[sub.status] = (byStatus[sub.status] ?? 0) + 1;
     if (sub.status === "ACTIVE" || sub.status === "PAST_DUE") {
+      if (!sub.plan) continue;
       const pricing = PLAN_PRICING_CAD[sub.plan];
       mrr += sub.billingInterval === "YEARLY" ? pricing.yearly / 12 : pricing.monthly;
     }
@@ -203,20 +205,22 @@ export async function createShop(formData: FormData) {
 
   if (!parsed.success) return { error: "Datos del taller inválidos" };
 
-  const shop = await db.shop.create({
-    data: {
-      name: parsed.data.name,
-      email: parsed.data.email || null,
-      phone: parsed.data.phone || null,
-    },
+  // Shop + Subscription (AWAITING_PLAN) en una transacción — nunca un taller sin fila de suscripción.
+  const shop = await db.$transaction(async (tx) => {
+    const created = await tx.shop.create({
+      data: {
+        name: parsed.data.name,
+        email: parsed.data.email || null,
+        phone: parsed.data.phone || null,
+      },
+    });
+    await createPendingSubscription(tx, created.id);
+    return created;
   });
 
   // Identidad de envío inicial (Communications Platform) — no bloquea la creación si falla.
   await provisionDefaultSenderIdentities(shop).catch((err) => {
     console.error("[communications] provisionDefaultSenderIdentities falló al crear taller:", err);
-  });
-  await createDefaultSubscription(db, shop.id).catch((err) => {
-    console.error("[subscription] createDefaultSubscription falló al crear taller:", err);
   });
 
   await logPlatformAction({
@@ -456,7 +460,7 @@ export async function changeShopPlan(shopId: string, newPlan: Plan, reason: stri
   const shop = await db.shop.findUnique({ where: { id: shopId }, include: { subscription: true } });
   if (!shop) return { error: "Taller no encontrado" };
 
-  const previousPlan: Plan = shop.subscription?.plan ?? "CORE";
+  const previousPlan: Plan | null = shop.subscription?.plan ?? null;
   if (previousPlan === newPlan) return { error: "El taller ya está en ese plan" };
 
   if (shop.subscription?.stripeSubscriptionId) {
@@ -472,7 +476,12 @@ export async function changeShopPlan(shopId: string, newPlan: Plan, reason: stri
   }
 
   if (shop.subscription) {
-    await db.subscription.update({ where: { id: shop.subscription.id }, data: { plan: newPlan } });
+    // Sin suscripción de Stripe, un cambio manual de super admin es una concesión explícita → ACTIVE.
+    const grantsAccess = !shop.subscription.stripeSubscriptionId && !isLiveStripeStatus(shop.subscription.status);
+    await db.subscription.update({
+      where: { id: shop.subscription.id },
+      data: { plan: newPlan, ...(grantsAccess ? { status: "ACTIVE" as const } : {}) },
+    });
   } else {
     await db.subscription.create({ data: { shopId, plan: newPlan, status: "ACTIVE" } });
   }
@@ -567,7 +576,7 @@ export async function cancelShopSubscription(shopId: string, reason: string) {
       data: {
         subscriptionId: sub.id,
         shopId,
-        planAtCancellation: sub.plan,
+        planAtCancellation: sub.plan ?? "CORE",
         reason: trimmedReason,
         initiatedBy: "SUPER_ADMIN",
         initiatedByUserId: session.user.id,

@@ -1,3 +1,4 @@
+import { createOperatingChecker } from "@/lib/subscription";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { isSuppressed } from "@/lib/communications/suppression";
@@ -33,6 +34,7 @@ export async function GET(request: Request) {
 
   const sendingCampaigns = await db.campaign.findMany({ where: { status: "SENDING" } });
 
+  const canOperate = createOperatingChecker();
   const results = { campaignsProcessed: 0, sent: 0, failed: 0, skipped: 0 };
   let processedThisRun = 0;
 
@@ -44,6 +46,9 @@ export async function GET(request: Request) {
 
     // Kill switch de plataforma (Fase 7) — no borra la campaña, solo pausa el envío.
     if (shop.communicationsSuspendedAt) continue;
+
+    // Taller restringido (sin pago vigente): la campaña queda en pausa, no se borra.
+    if (!(await canOperate(shop.id))) continue;
 
     results.campaignsProcessed++;
 

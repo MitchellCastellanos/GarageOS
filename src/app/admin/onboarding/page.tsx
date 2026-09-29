@@ -1,12 +1,14 @@
 import { bookingPublicPath, getAppUrl } from "@/config/app";
 import { getOnboardingContext } from "@/actions/onboarding";
 import { getServiceCatalogSettings, getAppointmentBookingSettings } from "@/actions/booking-settings";
+import { getBillingOverview } from "@/actions/billing";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 
 export default async function OnboardingPage() {
-  const [{ shop, isAdditionalLocation, suggestedServices, copiedFromShopName }, bookingSettings] = await Promise.all([
+  const [{ shop, isAdditionalLocation, suggestedServices, copiedFromShopName }, bookingSettings, { subscription }] = await Promise.all([
     getOnboardingContext(),
     getAppointmentBookingSettings(),
+    getBillingOverview(),
   ]);
 
   const initialServices = suggestedServices.length > 0 ? suggestedServices : await getServiceCatalogSettings();
@@ -29,6 +31,7 @@ export default async function OnboardingPage() {
       copiedFromShopName={copiedFromShopName}
       initialServices={initialServices ?? []}
       workingHours={bookingSettings?.workingHours ?? []}
+      subscription={subscription}
     />
   );
 }

@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { ADMIN } from "@/lib/routes";
-import { createDefaultSubscription } from "@/lib/subscription";
+import { createPendingSubscription } from "@/lib/subscription";
 import { sendVerificationEmail } from "@/lib/email-verification";
 import {
   MARKETING_DICTIONARIES,
@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
           role: "OWNER",
         },
       });
-      await createDefaultSubscription(tx, shop.id);
+      await createPendingSubscription(tx, shop.id);
     });
   } catch (err) {
     console.error("[/api/auth/signup] error:", err);

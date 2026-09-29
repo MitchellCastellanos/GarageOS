@@ -8,7 +8,7 @@ import { Loader2 } from "lucide-react";
 
 export interface ShopSubscriptionDetail {
   id: string;
-  plan: Plan;
+  plan: Plan | null;
   status: string;
   billingInterval: string | null;
   trialEndsAt: Date | null;
@@ -20,6 +20,7 @@ export interface ShopSubscriptionDetail {
 }
 
 const STATUS_LABELS: Record<string, string> = {
+  AWAITING_PLAN: "Sin plan elegido",
   TRIALING: "En prueba",
   ACTIVE: "Activa",
   PAST_DUE: "Pago atrasado",
@@ -75,7 +76,7 @@ export function ShopBillingTab({ shopId, subscription }: { shopId: string; subsc
         <h2 className="font-semibold text-slate-900 mb-3">Estado de la suscripción</h2>
         {subscription ? (
           <div className="bg-white border border-slate-200 rounded-xl p-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-            <Field label="Plan actual" value={PLAN_LABELS[subscription.plan]} />
+            <Field label="Plan actual" value={subscription.plan ? PLAN_LABELS[subscription.plan] : "Sin elegir"} />
             <Field label="Estado" value={STATUS_LABELS[subscription.status] ?? subscription.status} />
             <Field label="Intervalo" value={subscription.billingInterval ?? "—"} />
             <Field label="Fin de período actual" value={fmt(subscription.currentPeriodEnd)} />
@@ -83,7 +84,7 @@ export function ShopBillingTab({ shopId, subscription }: { shopId: string; subsc
             <Field label="Cancelación programada" value={subscription.cancelAtPeriodEnd ? "Sí" : "No"} />
           </div>
         ) : (
-          <p className="text-sm text-slate-500">Este taller no tiene suscripción — usa el plan por defecto (CORE).</p>
+          <p className="text-sm text-slate-500">Este taller no tiene suscripción — está restringido (no existe plan gratuito). Asigna un plan para reactivarlo.</p>
         )}
       </div>
 

@@ -105,23 +105,49 @@ Completed:
 
 Still intentionally **not** counted here: actual selected-plan + card-on-file trial lifecycle. That is Block 1.
 
-### 1 — Subscription lifecycle + onboarding checkout — TODO — P0
-Best owner: dedicated Claude agent/session.
+### 1 — Subscription lifecycle + onboarding checkout — DONE (2026-09-29, code-complete; needs the manual Stripe configuration below) — P0
 
-Build the target trial/conversion contract above.
+Implemented end-to-end. The onboarding wizard now has a **Plan & payment** step (step 6; Share/finish is step 7).
 
-Acceptance criteria:
-- New email and Google signups cannot silently create an unpaid forever-Core account.
-- During onboarding owner selects plan and billing interval.
-- Stripe collects payment method and creates/links the 14-day trial for that selected plan.
-- UI displays Today $0 and dynamically calculated due date/amount before confirmation.
-- Entitlements during trial match selected plan.
-- Trial banners show selected plan, days remaining and next charge information.
-- Successful trial charge becomes ACTIVE without manual intervention.
-- PAST_DUE grace works; terminal nonpayment becomes RESTRICTED.
-- Restricted mode is enforced server-side for operational writes.
-- Missing Subscription is repaired/restricted, never treated as complimentary Core.
-- Tests cover email signup, Google signup, each plan trial, success, retry/past_due, canceled/unpaid, missing subscription and recovery.
+**State model** (`src/domain/subscription-state.ts`, pure and unit-tested; `src/lib/subscription.ts` resolver):
+- DB `SubscriptionStatus` gained `AWAITING_PLAN`; `Subscription.plan` is nullable (null until chosen); `status` has no DB default.
+- Derived access state: `SETUP_REQUIRED | TRIALING | ACTIVE | PAST_DUE | RESTRICTED`. `EffectiveSubscription.plan` = plan granting entitlements *now* (null when no access); `subscribedPlan` = chosen/paid plan; `canWrite`, `nextCharge`, `trialEligible`, `hasStripeSubscription`, `subscriptionMissing`.
+- **No free tier**: expired trial, CANCELED, UNPAID, INCOMPLETE and a missing Subscription row → RESTRICTED (plan null), never Core. PAST_DUE keeps the plan during Stripe retries. A Stripe-backed trial gets a 48 h webhook-lag grace after `trialEndsAt` before restricting; a legacy no-card trial restricts at expiry.
+- `can()` = entitled *now*; `canView()` = may *show* existing data (uses the subscribed plan; used for Inventory/Campaigns pages and nav locks). Never authorize a write with `canView`.
+
+**Signup**: email, Google and `/platform` createShop all create Shop (+ OWNER) + Subscription(`AWAITING_PLAN`) in **one transaction** (`createPendingSubscription`); `createDefaultSubscription`/"default Pro trial" is gone. Email signup keeps verification; Google keeps trusting Google's verified email. A failed transaction creates nothing (Google sign-in is refused).
+
+**Checkout / Stripe** (`src/actions/billing.ts`, `src/lib/stripe.ts`, `src/lib/stripe-sync.ts`):
+- Stripe Checkout (subscription mode) with `payment_method_collection: "always"`, `trial_period_days: 14` for the *selected* plan, `trial_settings.end_behavior.missing_payment_method: "cancel"`, automatic tax, CAD. Price is server-mapped from `STRIPE_PRICE_<PLAN>_<INTERVAL>`; the client only sends plan+interval (validated). Card data never touches GarageOS.
+- Trial eligibility is server-decided (`decideTrialPlan`): fresh 14 days only for a shop that never had a Stripe subscription; legacy no-card trial keeps its own end date; returning/canceled shops are billed immediately (no infinite trials).
+- Duplicate prevention: a shop with a live Stripe subscription cannot open another Checkout (uses the portal); Stripe Customer is created once per shop (idempotency key) and stored before Checkout; Checkout creation uses a per-shop/plan/interval idempotency key; a second live subscription arriving via webhook is cancelled in Stripe; stale events from an old subscription are ignored; an event whose Customer differs from the shop's stored Customer is refused.
+- Return from Checkout: `confirmCheckoutAction` retrieves the session, requires `client_reference_id` == the caller's subscription-owner shop, and syncs immediately (no waiting for the webhook).
+- Webhook (`/api/stripe/webhook`): signature verified; idempotent per `event.id` (new table `StripeWebhookEvent`, marker removed if the handler fails so Stripe retries); subscription events re-read the live subscription from Stripe so out-of-order deliveries cannot regress state. `trialing→active` (conversion), `past_due`, `unpaid`, `canceled` all map through `mapStripeStatus`.
+- `updateStripeSubscriptionPrice` now targets the PLAN item (not `items.data[0]`, which could be the SMS-overage item).
+
+**Onboarding**: `StepPlan` (plan cards, monthly/yearly, "Today: $0", "Due {date}: {amount} CAD + tax", auto-billing notice, secure-payment note) → Stripe → back to step 6 with confirmation summary. `completeOnboarding` refuses (server-side) unless the shop has a card-backed trial/active subscription (`PLAN_REQUIRED` sends the owner back to step 6). Additional locations (short flow) inherit the organization's subscription and skip the step. Dates/amounts come from `quoteTrialStart` / `PLAN_PRICING_CAD` (server-trusted config; the UI value is informational only).
+
+**Trial UI**: layout banner (`SubscriptionBanner`) shows selected plan, days left, first charge date + amount (or "add a payment method" for legacy no-card trials), escalating tone (info >7 d, blue ≤7 d, amber ≤2 d), red for past-due/restricted. Topbar plan badge, Billing card (plan, status, interval, trial end, next payment, payment problem, cancellation, portal, reactivate) and onboarding finish step are all dynamic; nothing hardcodes "Pro trial" or dates.
+
+**Restricted mode (server-side)**: `requireWriteAccess` / `assertShopWritable` / `getWritableShopId()` (`src/lib/subscription.ts`, `src/lib/shop-context.ts`); a blocked owner is redirected to Billing (`&restricted=1`). Applied to every mutating action in appointments, clients, vehicles, work orders, quotes, invoices (incl. payments/send), inspections (+photos), inventory, reminders, cash drawer, inbox reply/compose/archive, document upload; entitlement-gated writes (`checkEntitlement`) also fail for restricted shops; cron jobs skip restricted shops (service/appointment reminders, campaigns) via `createOperatingChecker`. Reads, auth, Billing, portal and exports remain available. **Rule for future blocks: new operational server actions must call `getWritableShopId()` (not `getShopId()`).**
+
+Deliberately not gated (owner-level configuration, not shop operation): `settings.ts`, `booking-settings.ts`, `booking-page.ts`, `users.ts`, `locations.ts` (entitlement-gated already), `domains.ts` (entitlement-gated), support messages, staff notification preferences. Public customer-facing endpoints (online booking `/api/book/*`, quote approval, invoice/quote public links) still work for restricted shops — revisit in Block 15 if a restricted shop should stop accepting new online bookings.
+
+**Migration**: `prisma/migrations/20260929120000_subscription_lifecycle` (adds `AWAITING_PLAN`, makes `plan` nullable, drops `status` default, creates `StripeWebhookEvent`). Existing rows are untouched (grandfathered Complete/ACTIVE shops stay ACTIVE without Stripe; legacy Pro TRIALING no-card rows keep running until `trialEndsAt`, then RESTRICTED).
+
+**Tests**: `tests/subscription-state.test.ts` (pure state model: every status, trial dates/amounts for all 6 plan/interval combos, trial eligibility, Stripe sync decisions) and `tests/subscription-lifecycle.test.ts` (email + Google signup atomicity, onboarding-state resolver, missing row, multi-location resolution, restricted write enforcement, per-plan trial entitlements, Checkout parameters, customer reuse, sync of every plan/interval, conversion/past_due/unpaid/canceled, duplicate subscription cancel, stale events, cross-customer refusal, webhook idempotency + retry, billing recovery, checkout confirmation ownership, cron guard). Stripe/DB are mocked in the existing repo style — **no live Stripe test has been run**.
+
+#### MANUAL CONFIGURATION (Mitchell — cannot be done from the repo)
+1. **Stripe Prices (CAD)**: create six recurring Prices matching `PLAN_PRICING_CAD` (Core 199/1,990, Pro 299/2,990, Complete 449/4,490; monthly / yearly) — **no trial configured on the Price itself** (the trial comes from Checkout) — and set env `STRIPE_PRICE_CORE_MONTHLY`, `…_CORE_YEARLY`, `…_PRO_MONTHLY`, `…_PRO_YEARLY`, `…_COMPLETE_MONTHLY`, `…_COMPLETE_YEARLY`. The amounts shown in the UI come from `PLAN_PRICING_CAD`, not from Stripe — they must match.
+2. **Webhook endpoint** `<NEXT_PUBLIC_APP_URL>/api/stripe/webhook` with events `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`; put its signing secret in `STRIPE_WEBHOOK_SECRET`; also `STRIPE_SECRET_KEY`.
+3. **Stripe Tax**: enable Stripe Tax and register Canada/Quebec (GST/QST) — Checkout uses `automatic_tax` and requires a billing address.
+4. **Smart Retries / failed payment settings** (Billing → Subscriptions and emails): set retry schedule and choose *what happens when retries are exhausted* = **cancel the subscription** or **mark unpaid** — both end in RESTRICTED. Enable customer emails for failed payments/upcoming renewals as desired.
+5. **Customer portal** (Settings → Billing → Customer portal): enable payment-method update, invoice history, cancel subscription; optionally plan switching among the six Prices.
+6. **Existing SMS overage** (`STRIPE_SMS_OVERAGE_PRICE_ID`) unchanged; if set, it is added as a 2nd line item at Checkout.
+7. Run the migration (`npm run build` applies it via `scripts/deploy-migrations.mjs`).
+8. Do one live test-mode pass (Block 15/16): signup → plan → test card `4242…` → trial → advance the test clock past trial end → confirm ACTIVE; repeat with card `4000 0000 0000 0341` (charge fails) → PAST_DUE → RESTRICTED → fix card → ACTIVE.
+
+Known limits / follow-ups (not blockers): additional-location Stripe quantity billing remains Block 12; Stripe `trial_end` must be ≥48 h ahead so a legacy trial with <48 h left is bumped to 48 h at Checkout; a Stripe-backed trial whose conversion webhook never arrives restricts 48 h after trial end (self-heals on the next event/portal action).
 
 ### 2 — Data Import / Migration — TODO — P0
 Best owner: Claude.
@@ -218,7 +244,7 @@ Required:
 - responsive/mobile;
 - media ownership/uploads;
 - Quebec/Canada fiscal tests;
-- Stripe webhook and subscription E2E;
+- Stripe webhook and subscription E2E (live test-mode pass incl. Stripe test clocks — Block 1 is unit-tested with mocks only);
 - real email/SMS E2E;
 - import safety;
 - Multi-Shop isolation;
@@ -253,4 +279,4 @@ These can be reconsidered from real customer demand after launch.
 
 ## Current next move
 
-**Block 1 is the next implementation handoff.** Give the agent this document and ask it to audit the existing signup/onboarding/Stripe/subscription code against Block 1, make a short final implementation plan, then implement it end-to-end with tests and update this file before committing.
+**Block 2 (Data Import / Migration) is the next implementation handoff.** Block 1 is code-complete; the manual Stripe configuration listed under it must be done before selling. Every new operational server action must use `getWritableShopId()` so restricted mode stays enforced.

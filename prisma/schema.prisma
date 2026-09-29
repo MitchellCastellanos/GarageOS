@@ -125,8 +125,10 @@ model Subscription {
   shopId String @unique
   shop   Shop   @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
-  plan             Plan
-  status           SubscriptionStatus @default(TRIALING)
+  // null mientras el dueño todavía no elige plan en el onboarding
+  // (status AWAITING_PLAN) — nunca se inventa un plan por defecto.
+  plan             Plan?
+  status           SubscriptionStatus
   billingInterval  BillingInterval?
   trialEndsAt      DateTime?
   currentPeriodEnd DateTime?
@@ -145,6 +147,19 @@ model Subscription {
   updatedAt DateTime @updatedAt
 
   cancellations SubscriptionCancellation[]
+
+  @@schema("garageos")
+}
+
+/**
+ * Eventos de webhook de Stripe ya procesados — idempotencia (Stripe reintenta
+ * y puede entregar duplicados). La fila se inserta ANTES de procesar y se borra
+ * si el handler falla, para que el reintento de Stripe sí lo vuelva a correr.
+ */
+model StripeWebhookEvent {
+  id          String   @id // event.id de Stripe
+  type        String
+  processedAt DateTime @default(now())
 
   @@schema("garageos")
 }
@@ -189,6 +204,8 @@ enum Plan {
 }
 
 enum SubscriptionStatus {
+  // Taller recién creado: aún no eligió plan ni método de pago (onboarding).
+  AWAITING_PLAN
   TRIALING
   ACTIVE
   PAST_DUE

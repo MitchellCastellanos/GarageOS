@@ -4,7 +4,7 @@ import { Megaphone, Plus } from "lucide-react";
 import { listCampaigns } from "@/actions/campaigns";
 import { formatDate } from "@/lib/utils";
 import { getShopId } from "@/lib/shop-context";
-import { can } from "@/lib/subscription";
+import { canView } from "@/lib/subscription";
 import { UpgradeCTA } from "@/components/billing/UpgradeCTA";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import { CAMPAIGNS_DICT } from "@/lib/admin-locale/campaigns";
@@ -21,7 +21,7 @@ export default async function CampaignsPage() {
   const locale = await getAdminLocale();
   const t = CAMPAIGNS_DICT[locale];
   const shopId = await getShopId();
-  const entitled = await can(shopId, "communications.campaigns");
+  const entitled = await canView(shopId, "communications.campaigns");
 
   if (!entitled) {
     return (

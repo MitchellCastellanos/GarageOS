@@ -4,7 +4,7 @@ import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { provisionDefaultSenderIdentities } from "@/lib/communications/sender-identity";
-import { createDefaultSubscription } from "@/lib/subscription";
+import { createPendingSubscription } from "@/lib/subscription";
 
 import { ADMIN } from "@/lib/routes";
 
@@ -25,25 +25,33 @@ export const authConfig: NextAuthConfig = {
       if (existing) return true;
 
       const ownerName = user.name?.trim() || user.email.split("@")[0];
-      const shop = await db.shop.create({
-        data: { name: `Taller de ${ownerName}` },
-      });
-      await db.user.create({
-        data: {
-          shopId: shop.id,
-          name: ownerName,
-          email: user.email,
-          role: "OWNER",
-          // Google ya confirmó este correo — no le pedimos verificarlo otra vez.
-          emailVerified: new Date(),
-        },
-      });
+      // Shop + OWNER + Subscription (AWAITING_PLAN) en UNA transacción: un fallo a
+      // medias no deja un taller sin fila de suscripción. El plan y el método de
+      // pago se eligen después, en el onboarding (Stripe Checkout).
+      let shop;
+      try {
+        shop = await db.$transaction(async (tx) => {
+          const created = await tx.shop.create({ data: { name: `Taller de ${ownerName}` } });
+          await tx.user.create({
+            data: {
+              shopId: created.id,
+              name: ownerName,
+              email: user.email!,
+              role: "OWNER",
+              // Google ya confirmó este correo — no le pedimos verificarlo otra vez.
+              emailVerified: new Date(),
+            },
+          });
+          await createPendingSubscription(tx, created.id);
+          return created;
+        });
+      } catch (err) {
+        console.error("[auth] signup con Google falló:", err);
+        return false;
+      }
       // Identidad de envío inicial (Communications Platform) — no bloquea el signup si falla.
       await provisionDefaultSenderIdentities(shop).catch((err) => {
         console.error("[communications] provisionDefaultSenderIdentities falló en signup:", err);
-      });
-      await createDefaultSubscription(db, shop.id).catch((err) => {
-        console.error("[subscription] createDefaultSubscription falló en signup:", err);
       });
       return true;
     },

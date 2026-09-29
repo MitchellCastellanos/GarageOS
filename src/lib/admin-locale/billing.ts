@@ -14,7 +14,40 @@ export interface BillingDictionary {
     renewsOn: (date: string) => string;
     cancelsOn: (date: string) => string;
   };
-  statusLabel: Record<"TRIALING" | "ACTIVE" | "PAST_DUE" | "CANCELED" | "UNPAID" | "INCOMPLETE" | "NONE", string>;
+  status: {
+    noPlan: string;
+    setupRequired: string;
+    trialLeft: (days: number) => string;
+    trialEnds: (date: string) => string;
+    firstCharge: (date: string, amount: string, per: string) => string;
+    noCard: (plan: string, date: string) => string;
+    nextPayment: (date: string, amount: string, per: string) => string;
+    cancelsOn: (date: string) => string;
+    pastDue: string;
+    restricted: string;
+    restrictedNoPlan: string;
+    managePortal: string;
+    updatePayment: string;
+    portalChangeHint: string;
+    reactivateTitle: string;
+    chooseTitle: string;
+  };
+  summary: {
+    todayLabel: string;
+    dueLabel: (date: string) => string;
+    plusTax: string;
+    autoBilling: (date: string) => string;
+    noTrialToday: string;
+    noTrialNote: string;
+    trialBadge: (days: number) => string;
+    securePayment: string;
+  };
+  cta: {
+    startTrial: (plan: string) => string;
+    subscribeNow: (plan: string) => string;
+    redirecting: string;
+  };
+  statusLabel: Record<"AWAITING_PLAN" | "TRIALING" | "ACTIVE" | "PAST_DUE" | "CANCELED" | "UNPAID" | "INCOMPLETE" | "NONE", string>;
   interval: { monthly: string; yearly: string };
   mostPopular: string;
   perMonth: string;
@@ -28,13 +61,14 @@ export interface BillingDictionary {
     checkoutGeneric: string;
     portalGeneric: string;
     checkoutNoUrl: string;
+    alreadySubscribed: string;
   };
 }
 
 export const BILLING_DICT: Record<AdminLocale, BillingDictionary> = {
   es: {
     banners: {
-      checkoutSuccess: "Pago recibido — tu plan se actualiza en unos segundos.",
+      checkoutSuccess: "Método de pago guardado — tu suscripción se está activando.",
       checkoutCancelled: "Checkout cancelado — no se hizo ningún cambio a tu plan.",
     },
     currentPlan: {
@@ -45,7 +79,41 @@ export const BILLING_DICT: Record<AdminLocale, BillingDictionary> = {
       renewsOn: (date) => `Próximo cobro el ${date}`,
       cancelsOn: (date) => `Se cancela el ${date}`,
     },
+    status: {
+      noPlan: "Sin plan",
+      setupRequired: "Todavía no has elegido un plan.",
+      trialLeft: (d) => `${d} ${d === 1 ? "día restante" : "días restantes"} de prueba gratuita`,
+      trialEnds: (date) => `La prueba termina el ${date}`,
+      firstCharge: (date, amount, per) => `Primer cobro el ${date}: ${amount} CAD/${per} + impuestos`,
+      noCard: (plan, date) => `Sin método de pago — agrégalo antes del ${date} para conservar ${plan}`,
+      nextPayment: (date, amount, per) => `Próximo pago el ${date}: ${amount} CAD/${per} + impuestos`,
+      cancelsOn: (date) => `Se cancela el ${date}`,
+      pastDue: "No pudimos cobrar tu suscripción. Actualiza tu método de pago — Stripe reintentará el cobro automáticamente.",
+      restricted: "Cuenta en solo lectura: puedes ver y exportar tus datos, pero no editar hasta reactivar tu suscripción.",
+      restrictedNoPlan: "No hay una suscripción activa. Elige un plan para volver a editar — tus datos siguen intactos.",
+      managePortal: "Administrar facturación",
+      updatePayment: "Actualizar método de pago",
+      portalChangeHint: "Para cambiar de plan, de intervalo o de método de pago usa el portal de facturación.",
+      reactivateTitle: "Reactivar tu cuenta",
+      chooseTitle: "Elige tu plan",
+    },
+    summary: {
+      todayLabel: "Hoy",
+      dueLabel: (date) => `El ${date}`,
+      plusTax: "+ impuestos aplicables",
+      autoBilling: (date) => `La facturación empieza automáticamente el ${date}, salvo que canceles antes.`,
+      noTrialToday: "Hoy se cobra",
+      noTrialNote: "Como ya tuviste una prueba o suscripción, el cobro empieza hoy.",
+      trialBadge: (d) => `${d} días gratis`,
+      securePayment: "El método de pago lo captura Stripe de forma segura — GarageOS nunca ve ni guarda tu tarjeta.",
+    },
+    cta: {
+      startTrial: (plan) => `Iniciar prueba gratuita de 14 días — ${plan}`,
+      subscribeNow: (plan) => `Suscribirme a ${plan}`,
+      redirecting: "Redirigiendo a Stripe…",
+    },
     statusLabel: {
+      AWAITING_PLAN: "Sin plan elegido",
       TRIALING: "En prueba",
       ACTIVE: "Activa",
       PAST_DUE: "Pago pendiente",
@@ -85,11 +153,12 @@ export const BILLING_DICT: Record<AdminLocale, BillingDictionary> = {
       checkoutGeneric: "Error al iniciar el checkout",
       portalGeneric: "Error al abrir el portal de facturación",
       checkoutNoUrl: "Stripe no devolvió una URL de checkout",
+      alreadySubscribed: "Ya tienes una suscripción activa — cámbiala desde el portal de facturación.",
     },
   },
   en: {
     banners: {
-      checkoutSuccess: "Payment received — your plan will update in a few seconds.",
+      checkoutSuccess: "Payment method saved — your subscription is being activated.",
       checkoutCancelled: "Checkout cancelled — no changes were made to your plan.",
     },
     currentPlan: {
@@ -100,7 +169,41 @@ export const BILLING_DICT: Record<AdminLocale, BillingDictionary> = {
       renewsOn: (date) => `Next charge on ${date}`,
       cancelsOn: (date) => `Cancels on ${date}`,
     },
+    status: {
+      noPlan: "No plan",
+      setupRequired: "You haven't chosen a plan yet.",
+      trialLeft: (d) => `${d} ${d === 1 ? "day" : "days"} left in your free trial`,
+      trialEnds: (date) => `Trial ends on ${date}`,
+      firstCharge: (date, amount, per) => `First charge on ${date}: ${amount} CAD/${per} + tax`,
+      noCard: (plan, date) => `No payment method — add one before ${date} to keep ${plan}`,
+      nextPayment: (date, amount, per) => `Next payment on ${date}: ${amount} CAD/${per} + tax`,
+      cancelsOn: (date) => `Cancels on ${date}`,
+      pastDue: "We couldn't charge your subscription. Update your payment method — Stripe will retry automatically.",
+      restricted: "Read-only account: you can view and export your data, but not edit until you reactivate your subscription.",
+      restrictedNoPlan: "There is no active subscription. Choose a plan to edit again — your data is safe.",
+      managePortal: "Manage billing",
+      updatePayment: "Update payment method",
+      portalChangeHint: "To change plan, interval or payment method use the billing portal.",
+      reactivateTitle: "Reactivate your account",
+      chooseTitle: "Choose your plan",
+    },
+    summary: {
+      todayLabel: "Today",
+      dueLabel: (date) => `Due ${date}`,
+      plusTax: "+ applicable tax",
+      autoBilling: (date) => `Billing starts automatically on ${date} unless you cancel before then.`,
+      noTrialToday: "Charged today",
+      noTrialNote: "Since you've already had a trial or subscription, billing starts today.",
+      trialBadge: (d) => `${d}-day free trial`,
+      securePayment: "Your payment method is captured securely by Stripe — GarageOS never sees or stores your card.",
+    },
+    cta: {
+      startTrial: (plan) => `Start 14-day free trial — ${plan}`,
+      subscribeNow: (plan) => `Subscribe to ${plan}`,
+      redirecting: "Redirecting to Stripe…",
+    },
     statusLabel: {
+      AWAITING_PLAN: "No plan chosen",
       TRIALING: "Trialing",
       ACTIVE: "Active",
       PAST_DUE: "Past due",
@@ -140,11 +243,12 @@ export const BILLING_DICT: Record<AdminLocale, BillingDictionary> = {
       checkoutGeneric: "Error starting checkout",
       portalGeneric: "Error opening the billing portal",
       checkoutNoUrl: "Stripe didn't return a checkout URL",
+      alreadySubscribed: "You already have an active subscription — change it from the billing portal.",
     },
   },
   fr: {
     banners: {
-      checkoutSuccess: "Paiement reçu — votre forfait sera mis à jour dans quelques secondes.",
+      checkoutSuccess: "Mode de paiement enregistré — votre abonnement est en cours d'activation.",
       checkoutCancelled: "Paiement annulé — aucun changement n'a été apporté à votre forfait.",
     },
     currentPlan: {
@@ -155,7 +259,41 @@ export const BILLING_DICT: Record<AdminLocale, BillingDictionary> = {
       renewsOn: (date) => `Prochain paiement le ${date}`,
       cancelsOn: (date) => `Se termine le ${date}`,
     },
+    status: {
+      noPlan: "Aucun forfait",
+      setupRequired: "Vous n'avez pas encore choisi de forfait.",
+      trialLeft: (d) => `${d} ${d === 1 ? "jour restant" : "jours restants"} dans votre essai gratuit`,
+      trialEnds: (date) => `L'essai se termine le ${date}`,
+      firstCharge: (date, amount, per) => `Premier prélèvement le ${date} : ${amount} CAD/${per} + taxes`,
+      noCard: (plan, date) => `Aucun mode de paiement — ajoutez-en un avant le ${date} pour conserver ${plan}`,
+      nextPayment: (date, amount, per) => `Prochain paiement le ${date} : ${amount} CAD/${per} + taxes`,
+      cancelsOn: (date) => `Se termine le ${date}`,
+      pastDue: "Nous n'avons pas pu prélever votre abonnement. Mettez à jour votre mode de paiement — Stripe réessaiera automatiquement.",
+      restricted: "Compte en lecture seule : vous pouvez consulter et exporter vos données, mais pas les modifier avant de réactiver votre abonnement.",
+      restrictedNoPlan: "Aucun abonnement actif. Choisissez un forfait pour modifier à nouveau — vos données sont conservées.",
+      managePortal: "Gérer la facturation",
+      updatePayment: "Mettre à jour le mode de paiement",
+      portalChangeHint: "Pour changer de forfait, d'intervalle ou de mode de paiement, utilisez le portail de facturation.",
+      reactivateTitle: "Réactiver votre compte",
+      chooseTitle: "Choisissez votre forfait",
+    },
+    summary: {
+      todayLabel: "Aujourd'hui",
+      dueLabel: (date) => `Dû le ${date}`,
+      plusTax: "+ taxes applicables",
+      autoBilling: (date) => `La facturation commence automatiquement le ${date}, sauf annulation avant.`,
+      noTrialToday: "Facturé aujourd'hui",
+      noTrialNote: "Comme vous avez déjà eu un essai ou un abonnement, la facturation commence aujourd'hui.",
+      trialBadge: (d) => `Essai gratuit de ${d} jours`,
+      securePayment: "Le mode de paiement est saisi de façon sécurisée par Stripe — GarageOS ne voit ni ne conserve votre carte.",
+    },
+    cta: {
+      startTrial: (plan) => `Commencer l'essai gratuit de 14 jours — ${plan}`,
+      subscribeNow: (plan) => `S'abonner à ${plan}`,
+      redirecting: "Redirection vers Stripe…",
+    },
     statusLabel: {
+      AWAITING_PLAN: "Aucun forfait choisi",
       TRIALING: "À l'essai",
       ACTIVE: "Actif",
       PAST_DUE: "Paiement en retard",
@@ -195,6 +333,7 @@ export const BILLING_DICT: Record<AdminLocale, BillingDictionary> = {
       checkoutGeneric: "Erreur lors du démarrage du paiement",
       portalGeneric: "Erreur lors de l'ouverture du portail de facturation",
       checkoutNoUrl: "Stripe n'a pas renvoyé d'URL de paiement",
+      alreadySubscribed: "Vous avez déjà un abonnement actif — modifiez-le depuis le portail de facturation.",
     },
   },
 };

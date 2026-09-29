@@ -31,8 +31,8 @@ export async function getShopSmsAdminOverview(shopId: string) {
   return {
     number,
     usage,
-    planAllowance: PLAN_LIMITS[sub.plan].smsSegmentsPerMonth,
-    plan: sub.plan,
+    planAllowance: sub.plan ? PLAN_LIMITS[sub.plan].smsSegmentsPerMonth : 0,
+    plan: sub.plan ?? sub.subscribedPlan ?? "—",
     optedOutCount,
     twilioConfigured: isTwilioConfigured(),
   };

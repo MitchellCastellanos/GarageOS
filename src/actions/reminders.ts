@@ -5,7 +5,7 @@ import { ADMIN } from "@/lib/routes";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { getShopId } from "@/lib/shop-context";
+import { getShopId, getWritableShopId } from "@/lib/shop-context";
 import { reminderSchema, type ReminderFormData } from "@/lib/validations";
 import { sendReminderEmail } from "@/lib/email";
 import { shopToEmailConfig } from "@/lib/email-config";
@@ -48,7 +48,7 @@ export async function getReminders(status?: string) {
 }
 
 export async function createReminder(formData: ReminderFormData) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
 
   const parsed = reminderSchema.safeParse(formData);
   if (!parsed.success) {
@@ -74,7 +74,7 @@ export async function createReminder(formData: ReminderFormData) {
 }
 
 export async function sendReminderNow(reminderId: string) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   const locale = await getAdminLocale();
 
   const reminder = await db.serviceReminder.findFirst({
@@ -117,7 +117,7 @@ export async function sendReminderNow(reminderId: string) {
 }
 
 export async function dismissReminder(reminderId: string) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   await db.serviceReminder.updateMany({
     where: { id: reminderId, shopId },
     data: { status: "DISMISSED" },

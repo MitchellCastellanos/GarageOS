@@ -55,7 +55,7 @@ export async function notifyPlanChanged(params: {
   to: string | string[];
   shopId: string;
   shopName: string;
-  previousPlan: Plan;
+  previousPlan: Plan | null;
   newPlan: Plan;
   reason: string;
 }): Promise<void> {

@@ -11,3 +11,7 @@ Migrations now apply automatically: `npm run build` runs `scripts/deploy-migrati
 Prisma CLI uses DIRECT_URL when populated, otherwise DATABASE_URL. Application runtime continues to use DATABASE_URL. This migration is for an uninitialized garageos schema; inspect an existing/partial schema before applying or baselining it. Do not use migrate reset or accept-data-loss.
 
 Validation: generated SQL applied successfully to isolated PGlite PostgreSQL; 25 tables created; owner/shop relation and unique email checked. Existing 3 domain tests passed. Auth.js implementation confirms signIn with redirect:false still sets session cookies. Production signup/session/dashboard have NOT been verified successfully; no production database was modified. Google environment configuration remains with the owner.
+
+## Update — Block 1 (subscription lifecycle)
+
+Signup (email and Google) no longer creates a default Pro trial. Both create Shop + OWNER + Subscription (`AWAITING_PLAN`, no plan) in a single transaction; email signup still requires verification before login, Google trusts Google's verified email. The plan, payment method and 14-day Stripe trial are chosen in the onboarding "Plan & payment" step. See `docs/product-completion-plan.md` (Block 1).

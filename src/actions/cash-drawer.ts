@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { getShopId } from "@/lib/shop-context";
+import { getShopId, getWritableShopId } from "@/lib/shop-context";
 import { auth } from "@/lib/auth";
 import { ADMIN } from "@/lib/routes";
 import { cashDrawerEntrySchema, type CashDrawerEntryFormData } from "@/lib/validations";
@@ -40,7 +40,7 @@ export async function getCashDrawerEntries(date?: string) {
 }
 
 export async function createCashDrawerEntry(formData: CashDrawerEntryFormData) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   const session = await auth();
 
   const parsed = cashDrawerEntrySchema.safeParse(formData);
@@ -114,7 +114,7 @@ export async function ensureCashInFromInvoice(params: {
 }
 
 export async function deleteCashDrawerEntry(id: string) {
-  const shopId = await getShopId();
+  const shopId = await getWritableShopId();
   const result = await db.cashDrawerEntry.deleteMany({
     where: { id, shopId, linkedInvoiceId: null },
   });

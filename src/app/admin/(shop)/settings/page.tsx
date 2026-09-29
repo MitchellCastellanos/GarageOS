@@ -50,11 +50,13 @@ export default async function SettingsPage() {
   const billing = isOwner ? await getBillingOverview() : null;
   const smsOverview = isOwner ? await getShopSmsOverview() : null;
   const staffNotificationPreferences = isOwner ? await getMyStaffNotificationPreferences() : null;
-  const plan = billing?.subscription.plan ?? "CORE";
-  const seatLimit = PLAN_LIMITS[plan].users;
-  const canAddLocation = planIncludes(plan, "organization.multiLocation");
-  const canCustomDomain = planIncludes(plan, "branding.customDomain");
-  const canCreateIdentity = planIncludes(plan, "branding.customSender");
+  // plan = plan con entitlements HOY (null si restringido / sin elegir — no hay plan gratuito).
+  const plan = billing?.subscription.plan ?? null;
+  const viewPlan = plan ?? billing?.subscription.subscribedPlan ?? null;
+  const seatLimit = viewPlan ? PLAN_LIMITS[viewPlan].users : 0;
+  const canAddLocation = plan != null && planIncludes(plan, "organization.multiLocation");
+  const canCustomDomain = plan != null && planIncludes(plan, "branding.customDomain");
+  const canCreateIdentity = plan != null && planIncludes(plan, "branding.customSender");
   const managedEmailDomain = getManagedEmailDomain();
   const managedAddress = shop.slug && managedEmailDomain ? `${shop.slug}@${managedEmailDomain}` : null;
   const tabs: TabItem[] = [

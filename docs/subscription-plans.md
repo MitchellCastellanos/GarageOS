@@ -275,21 +275,49 @@ The exact names can change during implementation, but the concepts should stay s
   (`src/components/billing/UpgradeCTA.tsx`) instead of silently failing —
   full-page for Inventory/Campaigns, inline for Domains/Sender
   identities/Team/Locations, plus a small lock badge on the gated nav items.
+- **Lifecycle (Block 1, see `docs/product-completion-plan.md`):** a new shop is
+  created (email signup, Google signup, `/platform` createShop — always in
+  one transaction with its Subscription) in `AWAITING_PLAN` with **no plan**.
+  The onboarding wizard's "Plan & payment" step (`StepPlan`,
+  `src/components/billing/PlanCheckout.tsx`) lets the owner pick
+  Core/Pro/Complete + monthly/yearly; `startCheckoutAction` opens a Stripe
+  Checkout (subscription mode, `payment_method_collection: "always"`,
+  14-day trial for the *selected* plan). Coming back, `confirmCheckoutAction`
+  syncs the session immediately; the webhook keeps it in sync afterwards.
+  `completeOnboarding` refuses to finish without a card-backed
+  trial/active subscription.
+- **State model** (`src/domain/subscription-state.ts`, pure): access state is
+  `SETUP_REQUIRED | TRIALING | ACTIVE | PAST_DUE | RESTRICTED`, resolved
+  from the DB status by `resolveAccess`. `EffectiveSubscription.plan` is the
+  plan that grants entitlements *now* (null when there is no access);
+  `subscribedPlan` is what the customer chose/pays for. There is **no free
+  tier**: expired trial, CANCELED, UNPAID, INCOMPLETE and a missing row are all
+  RESTRICTED. PAST_DUE keeps the plan while Stripe retries.
+- **Restricted mode:** `requireWriteAccess` / `getWritableShopId` /
+  `assertShopWritable` (`src/lib/subscription.ts`, `src/lib/shop-context.ts`)
+  block operational writes server-side and redirect owners to Billing.
+  Reads, Billing, auth and exports stay available. New operational server
+  actions MUST use `getWritableShopId()` (not `getShopId()`).
 - Billing lives in Settings → Billing (`src/components/billing/BillingCard.tsx`,
-  `src/actions/billing.ts`): current plan/status, a monthly/yearly plan
-  picker that starts a Stripe Checkout session, and a "Manage billing" link
-  to the Stripe customer portal.
-- Stripe sync is a webhook at `src/app/api/stripe/webhook/route.ts`
-  (`checkout.session.completed`, `customer.subscription.*`) plus
-  `src/lib/stripe.ts`. See `.env.example` for the required `STRIPE_*`
-  variables and the chat response that shipped alongside this change for the
-  exact Dashboard configuration (products, prices, webhook, portal, CAD/tax
-  settings).
-- New shops (signup, Google sign-in, and platform-admin-created shops) start
-  on a 14-day **Pro trial** (`createDefaultSubscription`). Shops that
-  existed before this system shipped were grandfathered to **Complete/Active**
-  in the backfill migration (`prisma/migrations/20260917153000_add_subscriptions`)
-  so nothing already in use broke.
+  `src/actions/billing.ts`): plan/status, trial end, next payment, payment
+  problems, a plan picker (only when there is no live Stripe subscription —
+  otherwise changes go through the portal, never a second Checkout) and the
+  Stripe customer portal link.
+- Stripe sync (`src/lib/stripe-sync.ts`, endpoint
+  `src/app/api/stripe/webhook/route.ts`): signature-verified, idempotent per
+  `event.id` (`StripeWebhookEvent`), re-reads the subscription so out-of-order
+  events can't regress state, cancels duplicate live subscriptions and ignores
+  stale events from old ones. Stripe events to subscribe:
+  `checkout.session.completed`, `customer.subscription.created`,
+  `customer.subscription.updated`, `customer.subscription.deleted`.
+  See `.env.example` and the "Manual configuration" section of
+  `docs/product-completion-plan.md`.
+- Shops that existed before this system shipped were grandfathered to
+  **Complete/Active** (no Stripe subscription) in
+  `prisma/migrations/20260917153000_add_subscriptions`; shops created between
+  that migration and Block 1 may hold a legacy Pro `TRIALING` row with no card —
+  it keeps running until its `trialEndsAt`, the banner asks for a payment
+  method, and it becomes RESTRICTED on expiry.
 - Per-location metered billing for Multi-Shop ($199 CAD/month/location) is
   **not wired to Stripe yet** — `organization.multiLocation` gates *whether*
   a Complete-plan shop can add a second location at all, but adding
