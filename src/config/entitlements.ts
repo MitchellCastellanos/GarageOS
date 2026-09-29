@@ -68,6 +68,10 @@ export const CAPABILITY_MIN_PLAN = {
   // método, exportaciones CSV para el contador y bitácora financiera. Facturar, cobrar y reembolsar
   // están en todos los planes; la bitácora se REGISTRA siempre y se consulta con este entitlement.
   "accounting.light": "PRO",
+  // QuickBooks Online (Block 10): conexión OAuth por taller + sincronización idempotente de clientes,
+  // facturas, pagos y reembolsos. Conectar/sincronizar exige el plan; un taller restringido o que
+  // baja de plan conserva la vista del estado y puede desconectar, pero no sincroniza.
+  "quickbooks.sync": "PRO",
   "organization.multiLocation": "COMPLETE",
 } as const satisfies Record<string, Plan>;
 

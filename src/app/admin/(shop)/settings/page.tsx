@@ -29,8 +29,11 @@ import { SETTINGS_DICT } from "@/lib/admin-locale/settings";
 import { BillingCard } from "@/components/billing/BillingCard";
 import { getBillingOverview } from "@/actions/billing";
 import { PLAN_LIMITS, planIncludes } from "@/config/entitlements";
+import { QuickBooksCard } from "@/components/settings/QuickBooksCard";
+import { getQuickBooksOverview } from "@/actions/quickbooks";
+import { QUICKBOOKS_DICT } from "@/lib/admin-locale/quickbooks";
 
-export default async function SettingsPage() {
+export default async function SettingsPage({ searchParams }: { searchParams?: Promise<{ qbo?: string }> }) {
   const session = await auth();
   if (!session?.user) redirect(ADMIN.login);
 
@@ -174,6 +177,15 @@ export default async function SettingsPage() {
           communications={communications}
         />
       ),
+    });
+  }
+
+  if (isOwner) {
+    const qboNotice = (await searchParams)?.qbo ?? null;
+    tabs.push({
+      id: "integrations",
+      label: QUICKBOOKS_DICT[locale].tab,
+      content: <QuickBooksCard overview={await getQuickBooksOverview()} notice={qboNotice} />,
     });
   }
 
