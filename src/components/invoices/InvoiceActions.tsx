@@ -11,6 +11,7 @@ import {
 } from "@/actions/invoices";
 import { InvoiceSendDialog } from "@/components/invoices/InvoiceSendDialog";
 import { InvoiceMarkPaidDialog } from "@/components/invoices/InvoiceMarkPaidDialog";
+import { InvoiceRefundDialog } from "@/components/invoices/InvoiceRefundDialog";
 import { isInvoicePending } from "@/lib/invoice-status";
 import { adminPath } from "@/lib/routes";
 import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
@@ -28,6 +29,13 @@ interface InvoiceActionsProps {
   smsSendCount?: number;
   total?: number;
   isPaid?: boolean;
+  /** Puede reembolsar (refunds.write) — el enforcement real está en la server action. */
+  canRefund?: boolean;
+  /** Saldo reembolsable (total − reembolsos previos). */
+  refundBalance?: number;
+  /** Nunca emitida ni cobrada: única que se puede borrar (las demás se anulan). */
+  canDelete?: boolean;
+  hasRefunds?: boolean;
 }
 
 const VOIDABLE = new Set(["DRAFT", "SENT", "PAID", "OVERDUE"]);
@@ -44,6 +52,10 @@ export function InvoiceActions({
   smsSendCount = 0,
   total = 0,
   isPaid = false,
+  canRefund = false,
+  refundBalance = 0,
+  canDelete = false,
+  hasRefunds = false,
 }: InvoiceActionsProps) {
   const router = useRouter();
   const locale = useAdminLocale();
@@ -124,7 +136,11 @@ export function InvoiceActions({
         />
       )}
 
-      {status === "PAID" && (
+      {status === "PAID" && canRefund && (
+        <InvoiceRefundDialog invoiceId={invoiceId} invoiceNumber={invoiceNumber} balance={refundBalance} disabled={isAnyPending} />
+      )}
+
+      {status === "PAID" && !hasRefunds && (
         <button
           type="button"
           disabled={isAnyPending}
@@ -150,7 +166,7 @@ export function InvoiceActions({
         </button>
       )}
 
-      {VOIDABLE.has(status) && (
+      {VOIDABLE.has(status) && !hasRefunds && (
         <button
           type="button"
           disabled={isAnyPending}
@@ -166,7 +182,7 @@ export function InvoiceActions({
         </button>
       )}
 
-      <button
+      {canDelete && <button
         type="button"
         disabled={isAnyPending}
         onClick={handleDelete}
@@ -178,7 +194,7 @@ export function InvoiceActions({
           <Trash2 className="w-3.5 h-3.5" />
         )}
         {t.deleteButton}
-      </button>
+      </button>}
     </div>
   );
 }

@@ -5,6 +5,7 @@
 import Decimal from "decimal.js";
 import { db } from "@/lib/db";
 import { formatClientName } from "@/lib/client-name";
+import { effectiveTaxSnapshot } from "@/domain/fiscal";
 import {
   AGING_BUCKETS,
   agingBucket,
@@ -37,6 +38,10 @@ function shopFilter(shopIds: string[]) {
 export interface SalesReport {
   granularity: Granularity;
   totals: { invoices: number; subtotal: number; tax: number; total: number; average: number };
+  /** Reembolsos pagados en el periodo (por fecha del reembolso) y ventas netas (total − reembolsos). */
+  refunds: { count: number; total: number; tax: number };
+  net: number;
+  taxByName: { name: string; amount: number }[];
   series: SeriesPoint[];
   byMethod: { method: string; amount: number }[];
   byItemType: { type: "LABOUR" | "PART" | "OTHER"; amount: number }[];
@@ -46,20 +51,30 @@ export interface SalesReport {
 
 export async function getSalesReport(scope: ReportScope): Promise<SalesReport> {
   const { shopIds, range } = scope;
-  const invoices = await db.invoice.findMany({
+  const [invoices, refundAgg] = await Promise.all([
+    db.invoice.findMany({
     where: { shopId: shopFilter(shopIds), status: "PAID", paidAt: { gte: range.from, lt: range.toExclusive } },
     select: {
       shopId: true,
       paidAt: true,
       subtotal: true,
+      taxRate: true,
       taxAmount: true,
       total: true,
+      taxSnapshot: true,
       paymentMode: true,
       paymentEntries: { select: { method: true, amount: true } },
       vehicles: { select: { lineItems: { select: { description: true, quantity: true, itemType: true, lineTotal: true } } } },
     },
-  });
+    }),
+    db.invoiceRefund.aggregate({
+      where: { shopId: shopFilter(shopIds), refundedAt: { gte: range.from, lt: range.toExclusive } },
+      _sum: { amount: true, taxAmount: true },
+      _count: { _all: true },
+    }),
+  ]);
 
+  const taxNames = new Map<string, Decimal>();
   let subtotal = new Decimal(0);
   let tax = new Decimal(0);
   let total = new Decimal(0);
@@ -76,6 +91,7 @@ export async function getSalesReport(scope: ReportScope): Promise<SalesReport> {
     subtotal = subtotal.plus(inv.subtotal.toString());
     tax = tax.plus(inv.taxAmount.toString());
     total = total.plus(inv.total.toString());
+    for (const l of effectiveTaxSnapshot(inv).lines) taxNames.set(l.name, (taxNames.get(l.name) ?? new Decimal(0)).plus(l.amount));
 
     const loc = location.get(inv.shopId) ?? { invoices: 0, total: new Decimal(0) };
     loc.invoices += 1;
@@ -111,6 +127,9 @@ export async function getSalesReport(scope: ReportScope): Promise<SalesReport> {
       total: money(total),
       average: invoices.length ? money(total.div(invoices.length)) : 0,
     },
+    refunds: { count: refundAgg._count._all, total: money(refundAgg._sum.amount?.toString() ?? 0), tax: money(refundAgg._sum.taxAmount?.toString() ?? 0) },
+    net: money(total.minus(refundAgg._sum.amount?.toString() ?? 0)),
+    taxByName: [...taxNames.entries()].map(([name, amount]) => ({ name, amount: money(amount) })),
     series: buildSeries(
       invoices.map((i) => ({ at: i.paidAt!, amount: i.total.toString() })),
       range,
@@ -351,7 +370,7 @@ export async function getInventoryReport(scope: ReportScope): Promise<InventoryR
 export interface OverviewReport {
   granularity: Granularity;
   /** Los campos de dinero son null sin financial.view. */
-  revenue: { invoices: number; total: number } | null;
+  revenue: { invoices: number; total: number; refunds: number; net: number } | null;
   series: SeriesPoint[] | null;
   outstanding: { invoices: number; total: number } | null;
   workOrders: { created: number; openNow: number };
@@ -362,12 +381,15 @@ export async function getOverviewReport(scope: ReportScope): Promise<OverviewRep
   const { shopIds, range, includeFinancial } = scope;
   const created = { gte: range.from, lt: range.toExclusive };
   const granularity = pickGranularity(range.days);
-  const [paid, outstanding, woCreated, woOpen, newClients] = await Promise.all([
+  const [paid, refundAgg, outstanding, woCreated, woOpen, newClients] = await Promise.all([
     includeFinancial
       ? db.invoice.findMany({
           where: { shopId: shopFilter(shopIds), status: "PAID", paidAt: created },
           select: { paidAt: true, total: true },
         })
+      : Promise.resolve(null),
+    includeFinancial
+      ? db.invoiceRefund.aggregate({ where: { shopId: shopFilter(shopIds), refundedAt: created }, _sum: { amount: true } })
       : Promise.resolve(null),
     includeFinancial
       ? db.invoice.aggregate({ where: { shopId: shopFilter(shopIds), status: { in: [...PENDING_STATUSES] } }, _sum: { total: true }, _count: { _all: true } })
@@ -378,7 +400,13 @@ export async function getOverviewReport(scope: ReportScope): Promise<OverviewRep
   ]);
   return {
     granularity,
-    revenue: paid ? { invoices: paid.length, total: money(paid.reduce((s, i) => s.plus(i.total.toString()), new Decimal(0))) } : null,
+    revenue: paid
+      ? (() => {
+          const gross = paid.reduce((s, i) => s.plus(i.total.toString()), new Decimal(0));
+          const refunds = new Decimal(refundAgg?._sum.amount?.toString() ?? 0);
+          return { invoices: paid.length, total: money(gross), refunds: money(refunds), net: money(gross.minus(refunds)) };
+        })()
+      : null,
     series: paid ? buildSeries(paid.map((i) => ({ at: i.paidAt!, amount: i.total.toString() })), range, granularity) : null,
     outstanding: outstanding ? { invoices: outstanding._count._all, total: money(outstanding._sum.total?.toString() ?? 0) } : null,
     workOrders: { created: woCreated, openNow: woOpen },

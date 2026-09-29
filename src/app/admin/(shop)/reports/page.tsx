@@ -77,7 +77,7 @@ function Overview({ d, t }: { d: OverviewReport; t: ReportsDictionary }) {
   return (
     <>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {d.revenue && <Kpi label={t.kpi.revenue} value={formatCurrency(d.revenue.total)} hint={`${d.revenue.invoices} ${t.kpi.invoices.toLowerCase()}`} />}
+        {d.revenue && <Kpi label={t.kpi.revenue} value={formatCurrency(d.revenue.net)} hint={`${d.revenue.invoices} ${t.kpi.invoices.toLowerCase()}${d.revenue.refunds ? ` · ${t.kpi.refunds}: ${formatCurrency(d.revenue.refunds)}` : ""}`} />}
         {d.outstanding && <Kpi label={t.kpi.outstanding} value={formatCurrency(d.outstanding.total)} hint={`${d.outstanding.invoices} ${t.kpi.outstandingInvoices.toLowerCase()}`} />}
         <Kpi label={t.kpi.woCreated} value={d.workOrders.created} hint={`${d.workOrders.openNow} ${t.kpi.woOpen.toLowerCase()}`} />
         <Kpi label={t.kpi.newClients} value={d.newClients} />
@@ -96,8 +96,13 @@ function Sales({ d, t }: { d: SalesReport; t: ReportsDictionary }) {
         <Kpi label={t.kpi.subtotal} value={formatCurrency(d.totals.subtotal)} />
         <Kpi label={t.kpi.tax} value={formatCurrency(d.totals.tax)} />
         <Kpi label={t.kpi.average} value={formatCurrency(d.totals.average)} hint={t.notes.aro} />
-        <Kpi label={t.kpi.invoices} value={d.totals.invoices} />
+        <Kpi label={t.kpi.net} value={formatCurrency(d.net)} hint={`${t.kpi.refunds}: ${formatCurrency(d.refunds.total)} (${d.refunds.count})`} />
       </div>
+      {d.taxByName.length > 0 && (
+        <Card title={t.kpi.tax}>
+          <Table head={[t.table.item, t.table.amount]} rows={d.taxByName.map((x) => [x.name, formatCurrency(x.amount)])} empty={t.empty} />
+        </Card>
+      )}
       <Card title={t.table.seriesTitle}><Bars points={d.series} /></Card>
       <div className="grid md:grid-cols-2 gap-4">
         <Card title={t.table.byMethod}>

@@ -64,6 +64,10 @@ export const CAPABILITY_MIN_PLAN = {
   // Reportes avanzados (Block 5): rangos personalizados, reportes de ventas/cuentas por cobrar/
   // operación/clientes/inventario y exportación CSV. Core conserva el resumen básico.
   "reports.advanced": "PRO",
+  // Accounting Light (Block 9): resúmenes de ventas/impuestos (GST/QST), pagos y reembolsos por
+  // método, exportaciones CSV para el contador y bitácora financiera. Facturar, cobrar y reembolsar
+  // están en todos los planes; la bitácora se REGISTRA siempre y se consulta con este entitlement.
+  "accounting.light": "PRO",
   "organization.multiLocation": "COMPLETE",
 } as const satisfies Record<string, Plan>;
 

@@ -15,6 +15,8 @@ export const PERMISSIONS = [
   "invoices.view",
   "invoices.write",
   "payments.write",
+  /** Reembolsar facturas pagadas (Block 9) — por defecto solo el dueño. */
+  "refunds.write",
   "inventory.write",
   "dvi.write",
   /** Contabilidad, caja, documentos contables e ingresos. */
@@ -36,6 +38,7 @@ export const DELEGABLE_PERMISSIONS: readonly Permission[] = [
   "invoices.view",
   "invoices.write",
   "payments.write",
+  "refunds.write",
   "inventory.write",
   "dvi.write",
   "financial.view",

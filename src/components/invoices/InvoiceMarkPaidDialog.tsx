@@ -15,6 +15,8 @@ import { formatCurrency } from "@/lib/utils";
 import { FileAttachmentButtons } from "@/components/ui/FileAttachmentButtons";
 import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
 import { INVOICES_DICT } from "@/lib/admin-locale/invoices";
+import { ACCOUNTING_DICT } from "@/lib/admin-locale/accounting";
+import { PAYMENT_METHODS, type PaymentMethod } from "@/domain/fiscal";
 import { Loader2, X, CreditCard, Banknote, Split, Trash2 } from "lucide-react";
 
 interface InvoiceMarkPaidDialogProps {
@@ -41,6 +43,7 @@ export function InvoiceMarkPaidDialog({
   const router = useRouter();
   const locale = useAdminLocale();
   const t = INVOICES_DICT[locale].markPaidDialog;
+  const methodLabels = ACCOUNTING_DICT[locale].methods;
   const MODES: {
     value: InvoicePaymentMode;
     label: string;
@@ -54,7 +57,7 @@ export function InvoiceMarkPaidDialog({
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<InvoicePaymentMode>("CARD");
   const [entries, setEntries] = useState<LocalEntry[]>([]);
-  const [draftMethod, setDraftMethod] = useState<"CARD" | "CASH">("CARD");
+  const [draftMethod, setDraftMethod] = useState<PaymentMethod>("CARD");
   const [draftAmount, setDraftAmount] = useState("");
   const [extraFiles, setExtraFiles] = useState<File[]>([]);
   const [pending, startTransition] = useTransition();
@@ -306,30 +309,16 @@ export function InvoiceMarkPaidDialog({
               </div>
 
               {mode === "MIXED" && (
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setDraftMethod("CARD")}
-                    className={`flex-1 py-2 rounded-lg text-sm border ${
-                      draftMethod === "CARD"
-                        ? "border-blue-500 bg-blue-50 text-blue-800"
-                        : "border-slate-200 text-slate-600"
-                    }`}
-                  >
-                    {t.modes.card.label}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDraftMethod("CASH")}
-                    className={`flex-1 py-2 rounded-lg text-sm border ${
-                      draftMethod === "CASH"
-                        ? "border-emerald-500 bg-emerald-50 text-emerald-800"
-                        : "border-slate-200 text-slate-600"
-                    }`}
-                  >
-                    {t.modes.cash.label}
-                  </button>
-                </div>
+                <select
+                  value={draftMethod}
+                  onChange={(e) => setDraftMethod(e.target.value as PaymentMethod)}
+                  aria-label={t.paymentMethodTitle}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                >
+                  {PAYMENT_METHODS.map((m) => (
+                    <option key={m} value={m}>{methodLabels[m]}</option>
+                  ))}
+                </select>
               )}
 
               <div className="flex gap-2">

@@ -363,7 +363,7 @@ export const INVOICES_DICT: Record<AdminLocale, InvoicesDictionary> = {
       modes: {
         card: { label: "Tarjeta", hint: "Comprobante de terminal opcional por cada cobro" },
         cash: { label: "Efectivo", hint: "Cuenta en ingresos de caja del negocio" },
-        mixed: { label: "Ambos", hint: "Parte en tarjeta, parte en efectivo" },
+        mixed: { label: "Otro / mixto", hint: "e-Transfer, cheque u otra combinación" },
       },
       amountPlaceholder: "Monto",
       addButton: "Agregar",
@@ -568,7 +568,7 @@ export const INVOICES_DICT: Record<AdminLocale, InvoicesDictionary> = {
       modes: {
         card: { label: "Card", hint: "Optional terminal receipt for each charge" },
         cash: { label: "Cash", hint: "Counted in the business's cash drawer income" },
-        mixed: { label: "Both", hint: "Part by card, part in cash" },
+        mixed: { label: "Other / split", hint: "Interac e-Transfer, cheque or a mix of methods" },
       },
       amountPlaceholder: "Amount",
       addButton: "Add",
@@ -773,7 +773,7 @@ export const INVOICES_DICT: Record<AdminLocale, InvoicesDictionary> = {
       modes: {
         card: { label: "Carte", hint: "Reçu de terminal optionnel pour chaque paiement" },
         cash: { label: "Comptant", hint: "Compté dans les revenus de caisse du commerce" },
-        mixed: { label: "Les deux", hint: "Une partie par carte, une partie comptant" },
+        mixed: { label: "Autre / mixte", hint: "Virement Interac, chèque ou une combinaison" },
       },
       amountPlaceholder: "Montant",
       addButton: "Ajouter",

@@ -43,7 +43,7 @@ const en: ReportsDictionary = {
   kpi: {
     revenue: "Paid revenue", invoices: "Paid invoices", outstanding: "Outstanding", outstandingInvoices: "Unpaid invoices",
     woCreated: "Work orders opened", woOpen: "Open now", newClients: "New customers", subtotal: "Subtotal", tax: "Tax collected", total: "Total",
-    average: "Average invoice (ARO)", completed: "Completed", avgDays: "Avg days to complete", quotes: "Quotes created", approvalRate: "Quote approval rate",
+    average: "Average invoice (ARO)", refunds: "Refunds", net: "Net of refunds", completed: "Completed", avgDays: "Avg days to complete", quotes: "Quotes created", approvalRate: "Quote approval rate",
     quoteValue: "Quotes sent (value)", quoteAccepted: "Quotes accepted (value)", active: "Active customers", returning: "Returning customers",
     retention: "Retention", parts: "Active parts", low: "Low stock", stockValue: "Stock value (cost)", consumed: "Units used on jobs",
   },
@@ -63,7 +63,7 @@ const en: ReportsDictionary = {
   notes: {
     aro: "Average invoice = paid revenue ÷ paid invoices in the period (taxes included).",
     days: "Days to complete is measured from opening to the last update of completed/invoiced work orders.",
-    basis: "Revenue is counted on the date the invoice was marked paid.",
+    basis: "Revenue is counted on the date the invoice was marked paid; refunds on the date they were paid out.",
     retention: "Returning = customers who paid this period and also had a paid invoice before it.",
   },
   empty: "Nothing in this period.",
@@ -93,7 +93,7 @@ const fr: ReportsDictionary = {
   kpi: {
     revenue: "Revenus encaissés", invoices: "Factures payées", outstanding: "À recevoir", outstandingInvoices: "Factures impayées",
     woCreated: "Bons de travail ouverts", woOpen: "Ouverts maintenant", newClients: "Nouveaux clients", subtotal: "Sous-total", tax: "Taxes perçues", total: "Total",
-    average: "Facture moyenne", completed: "Terminés", avgDays: "Jours moyens pour terminer", quotes: "Soumissions créées", approvalRate: "Taux d'approbation",
+    average: "Facture moyenne", refunds: "Remboursements", net: "Net des remboursements", completed: "Terminés", avgDays: "Jours moyens pour terminer", quotes: "Soumissions créées", approvalRate: "Taux d'approbation",
     quoteValue: "Soumissions envoyées (valeur)", quoteAccepted: "Soumissions acceptées (valeur)", active: "Clients actifs", returning: "Clients récurrents",
     retention: "Fidélisation", parts: "Pièces actives", low: "Stock bas", stockValue: "Valeur du stock (coût)", consumed: "Unités utilisées",
   },
@@ -113,7 +113,7 @@ const fr: ReportsDictionary = {
   notes: {
     aro: "Facture moyenne = revenus encaissés ÷ factures payées dans la période (taxes incluses).",
     days: "Les jours se mesurent de l'ouverture à la dernière mise à jour des bons terminés ou facturés.",
-    basis: "Les revenus sont comptés à la date où la facture a été marquée payée.",
+    basis: "Les revenus sont comptés à la date où la facture a été marquée payée; les remboursements à la date du versement.",
     retention: "Récurrent = client ayant payé dans la période et ayant déjà une facture payée avant.",
   },
   empty: "Rien dans cette période.",

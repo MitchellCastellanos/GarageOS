@@ -23,6 +23,9 @@ export function salesCsv(d: SalesReport): string {
     ["Totals", "Tax", null, d.totals.tax],
     ["Totals", "Total", null, d.totals.total],
     ["Totals", "Average invoice", null, d.totals.average],
+    ["Totals", "Refunds", d.refunds.count, -d.refunds.total],
+    ["Totals", "Net of refunds", null, d.net],
+    ...d.taxByName.map((x): Row => ["Tax collected", x.name, null, x.amount]),
     ...d.series.map((p): Row => [`Period (${d.granularity})`, p.key, p.count, p.total]),
     ...d.byMethod.map((m): Row => ["Payment method", m.method, null, m.amount]),
     ...d.byItemType.map((t): Row => ["Item type", t.type, null, t.amount]),
@@ -78,7 +81,7 @@ export function inventoryCsv(d: InventoryReport): string {
 
 export function overviewCsv(d: OverviewReport): string {
   const rows: Row[] = [
-    ...(d.revenue ? ([["Revenue", "Paid invoices", d.revenue.invoices, d.revenue.total]] as Row[]) : []),
+    ...(d.revenue ? ([["Revenue", "Paid invoices", d.revenue.invoices, d.revenue.total], ["Revenue", "Refunds", null, -d.revenue.refunds], ["Revenue", "Net of refunds", null, d.revenue.net]] as Row[]) : []),
     ...(d.outstanding ? ([["Outstanding", "Unpaid invoices", d.outstanding.invoices, d.outstanding.total]] as Row[]) : []),
     ["Work orders", "Created", d.workOrders.created, null],
     ["Work orders", "Open now", d.workOrders.openNow, null],

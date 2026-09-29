@@ -23,6 +23,8 @@ model Shop {
   userAccess         UserShopAccess[]
   staffNotifications StaffNotification[]
   documentSequences  DocumentSequence[]
+  invoiceRefunds     InvoiceRefund[]
+  financialEvents    FinancialEvent[]
   platformNotes              PlatformNote[]
   platformAuditLogs          PlatformAuditLog[]
   platformConversations      PlatformConversation[]
@@ -436,9 +438,17 @@ model Invoice {
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
 
+  // Fiscal snapshot (Block 9): impuestos por línea, número de registro fiscal del taller y moneda
+  // FIJADOS al emitir la factura. El PDF y los reportes leen de aquí — cambiar Shop.taxLines /
+  // Shop.taxId después NUNCA reescribe una factura histórica. Ver src/domain/fiscal.ts.
+  taxSnapshot       Json?
+  taxRegistration   String?
+  currency          String              @default("CAD")
+
   vehicles          InvoiceVehicle[]
   paymentEntries    InvoicePaymentEntry[]
   cashDrawerEntries CashDrawerEntry[]
+  refunds           InvoiceRefund[]
 
   @@unique([shopId, invoiceNumber])
   @@schema("garageos")
@@ -483,6 +493,9 @@ model InvoicePaymentEntry {
 enum InvoicePaymentEntryMethod {
   CARD
   CASH
+  ETRANSFER
+  CHEQUE
+  OTHER
 
   @@schema("garageos")
 }
@@ -502,6 +515,55 @@ enum InvoiceLanguage {
   EN
   FR
 
+  @@schema("garageos")
+}
+
+/**
+ * Reembolso de una factura pagada (Block 9). Inmutable: no se edita ni se borra; la factura
+ * conserva su total y su snapshot, y el neto = total − Σ reembolsos. `taxLines` reparte el
+ * impuesto reembolsado por línea del snapshot (GST/QST…) para que el resumen de impuestos netos
+ * sea exacto. Sin onDelete cascade: una factura con reembolsos no se puede borrar.
+ */
+model InvoiceRefund {
+  id          String                    @id @default(cuid())
+  shopId      String
+  shop        Shop                      @relation(fields: [shopId], references: [id])
+  invoiceId   String
+  invoice     Invoice                   @relation(fields: [invoiceId], references: [id])
+  /// Monto reembolsado al cliente, impuestos incluidos.
+  amount      Decimal                   @db.Decimal(10, 2)
+  /// Parte de `amount` que corresponde a impuestos (suma de taxLines).
+  taxAmount   Decimal                   @db.Decimal(10, 2)
+  taxLines    Json                      @default("[]")
+  method      InvoicePaymentEntryMethod
+  reason      String
+  refundedAt  DateTime                  @default(now())
+  createdById String?
+  createdAt   DateTime                  @default(now())
+
+  @@index([shopId, refundedAt])
+  @@index([invoiceId])
+  @@schema("garageos")
+}
+
+/**
+ * Bitácora financiera append-only (Block 9): emisión, edición, pago, reversa de pago, anulación,
+ * borrado de borradores y reembolsos. No se actualiza ni se borra desde la aplicación. Sin FK a la
+ * factura a propósito: el registro sobrevive aunque un borrador se elimine.
+ */
+model FinancialEvent {
+  id        String   @id @default(cuid())
+  shopId    String
+  shop      Shop     @relation(fields: [shopId], references: [id])
+  invoiceId String?
+  type      String
+  actorId   String?
+  amount    Decimal? @db.Decimal(10, 2)
+  data      Json     @default("{}")
+  createdAt DateTime @default(now())
+
+  @@index([shopId, createdAt])
+  @@index([invoiceId])
   @@schema("garageos")
 }
 
@@ -573,6 +635,8 @@ model Quote {
   notes                   String?         @db.Text
   createdAt               DateTime        @default(now())
   updatedAt               DateTime        @updatedAt
+  // Ver Invoice.taxSnapshot — se copia a la factura al convertir.
+  taxSnapshot             Json?
 
   vehicles QuoteVehicle[]
 

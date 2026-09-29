@@ -9,7 +9,7 @@ import { db } from "@/lib/db";
 import { getShopId, getWritableShopId } from "@/lib/shop-context";
 import { workOrderSchema, type WorkOrderFormData } from "@/lib/validations";
 import { allocateNextInvoiceNumber, allocateNextWorkOrderNumber } from "@/lib/invoice-number";
-import { calculateTaxAmount, roundTaxRate, sumTaxLineRates, parseShopTaxLines } from "@/lib/taxes";
+import { computeDocumentTax } from "@/lib/fiscal";
 import { syncSavedLineItems } from "@/actions/line-items";
 import { canTransitionWorkOrder } from "@/domain/work-order";
 import { getAdminLocale } from "@/lib/get-admin-locale";
@@ -502,10 +502,7 @@ export async function convertWorkOrderToInvoice(id: string) {
     (sum, item) => sum.plus(new Decimal(item.quantity.toString()).times(item.unitPrice.toString())),
     new Decimal(0)
   );
-  const shop = await db.shop.findUnique({ where: { id: shopId }, select: { taxLines: true } });
-  const taxRate = roundTaxRate(sumTaxLineRates(parseShopTaxLines(shop?.taxLines)));
-  const taxAmount = calculateTaxAmount(subtotal, taxRate);
-  const total = subtotal.plus(taxAmount);
+  const fiscal = await computeDocumentTax(shopId, subtotal, null);
 
   const invoice = await db.$transaction(async (tx) => {
     const invoiceNumber = await allocateNextInvoiceNumber(tx, shopId);
@@ -517,9 +514,12 @@ export async function convertWorkOrderToInvoice(id: string) {
         invoiceNumber,
         status: "DRAFT",
         subtotal: subtotal.toFixed(2),
-        taxRate,
-        taxAmount: taxAmount.toFixed(2),
-        total: total.toFixed(2),
+        taxRate: fiscal.taxRate.toString(),
+        taxAmount: fiscal.taxAmount.toFixed(2),
+        total: fiscal.total.toFixed(2),
+        taxSnapshot: fiscal.taxSnapshotJson,
+        taxRegistration: fiscal.taxRegistration,
+        currency: fiscal.currency,
         vehicles: {
           create: {
             vehicleId: workOrder.vehicleId,

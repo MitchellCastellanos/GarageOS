@@ -89,10 +89,12 @@ function fakeDb(t: TestContext, opts: { role?: "OWNER" | "MECHANIC" | "VIEWER"; 
   patchDb(t, "shop", "findFirst", (async () => ({ timezone: TZ })) as never);
   patchDb(t, "user", "findUnique", (async () => ({ permissionGrants: opts.grants ?? [], permissionDenies: opts.denies ?? [] })) as never);
   const paid = [
-    { shopId: "shop-A", paidAt: new Date("2026-09-10T15:00:00Z"), subtotal: "100.00", taxAmount: "14.98", total: "114.98", paymentMode: "CARD", clientId: "c1", client: { firstName: "Ana", lastName: "R" },
+    { shopId: "shop-A", paidAt: new Date("2026-09-10T15:00:00Z"), subtotal: "100.00", taxRate: "0.14975", taxAmount: "14.98", total: "114.98",
+      taxSnapshot: { v: 1, source: "issued", exempt: false, lines: [{ name: "GST", rate: "0.05", amount: "5.00" }, { name: "QST", rate: "0.09975", amount: "9.98" }] }, paymentMode: "CARD", clientId: "c1", client: { firstName: "Ana", lastName: "R" },
       paymentEntries: [{ method: "CARD", amount: "114.98" }],
       vehicles: [{ lineItems: [{ description: "Oil change", quantity: "1", itemType: "LABOUR", lineTotal: "60.00" }, { description: "Filter", quantity: "1", itemType: "PART", lineTotal: "40.00" }] }] },
-    { shopId: "shop-A", paidAt: new Date("2026-09-12T15:00:00Z"), subtotal: "50.00", taxAmount: "7.49", total: "57.49", paymentMode: "CASH", clientId: "c2", client: { firstName: "Bo", lastName: null },
+    { shopId: "shop-A", paidAt: new Date("2026-09-12T15:00:00Z"), subtotal: "50.00", taxRate: "0.14975", taxAmount: "7.49", total: "57.49",
+      taxSnapshot: { v: 1, source: "issued", exempt: false, lines: [{ name: "GST", rate: "0.05", amount: "2.50" }, { name: "QST", rate: "0.09975", amount: "4.99" }] }, paymentMode: "CASH", clientId: "c2", client: { firstName: "Bo", lastName: null },
       paymentEntries: [], vehicles: [{ lineItems: [{ description: "oil change", quantity: "1", itemType: "LABOUR", lineTotal: "50.00" }] }] },
   ];
   patchDb(t, "invoice", "findMany", (async (args: { where: Where }) => {
@@ -102,6 +104,7 @@ function fakeDb(t: TestContext, opts: { role?: "OWNER" | "MECHANIC" | "VIEWER"; 
     }
     return paid;
   }) as never);
+  patchDb(t, "invoiceRefund", "aggregate", rec("refundAgg", { _sum: { amount: "20.00", taxAmount: "2.61" }, _count: { _all: 1 } }) as never);
   patchDb(t, "invoice", "aggregate", rec("invoiceAgg", { _sum: { total: "200.00" }, _count: { _all: 1 } }) as never);
   patchDb(t, "invoice", "groupBy", rec("invoiceGroup", [{ clientId: "c1", _count: { _all: 2 } }]) as never);
   patchDb(t, "workOrder", "groupBy", rec("woGroup", [{ status: "COMPLETED", _count: { _all: 3 } }]) as never);
@@ -129,6 +132,9 @@ test("Pro owner: sales report aggregates server-side, all queries scoped to the 
   assert.equal(d.totals.total, 172.47);
   assert.equal(d.totals.tax, 22.47);
   assert.equal(d.totals.average, 86.24); // 172.47/2 = 86.235 → half-up
+  assert.deepEqual(d.refunds, { count: 1, total: 20, tax: 2.61 });
+  assert.equal(d.net, 152.47);
+  assert.deepEqual(d.taxByName, [{ name: "GST", amount: 7.5 }, { name: "QST", amount: 14.97 }]);
   assert.deepEqual(d.byMethod, [{ method: "CARD", amount: 114.98 }, { method: "CASH", amount: 57.49 }]);
   assert.equal(d.byItemType.find((x) => x.type === "LABOUR")!.amount, 110);
   assert.equal(d.topServices[0].description, "Oil change"); // agrupa sin distinguir mayúsculas
@@ -229,6 +235,8 @@ test("CSV exports for Pro: content, filename and formula safety", async (t) => {
   assert.ok(!("error" in sales));
   assert.equal(sales.filename, "garageos-sales-2026-09-01_2026-09-30.csv");
   assert.match(sales.csv, /Totals,Total,,172.47/);
+  assert.match(sales.csv, /Totals,Net of refunds,,152.47/);
+  assert.match(sales.csv, /Tax collected,QST,,14.97/);
   assert.match(sales.csv, /Payment method,CARD,,114.98/);
   const rec = await actions.exportReportCsv({ kind: "receivables" });
   assert.ok(!("error" in rec));
