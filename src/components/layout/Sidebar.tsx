@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -21,6 +20,9 @@ import {
   Package,
   Wrench,
   ClipboardCheck,
+  ClipboardList,
+  MessageSquare,
+  Wallet,
   Lock,
   X,
   LifeBuoy,
@@ -30,88 +32,12 @@ import { ADMIN } from "@/lib/routes";
 import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
 import { LAYOUT_DICT } from "@/lib/admin-locale/layout";
 import { GarageOSAppIcon } from "@/components/marketing/GarageOSLogo";
-
-function RailLink({
-  href,
-  label,
-  icon: Icon,
-  active,
-  locked,
-  unread,
-}: {
-  href: string;
-  label: string;
-  icon: typeof LayoutDashboard;
-  active: boolean;
-  locked?: boolean;
-  unread?: boolean;
-}) {
-  // El riel de íconos se puede volver scrolleable (más items de los que caben
-  // en pantallas bajas) — un tooltip que dependiera del `overflow` del
-  // contenedor quedaría cortado o forzaría scroll horizontal. Por eso el
-  // tooltip se manda por portal a <body> con posición fija, calculada del ícono.
-  const [tooltipPos, setTooltipPos] = useState<{ top: number; left: number } | null>(null);
-  const linkRef = useRef<HTMLAnchorElement>(null);
-
-  function showTooltip() {
-    const rect = linkRef.current?.getBoundingClientRect();
-    if (rect) setTooltipPos({ top: rect.top + rect.height / 2, left: rect.right + 12 });
-  }
-  function hideTooltip() {
-    setTooltipPos(null);
-  }
-
-  // Si el riel se scrollea mientras el tooltip está abierto, la posición
-  // calculada queda vieja — más simple cerrarlo que reposicionarlo en cada
-  // scroll. "scroll" no burbujea, pero sí se puede capturar en la fase de
-  // captura desde un ancestro (aquí window) aunque no bubblee.
-  useEffect(() => {
-    if (!tooltipPos) return;
-    window.addEventListener("scroll", hideTooltip, true);
-    return () => window.removeEventListener("scroll", hideTooltip, true);
-  }, [tooltipPos]);
-
-  return (
-    <Link
-      ref={linkRef}
-      href={href}
-      aria-label={label}
-      onMouseEnter={showTooltip}
-      onMouseLeave={hideTooltip}
-      onFocus={showTooltip}
-      onBlur={hideTooltip}
-      className={cn(
-        "relative flex items-center justify-center w-11 h-11 rounded-xl transition-colors flex-shrink-0",
-        active
-          ? "bg-blue-600 text-white"
-          : "text-slate-400 hover:text-white hover:bg-slate-800"
-      )}
-    >
-      <Icon className="w-5 h-5 flex-shrink-0" />
-      {locked && (
-        <span className="absolute top-0.5 right-0.5 w-3.5 h-3.5 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center">
-          <Lock className="w-2 h-2" />
-        </span>
-      )}
-      {unread && !locked && (
-        <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-slate-900" />
-      )}
-      {tooltipPos &&
-        typeof document !== "undefined" &&
-        createPortal(
-          <span
-            style={{ position: "fixed", top: tooltipPos.top, left: tooltipPos.left, transform: "translateY(-50%)" }}
-            className="pointer-events-none whitespace-nowrap rounded-md bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white shadow-lg z-50"
-          >
-            {label}
-            {locked && <span className="text-amber-400 ml-1">· Pro</span>}
-            {unread && !locked && <span className="text-red-400 ml-1">· nuevo</span>}
-          </span>,
-          document.body
-        )}
-    </Link>
-  );
-}
+import { RailLink } from "@/components/layout/rail-variants/RailLink";
+import { FlyoutRail } from "@/components/layout/rail-variants/FlyoutRail";
+import { AccordionRail } from "@/components/layout/rail-variants/AccordionRail";
+import { TwoColumnRail } from "@/components/layout/rail-variants/TwoColumnRail";
+import { RailVariantSwitcher } from "@/components/layout/rail-variants/RailVariantSwitcher";
+import { RAIL_VARIANT_STORAGE_KEY, type RailNavGroup, type RailVariant } from "@/components/layout/rail-variants/types";
 
 function MobileNavLink({
   href,
@@ -174,7 +100,33 @@ export function Sidebar({
   const locale = useAdminLocale();
   const t = LAYOUT_DICT[locale];
   const drawerRef = useRef<HTMLElement>(null);
+  const asideRef = useRef<HTMLElement>(null);
   const reducedMotion = useReducedMotion();
+
+  // Prototipo de rediseño del riel (docs/sidebar-redesign-plan.md) — deja
+  // comparar los layouts candidatos en el mismo deploy de preview antes de
+  // comprometerse a uno. Se quita al implementar el definitivo.
+  const [railVariant, setRailVariant] = useState<RailVariant>(() => {
+    if (typeof window === "undefined") return "flyout";
+    try {
+      const stored = window.localStorage.getItem(RAIL_VARIANT_STORAGE_KEY);
+      if (stored === "stacked" || stored === "flyout" || stored === "accordion" || stored === "twocolumn") {
+        return stored;
+      }
+    } catch {
+      // localStorage puede no estar disponible (Safari privado, etc.) — no pasa nada.
+    }
+    return "flyout";
+  });
+
+  function handleRailVariantChange(next: RailVariant) {
+    setRailVariant(next);
+    try {
+      window.localStorage.setItem(RAIL_VARIANT_STORAGE_KEY, next);
+    } catch {
+      // idem — si no se puede persistir, igual funciona para esta sesión.
+    }
+  }
 
   // Punto "en vivo" además del inicial calculado en el server — así no hace
   // falta refrescar para verlo si el cliente escribe o reserva mientras se
@@ -267,10 +219,14 @@ export function Sidebar({
   }, [mobileOpen, onMobileClose]);
 
   // Mismas 4 categorías que el grid de "módulos" del dashboard, para que
-  // ambas navegaciones cuenten la misma historia del negocio.
-  const navGroups = [
+  // ambas navegaciones cuenten la misma historia del negocio. El ícono de
+  // categoría (usado por los layouts flyout/acordeón/dos-columnas para
+  // representarla colapsada) no existía en el diseño original — se eligió
+  // uno distinto al de cualquiera de sus propios sub-ítems.
+  const navGroupDefs = [
     {
       label: t.navGroups.operations,
+      icon: ClipboardList,
       items: [
         { label: t.nav.appointments, href: ADMIN.appointments, icon: Calendar },
         { label: t.nav.workOrders, href: ADMIN.workOrders, icon: Wrench },
@@ -281,6 +237,7 @@ export function Sidebar({
     },
     {
       label: t.navGroups.customers,
+      icon: Users,
       items: [
         { label: t.nav.clients, href: ADMIN.clients, icon: Users },
         { label: t.nav.invoices, href: ADMIN.invoices, icon: FileText },
@@ -289,6 +246,7 @@ export function Sidebar({
     },
     {
       label: t.navGroups.communications,
+      icon: MessageSquare,
       items: [
         { label: t.nav.inbox, href: ADMIN.inbox, icon: Inbox },
         { label: t.nav.campaigns, href: ADMIN.campaigns, icon: Megaphone },
@@ -296,6 +254,7 @@ export function Sidebar({
     },
     {
       label: t.navGroups.finance,
+      icon: Wallet,
       items: [
         { label: t.nav.caja, href: ADMIN.caja, icon: Banknote },
         { label: t.nav.inventory, href: ADMIN.inventory, icon: Package },
@@ -303,9 +262,30 @@ export function Sidebar({
     },
   ];
 
+  const groups: RailNavGroup[] = navGroupDefs.map((group) => {
+    const items = group.items.map((item) => ({
+      ...item,
+      active: pathname.startsWith(item.href),
+      locked: lockedSet.has(item.href),
+      unread:
+        (item.href === ADMIN.inbox && showInboxDot) ||
+        (item.href === ADMIN.appointments && showAppointmentsDot),
+    }));
+    return {
+      label: group.label,
+      icon: group.icon,
+      items,
+      active: items.some((item) => item.active),
+      unread: items.some((item) => item.unread),
+    };
+  });
+
   return (
     <>
-      <aside className="no-print hidden md:flex w-[72px] flex-shrink-0 h-full bg-slate-900 flex-col items-center py-4">
+      <aside
+        ref={asideRef}
+        className="no-print hidden md:flex w-[72px] flex-shrink-0 h-full bg-slate-900 flex-col items-center py-4"
+      >
         <Link
           href={ADMIN.dashboard}
           aria-label="GarageOS"
@@ -313,35 +293,37 @@ export function Sidebar({
         >
           <GarageOSAppIcon className="w-9 h-9" />
         </Link>
-        <nav className="rail-nav-scroll flex-1 min-h-0 w-full flex flex-col items-center gap-1.5 overflow-y-auto overflow-x-hidden">
+        <nav
+          className={cn(
+            "flex-1 min-h-0 w-full flex flex-col items-center gap-1.5",
+            railVariant === "stacked"
+              ? "rail-nav-scroll overflow-y-auto overflow-x-hidden"
+              : "overflow-visible"
+          )}
+        >
           <RailLink
             href={ADMIN.dashboard}
             label={t.nav.dashboard}
             icon={LayoutDashboard}
             active={pathname === ADMIN.dashboard}
+            locked={false}
+            unread={false}
           />
-          {navGroups.map((group, groupIndex) => (
-            <div key={group.label} className="flex flex-col items-center gap-1.5">
-              <div
-                aria-hidden="true"
-                className={cn("w-6 border-t border-slate-800", groupIndex === 0 ? "mt-1.5 mb-1" : "my-1")}
-              />
-              {group.items.map((item) => (
-                <RailLink
-                  key={item.href}
-                  href={item.href}
-                  label={item.label}
-                  icon={item.icon}
-                  active={pathname.startsWith(item.href)}
-                  locked={lockedSet.has(item.href)}
-                  unread={
-                    (item.href === ADMIN.inbox && showInboxDot) ||
-                    (item.href === ADMIN.appointments && showAppointmentsDot)
-                  }
+          {railVariant === "stacked" &&
+            groups.map((group, groupIndex) => (
+              <div key={group.label} className="flex flex-col items-center gap-1.5">
+                <div
+                  aria-hidden="true"
+                  className={cn("w-6 border-t border-slate-800", groupIndex === 0 ? "mt-1.5 mb-1" : "my-1")}
                 />
-              ))}
-            </div>
-          ))}
+                {group.items.map((item) => (
+                  <RailLink key={item.href} {...item} />
+                ))}
+              </div>
+            ))}
+          {railVariant === "flyout" && <FlyoutRail groups={groups} />}
+          {railVariant === "accordion" && <AccordionRail groups={groups} />}
+          {railVariant === "twocolumn" && <TwoColumnRail groups={groups} railRef={asideRef} />}
         </nav>
 
         <div className="flex-shrink-0 pt-3 mt-3 border-t border-slate-800 w-full flex flex-col items-center gap-1.5">
@@ -351,16 +333,19 @@ export function Sidebar({
             icon={LifeBuoy}
             active={pathname.startsWith(ADMIN.support)}
             locked={lockedSet.has(ADMIN.support)}
-            unread={hasUnreadSupport}
+            unread={hasUnreadSupport ?? false}
           />
           <RailLink
             href={ADMIN.settings}
             label={t.nav.settings}
             icon={Settings}
             active={pathname.startsWith(ADMIN.settings)}
+            locked={false}
+            unread={false}
           />
         </div>
       </aside>
+      <RailVariantSwitcher value={railVariant} onChange={handleRailVariantChange} />
       <AnimatePresence>
         {mobileOpen && (
           <>
@@ -409,26 +394,14 @@ export function Sidebar({
                   active={pathname === ADMIN.dashboard}
                   onClick={onMobileClose}
                 />
-                {navGroups.map((group) => (
+                {groups.map((group) => (
                   <div key={group.label}>
                     <div className="border-t border-slate-800 my-2" />
                     <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                       {group.label}
                     </p>
                     {group.items.map((item) => (
-                      <MobileNavLink
-                        key={item.href}
-                        href={item.href}
-                        label={item.label}
-                        icon={item.icon}
-                        active={pathname.startsWith(item.href)}
-                        locked={lockedSet.has(item.href)}
-                        unread={
-                          (item.href === ADMIN.inbox && showInboxDot) ||
-                          (item.href === ADMIN.appointments && showAppointmentsDot)
-                        }
-                        onClick={onMobileClose}
-                      />
+                      <MobileNavLink key={item.href} {...item} onClick={onMobileClose} />
                     ))}
                   </div>
                 ))}
