@@ -149,6 +149,19 @@ export function Topbar({
         </span>
       </Link>
 
+      {/* Ubicación activa (Multi-Shop) */}
+      {accessibleShops.length > 1 && (
+        <button
+          type="button"
+          onClick={() => setMenuOpen(true)}
+          aria-label={`${st.tabs.locations}: ${accessibleShops.find((shop) => shop.id === currentShopId)?.name ?? displayName}`}
+          className="hidden lg:inline-flex flex-shrink-0 items-center gap-1.5 rounded-full border border-slate-700 bg-slate-800 px-2.5 py-1 text-xs font-medium text-slate-200 hover:bg-slate-700"
+        >
+          <MapPin className="w-3.5 h-3.5" />
+          <span className="max-w-[140px] truncate">{accessibleShops.find((shop) => shop.id === currentShopId)?.name ?? displayName}</span>
+          <span className="text-slate-400">· {accessibleShops.length}</span>
+        </button>
+      )}
       {/* Búsqueda global */}
       <form action={ADMIN.clients} method="GET" className="hidden sm:block min-w-0 flex-1 max-w-md mx-auto">
         <div className="relative">

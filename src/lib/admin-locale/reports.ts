@@ -4,10 +4,10 @@ export interface ReportsDictionary {
   nav: string;
   title: string;
   subtitle: string;
-  kinds: Record<"overview" | "sales" | "receivables" | "operations" | "customers" | "inventory", string>;
+  kinds: Record<"overview" | "sales" | "receivables" | "operations" | "customers" | "inventory" | "locations", string>;
   presets: Record<"today" | "last7" | "last30" | "thisMonth" | "lastMonth" | "thisQuarter" | "thisYear" | "lastYear" | "custom", string>;
-  filters: { period: string; from: string; to: string; apply: string; export: string; exporting: string };
-  errors: { INVALID_KIND: string; INVALID_RANGE: string; UPGRADE_REQUIRED: string; NO_SHOP: string; noFinancial: string };
+  filters: { period: string; from: string; to: string; apply: string; export: string; exporting: string; location: string; activeLocation: string; allLocations: string; multiNote: string };
+  errors: { INVALID_KIND: string; INVALID_RANGE: string; UPGRADE_REQUIRED: string; MULTI_LOCATION_REQUIRED: string; NO_LOCATION_ACCESS: string; NO_SHOP: string; noFinancial: string };
   locked: { title: string; description: string; cta: string; basicNote: string };
   kpi: Record<string, string>;
   table: Record<string, string>;
@@ -23,15 +23,15 @@ const en: ReportsDictionary = {
   nav: "Reports",
   title: "Reports",
   subtitle: "How the shop is doing — sales, receivables, jobs and customers. Dates use your shop's time zone.",
-  kinds: { overview: "Overview", sales: "Sales", receivables: "Receivables", operations: "Jobs & quotes", customers: "Customers", inventory: "Inventory" },
+  kinds: { overview: "Overview", sales: "Sales", receivables: "Receivables", operations: "Jobs & quotes", customers: "Customers", inventory: "Inventory", locations: "Locations" },
   presets: {
     today: "Today", last7: "Last 7 days", last30: "Last 30 days", thisMonth: "This month", lastMonth: "Last month",
     thisQuarter: "This quarter", thisYear: "This year", lastYear: "Last year", custom: "Custom range",
   },
-  filters: { period: "Period", from: "From", to: "To", apply: "Apply", export: "Export CSV", exporting: "Exporting…" },
+  filters: { period: "Period", from: "From", to: "To", apply: "Apply", export: "Export CSV", exporting: "Exporting…", location: "Location", activeLocation: "Active location", allLocations: "All my locations", multiNote: "Dates follow the active location's time zone." },
   errors: {
     INVALID_KIND: "Unknown report.", INVALID_RANGE: "That date range isn't valid (max 2 years, start before end).",
-    UPGRADE_REQUIRED: "This report needs the Pro plan.", NO_SHOP: "Shop not found.",
+    UPGRADE_REQUIRED: "This report needs the Pro plan.", MULTI_LOCATION_REQUIRED: "Consolidated and per-location reports are part of the Complete plan.", NO_LOCATION_ACCESS: "You don't have access to that location.", NO_SHOP: "Shop not found.",
     noFinancial: "Revenue figures are hidden — your role doesn't include financial access.",
   },
   locked: {
@@ -52,6 +52,7 @@ const en: ReportsDictionary = {
     customer: "Customer", issued: "Issued", due: "Due", late: "Days late", status: "Status", name: "Name", onHand: "On hand", threshold: "Reorder at",
     bucket: "Age", sales: "Sales", byMethod: "By payment method", byType: "Labour / parts / other", top: "Top items", aging: "Receivables aging",
     oldest: "Oldest unpaid invoices", wo: "Work orders", quotes: "Quotes", topCustomers: "Top customers", lowStock: "Low stock", seriesTitle: "Sales over time",
+    location: "Location", byLocation: "Sales by location", comparison: "Location comparison", refundsCol: "Refunds", netCol: "Net", avgCol: "Avg invoice", woOpenCol: "Open WOs", newCustomersCol: "New customers", woCreatedCol: "WOs opened", total: "Total",
   },
   aging: { current: "Not yet due", d1_30: "1–30 days", d31_60: "31–60 days", d61_90: "61–90 days", d90plus: "90+ days" },
   itemTypes: { LABOUR: "Labour", PART: "Parts", OTHER: "Other" },
@@ -73,15 +74,15 @@ const fr: ReportsDictionary = {
   nav: "Rapports",
   title: "Rapports",
   subtitle: "Où en est l'atelier — ventes, comptes à recevoir, travaux et clients. Les dates suivent le fuseau horaire de l'atelier.",
-  kinds: { overview: "Aperçu", sales: "Ventes", receivables: "Comptes à recevoir", operations: "Travaux et soumissions", customers: "Clients", inventory: "Inventaire" },
+  kinds: { overview: "Aperçu", sales: "Ventes", receivables: "Comptes à recevoir", operations: "Travaux et soumissions", customers: "Clients", inventory: "Inventaire", locations: "Emplacements" },
   presets: {
     today: "Aujourd'hui", last7: "7 derniers jours", last30: "30 derniers jours", thisMonth: "Ce mois-ci", lastMonth: "Mois dernier",
     thisQuarter: "Ce trimestre", thisYear: "Cette année", lastYear: "Année dernière", custom: "Période personnalisée",
   },
-  filters: { period: "Période", from: "Du", to: "Au", apply: "Appliquer", export: "Exporter en CSV", exporting: "Exportation…" },
+  filters: { period: "Période", from: "Du", to: "Au", apply: "Appliquer", export: "Exporter en CSV", exporting: "Exportation…", location: "Emplacement", activeLocation: "Emplacement actif", allLocations: "Tous mes emplacements", multiNote: "Les dates suivent le fuseau horaire de l'emplacement actif." },
   errors: {
     INVALID_KIND: "Rapport inconnu.", INVALID_RANGE: "Cette période n'est pas valide (2 ans max, début avant la fin).",
-    UPGRADE_REQUIRED: "Ce rapport nécessite le forfait Pro.", NO_SHOP: "Atelier introuvable.",
+    UPGRADE_REQUIRED: "Ce rapport nécessite le forfait Pro.", MULTI_LOCATION_REQUIRED: "Les rapports consolidés et par emplacement font partie du forfait Complete.", NO_LOCATION_ACCESS: "Vous n'avez pas accès à cet emplacement.", NO_SHOP: "Atelier introuvable.",
     noFinancial: "Les montants sont masqués — votre rôle n'inclut pas l'accès financier.",
   },
   locked: {
@@ -102,6 +103,7 @@ const fr: ReportsDictionary = {
     customer: "Client", issued: "Émise", due: "Échéance", late: "Jours de retard", status: "Statut", name: "Nom", onHand: "En stock", threshold: "Seuil de commande",
     bucket: "Âge", sales: "Ventes", byMethod: "Par mode de paiement", byType: "Main-d'œuvre / pièces / autre", top: "Articles principaux", aging: "Âge des comptes à recevoir",
     oldest: "Plus anciennes factures impayées", wo: "Bons de travail", quotes: "Soumissions", topCustomers: "Meilleurs clients", lowStock: "Stock bas", seriesTitle: "Ventes dans le temps",
+    location: "Emplacement", byLocation: "Ventes par emplacement", comparison: "Comparaison des emplacements", refundsCol: "Remboursements", netCol: "Net", avgCol: "Facture moyenne", woOpenCol: "Bons ouverts", newCustomersCol: "Nouveaux clients", woCreatedCol: "Bons créés", total: "Total",
   },
   aging: { current: "Non échu", d1_30: "1–30 jours", d31_60: "31–60 jours", d61_90: "61–90 jours", d90plus: "90+ jours" },
   itemTypes: { LABOUR: "Main-d'œuvre", PART: "Pièces", OTHER: "Autre" },

@@ -1,7 +1,7 @@
 // Consultas de reportes (Block 5). Agregación en servidor: nunca se envían filas crudas al navegador.
-// Todas las consultas se acotan a `shopIds` — hoy siempre el taller activo; Complete/Multi-Shop
-// (Block 12) podrá pasar las ubicaciones de la organización a la que el usuario tiene acceso,
-// y `byLocation` ya agrupa por taller para la comparación entre ubicaciones.
+// Todas las consultas se acotan a `shopIds`: el taller activo o, con Complete/Multi-Shop (Block 12),
+// las ubicaciones de la organización a las que el usuario TIENE acceso (resueltas en src/actions/reports.ts).
+// `byLocation` y `getLocationComparison` agrupan por taller para comparar ubicaciones.
 import Decimal from "decimal.js";
 import { db } from "@/lib/db";
 import { formatClientName } from "@/lib/client-name";
@@ -411,5 +411,82 @@ export async function getOverviewReport(scope: ReportScope): Promise<OverviewRep
     outstanding: outstanding ? { invoices: outstanding._count._all, total: money(outstanding._sum.total?.toString() ?? 0) } : null,
     workOrders: { created: woCreated, openNow: woOpen },
     newClients,
+  };
+}
+
+// ── Comparación entre ubicaciones (Complete / Multi-Shop) ───────
+
+export interface LocationComparisonRow {
+  shopId: string;
+  name: string;
+  paidInvoices: number;
+  revenue: number;
+  refunds: number;
+  net: number;
+  average: number;
+  outstanding: number;
+  workOrdersCreated: number;
+  workOrdersOpen: number;
+  newClients: number;
+}
+
+export interface LocationComparisonReport {
+  rows: LocationComparisonRow[];
+  totals: Omit<LocationComparisonRow, "shopId" | "name">;
+}
+
+/**
+ * Una fila por ubicación del alcance (incluso sin actividad) con las mismas definiciones que Ventas /
+ * Resumen: ingresos por fecha de pago, reembolsos por fecha de reembolso. Solo agregaciones por `shopId`
+ * sobre `scope.shopIds`; nada fuera del alcance puede aparecer.
+ */
+export async function getLocationComparison(scope: ReportScope): Promise<LocationComparisonReport> {
+  const { shopIds, range } = scope;
+  const created = { gte: range.from, lt: range.toExclusive };
+  const [shops, paid, refunds, pending, woCreated, woOpen, clients] = await Promise.all([
+    db.shop.findMany({ where: { id: shopFilter(shopIds) }, select: { id: true, name: true }, orderBy: { createdAt: "asc" } }),
+    db.invoice.groupBy({ by: ["shopId"], where: { shopId: shopFilter(shopIds), status: "PAID", paidAt: created }, _sum: { total: true }, _count: { _all: true } }),
+    db.invoiceRefund.groupBy({ by: ["shopId"], where: { shopId: shopFilter(shopIds), refundedAt: created }, _sum: { amount: true } }),
+    db.invoice.groupBy({ by: ["shopId"], where: { shopId: shopFilter(shopIds), status: { in: [...PENDING_STATUSES] } }, _sum: { total: true } }),
+    db.workOrder.groupBy({ by: ["shopId"], where: { shopId: shopFilter(shopIds), createdAt: created }, _count: { _all: true } }),
+    db.workOrder.groupBy({ by: ["shopId"], where: { shopId: shopFilter(shopIds), status: { in: ["OPEN", "AWAITING_APPROVAL", "APPROVED", "IN_PROGRESS"] } }, _count: { _all: true } }),
+    db.client.groupBy({ by: ["shopId"], where: { shopId: shopFilter(shopIds), createdAt: created }, _count: { _all: true } }),
+  ]);
+  const dec = (v: unknown) => new Decimal(v == null ? 0 : String(v));
+  const rows: LocationComparisonRow[] = shops.map((s) => {
+    const p = paid.find((x) => x.shopId === s.id);
+    const revenue = dec(p?._sum.total);
+    const refund = dec(refunds.find((x) => x.shopId === s.id)?._sum.amount);
+    const n = p?._count._all ?? 0;
+    return {
+      shopId: s.id,
+      name: s.name,
+      paidInvoices: n,
+      revenue: money(revenue),
+      refunds: money(refund),
+      net: money(revenue.minus(refund)),
+      average: n ? money(revenue.div(n)) : 0,
+      outstanding: money(dec(pending.find((x) => x.shopId === s.id)?._sum.total)),
+      workOrdersCreated: woCreated.find((x) => x.shopId === s.id)?._count._all ?? 0,
+      workOrdersOpen: woOpen.find((x) => x.shopId === s.id)?._count._all ?? 0,
+      newClients: clients.find((x) => x.shopId === s.id)?._count._all ?? 0,
+    };
+  });
+  const sum = (f: (r: LocationComparisonRow) => number) => money(rows.reduce((a, r) => a.plus(f(r)), new Decimal(0)));
+  const invoices = rows.reduce((a, r) => a + r.paidInvoices, 0);
+  const revenue = sum((r) => r.revenue);
+  return {
+    rows,
+    totals: {
+      paidInvoices: invoices,
+      revenue,
+      refunds: sum((r) => r.refunds),
+      net: sum((r) => r.net),
+      average: invoices ? money(new Decimal(revenue).div(invoices)) : 0,
+      outstanding: sum((r) => r.outstanding),
+      workOrdersCreated: rows.reduce((a, r) => a + r.workOrdersCreated, 0),
+      workOrdersOpen: rows.reduce((a, r) => a + r.workOrdersOpen, 0),
+      newClients: rows.reduce((a, r) => a + r.newClients, 0),
+    },
   };
 }

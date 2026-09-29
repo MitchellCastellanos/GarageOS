@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import { AdminLocaleProvider } from "@/components/admin/AdminLocaleProvider";
 import { getAccessibleShops } from "@/actions/locations";
+import { getOrganizationAdminContext } from "@/lib/organization";
 import { canView, getEffectiveSubscription } from "@/lib/subscription";
 import { hasUnreadSupportMessage } from "@/actions/support";
 import { hasUnreadInboxThreads } from "@/lib/communications/inbox";
@@ -41,7 +42,7 @@ export default async function DashboardLayout({
   const [shop, locale, accessibleShops, inventoryEntitled, campaignsEntitled, tireStorageEntitled, currentUser, hasUnreadSupport, hasUnreadInbox, staffNotifications] = await Promise.all([
     db.shop.findUnique({
       where: { id: session.user.shopId },
-      select: { name: true, logoUrl: true, onboardingCompletedAt: true },
+      select: { name: true, logoUrl: true, onboardingCompletedAt: true, organizationId: true },
     }),
     getAdminLocale(),
     getAccessibleShops(),
@@ -108,6 +109,11 @@ export default async function DashboardLayout({
 
   // Nav oculto por permisos (Block 8): el enforcement real está en las server actions/páginas.
   const perms = await getEffectivePermissions(session);
+  // Organización (Multi-Shop): solo el dueño con Complete que aún no tiene organización o que la administra.
+  let showOrganizationNav = false;
+  if (session.user.role === "OWNER" && (await canView(session.user.shopId, "organization.multiLocation"))) {
+    showOrganizationNav = !shop?.organizationId || (await getOrganizationAdminContext(session)) != null;
+  }
   const hiddenNavHrefs: string[] = [
     ...(perms.has("financial.view") ? [] : [ADMIN.accounting, ADMIN.caja]),
     ...(perms.has("reports.view") ? [] : [ADMIN.reports]),
@@ -115,6 +121,7 @@ export default async function DashboardLayout({
     ...(perms.has("invoices.view") ? [] : [ADMIN.invoices]),
     ...(perms.has("customers.view") ? [] : [ADMIN.clients]),
     ...(perms.has("import.run") ? [] : [ADMIN.import]),
+    ...(showOrganizationNav ? [] : [ADMIN.organization]),
   ];
 
   // Punto inicial en Citas (reserva/cancelación web sin ver) — el resto de la

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requirePagePermission, currentUserCan } from "@/lib/access";
-import { getReport } from "@/actions/reports";
+import { getReport, getReportLocationOptions } from "@/actions/reports";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import { REPORTS_DICT, type ReportsDictionary } from "@/lib/admin-locale/reports";
 import { ADMIN } from "@/lib/routes";
@@ -11,6 +11,7 @@ import { ReportControls } from "@/components/reports/ReportControls";
 import type {
   CustomersReport,
   InventoryReport,
+  LocationComparisonReport,
   OperationsReport,
   OverviewReport,
   ReceivablesReport,
@@ -18,7 +19,7 @@ import type {
 } from "@/lib/reports-service";
 
 interface Props {
-  searchParams: Promise<{ kind?: string; preset?: string; from?: string; to?: string }>;
+  searchParams: Promise<{ kind?: string; preset?: string; from?: string; to?: string; location?: string }>;
 }
 
 const pct = (v: number | null) => (v == null ? "—" : `${Math.round(v * 1000) / 10}%`);
@@ -88,7 +89,7 @@ function Overview({ d, t }: { d: OverviewReport; t: ReportsDictionary }) {
   );
 }
 
-function Sales({ d, t }: { d: SalesReport; t: ReportsDictionary }) {
+function Sales({ d, t, names }: { d: SalesReport; t: ReportsDictionary; names: Map<string, string> }) {
   return (
     <>
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
@@ -104,6 +105,11 @@ function Sales({ d, t }: { d: SalesReport; t: ReportsDictionary }) {
         </Card>
       )}
       <Card title={t.table.seriesTitle}><Bars points={d.series} /></Card>
+      {d.byLocation.length > 1 && (
+        <Card title={t.table.byLocation}>
+          <Table head={[t.table.location, t.table.count, t.table.amount]} rows={d.byLocation.map((l) => [names.get(l.shopId) ?? "—", l.invoices, formatCurrency(l.total)])} empty={t.empty} />
+        </Card>
+      )}
       <div className="grid md:grid-cols-2 gap-4">
         <Card title={t.table.byMethod}>
           <Table head={[t.table.method, t.table.amount]} rows={d.byMethod.map((m) => [t.methods[m.method] ?? m.method, formatCurrency(m.amount)])} empty={t.empty} />
@@ -114,6 +120,32 @@ function Sales({ d, t }: { d: SalesReport; t: ReportsDictionary }) {
       </div>
       <Card title={t.table.top}>
         <Table head={[t.table.item, t.table.qty, t.table.amount]} rows={d.topServices.map((s) => [s.description, s.quantity, formatCurrency(s.amount)])} empty={t.empty} />
+      </Card>
+      <p className="text-xs text-slate-400">{t.notes.basis}</p>
+    </>
+  );
+}
+
+function Locations({ d, t }: { d: LocationComparisonReport; t: ReportsDictionary }) {
+  const best = d.rows.length > 1 ? Math.max(...d.rows.map((r) => r.net)) : null;
+  const cells = (name: string, r: LocationComparisonReport["totals"]): (string | number)[] => [
+    name, r.paidInvoices, formatCurrency(r.revenue), formatCurrency(r.refunds), formatCurrency(r.net), formatCurrency(r.average),
+    formatCurrency(r.outstanding), r.workOrdersCreated, r.workOrdersOpen, r.newClients,
+  ];
+  return (
+    <>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <Kpi label={t.kpi.net} value={formatCurrency(d.totals.net)} hint={`${d.totals.paidInvoices} ${t.kpi.invoices.toLowerCase()}`} />
+        <Kpi label={t.kpi.outstanding} value={formatCurrency(d.totals.outstanding)} />
+        <Kpi label={t.kpi.woCreated} value={d.totals.workOrdersCreated} hint={`${d.totals.workOrdersOpen} ${t.kpi.woOpen.toLowerCase()}`} />
+        <Kpi label={t.kpi.newClients} value={d.totals.newClients} />
+      </div>
+      <Card title={t.table.comparison}>
+        <Table
+          head={[t.table.location, t.kpi.invoices, t.kpi.revenue, t.table.refundsCol, t.table.netCol, t.table.avgCol, t.kpi.outstanding, t.table.woCreatedCol, t.table.woOpenCol, t.table.newCustomersCol]}
+          rows={[...d.rows.map((r) => cells(r.net === best && best > 0 ? `${r.name} ★` : r.name, r)), cells(t.table.total, d.totals)]}
+          empty={t.empty}
+        />
       </Card>
       <p className="text-xs text-slate-400">{t.notes.basis}</p>
     </>
@@ -203,10 +235,12 @@ export default async function ReportsPage({ searchParams }: Props) {
   const canFinance = await currentUserCan("financial.view");
   const kind: ReportKind = isReportKind(sp.kind) && (canFinance || !FINANCIAL_KINDS.includes(sp.kind)) ? sp.kind : "overview";
 
-  const res = await getReport({ kind, preset: sp.preset, from: sp.from, to: sp.to });
+  const options = await getReportLocationOptions();
+  const location = options.enabled ? sp.location ?? "active" : "active";
+  const res = await getReport({ kind, preset: sp.preset, from: sp.from, to: sp.to, location });
   const err = "error" in res ? (res.error as keyof ReportsDictionary["errors"]) : null;
   const advanced = err ? err !== "UPGRADE_REQUIRED" : (res as { advanced: boolean }).advanced;
-  const visibleKinds = REPORT_KINDS.filter((k) => canFinance || !FINANCIAL_KINDS.includes(k));
+  const visibleKinds = REPORT_KINDS.filter((k) => (canFinance || !FINANCIAL_KINDS.includes(k)) && (k !== "locations" || options.enabled));
 
   // Core (o un preset no permitido): vuelve al resumen básico del mes.
   const basicFallback = err === "UPGRADE_REQUIRED" ? await getReport({ kind: "overview" }) : null;
@@ -227,6 +261,7 @@ export default async function ReportsPage({ searchParams }: Props) {
           const locked = !advanced && !BASIC_KINDS.includes(k);
           const q = new URLSearchParams({ kind: k });
           if (sp.preset) q.set("preset", sp.preset);
+          if (location !== "active") q.set("location", location);
           return (
             <Link key={k} href={`${ADMIN.reports}?${q.toString()}`} className={`px-3 py-1.5 rounded-full text-sm border ${k === kind ? "bg-blue-600 text-white border-blue-600" : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"}`}>
               {t.kinds[k]}{locked ? " 🔒" : ""}
@@ -243,19 +278,27 @@ export default async function ReportsPage({ searchParams }: Props) {
           to={range.toYmd}
           presets={[...presets]}
           canExport={advanced}
+          locations={options.enabled ? options.locations : []}
+          location={location}
         />
       )}
 
       {err === "UPGRADE_REQUIRED" && (
         <UpgradeCTA requiredPlan="PRO" title={t.locked.title} description={`${t.locked.description} ${t.locked.basicNote}`} ctaLabel={t.locked.cta} compact />
       )}
+      {options.enabled && range && (
+        <p className="text-xs text-slate-500">
+          {t.filters.location}: <span className="font-medium text-slate-700">{"data" in shown && shown.scopeMode !== "active" ? (shown.scopeMode === "all" ? t.filters.allLocations : (shown.locations ?? []).map((l) => l.name).join(", ")) : options.locations.find((l) => l.id === options.activeShopId)?.name}</span> · {t.filters.multiNote}
+        </p>
+      )}
       {err && err !== "UPGRADE_REQUIRED" && <p role="alert" className="text-sm text-red-600">{t.errors[err]}</p>}
 
       {"data" in shown && shown.kind === "overview" && <Overview d={shown.data as OverviewReport} t={t} />}
-      {"data" in shown && shown.kind === "sales" && <Sales d={shown.data as SalesReport} t={t} />}
+      {"data" in shown && shown.kind === "sales" && <Sales d={shown.data as SalesReport} t={t} names={new Map((shown.locations ?? []).map((l) => [l.id, l.name]))} />}
       {"data" in shown && shown.kind === "receivables" && <Receivables d={shown.data as ReceivablesReport} t={t} />}
       {"data" in shown && shown.kind === "operations" && <Operations d={shown.data as OperationsReport} t={t} />}
       {"data" in shown && shown.kind === "customers" && <Customers d={shown.data as CustomersReport} t={t} />}
+      {"data" in shown && shown.kind === "locations" && <Locations d={shown.data as LocationComparisonReport} t={t} />}
       {"data" in shown && shown.kind === "inventory" && <Inventory d={shown.data as InventoryReport} t={t} />}
     </div>
   );

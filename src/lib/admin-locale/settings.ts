@@ -302,6 +302,8 @@ export interface SettingsDictionary {
       noAccess: string;
       shopNotFound: string;
       crossOrganization: string;
+      notOrgAdmin: string;
+      lastLocation: string;
       genericError: string;
     };
   };
@@ -743,6 +745,8 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
         noAccess: "No tienes acceso a esa ubicación",
         shopNotFound: "Taller no encontrado",
         crossOrganization: "Esa persona o ubicación no pertenece a tu organización",
+        notOrgAdmin: "Solo el administrador de la organización puede gestionar ubicaciones y accesos",
+        lastLocation: "No se puede quitar la única ubicación de esta persona",
         genericError: "No pudimos completar la acción. Intenta de nuevo.",
       },
     },
@@ -1192,6 +1196,8 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
         noAccess: "You don't have access to that location",
         shopNotFound: "Shop not found",
         crossOrganization: "That person or location isn't part of your organization",
+        notOrgAdmin: "Only the organization administrator can manage locations and access",
+        lastLocation: "You can't remove this person's only location",
         genericError: "We couldn't complete that action. Please try again.",
       },
     },
@@ -1639,6 +1645,8 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
         noAccess: "Vous n'avez pas accès à cet emplacement",
         shopNotFound: "Atelier introuvable",
         crossOrganization: "Cette personne ou cet emplacement ne fait pas partie de votre organisation",
+        notOrgAdmin: "Seul l'administrateur de l'organisation peut gérer les emplacements et les accès",
+        lastLocation: "Impossible de retirer le seul emplacement de cette personne",
         genericError: "Impossible de terminer cette action. Réessayez.",
       },
     },

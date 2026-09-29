@@ -13,22 +13,27 @@ interface Props {
   to: string;
   presets: string[];
   canExport: boolean;
+  /** Multi-Shop: ubicaciones elegibles (vacío = sin filtro) y la selección actual. */
+  locations?: { id: string; name: string }[];
+  location?: string;
 }
 
 const field = "px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
 
-export function ReportControls({ kind, preset, from, to, presets, canExport }: Props) {
+export function ReportControls({ kind, preset, from, to, presets, canExport, locations = [], location = "active" }: Props) {
   const t = REPORTS_DICT[useAdminLocale()];
   const router = useRouter();
   const [p, setP] = useState(preset);
   const [f, setF] = useState(from);
   const [e, setE] = useState(to);
+  const [loc, setLoc] = useState(location);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   function apply(ev: React.FormEvent) {
     ev.preventDefault();
     const q = new URLSearchParams({ kind, preset: p });
+    if (loc !== "active") q.set("location", loc);
     if (p === "custom") {
       q.set("from", f);
       q.set("to", e);
@@ -39,7 +44,7 @@ export function ReportControls({ kind, preset, from, to, presets, canExport }: P
   function download() {
     setError(null);
     start(async () => {
-      const res = await exportReportCsv({ kind, preset: p, from: f, to: e });
+      const res = await exportReportCsv({ kind, preset: p, from: f, to: e, location: loc });
       if ("error" in res) {
         setError(t.errors[res.error as keyof typeof t.errors] ?? res.error);
         return;
@@ -74,6 +79,18 @@ export function ReportControls({ kind, preset, from, to, presets, canExport }: P
             <input type="date" value={e} onChange={(ev) => setE(ev.target.value)} className={field} required />
           </label>
         </>
+      )}
+      {locations.length > 1 && kind !== "locations" && (
+        <label className="text-xs font-medium text-slate-600 space-y-1">
+          <span className="block">{t.filters.location}</span>
+          <select value={loc} onChange={(ev) => setLoc(ev.target.value)} className={field}>
+            <option value="active">{t.filters.activeLocation}</option>
+            <option value="all">{t.filters.allLocations}</option>
+            {locations.map((l) => (
+              <option key={l.id} value={l.id}>{l.name}</option>
+            ))}
+          </select>
+        </label>
       )}
       <button type="submit" className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">{t.filters.apply}</button>
       {canExport && (

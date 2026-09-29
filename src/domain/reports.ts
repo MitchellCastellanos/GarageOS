@@ -22,11 +22,13 @@ export const DEFAULT_PRESET: ReportPreset = "thisMonth";
 /** Tope de un rango personalizado (evita consultas enormes). */
 export const MAX_RANGE_DAYS = 731;
 
-export const REPORT_KINDS = ["overview", "sales", "receivables", "operations", "customers", "inventory"] as const;
+export const REPORT_KINDS = ["overview", "sales", "receivables", "operations", "customers", "inventory", "locations"] as const;
 export type ReportKind = (typeof REPORT_KINDS)[number];
 
 /** Reportes que muestran dinero → exigen además `financial.view`. */
-export const FINANCIAL_KINDS: readonly ReportKind[] = ["sales", "receivables"];
+export const FINANCIAL_KINDS: readonly ReportKind[] = ["sales", "receivables", "locations"];
+/** Reportes que solo existen con Multi-Shop (`reports.multiLocation`, Complete). */
+export const MULTI_LOCATION_KINDS: readonly ReportKind[] = ["locations"];
 /** Reportes disponibles en Core (básico). El resto exige `reports.advanced`. */
 export const BASIC_KINDS: readonly ReportKind[] = ["overview"];
 

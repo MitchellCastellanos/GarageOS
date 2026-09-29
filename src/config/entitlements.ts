@@ -72,7 +72,11 @@ export const CAPABILITY_MIN_PLAN = {
   // facturas, pagos y reembolsos. Conectar/sincronizar exige el plan; un taller restringido o que
   // baja de plan conserva la vista del estado y puede desconectar, pero no sincroniza.
   "quickbooks.sync": "PRO",
+  // Multi-Shop (Block 12): crear ubicaciones adicionales bajo la misma organización/suscripción.
   "organization.multiLocation": "COMPLETE",
+  // Reportes consolidados y comparación entre ubicaciones (Block 12). Se ve con canView: una
+  // organización restringida conserva la lectura de lo que ya contrató.
+  "reports.multiLocation": "COMPLETE",
 } as const satisfies Record<string, Plan>;
 
 export type CapabilityKey = keyof typeof CAPABILITY_MIN_PLAN;
