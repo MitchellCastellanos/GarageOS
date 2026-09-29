@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { db } from "@/lib/db";
-import { constructWebhookEvent, getStripeClient, resolvePlanFromPriceId } from "@/lib/stripe";
+import { constructWebhookEvent, findPlanSubscriptionItem, getStripeClient, resolvePlanFromPriceId } from "@/lib/stripe";
 import type { SubscriptionStatus } from "@prisma/client";
 
 // Endpoint público de Stripe — se configura en el Dashboard (Developers →
@@ -100,7 +100,7 @@ async function upsertFromStripeSubscription(
   stripeSub: Stripe.Subscription,
   shopIdHint: string | null
 ): Promise<void> {
-  const item = stripeSub.items.data[0];
+  const item = findPlanSubscriptionItem(stripeSub.items.data);
   const priceId = item?.price.id;
   const resolved = priceId ? resolvePlanFromPriceId(priceId) : null;
   if (!resolved || !item) {
