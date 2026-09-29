@@ -1,5 +1,6 @@
 "use client";
 
+import type { PlanBadge } from "@/components/layout/Topbar";
 import { useCallback, useState } from "react";
 import { Topbar } from "@/components/layout/Topbar";
 import { Sidebar } from "@/components/layout/Sidebar";
@@ -19,6 +20,7 @@ interface AdminChromeProps {
   hasUnreadInbox?: boolean;
   /** Punto en Citas — una reserva/cancelación web reciente que nadie ha visto. */
   hasUnreadAppointments?: boolean;
+  planBadge?: PlanBadge | null;
   userId: string;
   initialNotifications: StaffNotificationRow[];
   initialUnreadNotifications: number;
@@ -35,6 +37,7 @@ export function AdminChrome({
   hasUnreadSupport,
   hasUnreadInbox,
   hasUnreadAppointments,
+  planBadge,
   userId,
   initialNotifications,
   initialUnreadNotifications,
@@ -54,6 +57,7 @@ export function AdminChrome({
         accessibleShops={accessibleShops}
         currentShopId={currentShopId}
         userId={userId}
+        planBadge={planBadge}
         initialNotifications={initialNotifications}
         initialUnreadNotifications={initialUnreadNotifications}
       />

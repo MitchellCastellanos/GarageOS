@@ -3,9 +3,11 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import Link from "next/link";
+import { Loader2, Sparkles } from "lucide-react";
 import { getBookingPageSettings } from "@/actions/booking-page";
 import { completeOnboarding } from "@/actions/onboarding";
+import { getBillingOverview } from "@/actions/billing";
 import { OnlineBookingSettings } from "@/components/settings/OnlineBookingSettings";
 import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
 import { ONBOARDING_DICT, toOnboardingLocale } from "@/lib/admin-locale/onboarding";
@@ -31,12 +33,23 @@ export function Step6Share({ step, totalSteps, onBack }: Step6ShareProps) {
   const router = useRouter();
   const [shop, setShop] = useState<BookingPageShop | null>(null);
   const [finishing, startFinishing] = useTransition();
+  const [trial, setTrial] = useState<{ daysLeft: number; endsOn: string } | null>(null);
 
   useEffect(() => {
     getBookingPageSettings().then((data) => {
       if (data) setShop({ name: data.shop.name, logoUrl: data.shop.logoUrl, bookingEnabled: data.shop.bookingEnabled, publicUrl: data.publicUrl });
     });
-  }, []);
+    getBillingOverview()
+      .then(({ subscription }) => {
+        if (!subscription.isTrialing || !subscription.trialEndsAt) return;
+        const endsAt = new Date(subscription.trialEndsAt);
+        setTrial({
+          daysLeft: Math.max(Math.ceil((endsAt.getTime() - Date.now()) / 86_400_000), 0),
+          endsOn: endsAt.toLocaleDateString(locale === "fr" ? "fr-CA" : "en-CA"),
+        });
+      })
+      .catch(() => {});
+  }, [locale]);
 
   function handleFinish() {
     startFinishing(async () => {
@@ -56,6 +69,22 @@ export function Step6Share({ step, totalSteps, onBack }: Step6ShareProps) {
         ) : (
           <div className="flex justify-center py-8">
             <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
+          </div>
+        )}
+
+        {trial && (
+          <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 flex gap-3">
+            <Sparkles className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-slate-900">{t.planTitle}</p>
+              <p className="text-sm text-slate-700">
+                {t.planTrial(trial.daysLeft, trial.endsOn)}
+              </p>
+              <p className="text-xs text-slate-500">{t.planBody}</p>
+              <Link href={ADMIN.billing} target="_blank" className="inline-block text-sm font-medium text-blue-600 hover:underline">
+                {t.planCta}
+              </Link>
+            </div>
           </div>
         )}
 

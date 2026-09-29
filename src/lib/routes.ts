@@ -17,6 +17,7 @@ export const ADMIN = {
   campaigns: "/admin/campaigns",
   inventory: "/admin/inventory",
   settings: "/admin/settings",
+  billing: "/admin/settings?tab=billing",
   support: "/admin/support",
   onboarding: "/admin/onboarding",
 } as const;

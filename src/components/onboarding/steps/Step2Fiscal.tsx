@@ -122,6 +122,7 @@ export function Step2Fiscal({ step, totalSteps, shop, onNext, onBack }: Step2Fis
                 {logoPending ? t.logoUploading : t.logoChange}
               </button>
               <p className="text-xs text-slate-400 mt-1.5">{t.logoHint}</p>
+              {!logoUrl && <p className="text-xs text-slate-500 mt-1">{t.logoSkipHint}</p>}
             </div>
           </div>
         </div>
@@ -164,7 +165,7 @@ export function Step2Fiscal({ step, totalSteps, shop, onNext, onBack }: Step2Fis
             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium px-5 py-2.5 rounded-lg text-sm transition-colors"
           >
             {pending && <Loader2 className="w-4 h-4 animate-spin" />}
-            {pending ? t.saving : t.continue}
+            {pending ? t.saving : logoUrl ? t.continue : t.continueWithoutLogo}
           </button>
         </div>
       </div>

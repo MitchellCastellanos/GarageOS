@@ -7,12 +7,18 @@ import { db } from "@/lib/db";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import { AdminLocaleProvider } from "@/components/admin/AdminLocaleProvider";
 import { getAccessibleShops } from "@/actions/locations";
-import { can } from "@/lib/subscription";
+import { can, getEffectiveSubscription } from "@/lib/subscription";
 import { hasUnreadSupportMessage } from "@/actions/support";
 import { hasUnreadInboxThreads } from "@/lib/communications/inbox";
 import { getMyStaffNotifications } from "@/actions/staff-notifications";
 import { ImpersonationBanner } from "@/components/admin/ImpersonationBanner";
 import { EmailVerificationBanner } from "@/components/admin/EmailVerificationBanner";
+import type { PlanBadge } from "@/components/layout/Topbar";
+import { SubscriptionBanner, type SubscriptionBannerKind } from "@/components/admin/SubscriptionBanner";
+
+function daysUntil(date: Date): number {
+  return Math.ceil((date.getTime() - Date.now()) / 86_400_000);
+}
 
 export default async function DashboardLayout({
   children,
@@ -57,6 +63,35 @@ export default async function DashboardLayout({
     redirect(ADMIN.onboarding);
   }
 
+  const isOwner = session.user.role === "OWNER";
+  let planBadge: PlanBadge | null = null;
+  let billingBanner: { kind: SubscriptionBannerKind; daysLeft: number } | null = null;
+  if (isOwner) {
+    const sub = await getEffectiveSubscription(session.user.shopId);
+    const trialDays = sub.isTrialing && sub.trialEndsAt ? Math.max(daysUntil(sub.trialEndsAt), 0) : 0;
+    planBadge = {
+      plan: sub.plan,
+      state: sub.isTrialExpired
+        ? "trialExpired"
+        : sub.status === "PAST_DUE"
+          ? "pastDue"
+          : sub.isTrialing
+            ? "trialing"
+            : sub.status === "ACTIVE"
+              ? "active"
+              : "free",
+      trialDays,
+    };
+    if (sub.isTrialExpired) {
+      billingBanner = { kind: "trialExpired", daysLeft: 0 };
+    } else if (sub.status === "PAST_DUE") {
+      billingBanner = { kind: "pastDue", daysLeft: 0 };
+    } else if (sub.isTrialing && sub.trialEndsAt) {
+      const daysLeft = daysUntil(sub.trialEndsAt);
+      if (daysLeft <= 7) billingBanner = { kind: "trialEnding", daysLeft: Math.max(daysLeft, 0) };
+    }
+  }
+
   const lockedNavHrefs = [
     ...(inventoryEntitled ? [] : [ADMIN.inventory]),
     ...(campaignsEntitled ? [] : [ADMIN.campaigns]),
@@ -74,6 +109,7 @@ export default async function DashboardLayout({
         <ImpersonationBanner shopName={session.impersonation.shopName} startedByName={session.impersonation.startedByName} />
       )}
       {currentUser && !currentUser.emailVerified && <EmailVerificationBanner email={currentUser.email} />}
+      {billingBanner && <SubscriptionBanner kind={billingBanner.kind} daysLeft={billingBanner.daysLeft} />}
       <AdminChrome
         shopName={shop?.name}
         shopLogoUrl={shop?.logoUrl}
@@ -84,6 +120,7 @@ export default async function DashboardLayout({
         hasUnreadSupport={hasUnreadSupport}
         hasUnreadInbox={hasUnreadInbox}
         hasUnreadAppointments={hasUnreadAppointments}
+        planBadge={planBadge}
         userId={session.user.id}
         initialNotifications={staffNotifications.notifications}
         initialUnreadNotifications={staffNotifications.unreadCount}

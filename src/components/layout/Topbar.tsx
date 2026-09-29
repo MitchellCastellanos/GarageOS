@@ -8,7 +8,8 @@ import { signOut } from "next-auth/react";
 import { toast } from "sonner";
 import { ADMIN } from "@/lib/routes";
 import { APP_NAME } from "@/config/app";
-import { Search, LogOut, Settings, ChevronDown, Menu, X, MapPin } from "lucide-react";
+import { Search, LogOut, Settings, ChevronDown, ChevronRight, Menu, X, MapPin } from "lucide-react";
+import { PLAN_LABELS, type Plan } from "@/config/entitlements";
 import { LanguageQuickSwitch } from "@/components/settings/LanguageQuickSwitch";
 import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
 import { LAYOUT_DICT } from "@/lib/admin-locale/layout";
@@ -16,6 +17,12 @@ import { switchActiveShop } from "@/actions/locations";
 import { NotificationBell } from "@/components/layout/NotificationBell";
 import type { StaffNotificationRow } from "@/actions/staff-notifications";
 import { SETTINGS_DICT } from "@/lib/admin-locale/settings";
+
+export interface PlanBadge {
+  plan: Plan;
+  state: "trialing" | "trialExpired" | "pastDue" | "active" | "free";
+  trialDays: number;
+}
 
 interface TopbarProps {
   shopName?: string | null;
@@ -26,6 +33,7 @@ interface TopbarProps {
   accessibleShops: { id: string; name: string }[];
   currentShopId: string;
   userId: string;
+  planBadge?: PlanBadge | null;
   initialNotifications: StaffNotificationRow[];
   initialUnreadNotifications: number;
 }
@@ -47,6 +55,7 @@ export function Topbar({
   accessibleShops,
   currentShopId,
   userId,
+  planBadge,
   initialNotifications,
   initialUnreadNotifications,
 }: TopbarProps) {
@@ -58,6 +67,17 @@ export function Topbar({
   const displayName = shopName ?? APP_NAME;
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const planNeedsAttention = planBadge?.state === "trialExpired" || planBadge?.state === "pastDue";
+  const planStatusText = planBadge
+    ? {
+        trialing: t.topbar.plan.trial(planBadge.trialDays),
+        trialExpired: t.topbar.plan.trialExpired,
+        pastDue: t.topbar.plan.pastDue,
+        active: t.topbar.plan.active,
+        free: t.topbar.plan.free,
+      }[planBadge.state]
+    : "";
 
   function handleSwitchShop(shopId: string) {
     if (shopId === currentShopId) return;
@@ -202,8 +222,11 @@ export function Topbar({
           aria-controls="admin-user-menu"
           className="flex items-center gap-2 py-1.5 pl-1.5 pr-2.5 rounded-lg hover:bg-slate-800 transition-colors"
         >
-          <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
+          <div className="relative w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
             <span className="text-white text-xs font-semibold">{initials(userName)}</span>
+            {planNeedsAttention && (
+              <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-slate-900" />
+            )}
           </div>
           <span className="hidden md:block text-sm text-slate-200 max-w-[140px] truncate">
             {userName ?? t.topbar.defaultUserName}
@@ -213,6 +236,31 @@ export function Topbar({
 
         {menuOpen && (
           <div id="admin-user-menu" className="absolute right-0 mt-2 w-56 max-w-[calc(100vw-2rem)] bg-white rounded-lg border border-slate-200 shadow-lg py-1 z-30">
+            {planBadge && (
+              <>
+                <Link
+                  href={ADMIN.billing}
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center gap-2 mx-1.5 my-1 px-2.5 py-2 rounded-md hover:bg-slate-50"
+                >
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-sm font-semibold text-slate-900">{PLAN_LABELS[planBadge.plan]}</span>
+                    <span
+                      className={`block text-xs ${
+                        planNeedsAttention ? "text-red-600" : planBadge.state === "trialing" ? "text-blue-600" : "text-slate-500"
+                      }`}
+                    >
+                      {planStatusText}
+                    </span>
+                  </span>
+                  <span className="flex items-center gap-0.5 text-xs font-medium text-blue-600">
+                    {planBadge.state === "active" ? t.topbar.plan.manage : t.topbar.plan.upgrade}
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </span>
+                </Link>
+                <div className="border-t border-slate-100 my-1" />
+              </>
+            )}
             {accessibleShops.length > 1 && (
               <>
                 <p className="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
