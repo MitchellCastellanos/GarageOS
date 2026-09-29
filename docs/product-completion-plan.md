@@ -317,4 +317,10 @@ These can be reconsidered from real customer demand after launch.
 
 ## Current next move
 
-**Block 2 (Data Import / Migration) is the next implementation handoff.** Block 1 is code-complete; the manual Stripe configuration listed under it must be done before selling. Every new operational server action must use `getWritableShopId()` so restricted mode stays enforced.
+**Blocks 0–4 and 6–8 are DONE. The next implementation handoff is Block 5 (Reports & Analytics)** — then 9 (fiscal + Accounting Light), 11 (communications hardening), 12 (Complete/Multi-Shop), 10, 13, 14, 15, 16.
+
+Rules every following block must respect:
+- Operational writes go through `getWritableShopId(permission?)` (restricted-mode + `ops.write` baseline + optional fine permission); sensitive reads through `getShopId(permission)`; new Pro+ functionality through a key in `src/config/entitlements.ts` + `checkEntitlement`/`can`/`canView`. Reports (Block 5) should gate on the existing `reports.view` permission and a new entitlement key for Advanced; Reports must not leak revenue to users without `financial.view`.
+- Tests for real server actions: reuse `tests/helpers/*` (`setSession`, `patchDb`, `mockSubscription`).
+- Migrations added by Blocks 2–8 (all additive): `20260930100000_import_runs`, `…110000_work_order_parts`, `…120000_tire_storage`, `…130000_dvi_advanced`, `…140000_reminder_rules`, `…150000_user_permissions`.
+- Still open from these blocks: live/real-provider validation (Block 15) of automated reminder SMS/email delivery, XLSX with real-world shop exports and large imports (10k rows in one request), Supabase photo storage; import error CSV is capped at the first 1,000 bad rows.
