@@ -1,4 +1,7 @@
 import { getVehicleById, deleteVehicle } from "@/actions/vehicles";
+import { getTireSetsForVehicle } from "@/actions/tire-storage";
+import { TireSetsSection } from "@/components/tire-storage/TireSetsSection";
+import { TIRE_STORAGE_DICT } from "@/lib/admin-locale/tire-storage";
 import { adminPath } from "@/lib/routes";
 import { formatDate, formatCurrency } from "@/lib/utils";
 import { formatClientName } from "@/lib/client-name";
@@ -19,7 +22,7 @@ interface Props {
 
 export default async function VehicleDetailPage({ params }: Props) {
   const { id } = await params;
-  const [vehicle, locale] = await Promise.all([getVehicleById(id), getAdminLocale()]);
+  const [vehicle, locale, tireSets] = await Promise.all([getVehicleById(id), getAdminLocale(), getTireSetsForVehicle(id)]);
   const t = CLIENTS_DICT[locale];
   const woT = WORK_ORDERS_DICT[locale];
   const inspT = INSPECTIONS_DICT[locale];
@@ -196,6 +199,14 @@ export default async function VehicleDetailPage({ params }: Props) {
           </div>
         )}
       </div>
+
+      {tireSets && (
+        <TireSetsSection
+          sets={tireSets}
+          t={TIRE_STORAGE_DICT[locale]}
+          checkInHref={adminPath(`/tire-storage/new?clientId=${vehicle.clientId}&vehicleId=${id}`)}
+        />
+      )}
 
       {/* Recordatorios */}
       {vehicle.reminders.length > 0 && (

@@ -38,6 +38,8 @@ export const CAPABILITY_MIN_PLAN = {
   // duplicados "actualizar". La importación básica (clientes + vehículos, CSV/XLSX, hasta
   // IMPORT_LIMITS.basicMaxRows filas, duplicados "omitir") está en todos los planes.
   "import.full": "PRO",
+  // Almacenamiento de llantas (Block 4): juegos guardados, entradas/salidas, ubicación.
+  "tireStorage.manage": "PRO",
   "communications.campaigns": "PRO",
   "branding.customDomain": "PRO",
   "branding.customSender": "PRO",

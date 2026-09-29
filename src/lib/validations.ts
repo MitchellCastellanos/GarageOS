@@ -206,3 +206,18 @@ export const shopLocationSchema = z.object({
 });
 
 export type ShopLocationFormData = z.infer<typeof shopLocationSchema>;
+
+export const tireStorageSchema = z.object({
+  clientId: z.string().min(1, "Select a client"),
+  vehicleId: z.string().optional().or(z.literal("")),
+  season: z.enum(["WINTER", "SUMMER", "ALL_SEASON"]),
+  brand: z.string().max(60).optional().or(z.literal("")),
+  model: z.string().max(60).optional().or(z.literal("")),
+  size: z.string().min(1, "Tire size is required").max(30),
+  quantity: z.number().int().min(1).max(12),
+  condition: z.enum(["NEW", "GOOD", "FAIR", "WORN"]),
+  withRims: z.boolean(),
+  storageLocation: z.string().max(40).optional().or(z.literal("")),
+  notes: z.string().max(1000).optional().or(z.literal("")),
+});
+export type TireStorageFormData = z.infer<typeof tireStorageSchema>;

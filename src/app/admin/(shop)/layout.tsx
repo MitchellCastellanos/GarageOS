@@ -37,7 +37,7 @@ export default async function DashboardLayout({
     redirect(ADMIN.login);
   }
 
-  const [shop, locale, accessibleShops, inventoryEntitled, campaignsEntitled, currentUser, hasUnreadSupport, hasUnreadInbox, staffNotifications] = await Promise.all([
+  const [shop, locale, accessibleShops, inventoryEntitled, campaignsEntitled, tireStorageEntitled, currentUser, hasUnreadSupport, hasUnreadInbox, staffNotifications] = await Promise.all([
     db.shop.findUnique({
       where: { id: session.user.shopId },
       select: { name: true, logoUrl: true, onboardingCompletedAt: true },
@@ -46,6 +46,7 @@ export default async function DashboardLayout({
     getAccessibleShops(),
     canView(session.user.shopId, "inventory.manage"),
     canView(session.user.shopId, "communications.campaigns"),
+    canView(session.user.shopId, "tireStorage.manage"),
     db.user.findUnique({
       where: { id: session.user.id },
       select: { email: true, emailVerified: true },
@@ -101,6 +102,7 @@ export default async function DashboardLayout({
   const lockedNavHrefs = [
     ...(inventoryEntitled ? [] : [ADMIN.inventory]),
     ...(campaignsEntitled ? [] : [ADMIN.campaigns]),
+    ...(tireStorageEntitled ? [] : [ADMIN.tireStorage]),
   ];
 
   // Punto inicial en Citas (reserva/cancelación web sin ver) — el resto de la

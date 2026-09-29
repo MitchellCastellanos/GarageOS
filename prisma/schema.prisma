@@ -16,6 +16,8 @@ model Shop {
   inventoryParts     InventoryPart[]
   inventoryMovements InventoryMovement[]
   importRuns         ImportRun[]
+  tireStorageSets    TireStorageSet[]
+  tireStorageEvents  TireStorageEvent[]
   userAccess         UserShopAccess[]
   staffNotifications StaffNotification[]
   documentSequences  DocumentSequence[]
@@ -343,6 +345,7 @@ model Client {
   notifyChannel          ClientNotifyChannel @default(AUTO)
 
   vehicles           Vehicle[]
+  tireStorageSets    TireStorageSet[]
   invoices           Invoice[]
   quotes             Quote[]
   appointments       Appointment[]
@@ -373,6 +376,7 @@ model Vehicle {
   quoteVehicles   QuoteVehicle[]
   appointments    Appointment[]
   reminders       ServiceReminder[]
+  tireStorageSets TireStorageSet[]
 
   @@schema("garageos")
 }
@@ -1740,5 +1744,90 @@ model ImportRun {
   createdAt        DateTime @default(now())
 
   @@index([shopId, createdAt])
+  @@schema("garageos")
+}
+
+/**
+ * Tire Storage (Block 4, Pro+): un juego de llantas guardado por un cliente (y opcionalmente un
+ * vehículo). `status` refleja si están físicamente en el taller; el historial de entradas,
+ * salidas y cambios de ubicación vive en TireStorageEvent.
+ */
+model TireStorageSet {
+  id              String            @id @default(cuid())
+  shopId          String
+  shop            Shop              @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  clientId        String
+  client          Client            @relation(fields: [clientId], references: [id])
+  vehicleId       String?
+  vehicle         Vehicle?          @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  season          TireSeason
+  brand           String?
+  model           String?
+  /// Medida normalizada, p.ej. 225/45R17.
+  size            String
+  quantity        Int               @default(4)
+  condition       TireCondition     @default(GOOD)
+  withRims        Boolean           @default(false)
+  storageLocation String?
+  status          TireStorageStatus @default(STORED)
+  checkedInAt     DateTime          @default(now())
+  checkedOutAt    DateTime?
+  notes           String?           @db.Text
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  events TireStorageEvent[]
+
+  @@index([shopId, status])
+  @@index([shopId, clientId])
+  @@index([vehicleId])
+  @@schema("garageos")
+}
+
+model TireStorageEvent {
+  id        String           @id @default(cuid())
+  shopId    String
+  shop      Shop             @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  setId     String
+  set       TireStorageSet   @relation(fields: [setId], references: [id], onDelete: Cascade)
+  type      TireStorageEventType
+  location  String?
+  note      String?
+  userId    String?
+  createdAt DateTime         @default(now())
+
+  @@index([setId, createdAt])
+  @@schema("garageos")
+}
+
+enum TireSeason {
+  WINTER
+  SUMMER
+  ALL_SEASON
+
+  @@schema("garageos")
+}
+
+enum TireCondition {
+  NEW
+  GOOD
+  FAIR
+  WORN
+
+  @@schema("garageos")
+}
+
+enum TireStorageStatus {
+  STORED
+  CHECKED_OUT
+
+  @@schema("garageos")
+}
+
+enum TireStorageEventType {
+  CHECK_IN
+  CHECK_OUT
+  MOVED
+
   @@schema("garageos")
 }

@@ -27,6 +27,7 @@ import {
   X,
   LifeBuoy,
   Upload,
+  CircleDot,
 } from "lucide-react";
 
 import { ADMIN } from "@/lib/routes";
@@ -205,6 +206,7 @@ export function Sidebar({
         { label: t.nav.inspections, href: ADMIN.inspections, icon: ClipboardCheck },
         { label: t.nav.quotes, href: ADMIN.quotes, icon: FileSpreadsheet },
         { label: t.nav.reminders, href: ADMIN.reminders, icon: Bell },
+        { label: t.nav.tireStorage, href: ADMIN.tireStorage, icon: CircleDot },
       ],
     },
     {

@@ -17,6 +17,7 @@ export const ADMIN = {
   campaigns: "/admin/campaigns",
   inventory: "/admin/inventory",
   import: "/admin/import",
+  tireStorage: "/admin/tire-storage",
   settings: "/admin/settings",
   billing: "/admin/settings?tab=billing",
   support: "/admin/support",

@@ -175,10 +175,18 @@ Pro+ (`inventory.manage`, enforced in `createWorkOrder` / `updateWorkOrder`; Cor
 - **Tests**: `tests/inventory-consumption.test.ts` (idempotent re-save, qty up/down, remove, swap part, insufficient stock, shared stock across WOs, release on cancel/delete, tenant isolation, fractional qty).
 - Not in V1 (by design): purchase orders/suppliers, reservations before approval, consumption from direct invoices.
 
-### 4 — Tire Storage — TODO — P0
-Best owner: Claude.
+### 4 — Tire Storage — DONE (2026-09-30)
 
-Pro+. Tire sets per vehicle, season, dimensions, condition, physical storage location, notes and check-in/out. QR/labels only if low-cost after core flow is solid.
+Pro+ (`tireStorage.manage`, PRO in `src/config/entitlements.ts`), enforced server-side in every write in `src/actions/tire-storage.ts` (`getWritableShopId()` + `checkEntitlement`); reads return nothing/`null` for Core (Pro shops that lapse keep *view* via `canView`, like Inventory).
+
+- **Model**: `TireStorageSet` (client, optional vehicle, season WINTER/SUMMER/ALL_SEASON, brand/model, normalised size `225/45R17`, quantity, condition NEW/GOOD/FAIR/WORN, with-rims, storage location, status STORED/CHECKED_OUT, checked-in/out dates, notes) + `TireStorageEvent` history (CHECK_IN / CHECK_OUT / MOVED with location, note, user).
+- **Workflow**: check in (`/admin/tire-storage/new`, prefilled from customer/vehicle pages) → move location → check out (note) → check back in (season swap, new location). Transitions are atomic conditional updates (`status` in the `where`) so double clicks/races can't check out twice; client and vehicle ownership are validated against the shop (vehicle must belong to the client).
+- **UI**: `/admin/tire-storage` list with search (customer, phone, plate, vehicle, size, brand, location) + status/season filters, detail with history and actions, edit form, "Tire storage" section on customer and vehicle detail pages, sidebar entry (lock icon + upgrade CTA for Core), EN/FR.
+- **Migration**: `20260930120000_tire_storage` (additive; client FK is RESTRICT — a customer with tire sets can't be deleted until they're removed, consistent with work orders/invoices; vehicle FK SET NULL).
+- **Tests**: `tests/tire-storage.test.ts` (real actions through the new `tests/helpers/action-harness.ts` — size normalisation, Pro check-in, Core refused, restricted shop refused, foreign client/vehicle, check-out/check-in/move state machine + history, tenant isolation, read gating).
+- Not built: printed labels/QR (skipped to keep the block small), deleting tire sets (history is kept; check out instead).
+
+**Test infrastructure added**: `tests/helpers/{action-harness,stub-auth,stub-next,db-mock}.ts` let node:test import real server actions with a fake session (`setSession`) and a patched `db`. Later blocks (and Block 15) should reuse them.
 
 ### 5 — Reports & Analytics — PARTIAL — P0
 Best owner: Claude.
