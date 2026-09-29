@@ -21,6 +21,7 @@ import { sendWorkOrderReadySms } from "@/lib/sms";
 import { resolveNotifyChannelPlan } from "@/domain/sms";
 import Decimal from "decimal.js";
 import { checkEntitlement } from "@/lib/subscription";
+import { createRemindersForCompletedWorkOrder } from "@/lib/reminder-automation";
 import {
   InsufficientStockError,
   InventoryLineError,
@@ -380,9 +381,19 @@ export async function updateWorkOrderStatus(id: string, toStatus: WorkOrderStatu
     }
   });
 
+  // Recordatorios automáticos por regla (Pro+): un fallo aquí nunca debe revertir el cambio de estado.
+  if (toStatus === "COMPLETED") {
+    try {
+      await createRemindersForCompletedWorkOrder(shopId, id);
+    } catch (err) {
+      console.error(`[reminders] no se pudieron crear recordatorios automáticos para ${existing.orderNumber}:`, err);
+    }
+  }
+
   revalidatePath(`/work-orders/${id}`);
   revalidatePath(ADMIN.workOrders);
   revalidatePath(ADMIN.inventory);
+  revalidatePath(ADMIN.reminders);
   return { success: true };
 }
 

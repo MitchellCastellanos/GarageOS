@@ -46,6 +46,11 @@ export const CAPABILITY_MIN_PLAN = {
   "dvi.photos": "PRO",
   "dvi.templates": "PRO",
   "dvi.customerReport": "PRO",
+  // Recordatorios avanzados (Block 7). Core = recordatorios manuales por vehículo + envío diario
+  // por email (7 días antes). Pro+ = reglas recurrentes ligadas al servicio realizado, aviso con
+  // anticipación configurable, canal preferido del cliente (SMS/email) y segmento de campañas
+  // "servicio próximo".
+  "reminders.automation": "PRO",
   "communications.campaigns": "PRO",
   "branding.customDomain": "PRO",
   "branding.customSender": "PRO",

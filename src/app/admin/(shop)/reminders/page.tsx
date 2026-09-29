@@ -6,6 +6,7 @@ import { formatDate } from "@/lib/utils";
 import { formatClientName } from "@/lib/client-name";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import { APPOINTMENTS_DICT } from "@/lib/admin-locale/appointments";
+import { REMINDER_RULES_DICT } from "@/lib/admin-locale/reminder-rules";
 
 const STATUS_BADGE: Record<string, string> = {
   PENDING: "bg-amber-100 text-amber-700",
@@ -43,13 +44,21 @@ export default async function RemindersPage({ searchParams }: PageProps) {
             {activeTab !== "ALL" ? t.statusSuffix(t.statusLabels[activeTab as keyof typeof t.statusLabels] ?? activeTab) : ""}
           </p>
         </div>
-        <Link
-          href={`${ADMIN.reminders}/new`}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          {t.newReminder}
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href={`${ADMIN.reminders}/rules`}
+            className="border border-slate-300 text-slate-700 text-sm font-medium px-4 py-2.5 rounded-lg"
+          >
+            {REMINDER_RULES_DICT[locale].manage}
+          </Link>
+          <Link
+            href={`${ADMIN.reminders}/new`}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            {t.newReminder}
+          </Link>
+        </div>
       </div>
 
       {/* Cron info banner */}
@@ -111,6 +120,11 @@ export default async function RemindersPage({ searchParams }: PageProps) {
                   >
                     {t.statusLabels[reminder.status as keyof typeof t.statusLabels] ?? reminder.status}
                   </span>
+                  {reminder.ruleId && (
+                    <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-violet-100 text-violet-700">
+                      {REMINDER_RULES_DICT[locale].auto}
+                    </span>
+                  )}
                 </div>
 
                 <p className="text-sm text-slate-600">

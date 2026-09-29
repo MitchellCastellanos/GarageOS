@@ -6,6 +6,7 @@ import { SYSTEM_ACTOR, recordAppointmentEvent } from "@/lib/appointment-events";
 import { runSmsNumberLifecycle } from "@/lib/communications/sms-numbers";
 import { createOperatingChecker } from "@/lib/subscription";
 import { isTwilioConfigured } from "@/lib/communications/twilio";
+import { deliverDueAutomatedReminders } from "@/lib/reminder-automation";
 
 // Cron Job — corre diariamente a las 8am (configurado en vercel.json)
 // Envía recordatorios de servicio con vencimiento en ≤7 días
@@ -23,10 +24,13 @@ export async function GET(request: Request) {
   const sevenDaysFromNow = new Date();
   sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
 
+  // Los recordatorios automáticos (con regla, Pro+) se envían aparte por deliverDueAutomatedReminders,
+  // con su propia anticipación y canal; este envío básico es solo para los manuales.
   const dueReminders = await db.serviceReminder.findMany({
     where: {
       status: "PENDING",
       sentAt: null,
+      ruleId: null,
       dueDate: {
         lte: sevenDaysFromNow,
         gte: new Date(),
@@ -42,6 +46,7 @@ export async function GET(request: Request) {
 
   const results = {
     serviceReminders: { sent: 0, skipped: 0, errors: 0 },
+    automatedReminders: { sent: 0, skipped: 0, errors: 0 },
     appointmentReminders: { sent: 0, skipped: 0, errors: 0 },
   };
 
@@ -88,6 +93,8 @@ export async function GET(request: Request) {
       results.serviceReminders.errors++;
     }
   }
+
+  results.automatedReminders = await deliverDueAutomatedReminders(new Date(), canOperate);
 
   const shopsWithAppointments = await db.shop.findMany({
     where: { OR: [{ appointmentEmailsEnabled: true }, { appointmentSmsEnabled: true }] },

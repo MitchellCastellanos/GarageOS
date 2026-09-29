@@ -9,7 +9,7 @@ import { adminPath } from "@/lib/routes";
 import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
 import { CAMPAIGNS_DICT } from "@/lib/admin-locale/campaigns";
 
-type SegmentType = "ALL_CONSENTED" | "LANGUAGE" | "INACTIVE_MONTHS" | "MANUAL";
+type SegmentType = "ALL_CONSENTED" | "LANGUAGE" | "INACTIVE_MONTHS" | "SERVICE_DUE" | "MANUAL";
 
 export function CampaignForm() {
   const locale = useAdminLocale();
@@ -89,6 +89,7 @@ export function CampaignForm() {
           <option value="ALL_CONSENTED">{t.form.segmentOptions.ALL_CONSENTED}</option>
           <option value="LANGUAGE">{t.form.segmentOptions.LANGUAGE}</option>
           <option value="INACTIVE_MONTHS">{t.form.segmentOptions.INACTIVE_MONTHS}</option>
+          <option value="SERVICE_DUE">{t.form.segmentOptions.SERVICE_DUE}</option>
           <option value="MANUAL">{t.form.segmentOptions.MANUAL}</option>
         </select>
 
@@ -104,6 +105,16 @@ export function CampaignForm() {
             type="number"
             min={1}
             defaultValue={6}
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm mb-2"
+          />
+        )}
+        {segmentType === "SERVICE_DUE" && (
+          <input
+            name="days"
+            type="number"
+            min={0}
+            max={365}
+            defaultValue={30}
             className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm mb-2"
           />
         )}

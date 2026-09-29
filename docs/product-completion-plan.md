@@ -208,10 +208,19 @@ Advanced (Pro/Complete) entitlement keys, all in `src/config/entitlements.ts` an
 - **Tests**: `tests/dvi.test.ts` (Core default checklist vs Pro template, cross-shop template, photo gate, capabilities incl. restricted Pro, template CRUD gating/dedupe, share token idempotency and scoping, public report 404s/plan re-check).
 - Not built: emailing/SMS-ing the report link from GarageOS (copy link only), per-template item conditions, photo annotations.
 
-### 7 — Maintenance reminders Basic vs Advanced — PARTIAL — P1
-Best owner: Claude.
+### 7 — Maintenance reminders Basic vs Advanced — DONE (2026-09-30)
 
-Existing reminders remain Core-capable. Pro+ adds meaningful automation/rules/recurring or service-driven workflows and campaign integration. Avoid building a giant CRM.
+**Core (Basic, unchanged)**: manual reminders per vehicle (service, due date/mileage, notes), "Send now" by email, daily cron email 7 days before the due date (manual reminders only, `ruleId: null`), dismiss, status tabs. Restricted shops don't send (existing `createOperatingChecker`).
+
+**Pro/Complete (Advanced)** — `reminders.automation` (PRO, `src/config/entitlements.ts`), enforced server-side:
+- **Recurring service-driven rules** (`ReminderRule`, `/admin/reminders/rules`): name + keyword matched (case/accent-insensitive) against the completed work order's lines + repeat interval (months, required because sending is date-driven) + optional km/miles (shown on the reminder) + lead days (0–90).
+- **Automation**: `updateWorkOrderStatus → COMPLETED` calls `createRemindersForCompletedWorkOrder` (Pro only; failures never block the status change). One reminder per (rule, work order) — unique key makes retries idempotent; a new one for the same rule+vehicle dismisses the previous pending one. Auto reminders show an "Auto" badge.
+- **Delivery**: cron (`/api/webhooks/cron`) → `deliverDueAutomatedReminders`: sends from `remindAt` (due − lead days) using the customer's notify preference (`resolveNotifyChannelPlan`: SMS first with email fallback, or both) through the existing communications stack (`sendServiceReminderSms`, purpose `REMINDER`; `sendReminderEmail`); skips restricted shops and shops that lost the plan; ignores reminders > 45 days stale; marks SENT with a `status: PENDING` guard.
+- **Campaign integration**: new segment `SERVICE_DUE` (clients with a pending/sent reminder due within N days or overdue), reusing the campaigns consent filters; campaigns remain Pro (`communications.campaigns`).
+- **Migration**: `20260930140000_reminder_rules` (additive: `ReminderRule`, `ServiceReminder.ruleId/workOrderId/remindAt` + unique `(ruleId, workOrderId)`).
+- **Tests**: `tests/reminders.test.ts` (matching, date math, validation, Core refused / Pro CRUD scoped / restricted redirect, auto-creation idempotency and replacement, Core skip, cron skips, segment validation + shop scoping).
+- Known gaps (not blockers): the cron's actual SMS/email send path for automated reminders is covered by the shared, already-tested comms helpers but has no dedicated end-to-end test (Block 11/15 real-provider validation); mileage is informational only (no odometer tracking); no per-rule channel override.
+- **Manual**: none (the existing daily cron `/api/webhooks/cron` runs the new step; `CRON_SECRET` unchanged). Shops provisioned before this change get the `REMINDER` SMS route on their next sender-identity provisioning; sending does not depend on it.
 
 ### 8 — Roles & permissions — PARTIAL — P1
 Best owner: Claude.

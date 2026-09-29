@@ -38,6 +38,7 @@ export interface CampaignsDictionary {
       ALL_CONSENTED: string;
       LANGUAGE: string;
       INACTIVE_MONTHS: string;
+      SERVICE_DUE: string;
       MANUAL: string;
     };
     languageOptions: { EN: string; FR: string };
@@ -118,6 +119,7 @@ export const CAMPAIGNS_DICT: Record<AdminLocale, CampaignsDictionary> = {
         ALL_CONSENTED: "Todos los clientes con consentimiento",
         LANGUAGE: "Por idioma",
         INACTIVE_MONTHS: "Inactivos hace X meses",
+        SERVICE_DUE: "Servicio próximo o vencido (en X días)",
         MANUAL: "IDs de cliente específicos",
       },
       languageOptions: { EN: "English", FR: "Français" },
@@ -196,6 +198,7 @@ export const CAMPAIGNS_DICT: Record<AdminLocale, CampaignsDictionary> = {
         ALL_CONSENTED: "All clients with consent",
         LANGUAGE: "By language",
         INACTIVE_MONTHS: "Inactive for X months",
+        SERVICE_DUE: "Service due or overdue (within X days)",
         MANUAL: "Specific client IDs",
       },
       languageOptions: { EN: "English", FR: "Français" },
@@ -274,6 +277,7 @@ export const CAMPAIGNS_DICT: Record<AdminLocale, CampaignsDictionary> = {
         ALL_CONSENTED: "Tous les clients avec consentement",
         LANGUAGE: "Par langue",
         INACTIVE_MONTHS: "Inactifs depuis X mois",
+        SERVICE_DUE: "Entretien à venir ou en retard (dans X jours)",
         MANUAL: "IDs de clients spécifiques",
       },
       languageOptions: { EN: "English", FR: "Français" },

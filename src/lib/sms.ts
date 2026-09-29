@@ -303,3 +303,37 @@ export async function sendWorkOrderReadySms(data: WorkOrderReadySmsData): Promis
     idempotencyKey: `work-order-ready-sms:${data.workOrderId}`,
   });
 }
+
+export interface ServiceReminderSmsData {
+  to: string;
+  shopId: string;
+  clientId?: string;
+  reminderId: string;
+  shopName: string;
+  shopPhone?: string | null;
+  serviceType: string;
+  vehicleDescription: string;
+  dueDate: Date | null;
+  language?: SmsLanguage | string | null;
+}
+
+const SERVICE_REMINDER_SMS_COPY: Record<SmsLanguage, (data: ServiceReminderSmsData) => string> = {
+  EN: (d) =>
+    `${d.shopName}: time for your ${d.serviceType} on the ${d.vehicleDescription}${d.dueDate ? ` (due ${d.dueDate.toISOString().slice(0, 10)})` : ""}.${d.shopPhone ? ` Call ${d.shopPhone} to book.` : ""}`,
+  FR: (d) =>
+    `${d.shopName} : c'est le temps de votre ${d.serviceType} pour le ${d.vehicleDescription}${d.dueDate ? ` (échéance ${d.dueDate.toISOString().slice(0, 10)})` : ""}.${d.shopPhone ? ` Appelez le ${d.shopPhone} pour réserver.` : ""}`,
+};
+
+export async function sendServiceReminderSms(data: ServiceReminderSmsData): Promise<RecordAndSendResult> {
+  const body = SERVICE_REMINDER_SMS_COPY[resolveSmsLanguage(data.language)](data);
+  return sendSms({
+    to: data.to,
+    body,
+    shopId: data.shopId,
+    purpose: "REMINDER",
+    clientId: data.clientId,
+    businessEntityType: "SERVICE_REMINDER",
+    businessEntityId: data.reminderId,
+    idempotencyKey: `service-reminder-sms:${data.reminderId}`,
+  });
+}

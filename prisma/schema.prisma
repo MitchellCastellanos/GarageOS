@@ -19,6 +19,7 @@ model Shop {
   tireStorageSets    TireStorageSet[]
   tireStorageEvents  TireStorageEvent[]
   inspectionTemplates InspectionTemplate[]
+  reminderRules      ReminderRule[]
   userAccess         UserShopAccess[]
   staffNotifications StaffNotification[]
   documentSequences  DocumentSequence[]
@@ -798,7 +799,41 @@ model ServiceReminder {
   status      ReminderStatus @default(PENDING)
   sentAt      DateTime?
   createdAt   DateTime       @default(now())
+  // Recordatorios automáticos (Block 7, Pro+): creados por una ReminderRule al completar una
+  // orden de trabajo; se envían a partir de `remindAt` por el canal preferido del cliente.
+  ruleId      String?
+  rule        ReminderRule?  @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+  workOrderId String?
+  workOrder   WorkOrder?     @relation(fields: [workOrderId], references: [id], onDelete: SetNull)
+  remindAt    DateTime?
 
+  // Una regla genera a lo sumo un recordatorio por orden de trabajo (idempotencia).
+  @@unique([ruleId, workOrderId])
+  @@index([shopId, status])
+  @@schema("garageos")
+}
+
+/**
+ * Regla de mantenimiento recurrente (Block 7, Pro+): cuando una orden de trabajo se completa y
+ * alguna línea contiene `keyword`, se agenda el siguiente servicio (`intervalMonths` y/o
+ * `intervalKm` después) y se avisa `leadDays` antes.
+ */
+model ReminderRule {
+  id             String   @id @default(cuid())
+  shopId         String
+  shop           Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  name           String
+  keyword        String
+  intervalMonths Int?
+  intervalKm     Int?
+  leadDays       Int      @default(14)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  reminders ServiceReminder[]
+
+  @@index([shopId, isActive])
   @@schema("garageos")
 }
 
@@ -916,6 +951,7 @@ model WorkOrder {
   lines                    WorkOrderLine[]
   inspections              Inspection[]
   inventoryMovements       InventoryMovement[]
+  serviceReminders         ServiceReminder[]
 
   @@unique([shopId, orderNumber])
   @@index([shopId, status])

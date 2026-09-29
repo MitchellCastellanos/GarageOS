@@ -43,6 +43,10 @@ function parseSegmentFromForm(formData: FormData): SegmentDefinition {
   if (type === "INACTIVE_MONTHS") {
     return { type: "INACTIVE_MONTHS", months: Number(formData.get("months")) || 6 };
   }
+  if (type === "SERVICE_DUE") {
+    const days = Number(formData.get("days"));
+    return { type: "SERVICE_DUE", days: Number.isInteger(days) && days >= 0 ? days : 30 };
+  }
   if (type === "MANUAL") {
     const ids = ((formData.get("clientIds") as string) ?? "")
       .split(",")
