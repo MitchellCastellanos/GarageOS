@@ -258,7 +258,9 @@ export async function createWorkOrdersFromQuote(quoteId: string) {
           vehicleId: qv.vehicleId,
           quoteId: quote.id,
           orderNumber,
-          status: "OPEN",
+          // The customer already approved this exact estimate (hash-bound approval): the job starts APPROVED
+          // instead of forcing staff through two pointless status clicks.
+          status: "APPROVED",
           concern: quote.notes?.trim() || `Quote ${quote.quoteNumber}`,
           mileageIn: qv.mileageIn,
           mileageOut: qv.mileageOut,
