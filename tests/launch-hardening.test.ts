@@ -218,3 +218,28 @@ test("uploads: only inert image/document types reach the public bucket", async (
   assert.equal(isAllowedDocumentType("image/svg+xml"), false);
   assert.equal(isAllowedDocumentType("text/html"), false);
 });
+
+// ── Time / DST (Quebec) ─────────────────────────────────────────────────────
+test("shop-local time parsing survives DST: gap times don't throw, days are 23/25h long, impossible dates still throw", async () => {
+  const tz = await import("../src/lib/shop-timezone");
+  const Z = "America/Montreal";
+  // normal winter (EST, -5) and summer (EDT, -4)
+  assert.equal(tz.parseShopDateTime("2027-01-15", "09:00", Z).toISOString(), "2027-01-15T14:00:00.000Z");
+  assert.equal(tz.parseShopDateTime("2027-07-15", "09:00", Z).toISOString(), "2027-07-15T13:00:00.000Z");
+  // spring forward 2027-03-14: 02:30 does not exist -> first valid instant after the gap (03:00 EDT)
+  assert.equal(tz.parseShopDateTime("2027-03-14", "02:30", Z).toISOString(), "2027-03-14T07:00:00.000Z");
+  assert.equal(tz.parseShopDateTime("2027-03-14", "09:00", Z).toISOString(), "2027-03-14T13:00:00.000Z", "opening hour after the change is EDT");
+  // fall back 2026-11-01
+  assert.equal(tz.parseShopDateTime("2026-11-01", "09:00", Z).toISOString(), "2026-11-01T14:00:00.000Z");
+  // day boundaries
+  const spring = tz.getDayRangeShop("2027-03-14", Z);
+  assert.equal((spring.end.getTime() - spring.start.getTime()) / 3_600_000, 23);
+  const fall = tz.getDayRangeShop("2026-11-01", Z);
+  assert.equal((fall.end.getTime() - fall.start.getTime()) / 3_600_000, 25);
+  assert.equal(tz.addShopDays("2027-03-13", 1, Z), "2027-03-14");
+  assert.equal(tz.addShopDays("2026-10-31", 2, Z), "2026-11-02");
+  // round trip keeps the calendar day in the shop's zone even late in the evening UTC
+  const late = new Date("2027-04-02T02:30:00Z");
+  assert.equal(tz.formatShopDate(late, Z), "2027-04-01");
+  assert.throws(() => tz.parseShopDateTime("2027-02-30", "10:00", Z));
+});

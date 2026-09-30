@@ -59,6 +59,11 @@ export function parseShopDateTime(
     else hi = mid - 1;
   }
 
+  // No instant has this wall-clock time: it falls in the spring-forward gap (e.g. 02:30 on the second Sunday
+  // of March in Quebec). `lo` is now the first instant whose local time is AFTER the requested one — i.e. the
+  // first valid moment following the gap — which is what a calendar shows. Never throw for a real calendar date.
+  const realDate = new Date(Date.UTC(year, month - 1, day)).getUTCDate() === day && hour >= 0 && hour < 24 && minute >= 0 && minute < 60;
+  if (realDate) return new Date(lo);
   throw new Error(`Fecha/hora inválida en ${timeZone}: ${dateStr} ${timeStr}`);
 }
 
