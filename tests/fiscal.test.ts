@@ -3,7 +3,7 @@ import test, { type TestContext } from "node:test";
 import Decimal from "decimal.js";
 import { setSession, RedirectError } from "./helpers/action-harness";
 import { db } from "../src/lib/db";
-import { mockSubscription, patchDb, patchTransaction } from "./helpers/db-mock";
+import { allowOwnership, mockSubscription, patchDb, patchTransaction } from "./helpers/db-mock";
 import {
   allocateRefundTax,
   computeTax,
@@ -397,6 +397,7 @@ const FORM = {
 test("createInvoice stores the fiscal snapshot (lines, registration, currency) and an audit event", async (t) => {
   mockSubscription(t, "CORE");
   owner();
+  allowOwnership(t);
   patchDb(t, "user", "findUnique", (async () => ({ permissionGrants: [], permissionDenies: [] })) as never);
   shopWith(t, QC, { taxId: "TPS: 123RT0001 TVQ: 456TQ0001", currency: "CAD" }, true);
   patchDb(t, "savedLineItem", "upsert", (async () => ({})) as never);
@@ -424,6 +425,7 @@ test("createInvoice stores the fiscal snapshot (lines, registration, currency) a
 test("updateInvoice on a pending invoice keeps its issued tax lines/registration after the shop changed settings", async (t) => {
   mockSubscription(t, "CORE");
   owner();
+  allowOwnership(t);
   patchDb(t, "user", "findUnique", (async () => ({ permissionGrants: [], permissionDenies: [] })) as never);
   shopWith(t, [{ name: "HST", rate: "0.13" }], { taxId: "NEW-REG" }, true);
   patchDb(t, "savedLineItem", "upsert", (async () => ({})) as never);

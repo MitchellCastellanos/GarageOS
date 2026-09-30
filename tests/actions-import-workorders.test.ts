@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { setSession, RedirectError } from "./helpers/action-harness";
-import { mockSubscription, patchDb, patchTransaction } from "./helpers/db-mock";
+import { allowOwnership, mockSubscription, patchDb, patchTransaction } from "./helpers/db-mock";
 import type { WorkOrderFormData } from "../src/lib/validations";
 
 const importActions = await import("../src/actions/import");
@@ -145,6 +145,7 @@ function woTx(parts: { id: string; shopId: string; quantityOnHand: number; name:
 
 test("work order: Core cannot attach inventory parts (server-side entitlement)", async (t) => {
   owner();
+  allowOwnership(t);
   mockShopAndSub(t, "CORE");
   patchDb(t, "user", "findUnique", (async () => ({ preferredLocale: "EN" })) as never);
   const fake = woTx([{ id: "p1", shopId: "shop-A", quantityOnHand: 5, name: "Oil filter" }]);
@@ -156,6 +157,7 @@ test("work order: Core cannot attach inventory parts (server-side entitlement)",
 
 test("work order: Pro consumes stock in the same transaction; insufficient stock rolls the save back with a message", async (t) => {
   owner();
+  allowOwnership(t);
   mockShopAndSub(t, "PRO");
   patchDb(t, "user", "findUnique", (async () => ({ preferredLocale: "EN" })) as never);
   patchDb(t, "savedLineItem", "upsert", async () => ({}));
