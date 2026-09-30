@@ -5,6 +5,7 @@ import { ADMIN } from "@/lib/routes";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
+import { findForeignRef, findForeignDocumentRefs, foreignRefMessage } from "@/lib/ownership";
 import { getShopId, getWritableShopId } from "@/lib/shop-context";
 import { reminderSchema, type ReminderFormData } from "@/lib/validations";
 import { sendReminderEmail } from "@/lib/email";
@@ -56,6 +57,9 @@ export async function createReminder(formData: ReminderFormData) {
   }
 
   const { vehicleId, serviceType, dueDate, dueMileage, notes } = parsed.data;
+
+  const foreignRef = await findForeignRef(shopId, { vehicleId });
+  if (foreignRef) return { error: { vehicleId: [foreignRefMessage(await getAdminLocale(), foreignRef)] } };
 
   await db.serviceReminder.create({
     data: {
