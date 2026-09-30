@@ -6,7 +6,7 @@ import test, { before, after } from "node:test";
 import { ENABLED, db, seedTenant, snapshotShop, diffSnapshots, findForeignReferences, tenantIds, type Tenant } from "./helpers";
 import { setSession } from "../helpers/action-harness";
 
-const skip = ENABLED ? false : "set GARAGEOS_INTEGRATION_DB=1 with a migrated DATABASE_URL";
+const skip = ENABLED ? false : "run `npm run test:integration` (see docs/integration-testing.md)";
 
 let A: Tenant, B: Tenant;
 const A_USER = () => ({ user: { id: A.ownerId, role: "OWNER", shopId: A.shopId } });

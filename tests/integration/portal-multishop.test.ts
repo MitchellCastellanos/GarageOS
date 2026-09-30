@@ -4,7 +4,7 @@ import test, { before, after } from "node:test";
 import { ENABLED, db, seedTenant, snapshotShop, diffSnapshots, type Tenant } from "./helpers";
 import { setSession } from "../helpers/action-harness";
 
-const skip = ENABLED ? false : "set GARAGEOS_INTEGRATION_DB=1 with a migrated DATABASE_URL";
+const skip = ENABLED ? false : "run `npm run test:integration` (see docs/integration-testing.md)";
 let S1: Tenant, S2: Tenant, X: Tenant; // S1 and S2: two customers... (S2 is a second shop), X: unrelated shop
 let C2VehicleId: string, C2InvoiceId: string, C2QuoteId: string;
 

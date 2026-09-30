@@ -1,11 +1,14 @@
 // Real-Postgres integration helpers (Block 15). These tests run the REAL server actions against a real
-// database with a fake session — nothing about the database is mocked. Enabled only when
-// GARAGEOS_INTEGRATION_DB=1 (and DATABASE_URL points at a disposable, fully migrated database).
+// database with a fake session — nothing about the database is mocked. They WRITE test data and never
+// clean up. Enabled only through `npm run test:integration` (scripts/run-integration.mjs), which verifies
+// the target database's identity first and hands this process a minimal, provider-free environment.
+// Setting GARAGEOS_INTEGRATION_DB=1 by hand is refused (requireVerifiedRunner throws).
 import "../helpers/action-harness";
 import { createHash } from "node:crypto";
 import { db } from "../../src/lib/db";
+import { requireVerifiedRunner } from "../../scripts/lib/integration-guard.mjs";
 
-export const ENABLED = process.env.GARAGEOS_INTEGRATION_DB === "1";
+export const ENABLED = requireVerifiedRunner(process.env);
 export { db };
 
 const DAY = 86_400_000;

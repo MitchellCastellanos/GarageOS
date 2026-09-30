@@ -1,58 +1,28 @@
 #!/usr/bin/env node
-// Runs `prisma migrate deploy` as part of `npm run build` so every deploy
-// applies pending migrations automatically — no more manual db:deploy step.
-// Skips safely when there's no DB configured (local `next build` without a
-// .env, CI checks) instead of failing the build.
+// Runs `prisma migrate deploy` as part of `npm run build` so every Production deploy applies pending
+// migrations automatically — no more manual db:deploy step — followed by the idempotent sender-identity
+// backfill and the super-admin bootstrap.
+//
+// Which environments may touch a database is decided by scripts/lib/deploy-guard.mjs (fail closed):
+// Vercel Production runs the steps; Vercel Preview/Development and local/CI runs are skipped unless
+// explicitly and safely opted in. See docs/db-migrations.md.
 import { spawnSync } from "node:child_process";
+import { decideDbSteps } from "./lib/deploy-guard.mjs";
 
-const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL;
-
-// Guard de entorno: un build de Preview NO debe migrar, rellenar ni escribir el super admin en la BD
-// a la que apunte DATABASE_URL (hoy Preview comparte la BD de producción). Solo Production (o local,
-// sin VERCEL_ENV) ejecuta este script. Para migrar una BD de Preview PROPIA, definir en Vercel →
-// Preview: RUN_DB_STEPS_ON_PREVIEW=1 junto con su DATABASE_URL separada.
-const vercelEnv = process.env.VERCEL_ENV;
-if (vercelEnv && vercelEnv !== "production" && process.env.RUN_DB_STEPS_ON_PREVIEW !== "1") {
-  console.log(`[deploy-migrations] VERCEL_ENV=${vercelEnv} — skipping migrations, backfill and super-admin bootstrap (set RUN_DB_STEPS_ON_PREVIEW=1 with a dedicated Preview database to enable).`);
-  process.exit(0);
+const decision = decideDbSteps(process.env);
+if (!decision.run) {
+  const log = decision.exitCode === 0 ? console.log : console.error;
+  log(`[deploy-migrations] ${decision.message}`);
+  process.exit(decision.exitCode);
 }
 
+const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL;
+// Skips safely when there's no DB configured (CI checks, a build environment without DB access) instead of
+// failing the build.
 if (!connectionString) {
   console.log("[deploy-migrations] No DIRECT_URL/DATABASE_URL set — skipping prisma migrate deploy.");
   process.exit(0);
 }
-
-// One-time repair: 20260919120000_repair_shop_billing_email failed on
-// production because its first version referenced "Shop" unqualified
-// instead of "garageos"."Shop" (this datasource uses multiSchema). A failed
-// migration blocks `migrate deploy` entirely (P3009) until resolved, and we
-// have no direct DB credential outside this build to run `migrate resolve`
-// by hand — so do it here. The ALTER never actually ran, so `--rolled-back`
-// is correct; on any database where this migration never failed (fresh
-// databases, other environments) the command just errors harmlessly and is
-// ignored. Safe to delete this block once production is confirmed healthy.
-spawnSync("npx", ["prisma", "migrate", "resolve", "--rolled-back", "20260919120000_repair_shop_billing_email"], {
-  stdio: "inherit",
-  env: process.env,
-});
-
-// One-time repair: 20260926100000_add_appointment_events failed on production
-// with "type AppointmentEventType already exists" (42710, 0 steps applied).
-// Root cause: this migration is a rename of an earlier one
-// (20260922120000_add_appointment_events) that had already applied
-// successfully in production before the rename — renaming an applied
-// migration folder makes Prisma treat it as a brand-new, unapplied migration,
-// so it tried to re-run the same CREATE TYPE/CREATE TABLE statements against
-// objects that already existed. Confirmed via direct inspection: the
-// AppointmentEvent table and both enums exist with the expected columns, so
-// `--applied` (not `--rolled-back`) is correct — nothing needs to run, just
-// record it as done. Safe to delete this block once production is confirmed
-// healthy (this command errors harmlessly on any database where the failure
-// never happened).
-spawnSync("npx", ["prisma", "migrate", "resolve", "--applied", "20260926100000_add_appointment_events"], {
-  stdio: "inherit",
-  env: process.env,
-});
 
 console.log("[deploy-migrations] Applying pending Prisma migrations...");
 const result = spawnSync("npx", ["prisma", "migrate", "deploy"], {

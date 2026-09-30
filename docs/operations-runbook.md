@@ -6,7 +6,7 @@ Storage for files; Stripe, Twilio, Resend, QuickBooks Online as providers; Verce
 `/api/webhooks/cron/campaigns` 09:00, `/api/webhooks/cron/quickbooks` 10:00 — all need `Authorization: Bearer $CRON_SECRET`.
 
 ## Database and Storage backup and restore
-*Facts behind this section: `docs/compliance/retention-destruction.md` (verified 2026-09-30). Status today: the application DB is on Neon (backup plan not yet recorded), the connected Supabase project is Free-plan and Storage-only (no managed backups), and Storage objects have no backup.* **Preview builds no longer touch the database** (`scripts/deploy-migrations.mjs` skips unless `VERCEL_ENV=production`).
+*Facts behind this section: `docs/compliance/retention-destruction.md` (verified 2026-09-30). Status today: the application DB is on Neon (backup plan not yet recorded), the connected Supabase project is Free-plan and Storage-only (no managed backups), and Storage objects have no backup.* **Preview builds no longer touch the database** (`scripts/deploy-migrations.mjs` runs DB steps only for a Vercel Production build; local/CI and Preview are skipped — see `docs/db-migrations.md`).
 
 **What is (and is not) covered automatically**
 | Data | Automatic coverage |
@@ -35,7 +35,7 @@ Storage for files; Stripe, Twilio, Resend, QuickBooks Online as providers; Verce
 - Take a backup before any deploy that contains a migration. Migrations are additive/forward-compatible: the previous code keeps working
   against the new schema, so **rollback = promote the previous Vercel deployment** (do not try to reverse SQL).
 - Never rename an applied migration folder (it re-runs). After a P3009 (failed migration) use `prisma migrate resolve` (see the
-  historical notes in `scripts/deploy-migrations.mjs`).
+  Production migration-history notes in `docs/db-migrations.md`; resolve manually and deliberately, never from the build script).
 - Verify drift any time: `npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script` should print an empty migration.
 
 ## Provider outages

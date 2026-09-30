@@ -8,7 +8,7 @@ import Decimal from "decimal.js";
 import { ENABLED, db, seedTenant, type Tenant } from "./helpers";
 import { setSession } from "../helpers/action-harness";
 
-const skip = ENABLED ? false : "set GARAGEOS_INTEGRATION_DB=1 with a migrated DATABASE_URL";
+const skip = ENABLED ? false : "run `npm run test:integration` (see docs/integration-testing.md)";
 let S: Tenant;
 const asOwner = () => setSession({ user: { id: S.ownerId, role: "OWNER", shopId: S.shopId } });
 const swallow = async <X>(fn: () => Promise<X>): Promise<X | undefined> => {
