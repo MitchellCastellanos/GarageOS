@@ -37,7 +37,14 @@ export function clientIpFromHeaders(headers: { get(name: string): string | null 
 }
 
 /** IP of the current request when running inside a Next request scope; null otherwise (tests, crons). */
+let ipProviderOverride: (() => string | null) | null = null;
+/** Test seam: lets node:test simulate a request-scoped client IP. */
+export function setIpProviderForTests(fn: (() => string | null) | null) {
+  ipProviderOverride = fn;
+}
+
 export async function currentRequestIp(): Promise<string | null> {
+  if (ipProviderOverride) return ipProviderOverride();
   try {
     const { headers } = await import("next/headers");
     return clientIpFromHeaders(await headers());

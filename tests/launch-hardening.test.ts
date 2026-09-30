@@ -1,0 +1,206 @@
+// Block 15 — launch hardening regressions (isolation of helpers, rate limiting, redirects, refund PDFs,
+// restricted online booking). Provider calls are mocked; DB access is patched in-process.
+import assert from "node:assert/strict";
+import test from "node:test";
+import { readFileSync, readdirSync } from "node:fs";
+import path from "node:path";
+import { patchDb } from "./helpers/db-mock";
+import "./helpers/action-harness";
+
+const rl = await import("../src/lib/rate-limit");
+const { isSafeCallbackPath } = await import("../src/lib/safe-redirect");
+
+const ROOT = path.resolve(import.meta.dirname, "..");
+
+// ── Server actions must not expose tenant-parameterised helpers ─────────────
+test("no 'use server' export takes a caller-supplied shopId without its own authorization", () => {
+  const dir = path.join(ROOT, "src/actions");
+  const AUTH = /requireSuperAdmin|requireShopSession|getOrganizationAdminContext|getAccessibleShops|requireOwner|getShopId|getWritableShopId|requirePermissions|requireSession/;
+  const offenders: string[] = [];
+  for (const file of readdirSync(dir).filter((f) => f.endsWith(".ts"))) {
+    const src = readFileSync(path.join(dir, file), "utf8");
+    const parts = src.split(/\nexport async function /).slice(1);
+    for (const part of parts) {
+      const name = part.split("(")[0];
+      const signature = /^[^]*?\)\s*(?::[^\n]*?)?\{\n/.exec(part)?.[0] ?? part.slice(0, 300);
+      if (!/\bshopId\b/.test(signature)) continue;
+      const body = part.split(/\nexport /)[0];
+      if (!AUTH.test(body)) offenders.push(`${file}:${name}`);
+    }
+  }
+  assert.deepEqual(offenders, [], "these server actions are public endpoints that trust a caller-supplied shopId");
+});
+
+test("shopId-taking helpers live in server-only lib modules, not in server actions", () => {
+  for (const [file, fn] of [
+    ["src/actions/line-items.ts", "syncSavedLineItems"],
+    ["src/actions/cash-drawer.ts", "ensureCashInFromInvoice"],
+    ["src/actions/support.ts", "hasUnreadSupportMessage"],
+  ] as const) {
+    assert.ok(!readFileSync(path.join(ROOT, file), "utf8").includes(`function ${fn}`), `${fn} must not be exported from ${file}`);
+  }
+});
+
+// ── Rate limiter ────────────────────────────────────────────────────────────
+function fakeBuckets(t: import("node:test").TestContext) {
+  const rows = new Map<string, number>();
+  patchDb(t, "rateLimitBucket", "upsert", (async ({ where, create }: { where: { id: string }; create: { count: number } }) => {
+    const next = (rows.get(where.id) ?? 0) + (rows.has(where.id) ? 1 : create.count);
+    rows.set(where.id, next);
+    return { count: next };
+  }) as never);
+  return rows;
+}
+
+test("rate limiter: allows up to the limit, blocks after, resets on the next window", async (t) => {
+  fakeBuckets(t);
+  const rule = { key: "k", limit: 3, windowSec: 60 };
+  const t0 = new Date("2026-10-01T12:00:10Z");
+  for (let i = 0; i < 3; i++) assert.equal((await rl.checkRateLimit(rule, t0)).allowed, true);
+  const blocked = await rl.checkRateLimit(rule, t0);
+  assert.equal(blocked.allowed, false);
+  assert.ok(blocked.retryAfterSec > 0 && blocked.retryAfterSec <= 60);
+  assert.equal((await rl.checkRateLimit(rule, new Date("2026-10-01T12:01:05Z"))).allowed, true, "new window");
+  assert.equal((await rl.checkRateLimit({ ...rule, key: "other" }, t0)).allowed, true, "keys are independent");
+});
+
+test("rate limiter fails open when the database is unavailable", async (t) => {
+  patchDb(t, "rateLimitBucket", "upsert", (async () => {
+    throw new Error("db down");
+  }) as never);
+  t.mock.method(console, "error", () => {});
+  assert.equal((await rl.checkRateLimit({ key: "k", limit: 1, windowSec: 60 })).allowed, true);
+});
+
+test("client IP prefers x-real-ip, then the first x-forwarded-for hop", () => {
+  const h = (m: Record<string, string>) => ({ get: (k: string) => m[k] ?? null });
+  assert.equal(rl.clientIpFromHeaders(h({ "x-real-ip": "1.1.1.1", "x-forwarded-for": "2.2.2.2" })), "1.1.1.1");
+  assert.equal(rl.clientIpFromHeaders(h({ "x-forwarded-for": "2.2.2.2, 3.3.3.3" })), "2.2.2.2");
+  assert.equal(rl.clientIpFromHeaders(h({})), "unknown");
+});
+
+test("login policy: per-account budget is tighter than per-IP", () => {
+  assert.ok(rl.RATE_LIMITS.loginEmail("a@b.c").limit <= 10);
+  assert.ok(rl.RATE_LIMITS.loginIp("1.1.1.1").limit > rl.RATE_LIMITS.loginEmail("a@b.c").limit);
+  assert.equal(rl.RATE_LIMITS.loginEmail("A@B.c").key, rl.RATE_LIMITS.loginEmail("a@b.C").key, "case-insensitive account key");
+});
+
+// ── Open redirect ───────────────────────────────────────────────────────────
+test("post-login callback must be a same-site path", () => {
+  for (const ok of ["/admin/dashboard", "/admin/invoices?x=1", "/dashboard"]) assert.equal(isSafeCallbackPath(ok), true, ok);
+  for (const bad of ["https://evil.example", "//evil.example", "/\\evil.example", "javascript:alert(1)", "evil.example", "/ok\nSet-Cookie: x=1", ""]) {
+    assert.equal(isSafeCallbackPath(bad), false, JSON.stringify(bad));
+  }
+});
+
+// ── Portal throttling ───────────────────────────────────────────────────────
+test("portal: a flooding IP is rate-limited before any token lookup; garbage tokens burn a small budget", async (t) => {
+  const portal = await import("../src/lib/portal");
+  const rows = fakeBuckets(t);
+  let lookups = 0;
+  patchDb(t, "customerPortalAccess", "findUnique", (async () => {
+    lookups++;
+    return null;
+  }) as never);
+  rl.setIpProviderForTests(() => "9.9.9.9");
+  t.after(() => rl.setIpProviderForTests(null));
+
+  const garbage = "not-a-token";
+  let limited = 0;
+  for (let i = 0; i < 40; i++) {
+    const r = await portal.resolvePortalAccess(garbage);
+    if (!r.ok && r.reason === "RATE_LIMITED") limited++;
+  }
+  assert.ok(limited >= 10, "guessing from one IP is cut off quickly");
+  assert.equal(lookups, 0, "malformed tokens never hit the database");
+  assert.ok(rows.size > 0);
+
+  // another IP is unaffected
+  rl.setIpProviderForTests(() => "8.8.8.8");
+  const r = await portal.resolvePortalAccess(garbage);
+  assert.equal(r.ok, false);
+  assert.equal(!r.ok && r.reason, "INVALID");
+});
+
+// ── Stripe price guard (pure) ───────────────────────────────────────────────
+test("Stripe price guard rejects the stale pre-launch sandbox prices", async () => {
+  const { priceMismatchReason } = await import("../src/lib/stripe");
+  const good = { active: true, currency: "cad", unit_amount: 29900, recurring: { interval: "month", interval_count: 1, usage_type: "licensed" } } as never;
+  assert.equal(priceMismatchReason(good, "PRO", "MONTHLY"), null);
+  assert.match(priceMismatchReason({ ...(good as object), unit_amount: 24900 } as never, "PRO", "MONTHLY") ?? "", /amount/);
+  assert.match(priceMismatchReason({ ...(good as object), unit_amount: 249000, recurring: { interval: "year", interval_count: 1 } } as never, "PRO", "YEARLY") ?? "", /amount/);
+  assert.equal(priceMismatchReason({ ...(good as object), unit_amount: 299000, recurring: { interval: "year", interval_count: 1 } } as never, "PRO", "YEARLY"), null);
+  assert.equal(priceMismatchReason({ ...(good as object), unit_amount: 44900 } as never, "COMPLETE", "MONTHLY"), null);
+  assert.equal(priceMismatchReason({ ...(good as object), unit_amount: 19900 } as never, "CORE", "MONTHLY"), null);
+  assert.equal(priceMismatchReason({ ...(good as object), unit_amount: 199000, recurring: { interval: "year", interval_count: 1 } } as never, "CORE", "YEARLY"), null);
+});
+
+// ── Refund presentation on invoice PDFs ─────────────────────────────────────
+function collectText(node: unknown, out: string[] = []): string[] {
+  if (node == null || typeof node === "boolean") return out;
+  if (typeof node === "string" || typeof node === "number") {
+    out.push(String(node));
+    return out;
+  }
+  if (Array.isArray(node)) {
+    node.forEach((n) => collectText(n, out));
+    return out;
+  }
+  const el = node as { type?: unknown; props?: Record<string, unknown> };
+  if (typeof el.type === "function") return collectText((el.type as (p: unknown) => unknown)(el.props), out);
+  if (el.props) collectText(el.props.children, out);
+  return out;
+}
+
+test("invoice PDF: fully refunded invoices read REFUNDED, partial refunds show refund + net paid", async () => {
+  const { InvoiceDocument } = await import("../src/components/pdf/InvoiceDocument");
+  const base = {
+    invoiceNumber: "INV-1", status: "PAID", issuedAt: new Date("2026-09-01T15:00:00Z"), subtotal: "100.00", taxRate: "0.14975",
+    taxAmount: "14.98", total: "114.98", language: "EN",
+    taxSnapshot: { v: 1, source: "issue", exempt: false, lines: [{ name: "GST", rate: 0.05, amount: "5.00" }, { name: "QST", rate: 0.09975, amount: "9.98" }] },
+    client: { firstName: "A" },
+    vehicles: [{ lineItems: [{ description: "Oil", quantity: "1", unitPrice: "100", lineTotal: "100", itemType: "LABOUR" }], vehicle: { make: "K", model: "L", year: 2020, licensePlate: "X", mileageUnit: "KM" } }],
+    shop: { name: "S", timezone: "America/Montreal" },
+  };
+  const render = (refunds?: { amount: string; refundedAt: Date }[]) =>
+    collectText(InvoiceDocument({ invoice: { ...base, refunds } as never }) as unknown).join(" | ");
+
+  const plain = render();
+  assert.match(plain, /PAID/);
+  assert.doesNotMatch(plain, /REFUNDED|NET PAID/);
+
+  const partial = render([{ amount: "20.00", refundedAt: new Date("2026-09-02T15:00:00Z") }]);
+  assert.match(partial, /Refunded/);
+  assert.match(partial, /NET PAID/);
+  assert.match(partial, /94\.98/);
+  assert.doesNotMatch(partial, /REFUNDED/, "a partial refund keeps the PAID status");
+
+  const full = render([{ amount: "114.98", refundedAt: new Date("2026-09-02T15:00:00Z") }]);
+  assert.match(full, /REFUNDED/);
+  assert.doesNotMatch(full, /\| PAID \|/, "no PAID watermark on a fully refunded invoice");
+  assert.match(full, /0\.00/);
+
+  const fr = collectText(InvoiceDocument({ invoice: { ...base, language: "FR", refunds: [{ amount: "114.98", refundedAt: new Date() }] } as never }) as unknown).join(" | ");
+  assert.match(fr, /REMBOURSÉ/);
+});
+
+// ── Restricted shops do not take new online bookings ───────────────────────
+test("public booking is closed for a shop without a paying subscription", async (t) => {
+  const { getShopBySlug } = await import("../src/lib/booking-slots");
+  patchDb(t, "shop", "findUnique", (async (args: { where: { id?: string; slug?: string } }) => {
+    if (args.where.slug) return { id: "shop-A", slug: "s", bookingEnabled: true, workingHours: [] };
+    return { organizationId: null, subscription: sub };
+  }) as never);
+  let sub: Record<string, unknown> | null = null;
+  const DAY = 86_400_000;
+  const row = (status: string, plan: string | null) => ({
+    id: "s", shopId: "shop-A", plan, status, billingInterval: "MONTHLY", trialEndsAt: null, currentPeriodEnd: new Date(Date.now() + 20 * DAY),
+    cancelAtPeriodEnd: false, stripeCustomerId: "c", stripeSubscriptionId: "sub", stripePriceId: "p", billingEmail: null,
+  });
+  sub = row("ACTIVE", "CORE");
+  assert.equal((await getShopBySlug("s"))?.bookingEnabled, true);
+  sub = row("CANCELED", "CORE");
+  assert.equal((await getShopBySlug("s"))?.bookingEnabled, false);
+  sub = null;
+  assert.equal((await getShopBySlug("s"))?.bookingEnabled, false, "missing subscription row is a recovery state, not free service");
+});

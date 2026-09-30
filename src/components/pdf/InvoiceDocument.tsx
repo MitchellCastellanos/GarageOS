@@ -44,6 +44,8 @@ interface InvoiceData {
   taxSnapshot?: unknown;
   taxRegistration?: string | null;
   currency?: string | null;
+  /** Refunds already issued against this invoice (Block 15): a refunded invoice must not read as plainly "PAID". */
+  refunds?: { amount: string | number; refundedAt: Date }[];
   client: {
     firstName: string;
     lastName?: string | null;
@@ -71,6 +73,7 @@ interface InvoiceData {
     phone?: string | null;
     email?: string | null;
     taxId?: string | null;
+    timezone?: string | null;
     logoUrl?: string | null;
     currency?: string | null;
     etransferEnabled?: boolean;
@@ -552,6 +555,7 @@ const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   DRAFT: { bg: SLATE_200, color: SLATE_700 },
   SENT: { bg: "#dbeafe", color: BLUE },
   PAID: { bg: "#d1fae5", color: EMERALD },
+  REFUNDED: { bg: "#e2e8f0", color: "#475569" },
   OVERDUE: { bg: "#fee2e2", color: "#dc2626" },
   CANCELLED: { bg: SLATE_100, color: SLATE_400 },
   ACCEPTED: { bg: "#d1fae5", color: EMERALD },
@@ -744,9 +748,14 @@ function InvoiceFooter({
 export function InvoiceDocument({ invoice }: { invoice: InvoiceData }) {
   const t = getInvoiceStrings(invoice.language);
   const isQuote = invoice.documentKind === "quote";
-  const statusColors = STATUS_COLORS[invoice.status] ?? STATUS_COLORS.DRAFT;
-  const statusLabel = invoiceStatusLabelForPdf(t.statuses, invoice.status);
+  const refunds = isQuote ? [] : invoice.refunds ?? [];
+  const refundedCents = refunds.reduce((sum, r) => sum + Math.round(Number(r.amount) * 100), 0);
+  const fullyRefunded = invoice.status === "PAID" && refundedCents > 0 && refundedCents >= Math.round(Number(invoice.total) * 100);
+  const displayStatus = fullyRefunded ? "REFUNDED" : invoice.status;
+  const statusColors = STATUS_COLORS[displayStatus] ?? STATUS_COLORS.DRAFT;
+  const statusLabel = invoiceStatusLabelForPdf(t.statuses, displayStatus);
   const showPaidWatermark = !isQuote && invoice.status === "PAID";
+  const watermarkText = fullyRefunded ? t.refundedWatermark : t.paidWatermark;
   // Un documento con snapshot NUNCA se re-deriva de la configuración actual del taller.
   const currency = invoice.currency ?? invoice.shop.currency ?? "CAD";
   const docTitle = isQuote
@@ -779,7 +788,7 @@ export function InvoiceDocument({ invoice }: { invoice: InvoiceData }) {
         <View style={styles.body}>
           {showPaidWatermark && (
             <View style={styles.paidWatermark}>
-              <Text style={styles.paidWatermarkText}>{t.paidWatermark}</Text>
+              <Text style={styles.paidWatermarkText}>{watermarkText}</Text>
             </View>
           )}
 
@@ -938,6 +947,24 @@ export function InvoiceDocument({ invoice }: { invoice: InvoiceData }) {
                     {fmtCurrency(invoice.total, currency)}
                   </Text>
                 </View>
+                {refundedCents > 0 && (
+                  <View style={styles.totalsBody}>
+                    {refunds.map((r, i) => (
+                      <View style={styles.totalRow} key={i}>
+                        <Text style={styles.totalLabel}>
+                          {t.refundedLine(new Date(r.refundedAt).toLocaleDateString(invoice.language === "FR" ? "fr-CA" : "en-CA", { timeZone: invoice.shop.timezone ?? "America/Montreal" }))}
+                        </Text>
+                        <Text style={styles.totalValue}>-{fmtCurrency(r.amount, currency)}</Text>
+                      </View>
+                    ))}
+                    <View style={styles.totalRow}>
+                      <Text style={[styles.totalLabel, { fontFamily: "Helvetica-Bold" }]}>{t.netPaid}</Text>
+                      <Text style={[styles.totalValue, { fontFamily: "Helvetica-Bold" }]}>
+                        {fmtCurrency(((Math.round(Number(invoice.total) * 100) - refundedCents) / 100).toFixed(2), currency)}
+                      </Text>
+                    </View>
+                  </View>
+                )}
               </View>
               </View>
             </View>
