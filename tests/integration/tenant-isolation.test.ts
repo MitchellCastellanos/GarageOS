@@ -57,7 +57,22 @@ test("shop A owner attacks shop B ids: no reads leak, no writes land", { skip },
   const invForm: import("../../src/lib/validations").InvoiceFormData = { clientId: B.clientId, vehicles: [{ vehicleId: B.vehicleId, lineItems: [lineItem] }], taxRate: 0.14975, language: "EN", notes: "" };
   const tireForm = { clientId: B.clientId, vehicleId: B.vehicleId, season: "WINTER", size: "225/45R17", quantity: 4, condition: "GOOD", withRims: false, notifyCustomer: false } as never;
 
+  // integration credentials of shop B (tokens are opaque ciphertext here; what matters is they never move or leak)
+  await db.quickBooksConnection.create({
+    data: {
+      shopId: B.shopId, realmId: `realm-${B.marker}`, companyName: `Co ${B.marker}`, environment: "sandbox", accessTokenEnc: `enc-a-${B.marker}`, refreshTokenEnc: `enc-r-${B.marker}`,
+      accessTokenExpiresAt: new Date(Date.now() + 3_600_000), refreshTokenExpiresAt: new Date(Date.now() + 86_400_000), syncStartDate: new Date(), settings: { incomeAccountId: "1" },
+    },
+  });
+  const qbo = await import("../../src/actions/quickbooks");
+
   const attacks: Attack[] = [
+    ["getQuickBooksOverview", () => qbo.getQuickBooksOverview()],
+    ["getQuickBooksOptions", () => qbo.getQuickBooksOptions()],
+    ["saveQuickBooksSettings", () => qbo.saveQuickBooksSettings({ incomeAccountId: "666", taxCodeId: "666" })],
+    ["syncQuickBooksNow", () => qbo.syncQuickBooksNow()],
+    ["retryFailedQuickBooksSync", () => qbo.retryFailedQuickBooksSync()],
+    ["disconnectQuickBooksAction", () => qbo.disconnectQuickBooksAction()],
     // ── reads
     ["getClientById", () => act.clients.getClientById(B.clientId)],
     ["getVehicleById", () => act.vehicles.getVehicleById(B.vehicleId)],
@@ -203,7 +218,7 @@ test("shop A owner attacks shop B ids: no reads leak, no writes land", { skip },
     }
     ran++;
     const text = JSON.stringify(result, (_k, v) => (typeof v === "bigint" ? v.toString() : v)) ?? "";
-    if (text.includes(B.marker) || text.includes(B.shopId)) leaked.push(name);
+    if (text.includes(B.marker) || text.includes(B.shopId) || text.includes("enc-a-") || text.includes("enc-r-")) leaked.push(name);
     const diff = diffSnapshots(before, await snapshotShop(B.shopId));
     if (diff.length) mutated.push(`${name} -> ${diff.join("; ")}`);
     // The attack must not have planted rows in A that point at B's customers/vehicles/parts/users either.
