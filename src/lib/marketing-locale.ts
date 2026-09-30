@@ -175,6 +175,7 @@ export interface MarketingDictionary {
     errors: {
       missingCredentials: string;
       invalidCredentials: string;
+      tooManyAttempts: string;
       emailNotVerified: string;
       connectionError: string;
       sessionError: string;
@@ -528,6 +529,7 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
       errors: {
         missingCredentials: "Enter your email and password",
         invalidCredentials: "Incorrect email or password",
+        tooManyAttempts: "Too many attempts. Please wait a few minutes and try again.",
         emailNotVerified: "Confirm your email before signing in — check your inbox for the link.",
         connectionError: "Connection error. Please try again.",
         sessionError: "Error creating your session. Please try again.",
@@ -879,6 +881,7 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
       errors: {
         missingCredentials: "Entrez votre courriel et votre mot de passe",
         invalidCredentials: "Courriel ou mot de passe incorrect",
+        tooManyAttempts: "Trop de tentatives. Veuillez patienter quelques minutes et réessayer.",
         emailNotVerified: "Confirmez votre courriel avant de vous connecter — vérifiez votre boîte de réception pour le lien.",
         connectionError: "Erreur de connexion. Veuillez réessayer.",
         sessionError: "Erreur lors de la création de votre session. Veuillez réessayer.",

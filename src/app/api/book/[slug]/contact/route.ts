@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { RATE_LIMITS, checkRateLimit, clientIpFromHeaders } from "@/lib/rate-limit";
 import { getShopBySlug } from "@/lib/booking-slots";
 import { shopToEmailConfig } from "@/lib/email-config";
 import { sendContactStaffNotification, sendContactAcknowledgment } from "@/lib/email";
@@ -18,6 +19,10 @@ const contactSchema = z.object({
  * exacto, nunca por coincidencia ambigua (ver docs/domain-model.md invariante 1).
  */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
+  const ip = clientIpFromHeaders(req.headers);
+  if (!(await checkRateLimit(RATE_LIMITS.bookingContactIp(ip))).allowed) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429, headers: { "Retry-After": "60" } });
+  }
   const { slug } = await params;
   const shop = await getShopBySlug(slug);
 

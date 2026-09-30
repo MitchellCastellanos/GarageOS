@@ -8,6 +8,7 @@
 import { db } from "@/lib/db";
 import { getAppUrl } from "@/lib/app-url";
 import { can } from "@/lib/subscription";
+import { RATE_LIMITS, checkRateLimit, currentRequestIp } from "@/lib/rate-limit";
 import {
   ACTIVE_WORK_ORDER_STATUSES,
   HISTORY_WORK_ORDER_STATUSES,
@@ -88,12 +89,27 @@ export interface PortalAccess {
 export type PortalResolution =
   | { ok: true; access: PortalAccess }
   | { ok: false; reason: "INVALID" }
+  | { ok: false; reason: "RATE_LIMITED" }
   | { ok: false; reason: Exclude<PortalLinkState, "ACTIVE">; shopSlug: string | null; shopName: string };
 
 const TOUCH_INTERVAL_MS = 10 * 60_000;
 
 /** Valida un token. INVALID = no existe (o basura); EXPIRED/REVOKED = existió pero ya no sirve. */
-export async function resolvePortalAccess(token: unknown, now: Date = new Date()): Promise<PortalResolution> {
+export async function resolvePortalAccess(
+  token: unknown,
+  now: Date = new Date(),
+  kind: "view" | "pdf" = "view"
+): Promise<PortalResolution> {
+  // Edge-style throttle (Block 15): per-IP, DB-backed. Outside a request scope (tests/crons) it is skipped.
+  const ip = await currentRequestIp();
+  if (ip) {
+    const rule = kind === "pdf" ? RATE_LIMITS.portalPdf(ip) : RATE_LIMITS.portalView(ip);
+    if (!(await checkRateLimit(rule, now)).allowed) return { ok: false, reason: "RATE_LIMITED" };
+    // Token guessing: malformed/unknown tokens burn a much smaller budget.
+    if (!looksLikePortalToken(token)) {
+      if (!(await checkRateLimit(RATE_LIMITS.portalInvalid(ip), now)).allowed) return { ok: false, reason: "RATE_LIMITED" };
+    }
+  }
   if (!looksLikePortalToken(token)) return { ok: false, reason: "INVALID" };
   const row = await db.customerPortalAccess.findUnique({
     where: { tokenHash: hashPortalToken(token) },
@@ -107,7 +123,10 @@ export async function resolvePortalAccess(token: unknown, now: Date = new Date()
       shop: { select: { name: true, slug: true } },
     },
   });
-  if (!row) return { ok: false, reason: "INVALID" };
+  if (!row) {
+    if (ip) await checkRateLimit(RATE_LIMITS.portalInvalid(ip), now);
+    return { ok: false, reason: "INVALID" };
+  }
 
   const state = portalLinkState(row, now);
   if (state !== "ACTIVE") return { ok: false, reason: state, shopSlug: row.shop.slug, shopName: row.shop.name };

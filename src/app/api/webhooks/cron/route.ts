@@ -5,6 +5,7 @@ import { shopToEmailConfig } from "@/lib/email-config";
 import { SYSTEM_ACTOR, recordAppointmentEvent } from "@/lib/appointment-events";
 import { runSmsNumberLifecycle } from "@/lib/communications/sms-numbers";
 import { retryPendingSmsOverage } from "@/lib/communications/sms-usage";
+import { purgeExpiredRateLimits } from "@/lib/rate-limit";
 import { reconcileStaleSmsStatuses } from "@/lib/communications/sms-status";
 import { createOperatingChecker } from "@/lib/subscription";
 import { isTwilioConfigured } from "@/lib/communications/twilio";
@@ -166,6 +167,8 @@ export async function GET(request: Request) {
     console.error("[cron] reintento de excedente SMS falló:", err);
     return null;
   });
+  // Limpieza: contadores de rate limit vencidos (Block 15).
+  await purgeExpiredRateLimits().catch((err) => console.error("[cron] purga de rate limits falló:", err));
   const smsStatusReconcile = isTwilioConfigured()
     ? await reconcileStaleSmsStatuses().catch((err) => {
         console.error("[cron] conciliación de estados SMS falló:", err);

@@ -2097,3 +2097,17 @@ model CustomerPortalAccess {
   @@index([shopId])
   @@schema("garageos")
 }
+
+/**
+ * Contador de ventana fija para rate limiting (Block 15). `id` = `<clave>:<índice de ventana>`; el
+ * upsert con increment es atómico en Postgres, así que funciona entre instancias serverless.
+ * Las filas vencidas las purga el cron diario.
+ */
+model RateLimitBucket {
+  id        String   @id
+  count     Int      @default(0)
+  expiresAt DateTime
+
+  @@index([expiresAt])
+  @@schema("garageos")
+}

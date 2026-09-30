@@ -10,7 +10,7 @@ import { getShopId, getWritableShopId } from "@/lib/shop-context";
 import { workOrderSchema, type WorkOrderFormData } from "@/lib/validations";
 import { allocateNextInvoiceNumber, allocateNextWorkOrderNumber } from "@/lib/invoice-number";
 import { computeDocumentTax } from "@/lib/fiscal";
-import { syncSavedLineItems } from "@/actions/line-items";
+import { syncSavedLineItems } from "@/lib/saved-line-items";
 import { canTransitionWorkOrder } from "@/domain/work-order";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import type { AdminLocale } from "@/lib/admin-locale";

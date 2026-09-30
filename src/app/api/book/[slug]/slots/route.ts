@@ -6,12 +6,17 @@ import {
   getShopBySlug,
   getShopServiceDurations,
 } from "@/lib/booking-slots";
+import { RATE_LIMITS, checkRateLimit, clientIpFromHeaders } from "@/lib/rate-limit";
 import { resolveServiceDuration } from "@/lib/service-catalog";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
+  const ip = clientIpFromHeaders(req.headers);
+  if (!(await checkRateLimit(RATE_LIMITS.bookingSlotsIp(ip))).allowed) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429, headers: { "Retry-After": "60" } });
+  }
   const { slug } = await params;
   const shop = await getShopBySlug(slug);
 

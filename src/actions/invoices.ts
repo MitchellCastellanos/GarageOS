@@ -40,7 +40,7 @@ import {
   storagePathsToParts,
 } from "@/lib/invoice-document-package";
 import { uploadToStorage } from "@/lib/storage";
-import { syncSavedLineItems } from "@/actions/line-items";
+import { syncSavedLineItems } from "@/lib/saved-line-items";
 import { formatClientName } from "@/lib/client-name";
 import { INVOICE_PENDING_FILTER, INVOICE_PENDING_STATUSES } from "@/lib/invoice-status";
 import {
@@ -48,7 +48,7 @@ import {
   type InvoicePaymentMode,
   type PaymentEntryInput,
 } from "@/lib/invoice-payments";
-import { ensureCashInFromInvoice } from "@/actions/cash-drawer";
+import { ensureCashInFromInvoice } from "@/lib/cash-drawer-server";
 import { auth } from "@/lib/auth";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import type { AdminLocale } from "@/lib/admin-locale";
