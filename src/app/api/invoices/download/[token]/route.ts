@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { buildInvoicePackageBuffer, invoicePackageFilename } from "@/lib/invoice-pdf-package";
-import { downloadFromStorage } from "@/lib/storage";
+import { downloadPrivateDocument } from "@/lib/storage";
 
 export async function GET(
   _request: Request,
@@ -33,7 +33,7 @@ export async function GET(
 
   if (invoice.clientPackagePath) {
     try {
-      const pdfBuffer = await downloadFromStorage(invoice.clientPackagePath);
+      const pdfBuffer = await downloadPrivateDocument(invoice.shopId, invoice.clientPackagePath);
       return new NextResponse(new Uint8Array(pdfBuffer), {
         headers: {
           "Content-Type": "application/pdf",

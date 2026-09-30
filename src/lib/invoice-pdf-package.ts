@@ -38,7 +38,7 @@ export async function buildInvoicePackageBuffer(
 
   const storedExtraPaths = parsePaymentExtraPaths(invoice.paymentExtraPaths);
   const middleParts = [
-    ...(await storagePathsToParts(storedExtraPaths)),
+    ...(await storagePathsToParts(invoice.shopId, storedExtraPaths)),
     ...emailAttachmentsToParts(extraAttachments),
   ];
 
@@ -46,7 +46,7 @@ export async function buildInvoicePackageBuffer(
     .filter((e) => e.method === "CARD" && e.receiptPath)
     .map((e) => e.receiptPath!);
   const receiptParts =
-    invoice.status === "PAID" ? await storagePathsToParts(receiptPaths) : [];
+    invoice.status === "PAID" ? await storagePathsToParts(invoice.shopId, receiptPaths) : [];
 
   const packagePdf = await buildInvoicePackagePdf({
     invoicePdf: pdfBuffer,

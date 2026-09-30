@@ -20,7 +20,7 @@ import { can } from "../src/lib/subscription";
 import { getShopServiceCatalog } from "../src/lib/booking-slots";
 import { db } from "../src/lib/db";
 
-const FOLDER = "https://abc.supabase.co/storage/v1/object/public/accounting/booking-page/shop_1/";
+const FOLDER = "https://abc.supabase.co/storage/v1/object/public/public-assets/booking-page/shop_1/";
 
 function row(overrides: Partial<CatalogServiceInput> = {}): CatalogServiceInput {
   return {

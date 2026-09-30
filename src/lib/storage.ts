@@ -1,67 +1,92 @@
-// Wrapper para Supabase Storage — almacén de documentos de contabilidad,
-// aislado por shopId (bucket "accounting", carpeta {shopId}/{categoria}/...).
-// El cliente de servidor usa la SERVICE_ROLE_KEY para bypass de RLS.
+// Supabase Storage — separación explícita público / privado.
+//
+//  PÚBLICO  (bucket `public-assets`, URL pública permanente): SOLO logos del taller
+//           y fotos de la página pública de reservas. Nada con datos de clientes.
+//  PRIVADO  (bucket `accounting`, privado): facturas, comprobantes de pago,
+//           documentos contables, fotos DVI. Sin URL pública: se guarda solo el
+//           `storagePath` en la BD y se emite acceso (descarga server-side o URL
+//           firmada corta) DESPUÉS de autorizar. Toda función privada exige el
+//           shopId y rechaza paths que no sean `{shopId}/…`.
+//  PRIVADO  (bucket `communications`): adjuntos del Inbox.
+//
+// El cliente usa SERVICE_ROLE_KEY (bypass de RLS); por eso el aislamiento por
+// taller se aplica aquí, en el helper. Ver docs/compliance/ENGINEERING-RULES.md.
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import {
+  assertTenantStoragePath,
+  isPublicAssetPath,
+  sanitizeStorageFileName,
+} from "@/lib/storage-paths";
 
-export const ACCOUNTING_BUCKET = "accounting";
-/** Bucket privado — adjuntos de Inbox/email entrante. Nunca se sirve por URL pública. */
+/** Bucket público — únicamente assets públicos por diseño de producto. */
+export const PUBLIC_ASSETS_BUCKET = "public-assets";
+/** Bucket privado — documentos contables/clientes (nombre histórico conservado). */
+export const PRIVATE_DOCUMENTS_BUCKET = "accounting";
+/** Bucket privado — adjuntos de Inbox/email entrante. */
 export const COMMUNICATIONS_BUCKET = "communications";
 
-function getClient() {
+/** TTL por defecto de URLs firmadas (segundos). */
+export const DEFAULT_SIGNED_URL_TTL = 3600;
+/** TTL corto para redirecciones inmediatas tras autorizar. */
+export const SHORT_SIGNED_URL_TTL = 60;
+
+let clientOverride: SupabaseClient | null = null;
+/** Solo tests: inyecta un cliente falso. */
+export function __setStorageClientForTests(client: SupabaseClient | null) {
+  clientOverride = client;
+}
+
+function getClient(): SupabaseClient {
+  if (clientOverride) return clientOverride;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new Error("Supabase env vars not set");
   return createClient(url, key);
 }
 
-/** Crea el bucket `accounting` (público) si no existe — requiere service_role. */
-export async function ensureAccountingBucket(supabase?: SupabaseClient) {
-  const client = supabase ?? getClient();
-  const { data: buckets, error: listError } = await client.storage.listBuckets();
-  if (listError) {
-    throw new Error(`No se pudo listar buckets de Supabase: ${listError.message}`);
-  }
-  if (buckets?.some((b) => b.name === ACCOUNTING_BUCKET)) return;
-
-  const { error: createError } = await client.storage.createBucket(ACCOUNTING_BUCKET, {
-    public: true,
-  });
-  if (createError) {
-    const manual =
-      " En Supabase → Storage → New bucket, nombre «accounting», marca «Public bucket».";
-    throw new Error(`No se pudo crear el bucket «${ACCOUNTING_BUCKET}»: ${createError.message}.${manual}`);
-  }
+/** True si Storage está configurado en este entorno (Preview no tiene service key a propósito). */
+export function isStorageConfigured(): boolean {
+  return Boolean(clientOverride || (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY));
 }
 
-// Sube un archivo al bucket "accounting" y devuelve la URL pública
-export async function uploadToStorage(
-  shopId: string,
-  category: string,
-  fileName: string,
-  buffer: Buffer,
-  mimeType: string
-): Promise<{ storagePath: string; publicUrl: string }> {
-  const supabase = getClient();
-  await ensureAccountingBucket(supabase);
+// ── Buckets ───────────────────────────────────────────────────────────────
 
-  // Path: accounting/{shopId}/{category}/{timestamp}-{fileName}
-  const timestamp = Date.now();
-  const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const storagePath = `${shopId}/${category}/${timestamp}-${safeName}`;
+async function ensureBucket(client: SupabaseClient, name: string, isPublic: boolean) {
+  const { data: buckets, error: listError } = await client.storage.listBuckets();
+  if (listError) throw new Error(`No se pudo listar buckets de Supabase: ${listError.message}`);
+  const existing = buckets?.find((b) => b.name === name);
+  if (existing) {
+    // Nunca sirvas un bucket con la visibilidad equivocada: falla en vez de subir.
+    if (existing.public !== isPublic) {
+      throw new Error(
+        `El bucket «${name}» debe ser ${isPublic ? "público" : "PRIVADO"} pero está configurado al revés. ` +
+          `Ejecuta scripts/migrate-storage-privacy.ts (o corrige la visibilidad en Supabase → Storage).`
+      );
+    }
+    return;
+  }
+  const { error } = await client.storage.createBucket(name, { public: isPublic });
+  if (error) throw new Error(`No se pudo crear el bucket «${name}»: ${error.message}`);
+}
 
-  const { error } = await supabase.storage
-    .from(ACCOUNTING_BUCKET)
-    .upload(storagePath, buffer, {
-      contentType: mimeType,
-      upsert: false,
-    });
+/** Bucket público de assets. Se crea público solo si no existe. */
+export const ensurePublicAssetsBucket = (c?: SupabaseClient) => ensureBucket(c ?? getClient(), PUBLIC_ASSETS_BUCKET, true);
+/** Bucket privado de documentos. Falla si existe y es público (pre-migración). */
+export const ensurePrivateDocumentsBucket = (c?: SupabaseClient) => ensureBucket(c ?? getClient(), PRIVATE_DOCUMENTS_BUCKET, false);
+export const ensureCommunicationsBucket = (c?: SupabaseClient) => ensureBucket(c ?? getClient(), COMMUNICATIONS_BUCKET, false);
 
-  if (error) throw new Error(`Supabase upload error: ${error.message}`);
+// ── PÚBLICO: logos y fotos de la página de reservas ───────────────────────
 
-  const { data } = supabase.storage.from(ACCOUNTING_BUCKET).getPublicUrl(storagePath);
+/** URL pública permanente de un asset público. Rechaza cualquier path fuera de los prefijos públicos. */
+export function publicAssetUrl(storagePath: string): string {
+  if (!isPublicAssetPath(storagePath)) throw new Error("Not a public asset path");
+  return getClient().storage.from(PUBLIC_ASSETS_BUCKET).getPublicUrl(storagePath).data.publicUrl;
+}
 
-  return { storagePath, publicUrl: data.publicUrl };
+/** URL pública de una carpeta de assets públicos (con "/" final), p. ej. para validar fotos propias. */
+export function publicAssetFolderUrl(folder: string): string {
+  return `${publicAssetUrl(folder.replace(/\/$/, ""))}/`;
 }
 
 /** Sube o reemplaza el logo del taller (path fijo por shop). */
@@ -72,27 +97,20 @@ export async function uploadShopLogoToStorage(
   ext: string
 ): Promise<{ storagePath: string; publicUrl: string }> {
   const supabase = getClient();
-  await ensureAccountingBucket(supabase);
+  await ensurePublicAssetsBucket(supabase);
 
-  const storagePath = `logos/${shopId}/logo.${ext}`;
-
+  const safeExt = ext.replace(/[^a-z0-9]/gi, "").toLowerCase().slice(0, 5) || "png";
+  const storagePath = `logos/${assertShopSegment(shopId)}/logo.${safeExt}`;
   const { error } = await supabase.storage
-    .from(ACCOUNTING_BUCKET)
+    .from(PUBLIC_ASSETS_BUCKET)
     .upload(storagePath, buffer, { contentType: mimeType, upsert: true });
-
-  if (error) {
-    throw new Error(`Supabase upload error: ${error.message}`);
-  }
-
-  const { data } = supabase.storage.from(ACCOUNTING_BUCKET).getPublicUrl(storagePath);
-  return { storagePath, publicUrl: data.publicUrl };
+  if (error) throw new Error(`Supabase upload error: ${error.message}`);
+  return { storagePath, publicUrl: publicAssetUrl(storagePath) };
 }
 
 /**
- * Sube una foto de la página pública de reservas (portada o taller). Cada
- * subida es un archivo nuevo (nombre con timestamp): el configurador guarda
- * borradores y la página pública solo cambia cuando el taller publica, así
- * que no podemos sobreescribir la foto que está en vivo.
+ * Foto de la página pública de reservas (portada o taller). Cada subida es un
+ * archivo nuevo: el configurador guarda borradores y la página solo cambia al publicar.
  */
 export async function uploadBookingPageImageToStorage(
   folder: string,
@@ -100,17 +118,47 @@ export async function uploadBookingPageImageToStorage(
   buffer: Buffer
 ): Promise<{ storagePath: string; publicUrl: string }> {
   const supabase = getClient();
-  await ensureAccountingBucket(supabase);
+  await ensurePublicAssetsBucket(supabase);
 
   const storagePath = `${folder}${kind}-${Date.now()}.webp`;
+  if (!isPublicAssetPath(storagePath)) throw new Error("Not a public asset path");
   const { error } = await supabase.storage
-    .from(ACCOUNTING_BUCKET)
+    .from(PUBLIC_ASSETS_BUCKET)
     .upload(storagePath, buffer, { contentType: "image/webp", upsert: false });
-
   if (error) throw new Error(`Supabase upload error: ${error.message}`);
+  return { storagePath, publicUrl: publicAssetUrl(storagePath) };
+}
 
-  const { data } = supabase.storage.from(ACCOUNTING_BUCKET).getPublicUrl(storagePath);
-  return { storagePath, publicUrl: data.publicUrl };
+function assertShopSegment(shopId: string): string {
+  if (!/^[A-Za-z0-9_-]+$/.test(shopId)) throw new Error("Invalid shop id");
+  return shopId;
+}
+
+// ── PRIVADO: documentos contables / facturas / DVI ────────────────────────
+
+/**
+ * Sube un documento privado a `{shopId}/{category}/{timestamp}-{file}`.
+ * Devuelve SOLO el storagePath — nunca una URL. Persistir el path en la BD.
+ */
+export async function uploadPrivateDocument(
+  shopId: string,
+  category: string,
+  fileName: string,
+  buffer: Buffer,
+  mimeType: string
+): Promise<{ storagePath: string }> {
+  const supabase = getClient();
+  await ensurePrivateDocumentsBucket(supabase);
+
+  const storagePath = assertTenantStoragePath(
+    shopId,
+    `${assertShopSegment(shopId)}/${category}/${Date.now()}-${sanitizeStorageFileName(fileName)}`
+  );
+  const { error } = await supabase.storage
+    .from(PRIVATE_DOCUMENTS_BUCKET)
+    .upload(storagePath, buffer, { contentType: mimeType, upsert: false });
+  if (error) throw new Error(`Supabase upload error: ${error.message}`);
+  return { storagePath };
 }
 
 /** Sube o reemplaza el PDF empaquetado para el link de descarga del cliente. */
@@ -119,60 +167,58 @@ export async function uploadInvoiceClientPackage(
   downloadToken: string,
   buffer: Buffer
 ): Promise<string> {
+  if (!/^[A-Za-z0-9_-]+$/.test(downloadToken)) throw new Error("Invalid download token");
   const supabase = getClient();
-  await ensureAccountingBucket(supabase);
+  await ensurePrivateDocumentsBucket(supabase);
 
-  const storagePath = `${shopId}/invoice-share/${downloadToken}.pdf`;
-
+  const storagePath = assertTenantStoragePath(shopId, `${shopId}/invoice-share/${downloadToken}.pdf`);
   const { error } = await supabase.storage
-    .from(ACCOUNTING_BUCKET)
-    .upload(storagePath, buffer, {
-      contentType: "application/pdf",
-      upsert: true,
-    });
-
+    .from(PRIVATE_DOCUMENTS_BUCKET)
+    .upload(storagePath, buffer, { contentType: "application/pdf", upsert: true });
   if (error) throw new Error(`Supabase upload error: ${error.message}`);
-
   return storagePath;
 }
 
-/** URL pública de un archivo ya subido al bucket accounting. */
-export function publicUrlForStoragePath(storagePath: string): string {
-  const supabase = getClient();
-  const { data } = supabase.storage.from(ACCOUNTING_BUCKET).getPublicUrl(storagePath);
-  return data.publicUrl;
-}
-
-/** Descarga un archivo del bucket accounting por su path interno. */
-export async function downloadFromStorage(storagePath: string): Promise<Buffer> {
-  const supabase = getClient();
-  const { data, error } = await supabase.storage.from(ACCOUNTING_BUCKET).download(storagePath);
-  if (error || !data) {
-    throw new Error(`Supabase download error: ${error?.message ?? "empty"}`);
-  }
+/** Descarga server-side de un documento privado del taller `shopId`. */
+export async function downloadPrivateDocument(shopId: string, storagePath: string): Promise<Buffer> {
+  const path = assertTenantStoragePath(shopId, storagePath);
+  const { data, error } = await getClient().storage.from(PRIVATE_DOCUMENTS_BUCKET).download(path);
+  if (error || !data) throw new Error(`Supabase download error: ${error?.message ?? "empty"}`);
   return Buffer.from(await data.arrayBuffer());
 }
 
-/** Crea el bucket privado `communications` si no existe — nunca marcado público. */
-export async function ensureCommunicationsBucket(supabase?: SupabaseClient) {
-  const client = supabase ?? getClient();
-  const { data: buckets, error: listError } = await client.storage.listBuckets();
-  if (listError) {
-    throw new Error(`No se pudo listar buckets de Supabase: ${listError.message}`);
-  }
-  if (buckets?.some((b) => b.name === COMMUNICATIONS_BUCKET)) return;
+/**
+ * URL firmada temporal para un documento privado. Llamar SOLO después de
+ * autorizar al usuario (taller, o cliente vía token) sobre el registro dueño del path.
+ */
+export async function signedUrlForPrivateDocument(
+  shopId: string,
+  storagePath: string,
+  expiresInSeconds = DEFAULT_SIGNED_URL_TTL
+): Promise<string> {
+  const path = assertTenantStoragePath(shopId, storagePath);
+  const { data, error } = await getClient()
+    .storage.from(PRIVATE_DOCUMENTS_BUCKET)
+    .createSignedUrl(path, expiresInSeconds);
+  if (error || !data) throw new Error(`Supabase signed URL error: ${error?.message ?? "empty"}`);
+  return data.signedUrl;
+}
 
-  const { error: createError } = await client.storage.createBucket(COMMUNICATIONS_BUCKET, {
-    public: false,
-  });
-  if (createError) {
-    const manual =
-      " En Supabase → Storage → New bucket, nombre «communications», SIN marcar «Public bucket».";
-    throw new Error(
-      `No se pudo crear el bucket «${COMMUNICATIONS_BUCKET}»: ${createError.message}.${manual}`
-    );
+/** Igual que la anterior; devuelve null (no lanza) si un path falla — para listados. */
+export async function trySignedUrlForPrivateDocument(
+  shopId: string,
+  storagePath: string,
+  expiresInSeconds = DEFAULT_SIGNED_URL_TTL
+): Promise<string | null> {
+  try {
+    return await signedUrlForPrivateDocument(shopId, storagePath, expiresInSeconds);
+  } catch (err) {
+    console.error("[storage] signed URL failed:", err instanceof Error ? err.message : err);
+    return null;
   }
 }
+
+// ── PRIVADO: adjuntos de comunicaciones ───────────────────────────────────
 
 /** Sube un adjunto de Inbox (mensaje entrante/saliente) al bucket privado. */
 export async function uploadCommunicationAttachment(
@@ -182,33 +228,31 @@ export async function uploadCommunicationAttachment(
   buffer: Buffer,
   mimeType: string
 ): Promise<{ storagePath: string }> {
+  if (!/^[A-Za-z0-9_-]+$/.test(messageId)) throw new Error("Invalid message id");
   const supabase = getClient();
   await ensureCommunicationsBucket(supabase);
 
-  const timestamp = Date.now();
-  const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const storagePath = `${shopId}/${messageId}/${timestamp}-${safeName}`;
-
+  const storagePath = assertTenantStoragePath(
+    shopId,
+    `${assertShopSegment(shopId)}/${messageId}/${Date.now()}-${sanitizeStorageFileName(fileName)}`
+  );
   const { error } = await supabase.storage
     .from(COMMUNICATIONS_BUCKET)
     .upload(storagePath, buffer, { contentType: mimeType, upsert: false });
-
   if (error) throw new Error(`Supabase upload error: ${error.message}`);
-
   return { storagePath };
 }
 
-/** Link temporal (expira) para descargar un adjunto privado — nunca URL pública permanente. */
+/** Link temporal para un adjunto privado del taller — nunca URL pública. */
 export async function signedUrlForCommunicationAttachment(
+  shopId: string,
   storagePath: string,
-  expiresInSeconds = 3600
+  expiresInSeconds = DEFAULT_SIGNED_URL_TTL
 ): Promise<string> {
-  const supabase = getClient();
-  const { data, error } = await supabase.storage
-    .from(COMMUNICATIONS_BUCKET)
-    .createSignedUrl(storagePath, expiresInSeconds);
-  if (error || !data) {
-    throw new Error(`Supabase signed URL error: ${error?.message ?? "empty"}`);
-  }
+  const path = assertTenantStoragePath(shopId, storagePath);
+  const { data, error } = await getClient()
+    .storage.from(COMMUNICATIONS_BUCKET)
+    .createSignedUrl(path, expiresInSeconds);
+  if (error || !data) throw new Error(`Supabase signed URL error: ${error?.message ?? "empty"}`);
   return data.signedUrl;
 }

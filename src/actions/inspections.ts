@@ -15,7 +15,7 @@ import {
 import { INSPECTION_CHECKLIST_CATEGORIES, isFinding } from "@/domain/inspection";
 import { allocateNextQuoteNumber } from "@/lib/invoice-number";
 import { computeDocumentTax } from "@/lib/fiscal";
-import { uploadToStorage } from "@/lib/storage";
+import { uploadPrivateDocument, trySignedUrlForPrivateDocument } from "@/lib/storage";
 import { isAllowedPhotoType } from "@/lib/upload-policy";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import type { AdminLocale } from "@/lib/admin-locale";
@@ -273,7 +273,7 @@ export async function uploadInspectionPhoto(itemId: string, formData: FormData) 
   const buffer = Buffer.from(await file.arrayBuffer());
 
   try {
-    const { storagePath, publicUrl } = await uploadToStorage(
+    const { storagePath } = await uploadPrivateDocument(
       shopId,
       `inspections/${item.inspectionId}`,
       file.name,
@@ -286,7 +286,7 @@ export async function uploadInspectionPhoto(itemId: string, formData: FormData) 
     });
 
     revalidatePath(`/inspections/${item.inspectionId}`);
-    return { success: true, photo: { id: photo.id, url: publicUrl } };
+    return { success: true, photo: { id: photo.id, url: (await trySignedUrlForPrivateDocument(shopId, storagePath)) ?? "" } };
   } catch (err) {
     console.error("Error uploading inspection photo:", err);
     return { error: UPLOAD_ERROR[locale] };

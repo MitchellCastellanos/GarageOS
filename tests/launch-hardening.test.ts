@@ -320,7 +320,7 @@ test("launch-critical public pages ship a French version (Quebec market)", () =>
   for (const page of ["privacy", "terms", "contact", "about", "help", "changelog"]) {
     const src = readFileSync(path.join(ROOT, "src/app", page, "page.tsx"), "utf8");
     assert.match(src, /<Bilingual/, `${page} must render through <Bilingual>`);
-    assert.match(src, /title: "[^"]* · /, `${page} metadata carries the French title`);
+    assert.match(src, /title:\s*"[^"]* · /, `${page} metadata carries the French title`);
   }
   const privacy = readFileSync(path.join(ROOT, "src/app/privacy/page.tsx"), "utf8");
   assert.match(privacy, /Politique de confidentialité/);

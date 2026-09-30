@@ -20,6 +20,9 @@ The core data categories support identifiable shop-management workflows. New cat
 - Incident response: documented procedure and register required.
 - Imports: shop must have authority to import data; imported data receives the same access controls.
 
+## File storage (updated 2026-09-30)
+Files are classified at write time. Public: shop logos and booking-page images only (public bucket, no customer data). Private: invoices, payment receipts, accounting documents, DVI/inspection photos and Inbox attachments (private buckets; tenant-scoped paths; access only via server-side download or short-lived signed URLs after shop/customer-token authorization; DB stores paths). Shared DVI reports serve photos through a token-checked redirect (60 s). Storage location: Supabase us-east-1 (USA) — a transfer outside Quebec that must be covered by the transfer assessment below.
+
 ## Cross-border/provider assessment
 Before GO, complete the service-provider register with actual contracting entity, processing/storage location, categories transferred, sensitivity, purposes, contractual safeguards, incident terms, deletion/return behavior and relevant legal context. Do not mark this section complete from assumptions.
 
