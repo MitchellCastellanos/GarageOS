@@ -1,5 +1,6 @@
 import "server-only";
 import Pusher from "pusher";
+import { staffNotificationChannel } from "@/lib/platform/pusher-channels";
 
 const configured = Boolean(
   process.env.PUSHER_APP_ID && process.env.PUSHER_KEY && process.env.PUSHER_SECRET && process.env.PUSHER_CLUSTER
@@ -21,10 +22,7 @@ function getClient(): Pusher | null {
   return client;
 }
 
-/** Un canal por usuario — cada quien solo recibe sus propias notificaciones. */
-export function staffNotificationChannel(userId: string): string {
-  return `staff-notifications-${userId}`;
-}
+export { staffNotificationChannel };
 
 export interface StaffNotificationPayload {
   id: string;

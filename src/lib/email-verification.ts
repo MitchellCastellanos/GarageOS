@@ -51,7 +51,7 @@ export async function sendVerificationEmail(params: { email: string; name: strin
 
   const resend = getResend();
   if (!resend) {
-    console.warn(`[email-verification] RESEND_API_KEY no configurada — correo de verificación a ${email} omitido.`);
+    console.warn(`[email-verification] RESEND_API_KEY no configurada — correo de verificación omitido.`);
     return;
   }
 
@@ -63,7 +63,7 @@ export async function sendVerificationEmail(params: { email: string; name: strin
     html,
   });
   if (error) {
-    console.error(`[email-verification] Error enviando verificación a ${email}:`, error);
+    console.error(`[email-verification] Error enviando verificación:`, error);
   }
 }
 
@@ -111,7 +111,7 @@ export async function sendShopEmailVerification(params: { shopId: string; email:
 
   const resend = getResend();
   if (!resend) {
-    console.warn(`[email-verification] RESEND_API_KEY no configurada — correo de verificación de taller a ${email} omitido.`);
+    console.warn(`[email-verification] RESEND_API_KEY no configurada — correo de verificación de taller omitido.`);
     return;
   }
 
@@ -124,7 +124,7 @@ export async function sendShopEmailVerification(params: { shopId: string; email:
     html,
   });
   if (error) {
-    console.error(`[email-verification] Error enviando verificación de taller a ${email}:`, error);
+    console.error(`[email-verification] Error enviando verificación de taller:`, error);
   }
 }
 

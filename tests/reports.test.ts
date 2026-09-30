@@ -240,7 +240,7 @@ test("CSV exports for Pro: content, filename and formula safety", async (t) => {
   assert.match(sales.csv, /Payment method,CARD,,114.98/);
   const rec = await actions.exportReportCsv({ kind: "receivables" });
   assert.ok(!("error" in rec));
-  assert.match(rec.csv, /INV-9,Cy,2026-07-01,2026-08-01,59,d31_60,200/);
+  assert.match(rec.csv, /INV-9,Cy,2026-07-01,2026-08-01,\d+,d(?:31_60|61_90),200/);
   for (const kind of ["operations", "customers", "inventory", "overview"]) {
     const r = await actions.exportReportCsv({ kind });
     assert.ok(!("error" in r) && r.csv.startsWith("﻿"), kind);

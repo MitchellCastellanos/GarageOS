@@ -11,6 +11,7 @@ import {
   type StaffNotificationRow,
 } from "@/actions/staff-notifications";
 import { formatDate } from "@/lib/utils";
+import { PUSHER_CLIENT_AUTH, staffNotificationChannel } from "@/lib/platform/pusher-channels";
 import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
 import { NOTIFICATION_BELL_DICT } from "@/lib/admin-locale/notifications-bell";
 
@@ -38,8 +39,8 @@ export function NotificationBell({ userId, initialNotifications, initialUnreadCo
 
     import("pusher-js").then(({ default: Pusher }) => {
       if (cancelled) return;
-      const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, { cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER! });
-      const channelName = `staff-notifications-${userId}`;
+      const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, { cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!, ...PUSHER_CLIENT_AUTH });
+      const channelName = staffNotificationChannel(userId);
       const channel = pusher.subscribe(channelName);
       const handler = (notification: StaffNotificationRow) => {
         setNotifications((prev) => (prev.some((n) => n.id === notification.id) ? prev : [notification, ...prev].slice(0, 30)));

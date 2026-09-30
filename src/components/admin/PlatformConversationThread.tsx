@@ -1,4 +1,5 @@
 "use client";
+import { PUSHER_CLIENT_AUTH, platformConversationChannel } from "@/lib/platform/pusher-channels";
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
@@ -41,15 +42,15 @@ export function PlatformConversationThread({
 
     import("pusher-js").then(({ default: Pusher }) => {
       if (cancelled) return;
-      const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, { cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER! });
-      const channel = pusher.subscribe(`platform-conversation-${conversationId}`);
+      const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, { cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!, ...PUSHER_CLIENT_AUTH });
+      const channel = pusher.subscribe(platformConversationChannel(conversationId));
       const handler = (message: PlatformMessageRow) => {
         setMessages((prev) => (prev.some((m) => m.id === message.id) ? prev : [...prev, message]));
       };
       channel.bind("message", handler);
       unsub = () => {
         channel.unbind("message", handler);
-        pusher.unsubscribe(`platform-conversation-${conversationId}`);
+        pusher.unsubscribe(platformConversationChannel(conversationId));
         pusher.disconnect();
       };
     });

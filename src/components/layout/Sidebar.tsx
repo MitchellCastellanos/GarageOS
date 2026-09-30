@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { PUSHER_CLIENT_AUTH, staffNotificationChannel } from "@/lib/platform/pusher-channels";
 import {
   LayoutDashboard,
   Users,
@@ -120,8 +121,8 @@ export function Sidebar({
 
     import("pusher-js").then(({ default: Pusher }) => {
       if (cancelled) return;
-      const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, { cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER! });
-      const channelName = `staff-notifications-${userId}`;
+      const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, { cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!, ...PUSHER_CLIENT_AUTH });
+      const channelName = staffNotificationChannel(userId);
       const channel = pusher.subscribe(channelName);
       const handler = (notification: { href?: string | null }) => {
         if (notification.href?.startsWith(ADMIN.inbox)) setLiveInbox(true);

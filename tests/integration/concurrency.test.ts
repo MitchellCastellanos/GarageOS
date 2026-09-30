@@ -5,7 +5,7 @@ import test, { before, after } from "node:test";
 import { ENABLED, db, seedTenant, type Tenant } from "./helpers";
 import { setSession } from "../helpers/action-harness";
 
-const skip = ENABLED ? false : "set GARAGEOS_INTEGRATION_DB=1 with a migrated DATABASE_URL";
+const skip = ENABLED ? false : "run `npm run test:integration` (see docs/integration-testing.md)";
 let T: Tenant;
 const asOwner = () => setSession({ user: { id: T.ownerId, role: "OWNER", shopId: T.shopId } });
 const settle = <X>(ps: Promise<X>[]) => Promise.allSettled(ps);

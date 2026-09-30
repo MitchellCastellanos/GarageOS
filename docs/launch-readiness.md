@@ -12,7 +12,7 @@ items marked *REQUIRED BEFORE FIRST CUSTOMER* below are done (all are configurat
 | Gate | Result |
 | --- | --- |
 | `npm test` (unit/mocked) | **378 / 378 pass** |
-| `npm run test:integration` (real PostgreSQL 16, real server actions) | **36 / 36 pass** (129 cross-tenant attacks, roles × plans × restricted, concurrency, import stress, portal, Multi-Shop, core workflow) |
+| `npm run test:integration` (real PostgreSQL via the guarded runner, real server actions) | **35 pass / 0 fail / 1 skipped** on the isolated Neon Preview database `garageos_replay` (2026-09-30; the skip was the XLSX stress test, whose fixture is now generated and verified in isolation) — 129 cross-tenant attacks, roles × plans × restricted, concurrency, import stress, portal, Multi-Shop, core workflow |
 | `prisma validate` | valid |
 | Fresh PostgreSQL, all migrations from zero | applied cleanly (46 migrations) |
 | Schema diff (`migrate diff` DB → schema.prisma) | **empty** (the old `Shop.billingEmail` drift is closed) |
@@ -20,7 +20,7 @@ items marked *REQUIRED BEFORE FIRST CUSTOMER* below are done (all are configurat
 | `next build` (production, type-checking now ON — `ignoreBuildErrors` removed) | passes |
 | `eslint` | **0 errors**, 51 warnings (46 unused-variable, 4 react-hooks/incompatible-library for react-hook-form `watch`, 1 alt-text on a react-pdf `<Image>`) — all harmless |
 
-Real-DB suites: `GARAGEOS_INTEGRATION_DB=1 DATABASE_URL=<disposable migrated db> npm run test:integration`.
+Real-DB suites: see `docs/integration-testing.md` — `npm run test:integration -- --yes-write-test-data --neon` (fail-closed runner; writes test data; authorized Preview database only).
 
 ## Provider validation status (never collapse these)
 
@@ -36,9 +36,11 @@ Real-DB suites: `GARAGEOS_INTEGRATION_DB=1 DATABASE_URL=<disposable migrated db>
 1. **Stripe Prices are wrong in the test sandbox.** The existing sandbox Prices are the *old* $149/$249/$399 (and $1,490/$2,490/$3,990) set. Create the six CAD Prices at **$199 / $1,990, $299 / $2,990, $449 / $4,490** (no trial on the Price; set tax behavior **exclusive** or configure the default in Stripe Tax settings) in both test and live modes and set `STRIPE_PRICE_{CORE,PRO,COMPLETE}_{MONTHLY,YEARLY}`. The app now **refuses to open Checkout** if a Price's amount/currency/interval disagrees with the quoted plan price (fail-closed).
 2. **Stripe test-mode end-to-end pass** (procedure in `docs/product-completion-plan.md` → Block 1 manual config §8): card `4242…` trial → advance a **test clock** past 14 days → ACTIVE; card `4000 0000 0000 0341` → PAST_DUE → RESTRICTED → fix card → ACTIVE. Confirm the webhook endpoint (`/api/stripe/webhook`; events `checkout.session.completed`, `customer.subscription.created|updated|deleted`) shows 2xx deliveries, and set `STRIPE_WEBHOOK_SECRET` / `STRIPE_SECRET_KEY` (live) in Vercel. Register GST/QST in Stripe Tax.
 3. **`CRON_SECRET`** (≥16 chars) in Vercel. Cron routes now fail closed without it.
-4. **Database backups**: confirm the actual DB host's backup plan and take/restore-test one backup (see runbook). Don't onboard a paying shop on an unbacked database.
+4. **Database backups**: the application DB is on **Neon** (AWS us-east-2, owner-confirmed; plan/backup window not yet recorded — check the Neon console); the connected Supabase project is Free-plan and Storage-only; Supabase Free has no managed backups and no plan backs up Storage files. Identify the host, enable daily backups, run the weekly `scripts/backup-db.sh` / `scripts/backup-storage.ts`, and restore-test once (runbook: `docs/operations-runbook.md`). Don't onboard a paying shop on an unbacked database.
+4b. **Preview must not use the production database/keys.** Proven: Preview builds ran migrations and the super-admin bootstrap against production. **Database: done (2026-09-30)** — Preview has its own Neon branch/database (`preview` / `garageos_replay`, built from the 46 migrations; Production and Preview `DATABASE_URL` are separate Vercel records; the deploy script is fail-closed, see `docs/db-migrations.md`). **Still open: provider isolation** (Stripe test mode, Twilio, Resend, Pusher, Telegram, Supabase, Google, cron/admin/auth secrets are still shared with Production) — variable-by-variable plan: `docs/compliance/subprocessors.md` → Environment separation.
+4c. **Neon Production branch protection (launch-hardening follow-up).** The Production Neon branch currently reports `protected: false`. Evaluate and enable branch protection before or immediately around launch, after confirming how it interacts with GarageOS deployment migrations (Vercel Production builds run `prisma migrate deploy`) and with operational recovery/restore (`docs/operations-runbook.md`). Not changed yet.
 5. **Support mailbox**: set `NEXT_PUBLIC_CONTACT_EMAIL` (default `hello@garageos.app` — confirm it exists and is monitored). Confirm the domains referenced in the product (`garage-os.ca` app domain, `garageos.com` footer link) are yours.
-6. **Legal/compliance operations:** bilingual Terms/Privacy, Privacy Officer, governance, incident response/register, initial PIA/EFVP, CASL matrix and engineering rules are now in `docs/compliance/`. Before first paying customer, finish the provider/cross-border assessment, retention/backup periods, legal business identity/address, and the public-vs-private Supabase storage split identified in `docs/compliance/finalization-audit.md`. External legal review remains recommended.
+6. **Legal/compliance operations:** bilingual Terms/Privacy, Privacy Officer, governance, incident response/register, initial PIA/EFVP, CASL matrix and engineering rules are now in `docs/compliance/`. Before first paying customer, close the BLOCKER list in `docs/compliance/privacy-impact-assessment.md` §7 (DB host/region and residency decision, storage migration `--finalize`, Preview separation, backups), then the "before paid launch" items (DPAs, legal review, legal identity/address). External legal review remains recommended.
 7. Required env for a working app: `DATABASE_URL`/`DIRECT_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `NEXT_PUBLIC_APP_URL`, Supabase (`NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`), `RESEND_API_KEY`, `EMAIL_MANAGED_DOMAIN` (SPF/DKIM verified), `PLATFORM_ADMIN_*`.
 
 ## REQUIRED BEFORE USING THAT FEATURE

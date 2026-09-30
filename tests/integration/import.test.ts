@@ -1,11 +1,14 @@
 // Block 15 — import safety and scale against a REAL PostgreSQL database, through the real server actions.
 import assert from "node:assert/strict";
 import test, { before, after } from "node:test";
-import { readFileSync, existsSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { ENABLED, db, seedTenant, snapshotShop, diffSnapshots, type Tenant } from "./helpers";
 import { setSession } from "../helpers/action-harness";
+import { buildXlsx } from "../helpers/xlsx-fixture";
 
-const skip = ENABLED ? false : "set GARAGEOS_INTEGRATION_DB=1 with a migrated DATABASE_URL";
+const skip = ENABLED ? false : "run `npm run test:integration` (see docs/integration-testing.md)";
 let PRO: Tenant, CORE: Tenant;
 const as = (t: Tenant) => setSession({ user: { id: t.ownerId, role: "OWNER", shopId: t.shopId } });
 
@@ -129,14 +132,24 @@ test("STRESS: 10,000 customers (CSV) + 10,000 vehicles + 10,000 parts import in 
   assert.ok(tCustomers < 60_000 && tVehicles < 60_000 && tParts < 60_000, "each 10k import finishes well inside a serverless request budget");
 });
 
-test("STRESS: a 10,000-row XLSX parses and imports", { skip: skip || !existsSync("/tmp/claude-0/imp/big.xlsx") ? "no generated xlsx" : false }, async () => {
+test("STRESS: a 10,000-row XLSX parses and imports", { skip }, async () => {
   const a = await importActions();
   const big = await seedTenant({ label: "ImpXlsx", plan: "PRO" });
   as(big);
-  const buf = readFileSync("/tmp/claude-0/imp/big.xlsx");
-  const t0 = Date.now();
-  const res = await a.commitImportAction(form("big.xlsx", buf, "customers", { mapping: JSON.stringify({ firstName: 0, lastName: 1, email: 2, phone: 3 }) }));
-  console.log(`# xlsx 10k: ${Date.now() - t0}ms, ${buf.length} bytes`);
-  assert.equal(res.ok, true, JSON.stringify(res).slice(0, 300));
-  assert.equal(await db.client.count({ where: { shopId: big.shopId } }), 10_000);
+  // The 10,000-row workbook is generated here (same rows as the CSV stress test, so the same row #100 is a duplicate of
+  // the seeded customer) inside a private, platform-neutral temp directory; only that directory is removed afterwards.
+  const dir = mkdtempSync(join(tmpdir(), "garageos-it-xlsx-"));
+  try {
+    const file = join(dir, "big.xlsx");
+    const rows = [["first_name", "last_name", "email", "phone"], ...Array.from({ length: 10_000 }, (_, i) => [`Nom${i}`, `Fam${i}`, `x${i}@ex.test`, `514555${String(i % 10000).padStart(4, "0")}`])];
+    writeFileSync(file, buildXlsx(rows));
+    const buf = readFileSync(file);
+    const t0 = Date.now();
+    const res = await a.commitImportAction(form("big.xlsx", buf, "customers", { mapping: JSON.stringify({ firstName: 0, lastName: 1, email: 2, phone: 3 }) }));
+    console.log(`# xlsx 10k: ${Date.now() - t0}ms, ${buf.length} bytes`);
+    assert.equal(res.ok, true, JSON.stringify(res).slice(0, 300));
+    assert.equal(await db.client.count({ where: { shopId: big.shopId } }), 10_000);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

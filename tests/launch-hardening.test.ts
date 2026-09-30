@@ -18,7 +18,7 @@ test("no 'use server' export takes a caller-supplied shopId without its own auth
   const AUTH = /requireSuperAdmin|requireShopSession|getOrganizationAdminContext|getAccessibleShops|requireOwner|getShopId|getWritableShopId|requirePermissions|requireSession/;
   const offenders: string[] = [];
   for (const file of readdirSync(dir).filter((f) => f.endsWith(".ts"))) {
-    const src = readFileSync(path.join(dir, file), "utf8");
+    const src = readFileSync(path.join(dir, file), "utf8").replace(/\r\n/g, "\n"); // checkouts CRLF (Windows)
     const parts = src.split(/\nexport async function /).slice(1);
     for (const part of parts) {
       const name = part.split("(")[0];

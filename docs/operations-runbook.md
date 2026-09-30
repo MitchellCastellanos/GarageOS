@@ -5,21 +5,37 @@ Facts from the repository (nothing here assumes infrastructure that isn't in the
 Storage for files; Stripe, Twilio, Resend, QuickBooks Online as providers; Vercel Cron (`vercel.json`): `/api/webhooks/cron` 08:00 UTC,
 `/api/webhooks/cron/campaigns` 09:00, `/api/webhooks/cron/quickbooks` 10:00 — all need `Authorization: Bearer $CRON_SECRET`.
 
-## Database backup and restore
-- The repo does **not** define backups; they come from the database host. Before the first customer: identify the host, confirm
-  automatic daily backups (and PITR if available), and **restore one backup into a scratch database and run
-  `npx prisma migrate status` + a login** to prove it works. Record the retention period.
-- Manual backup: `pg_dump --format=custom --no-owner "$DIRECT_URL" > garageos-$(date +%F).dump` (store off-platform, encrypted).
-- Restore: create an empty DB, `pg_restore --no-owner -d <new-url> garageos-….dump`, point `DATABASE_URL`/`DIRECT_URL` at it, redeploy.
-- Supabase Storage files are separate from the DB backup — enable bucket backup/replication or accept that files (logos, DVI photos, receipts) are not covered.
-- Keep a copy of `INTEGRATIONS_ENCRYPTION_KEY` (lost key = QuickBooks tokens unreadable; shops must reconnect) and `NEXTAUTH_SECRET`.
+## Database and Storage backup and restore
+*Facts behind this section: `docs/compliance/retention-destruction.md` (verified 2026-09-30). Status today: the application DB is on Neon (backup plan not yet recorded), the connected Supabase project is Free-plan and Storage-only (no managed backups), and Storage objects have no backup.* **Preview builds no longer touch the database** (`scripts/deploy-migrations.mjs` runs DB steps only for a Vercel Production build; local/CI and Preview are skipped — see `docs/db-migrations.md`).
+
+**What is (and is not) covered automatically**
+| Data | Automatic coverage |
+|---|---|
+| App PostgreSQL (Neon) | Depends on the Neon plan — **record it from the Neon console**. |
+| Supabase Storage objects (invoices, receipts, DVI photos, attachments, logos) | **None on any Supabase plan** (DB backups contain only object metadata). |
+| Secrets/keys (`INTEGRATIONS_ENCRYPTION_KEY`, `NEXTAUTH_SECRET`) | None — keep an offline copy in a password manager (lost key = QuickBooks tokens unreadable, sessions invalid). |
+
+**Strategy (early-stage, minimal moving parts)**
+1. Host-level daily backups on a paid tier (owner decision; PITR is optional and not needed at launch).
+2. Independent **weekly** encrypted logical dump + storage copy, kept off-platform 4–8 weeks (retention is a recorded decision in `retention-destruction.md`): `DIRECT_URL=… ./scripts/backup-db.sh out/` and `npx tsx scripts/backup-storage.ts out/storage` (both read-only). Encrypt before uploading anywhere (`age`/`gpg`); never commit dumps.
+3. Take a fresh dump before any deploy that contains a migration.
+
+**Restore procedure**
+- DB: create an empty Postgres → `pg_restore --no-owner -d <new-url> garageos-YYYY-MM-DD.dump` → `npx prisma migrate status` (must report up to date) → point `DATABASE_URL`/`DIRECT_URL`/`DATABASE_URL_POOLED` at it in Vercel → redeploy. Provider restores (Supabase dashboard/PITR) take the project offline while running.
+- Storage: re-upload the copied files into the same bucket names and **same paths** (paths are the keys stored in the DB). Private buckets must be created private (`accounting`, `communications`); `public-assets` public.
+- After any restore: log in, open an invoice download link, a DVI photo and a Portal PDF.
+
+**Restore test (evidence)**
+- Frequency: once before the first paying customer, then every quarter and after any provider/plan change.
+- Done when: a scratch database restored from the latest backup passes `prisma migrate status`, row counts of `Shop`/`Client`/`Invoice` match the source within the backup window, and 3 sampled storage objects open byte-identical (`sha256`).
+- Retain: date, backup file name + sha256, who ran it, counts, result, time taken — one line in `docs/compliance/incident-register.md`-style log or a dated note in this file. Delete the scratch database afterwards.
 
 ## Migrations and rollback
 - `npm run build` runs `prisma migrate deploy` first; a failing migration fails the build and the previous deployment keeps serving.
 - Take a backup before any deploy that contains a migration. Migrations are additive/forward-compatible: the previous code keeps working
   against the new schema, so **rollback = promote the previous Vercel deployment** (do not try to reverse SQL).
 - Never rename an applied migration folder (it re-runs). After a P3009 (failed migration) use `prisma migrate resolve` (see the
-  historical notes in `scripts/deploy-migrations.mjs`).
+  Production migration-history notes in `docs/db-migrations.md`; resolve manually and deliberately, never from the build script).
 - Verify drift any time: `npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script` should print an empty migration.
 
 ## Provider outages
