@@ -9,7 +9,7 @@ import { requireOwner } from "@/lib/permissions";
 import { DEFAULT_WORKING_HOURS, getShopServiceCatalog } from "@/lib/booking-slots";
 import { bookingPublicUrl, bookingSubdomainUrl } from "@/config/app";
 import { can } from "@/lib/subscription";
-import { publicUrlForStoragePath, uploadBookingPageImageToStorage } from "@/lib/storage";
+import { isStorageConfigured, publicAssetFolderUrl, uploadBookingPageImageToStorage } from "@/lib/storage";
 import {
   BOOKING_IMAGE_KINDS,
   BOOKING_IMAGE_MAX_WIDTH,
@@ -35,9 +35,7 @@ export type BookingPageActionError =
   | "invalidImage"
   | "entitlement";
 
-function storageConfigured(): boolean {
-  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
-}
+const storageConfigured = isStorageConfigured;
 
 /** Todo lo que el configurador necesita: la config publicada, datos reales del taller y servicios. */
 export async function getBookingPageSettings() {
@@ -169,7 +167,7 @@ export async function publishBookingPage(
 
   const result = validateBookingPagePublish(input, {
     advancedDesignAllowed: await can(shopId, "bookingPage.advancedDesign"),
-    folderPublicUrl: storageConfigured() ? publicUrlForStoragePath(bookingImageStorageFolder(shopId)) : null,
+    folderPublicUrl: storageConfigured() ? publicAssetFolderUrl(bookingImageStorageFolder(shopId)) : null,
     currentImages: [current.bookingCoverImageUrl, current.bookingShopImageUrl],
   });
   if (!result.ok) return { error: result.error };

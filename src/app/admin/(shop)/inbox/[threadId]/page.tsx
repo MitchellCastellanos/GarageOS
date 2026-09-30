@@ -30,7 +30,8 @@ async function MessageRow({ message, youTo }: { message: ThreadMessage; youTo: (
         <div className="mt-3 flex flex-wrap gap-2">
           {await Promise.all(message.attachments.map(async (att) => {
             let href = "#";
-            try { href = await signedUrlForCommunicationAttachment(att.storageKey); } catch {}
+            // Adjunto privado: URL firmada temporal, atada al shopId del propio adjunto.
+            try { href = await signedUrlForCommunicationAttachment(att.shopId, att.storageKey); } catch {}
             return <a key={att.id} href={href} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-xs text-blue-600 hover:underline border border-slate-200 rounded-lg px-2 py-1"><Paperclip className="w-3 h-3" />{att.filename}</a>;
           }))}
         </div>

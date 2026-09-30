@@ -1,4 +1,4 @@
-import { downloadFromStorage } from "@/lib/storage";
+import { downloadPrivateDocument } from "@/lib/storage";
 import {
   buildInvoicePackagePdf,
   emailAttachmentsToParts,
@@ -9,11 +9,11 @@ import {
 export type { DocumentPart };
 export { buildInvoicePackagePdf, emailAttachmentsToParts };
 
-export async function storagePathsToParts(paths: string[]): Promise<DocumentPart[]> {
+export async function storagePathsToParts(shopId: string, paths: string[]): Promise<DocumentPart[]> {
   const parts: DocumentPart[] = [];
   for (const path of paths) {
     try {
-      const buffer = await downloadFromStorage(path);
+      const buffer = await downloadPrivateDocument(shopId, path);
       parts.push({ buffer, mimeType: guessMimeFromPath(path) });
     } catch (err) {
       console.error("No se pudo cargar documento:", path, err);

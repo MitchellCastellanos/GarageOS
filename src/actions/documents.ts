@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 import { isAllowedDocumentType } from "@/lib/upload-policy";
 import { requirePermissions } from "@/lib/access";
 import { assertShopWritable } from "@/lib/shop-context";
-import { uploadToStorage, publicUrlForStoragePath } from "@/lib/storage";
+import { uploadPrivateDocument, trySignedUrlForPrivateDocument } from "@/lib/storage";
 import { DOC_CATEGORIES, type DocCategory } from "@/lib/validations";
 import { ensureFullShopDate, parseShopDateTime } from "@/lib/shop-timezone";
 import { formatClientName } from "@/lib/client-name";
@@ -48,14 +48,17 @@ export async function getAccountingPageData() {
     orderBy: { uploadedAt: "desc" },
   });
 
-  const documents: EnrichedAccountingDocument[] = rawDocs.map((doc) => ({
-    id: doc.id,
-    fileName: doc.fileName,
-    category: doc.category,
-    storagePath: doc.storagePath,
-    url: publicUrlForStoragePath(doc.storagePath),
-    uploadedAt: doc.uploadedAt,
-  }));
+  // Documentos privados: URL firmada temporal, emitida solo tras el filtro por shopId.
+  const documents: EnrichedAccountingDocument[] = await Promise.all(
+    rawDocs.map(async (doc) => ({
+      id: doc.id,
+      fileName: doc.fileName,
+      category: doc.category,
+      storagePath: doc.storagePath,
+      url: (await trySignedUrlForPrivateDocument(shopId, doc.storagePath)) ?? "",
+      uploadedAt: doc.uploadedAt,
+    }))
+  );
 
   return { documents };
 }
@@ -90,7 +93,7 @@ export async function uploadDocument(formData: FormData) {
 
   let storagePath: string;
   try {
-    const result = await uploadToStorage(
+    const result = await uploadPrivateDocument(
       shopId,
       category,
       file.name,

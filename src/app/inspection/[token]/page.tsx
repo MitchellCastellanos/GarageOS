@@ -2,7 +2,6 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { can } from "@/lib/subscription";
-import { publicUrlForStoragePath } from "@/lib/storage";
 import { isFinding } from "@/domain/inspection";
 import { formatClientName } from "@/lib/client-name";
 import { formatDate } from "@/lib/utils";
@@ -74,8 +73,8 @@ export default async function PublicInspectionReportPage({ params }: { params: P
                 {item.photos.length > 0 && (
                   <div className="mt-3 flex flex-wrap gap-2">
                     {item.photos.map((p) => (
-                      <a key={p.id} href={publicUrlForStoragePath(p.storagePath)} target="_blank" rel="noreferrer" className="relative block h-24 w-24 overflow-hidden rounded-lg border border-slate-200">
-                        <Image src={publicUrlForStoragePath(p.storagePath)} alt="" fill unoptimized className="object-cover" sizes="96px" />
+                      <a key={p.id} href={`/inspection/${token}/photo/${p.id}`} target="_blank" rel="noreferrer" className="relative block h-24 w-24 overflow-hidden rounded-lg border border-slate-200">
+                        <Image src={`/inspection/${token}/photo/${p.id}`} alt="" fill unoptimized className="object-cover" sizes="96px" />
                       </a>
                     ))}
                   </div>

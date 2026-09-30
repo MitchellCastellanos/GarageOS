@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getEffectivePermissions } from "@/lib/access";
 import { db } from "@/lib/db";
-import { uploadToStorage } from "@/lib/storage";
+import { uploadPrivateDocument } from "@/lib/storage";
 import { INVOICE_PENDING_STATUSES } from "@/lib/invoice-status";
 
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -70,7 +70,7 @@ export async function POST(
 
   try {
     const buffer = Buffer.from(await file.arrayBuffer());
-    const stored = await uploadToStorage(
+    const stored = await uploadPrivateDocument(
       shopId,
       `invoice-payments/${invoice.invoiceNumber}/${subfolder}`,
       file.name,
@@ -78,10 +78,7 @@ export async function POST(
       mimeType
     );
 
-    return NextResponse.json({
-      storagePath: stored.storagePath,
-      publicUrl: stored.publicUrl,
-    });
+    return NextResponse.json({ storagePath: stored.storagePath });
   } catch (err) {
     console.error("payment-receipt upload:", err);
     return NextResponse.json(

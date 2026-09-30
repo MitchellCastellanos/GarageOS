@@ -6,7 +6,7 @@ import { headers } from "next/headers";
 import { ShareReportPanel } from "@/components/inspections/ShareReportPanel";
 import { UpgradeCTA } from "@/components/billing/UpgradeCTA";
 import { INSPECTIONS_ADVANCED_DICT } from "@/lib/admin-locale/inspections-advanced";
-import { publicUrlForStoragePath } from "@/lib/storage";
+import { trySignedUrlForPrivateDocument } from "@/lib/storage";
 import { formatDate } from "@/lib/utils";
 import { formatClientName } from "@/lib/client-name";
 import { countFindings } from "@/domain/inspection";
@@ -29,16 +29,21 @@ export default async function InspectionDetailPage({ params }: PageProps) {
   const t = INSPECTIONS_DICT[locale];
 
   const findings = countFindings(inspection.items);
-  const items = inspection.items.map((item) => ({
-    id: item.id,
-    category: item.category,
-    condition: item.condition,
-    notes: item.notes,
-    photos: (caps.photosView ? item.photos : []).map((photo) => ({
-      id: photo.id,
-      url: publicUrlForStoragePath(photo.storagePath),
-    })),
-  }));
+  // Fotos DVI privadas: URLs firmadas temporales, emitidas tras cargar la inspección del propio taller.
+  const items = await Promise.all(
+    inspection.items.map(async (item) => ({
+      id: item.id,
+      category: item.category,
+      condition: item.condition,
+      notes: item.notes,
+      photos: await Promise.all(
+        (caps.photosView ? item.photos : []).map(async (photo) => ({
+          id: photo.id,
+          url: (await trySignedUrlForPrivateDocument(inspection.shopId, photo.storagePath)) ?? "",
+        }))
+      ),
+    }))
+  );
 
   return (
     <div className="max-w-4xl space-y-6">

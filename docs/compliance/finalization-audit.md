@@ -1,6 +1,6 @@
 # GarageOS compliance finalization audit
 
-Date: 2026-09-29
+Date: 2026-09-29 (storage section updated 2026-09-30)
 
 ## Verified in code
 - Campaign audience resolution requires `marketingEmailConsent=true`, no email marketing opt-out, and an email address.
@@ -9,13 +9,14 @@ Date: 2026-09-29
 - Inbound SMS STOP adds SMS suppression and clears SMS marketing consent. START removes only the STOP/UNSUBSCRIBE suppression and does not recreate marketing consent.
 - Public-site analytics are first-party and cookie-free. The analytics record does not store raw IP; it stores a daily one-way visitor hash plus page/referrer/UTM/device/browser/country data.
 - Communications attachments use a private Supabase bucket with expiring signed URLs.
+- Storage is split by classification (`src/lib/storage.ts`, `docs/compliance/storage-privacy.md`): public `public-assets` bucket only for shop logos and booking-page images; private `accounting` bucket for invoices, payment receipts, accounting documents and DVI photos; private `communications` bucket for Inbox attachments. Private helpers require the `shopId`, reject any path not under `{shopId}/` (traversal-safe) and issue only server-side downloads or short-lived signed URLs after authorization. The DB stores paths, not URLs. Covered by `tests/storage-privacy.test.ts`.
 - Current public Privacy and Terms pages are bilingual.
 
 ## Gaps / actions
 ### P1 before first paying customer
-1. **Storage classification:** `src/lib/storage.ts` currently uses one public `accounting` bucket for accounting documents as well as intentionally public shop logos/booking images. This conflicts with the new engineering rule. Split public media from private accounting/customer documents and migrate any existing sensitive objects before real customer data is uploaded.
+1. **Storage classification — code done, one operator step left.** Verified in the connected Supabase project (2026-09-30): the legacy `accounting` bucket is still **public** and holds 5 demo/test objects (3 invoice-share PDFs, 2 logos); `public-assets` (public, image MIME types, 5 MB limit) was created. The `accounting` bucket must be flipped to private by running `scripts/migrate-storage-privacy.ts` (dry-run, `--apply`, then `--apply --finalize`) right after the release deploys; until then private uploads fail closed by design. Existing private objects keep their paths (no move needed). Tracked in the PR runbook.
 2. **Provider/cross-border EFVP:** complete the provider register with actual production regions, contracting entities, contractual safeguards, deletion/return and incident terms for Vercel/application hosting, database/storage/Supabase, Stripe, Twilio, Resend, Pusher and Intuit/QBO. The Law 25 transfer assessment cannot be marked complete from code alone.
-3. **Retention:** confirm the actual database backup retention/rotation and statutory accounting/tax retention periods, then replace the placeholders in `retention-destruction.md`.
+3. **Retention:** statutory accounting/tax retention periods still to be confirmed. Backups: the Supabase connector reports the organization on the **Free plan**, and does not expose backup/PITR settings, so backup retention is **not verified**; confirm in the dashboard (Project → Database → Backups) and upgrade the plan if production needs managed backups. Storage objects are not part of Supabase database backups.
 4. **Business identity:** confirm the legal contracting name/status and business mailing address to use in Terms/notices/invoices. Do not invent NEQ or tax-registration numbers.
 5. **Operational incident readiness:** keep the incident register accessible to the Privacy Officer and run one tabletop exercise.
 

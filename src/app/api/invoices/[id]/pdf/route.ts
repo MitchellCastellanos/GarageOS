@@ -61,8 +61,8 @@ export async function GET(
       .filter((e) => e.method === "CARD" && e.receiptPath)
       .map((e) => e.receiptPath!);
 
-    const middle = await storagePathsToParts(extraPaths);
-    const receipts = await storagePathsToParts(receiptPaths);
+    const middle = await storagePathsToParts(shopId, extraPaths);
+    const receipts = await storagePathsToParts(shopId, receiptPaths);
 
     if (middle.length > 0 || receipts.length > 0) {
       pdfBuffer = await buildInvoicePackagePdf({

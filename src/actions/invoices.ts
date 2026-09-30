@@ -40,7 +40,8 @@ import {
   buildInvoicePackagePdf,
   storagePathsToParts,
 } from "@/lib/invoice-document-package";
-import { uploadToStorage } from "@/lib/storage";
+import { uploadPrivateDocument } from "@/lib/storage";
+import { isTenantStoragePath } from "@/lib/storage-paths";
 import { syncSavedLineItems } from "@/lib/saved-line-items";
 import { formatClientName } from "@/lib/client-name";
 import { INVOICE_PENDING_FILTER, INVOICE_PENDING_STATUSES } from "@/lib/invoice-status";
@@ -199,7 +200,8 @@ function isValidPaymentStoragePath(
   invoiceNumber: string,
   path: string
 ): boolean {
-  return path.startsWith(`${shopId}/invoice-payments/${invoiceNumber}/`);
+  // isTenantStoragePath rechaza "..", "//", "%", backslash, etc. (path traversal).
+  return isTenantStoragePath(shopId, path) && path.startsWith(`${shopId}/invoice-payments/${invoiceNumber}/`);
 }
 
 // ── READ ────────────────────────────────────────────────────
@@ -631,7 +633,9 @@ export async function markInvoiceAsPaid(id: string, formData: FormData) {
 
   let extraPaths: string[] = [];
   try {
-    extraPaths = JSON.parse(String(formData.get("extraPaths") ?? "[]")) as string[];
+    const parsed: unknown = JSON.parse(String(formData.get("extraPaths") ?? "[]"));
+    if (!Array.isArray(parsed)) return { error: msg.invalidPaymentExtras };
+    extraPaths = parsed as string[];
   } catch {
     return { error: msg.invalidPaymentExtras };
   }
@@ -673,8 +677,9 @@ export async function markInvoiceAsPaid(id: string, formData: FormData) {
   const pdfInvoice = serializeInvoiceForPdf(invoice);
   const invoicePdfBuffer = await generateInvoicePdf(pdfInvoice);
 
-  const middleParts = await storagePathsToParts(extraPaths);
+  const middleParts = await storagePathsToParts(shopId, extraPaths);
   const receiptParts = await storagePathsToParts(
+    shopId,
     cardEntries.map((e) => e.receiptPath!).filter(Boolean)
   );
 
@@ -685,17 +690,16 @@ export async function markInvoiceAsPaid(id: string, formData: FormData) {
   });
 
   const packageFileName = `${invoice.invoiceNumber}-completo.pdf`;
-  let pdfUrl: string | undefined;
   try {
-    const stored = await uploadToStorage(
+    const stored = await uploadPrivateDocument(
       shopId,
       `paid-invoices/${invoice.invoiceNumber}`,
       packageFileName,
       packagePdf,
       "application/pdf"
     );
-    pdfUrl = stored.publicUrl;
-    await db.invoice.update({ where: { id }, data: { pdfUrl } });
+    // pdfUrl guarda el storagePath PRIVADO (nombre de columna heredado), nunca una URL.
+    await db.invoice.update({ where: { id }, data: { pdfUrl: stored.storagePath } });
   } catch (err) {
     console.error("Guardar paquete PDF factura:", err);
   }
@@ -959,17 +963,6 @@ export async function refundInvoice(id: string, input: RefundInput) {
   revalidatePath(ADMIN.accounting);
   revalidatePath(ADMIN.caja);
   return outcome;
-}
-
-// ── Guardar URL del PDF generado ───────────────────────────
-
-export async function savePdfUrl(id: string, pdfUrl: string) {
-  const shopId = await getWritableShopId("invoices.write");
-  await db.invoice.updateMany({
-    where: { id, shopId },
-    data: { pdfUrl },
-  });
-  revalidatePath(`/invoices/${id}`);
 }
 
 // ── UPDATE ──────────────────────────────────────────────────

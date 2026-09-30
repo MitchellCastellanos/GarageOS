@@ -16,7 +16,7 @@ import {
 import { INVOICE_STATUS_BADGE, invoiceStatusLabel, isInvoicePending } from "@/lib/invoice-status";
 import { labelPaymentEntries } from "@/lib/invoice-payments";
 import { cashDrawerEntryTypeLabel } from "@/lib/cash-drawer";
-import { publicUrlForStoragePath } from "@/lib/storage";
+import { trySignedUrlForPrivateDocument } from "@/lib/storage";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import { INVOICES_DICT } from "@/lib/admin-locale/invoices";
 
@@ -54,20 +54,21 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
     ? (t.detail.paymentModeLabels[invoice.paymentMode as "CARD" | "CASH" | "MIXED"] ?? null)
     : null;
 
-  const paymentReceipts: PaymentReceiptView[] = invoice.paymentEntries
+  // Comprobantes privados: URL firmada temporal tras cargar la factura del propio taller.
+  const paymentReceipts: PaymentReceiptView[] = await Promise.all(invoice.paymentEntries
     .map((entry, i) => ({ entry, i }))
     .filter(({ entry }) => entry.method === "CARD" && entry.receiptPath)
-    .map(({ entry, i }) => {
+    .map(async ({ entry, i }) => {
       const fileName = entry.receiptPath!.split("/").pop() ?? t.detail.receiptFallbackName;
       const isImage = /\.(jpe?g|png|webp)$/i.test(fileName);
       return {
         id: entry.id,
         label: `${paymentLabels[i]} · ${formatCurrency(Number(entry.amount))}`,
-        url: publicUrlForStoragePath(entry.receiptPath!),
+        url: (await trySignedUrlForPrivateDocument(invoice.shopId, entry.receiptPath!)) ?? "",
         fileName,
         isImage,
       };
-    });
+    }));
 
   return (
     <div className="max-w-4xl space-y-6">
