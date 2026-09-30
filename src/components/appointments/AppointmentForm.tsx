@@ -1,8 +1,9 @@
 "use client";
 
+import type { z } from "zod";
 import { ADMIN } from "@/lib/routes";
 
-import { useForm } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTransition } from "react";
 import {
@@ -63,8 +64,12 @@ export function AppointmentForm({
     watch,
     setError,
     formState: { errors },
-  } = useForm<AppointmentEditFormData>({
-    resolver: zodResolver(isEdit ? appointmentEditSchema : appointmentSchema),
+  } = useForm<z.input<typeof appointmentEditSchema>, unknown, AppointmentEditFormData>({
+    resolver: zodResolver(isEdit ? appointmentEditSchema : appointmentSchema) as unknown as Resolver<
+      z.input<typeof appointmentEditSchema>,
+      unknown,
+      AppointmentEditFormData
+    >,
     defaultValues: {
       clientId: "",
       vehicleId: "",
@@ -94,7 +99,7 @@ export function AppointmentForm({
         }
         for (const [field, messages] of Object.entries(result.error)) {
           if (field === "_form") continue;
-          setError(field as keyof AppointmentEditFormData, { message: messages[0] });
+          setError(field as keyof z.input<typeof appointmentEditSchema>, { message: messages[0] });
         }
       }
     });

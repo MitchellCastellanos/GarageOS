@@ -146,6 +146,7 @@ export function PublicBookingForm({ slug, shop, services }: PublicBookingFormPro
   // servicio) una vez que hay un servicio resuelto.
   useEffect(() => {
     if (!hasService) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset the picked date when the service changes
     setSelectedDate("");
     setSelectedTime("");
     setLoadingDates(true);
@@ -181,6 +182,7 @@ export function PublicBookingForm({ slug, shop, services }: PublicBookingFormPro
 
   useEffect(() => {
     if (!selectedDate) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset the picked time when the date/service changes
     setSelectedTime("");
     loadSlotsFor(selectedDate);
     // eslint-disable-next-line react-hooks/exhaustive-deps

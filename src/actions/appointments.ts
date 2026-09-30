@@ -5,6 +5,7 @@ import { ADMIN } from "@/lib/routes";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
+import { findForeignRef } from "@/lib/ownership";
 import { Prisma } from "@prisma/client";
 import { isTransactionConflictError } from "@/lib/db-errors";
 import { getShopId, getWritableShopId } from "@/lib/shop-context";
@@ -267,6 +268,9 @@ export async function createAppointment(formData: AppointmentFormData) {
   const { clientId, vehicleId, mechanicId, title, date, time, durationMinutes, notes } =
     parsed.data;
 
+  const foreign = await findForeignRef(shopId, { clientId, vehicleId, mechanicId });
+  if (foreign) return { error: { _form: [APPOINTMENT_NOT_FOUND[locale]] } };
+
   const startsAt = parseStartsAt(date, time, timeZone);
   const endsAt = new Date(startsAt.getTime() + durationMinutes * 60_000);
 
@@ -350,6 +354,9 @@ export async function updateAppointment(id: string, formData: AppointmentEditFor
 
   const { clientId, vehicleId, mechanicId, title, date, time, durationMinutes, notes, status } =
     parsed.data;
+
+  const foreign = await findForeignRef(shopId, { clientId, vehicleId, mechanicId });
+  if (foreign) return { error: { _form: [APPOINTMENT_NOT_FOUND[locale]] } };
 
   const startsAt = parseStartsAt(date, time, timeZone);
   const endsAt = new Date(startsAt.getTime() + durationMinutes * 60_000);

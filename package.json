@@ -20,7 +20,8 @@
     "db:studio": "prisma studio",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
-    "check": "npm run db:validate && npm run db:generate && npm run typecheck && npm test"
+    "check": "npm run db:validate && npm run db:generate && npm run typecheck && npm test",
+    "test:integration": "GARAGEOS_INTEGRATION_DB=1 tsx --test --test-concurrency=1 tests/integration/*.test.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",

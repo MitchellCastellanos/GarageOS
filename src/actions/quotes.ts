@@ -5,6 +5,7 @@ import { ADMIN, PLATFORM, adminPath } from "@/lib/routes";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
+import { findForeignRef, findForeignDocumentRefs, foreignRefMessage } from "@/lib/ownership";
 import { getShopId, getWritableShopId } from "@/lib/shop-context";
 import { quoteSchema, type QuoteFormData } from "@/lib/validations";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -20,7 +21,7 @@ import { sendQuoteEmail } from "@/lib/email";
 import { shopToEmailConfig } from "@/lib/email-config";
 import { getPublicBookingUrl } from "@/lib/shop-slug";
 import { parseEmailAttachments } from "@/lib/email-attachments";
-import { syncSavedLineItems } from "@/actions/line-items";
+import { syncSavedLineItems } from "@/lib/saved-line-items";
 import { formatClientName } from "@/lib/client-name";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import type { AdminLocale } from "@/lib/admin-locale";
@@ -151,6 +152,9 @@ export async function createQuote(formData: QuoteFormData) {
   const { clientId, vehicles, language, notes, dueAt } = parsed.data;
   const taxRate = parsed.data.taxRate;
 
+  const foreignRef = await findForeignDocumentRefs(shopId, clientId, vehicles.map((v) => v.vehicleId));
+  if (foreignRef) return { error: { _form: [foreignRefMessage(await getAdminLocale(), foreignRef)] } };
+
   const allLineItems = vehicles.flatMap((v) => v.lineItems);
   const subtotal = allLineItems.reduce((sum, item) => {
     return sum.plus(new Decimal(item.quantity).times(item.unitPrice));
@@ -225,6 +229,9 @@ export async function updateQuote(id: string, formData: QuoteFormData) {
 
   const { clientId, vehicles, language, notes, dueAt } = parsed.data;
   const taxRate = parsed.data.taxRate;
+
+  const foreignRef = await findForeignDocumentRefs(shopId, clientId, vehicles.map((v) => v.vehicleId));
+  if (foreignRef) return { error: { _form: [foreignRefMessage(locale, foreignRef)] } };
 
   const allLineItems = vehicles.flatMap((v) => v.lineItems);
   const subtotal = allLineItems.reduce((sum, item) => {

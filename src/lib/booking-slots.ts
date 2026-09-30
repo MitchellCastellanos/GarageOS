@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { getEffectiveSubscription } from "@/lib/subscription";
 import {
   formatShopDate,
   getShopDayOfWeek,
@@ -49,10 +50,17 @@ function overlaps(
 }
 
 export async function getShopBySlug(slug: string) {
-  return db.shop.findUnique({
+  const shop = await db.shop.findUnique({
     where: { slug },
     include: { workingHours: { orderBy: { dayOfWeek: "asc" } } },
   });
+  if (!shop) return shop;
+  // Block 15: a shop without a paying/trialing subscription (RESTRICTED / no plan chosen) does not
+  // take new online bookings — creating customers/appointments is an operational write.
+  if (shop.bookingEnabled && !(await getEffectiveSubscription(shop.id)).canWrite) {
+    return { ...shop, bookingEnabled: false };
+  }
+  return shop;
 }
 
 export interface ShopServiceCatalogRow {

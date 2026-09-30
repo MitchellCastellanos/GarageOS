@@ -1,5 +1,6 @@
 "use client";
 
+import type { z } from "zod";
 import { useForm, useFieldArray, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTransition, useMemo } from "react";
@@ -87,7 +88,7 @@ export function WorkOrderForm({
     setValue,
     setError,
     formState: { errors },
-  } = useForm<WorkOrderFormData>({
+  } = useForm<z.input<typeof workOrderSchema>, unknown, WorkOrderFormData>({
     resolver: zodResolver(workOrderSchema),
     defaultValues: {
       clientId: "",
@@ -131,7 +132,7 @@ export function WorkOrderForm({
       const result = await onSubmit(data);
       if (result?.error) {
         for (const [field, messages] of Object.entries(result.error)) {
-          setError(field as keyof WorkOrderFormData, { message: messages[0] });
+          setError(field as keyof z.input<typeof workOrderSchema>, { message: messages[0] });
         }
       }
     });
@@ -280,7 +281,7 @@ export function WorkOrderForm({
                     name={`lineItems.${index}.description` as const}
                     render={({ field }) => (
                       <LineItemDescriptionInput
-                        value={field.value}
+                        value={field.value ?? ""}
                         onChange={field.onChange}
                         onSelectSuggestion={(s) => {
                           field.onChange(s.description);

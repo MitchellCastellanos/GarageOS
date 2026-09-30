@@ -9,9 +9,10 @@ import { requireShopSession } from "@/lib/permissions";
 import { getShopId, getWritableShopId } from "@/lib/shop-context";
 import { canView, checkEntitlement } from "@/lib/subscription";
 import { tireStorageSchema, type TireStorageFormData } from "@/lib/validations";
-import { normalizeLocation, normalizeTireSize } from "@/domain/tire-storage";
+import { normalizeLocation, normalizeTireSize, parsePickupDate } from "@/domain/tire-storage";
+import { notifyTireStorageCustomer } from "@/lib/tire-storage-notify";
 
-export type TireActionError = "INVALID_SIZE" | "CLIENT_NOT_FOUND" | "VEHICLE_MISMATCH" | "NOT_FOUND" | "INVALID_STATE";
+export type TireActionError = "INVALID_DATE" | "NO_CONTACT" | "NOTIFY_FAILED" | "INVALID_SIZE" | "CLIENT_NOT_FOUND" | "VEHICLE_MISMATCH" | "NOT_FOUND" | "INVALID_STATE";
 
 // ── READ (solo si el plan incluye Tire Storage; un taller restringido conserva la vista) ──
 
@@ -113,7 +114,9 @@ function parseForm(formData: TireStorageFormData) {
   if (!parsed.success) return { fieldErrors: parsed.error.flatten().fieldErrors as Record<string, string[]> };
   const size = normalizeTireSize(parsed.data.size);
   if (!size) return { fieldErrors: { size: ["INVALID_SIZE"] } as Record<string, string[]> };
-  return { data: { ...parsed.data, size } };
+  const pickup = parsePickupDate(parsed.data.expectedPickupDate);
+  if (pickup.invalid) return { fieldErrors: { expectedPickupDate: ["INVALID_DATE"] } as Record<string, string[]> };
+  return { data: { ...parsed.data, size, pickupYmd: pickup.ymd } };
 }
 
 export async function createTireSet(formData: TireStorageFormData) {
@@ -145,6 +148,7 @@ export async function createTireSet(formData: TireStorageFormData) {
         withRims: d.withRims,
         storageLocation: location,
         notes: d.notes?.trim() || null,
+        expectedPickupDate: d.pickupYmd ? new Date(`${d.pickupYmd}T00:00:00.000Z`) : null,
         status: "STORED",
       },
     });
@@ -153,6 +157,13 @@ export async function createTireSet(formData: TireStorageFormData) {
     });
     return created;
   });
+
+  // Customer confirmation (idempotent per check-in). A messaging problem never undoes the check-in.
+  if (d.notifyCustomer !== false) {
+    await notifyTireStorageCustomer({ shopId, setId: set.id, kind: "CHECK_IN", userId: session.user.id }).catch((err) =>
+      console.error("[tire-storage] confirmación de entrada falló:", err)
+    );
+  }
 
   revalidatePath(ADMIN.tireStorage);
   redirect(adminPath(`/tire-storage/${set.id}`));
@@ -169,9 +180,14 @@ export async function updateTireSet(id: string, formData: TireStorageFormData) {
   const ownership = await resolveOwnership(shopId, d.clientId, d.vehicleId || null);
   if (ownership) return { error: { _form: [ownership] } };
 
+  const previous = await db.tireStorageSet.findFirst({ where: { id, shopId }, select: { expectedPickupDate: true } });
+  const nextPickup = d.pickupYmd ? new Date(`${d.pickupYmd}T00:00:00.000Z`) : null;
+  const pickupChanged = (previous?.expectedPickupDate?.getTime() ?? null) !== (nextPickup?.getTime() ?? null);
   const res = await db.tireStorageSet.updateMany({
     where: { id, shopId },
     data: {
+      // A new expected date is a new reminder schedule.
+      ...(pickupChanged ? { expectedPickupDate: nextPickup, pickupReminder14SentAt: null, pickupReminder3SentAt: null } : {}),
       clientId: d.clientId,
       vehicleId: d.vehicleId || null,
       season: d.season,
@@ -196,7 +212,7 @@ interface TransitionResult {
 }
 
 /** Salida del taller (el cliente se lleva las llantas). Solo desde STORED; atómico contra doble clic. */
-export async function checkOutTireSet(id: string, note?: string): Promise<TransitionResult> {
+export async function checkOutTireSet(id: string, note?: string, notifyCustomer = false): Promise<TransitionResult> {
   const shopId = await getWritableShopId();
   const session = await requireShopSession();
   const entitlementError = await checkEntitlement(shopId, "tireStorage.manage");
@@ -219,13 +235,19 @@ export async function checkOutTireSet(id: string, note?: string): Promise<Transi
   });
   if (outcome) return { ok: false, error: outcome };
 
+  if (notifyCustomer) {
+    await notifyTireStorageCustomer({ shopId, setId: id, kind: "CHECK_OUT", userId: session.user.id }).catch((err) =>
+      console.error("[tire-storage] confirmación de salida falló:", err)
+    );
+  }
+
   revalidatePath(ADMIN.tireStorage);
   revalidatePath(adminPath(`/tire-storage/${id}`));
   return { ok: true };
 }
 
 /** Volver a guardar un juego que había salido (p. ej. cambio de temporada). Solo desde CHECKED_OUT. */
-export async function checkInTireSet(id: string, location?: string): Promise<TransitionResult> {
+export async function checkInTireSet(id: string, location?: string, notifyCustomer = true): Promise<TransitionResult> {
   const shopId = await getWritableShopId();
   const session = await requireShopSession();
   const entitlementError = await checkEntitlement(shopId, "tireStorage.manage");
@@ -248,6 +270,14 @@ export async function checkInTireSet(id: string, location?: string): Promise<Tra
     return null;
   });
   if (outcome) return { ok: false, error: outcome };
+
+  // A re-check-in is a new storage period: reset the reminder schedule and confirm to the customer.
+  await db.tireStorageSet.updateMany({ where: { id, shopId }, data: { checkInNotifiedAt: null, pickupReminder14SentAt: null, pickupReminder3SentAt: null } });
+  if (notifyCustomer) {
+    await notifyTireStorageCustomer({ shopId, setId: id, kind: "CHECK_IN", userId: session.user.id }).catch((err) =>
+      console.error("[tire-storage] confirmación de entrada falló:", err)
+    );
+  }
 
   revalidatePath(ADMIN.tireStorage);
   revalidatePath(adminPath(`/tire-storage/${id}`));
@@ -282,4 +312,21 @@ export async function moveTireSet(id: string, location: string): Promise<Transit
   revalidatePath(ADMIN.tireStorage);
   revalidatePath(adminPath(`/tire-storage/${id}`));
   return { ok: true };
+}
+
+/** Manual "Notify customer": same pipeline (SMS first, email fallback), same allowance/history. */
+export async function notifyTireSetCustomer(id: string): Promise<TransitionResult> {
+  const shopId = await getWritableShopId();
+  const session = await requireShopSession();
+  const entitlementError = await checkEntitlement(shopId, "tireStorage.manage");
+  if (entitlementError) return { ok: false, error: "INVALID_STATE" };
+
+  const set = await db.tireStorageSet.findFirst({ where: { id, shopId }, select: { status: true } });
+  if (!set) return { ok: false, error: "NOT_FOUND" };
+  if (set.status !== "STORED") return { ok: false, error: "INVALID_STATE" };
+
+  const res = await notifyTireStorageCustomer({ shopId, setId: id, kind: "MANUAL", userId: session.user.id });
+  revalidatePath(adminPath(`/tire-storage/${id}`));
+  if (res.delivered) return { ok: true };
+  return { ok: false, error: res.reason === "NO_CONTACT" ? "NO_CONTACT" : res.reason === "NOT_FOUND" ? "NOT_FOUND" : "NOTIFY_FAILED" };
 }

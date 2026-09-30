@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { setSession, NotFoundError, RedirectError } from "./helpers/action-harness";
-import { mockSubscription, patchDb } from "./helpers/db-mock";
+import { allowOwnership, mockSubscription, patchDb } from "./helpers/db-mock";
 
 const insp = await import("../src/actions/inspections");
 const tpl = await import("../src/actions/inspection-templates");
@@ -16,6 +16,7 @@ function common(t: import("node:test").TestContext) {
 
 test("Core keeps the standard DVI: default checklist, no template allowed", async (t) => {
   owner();
+  allowOwnership(t);
   common(t);
   mockSubscription(t, "CORE");
   const create = patchDb(t, "inspection", "create", async () => ({ id: "i1" }));
@@ -34,6 +35,7 @@ test("Core keeps the standard DVI: default checklist, no template allowed", asyn
 
 test("Pro: template replaces the checklist; templates of other shops are not usable", async (t) => {
   owner();
+  allowOwnership(t);
   common(t);
   mockSubscription(t, "PRO");
   const create = patchDb(t, "inspection", "create", async () => ({ id: "i2" }));

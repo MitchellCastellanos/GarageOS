@@ -33,6 +33,7 @@ export default async function EditTireSetPage({ params }: Props) {
           condition: set.condition,
           withRims: set.withRims,
           storageLocation: set.storageLocation ?? "",
+          expectedPickupDate: set.expectedPickupDate ? set.expectedPickupDate.toISOString().slice(0, 10) : "",
           notes: set.notes ?? "",
         }}
         onSubmit={async (data: TireStorageFormData) => {

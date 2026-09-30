@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
 import { TIRE_STORAGE_DICT } from "@/lib/admin-locale/tire-storage";
-import { checkInTireSet, checkOutTireSet, moveTireSet } from "@/actions/tire-storage";
+import { checkInTireSet, checkOutTireSet, moveTireSet, notifyTireSetCustomer } from "@/actions/tire-storage";
 
 const field = "px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
 const btn = "text-sm font-medium px-3 py-2 rounded-lg disabled:opacity-50";
@@ -15,6 +15,7 @@ export function TireSetActions({ id, status, location }: { id: string; status: "
   const [pending, startTransition] = useTransition();
   const [note, setNote] = useState("");
   const [loc, setLoc] = useState(location ?? "");
+  const [notifyOut, setNotifyOut] = useState(true);
 
   function run(fn: () => Promise<{ ok: boolean; error?: string }>, okMsg: string) {
     startTransition(async () => {
@@ -32,9 +33,22 @@ export function TireSetActions({ id, status, location }: { id: string; status: "
           <button
             className={`${btn} bg-blue-600 hover:bg-blue-700 text-white`}
             disabled={pending}
-            onClick={() => window.confirm(t.detail.confirmCheckOut) && run(() => checkOutTireSet(id, note), t.toast.checkedOut)}
+            onClick={() => window.confirm(t.detail.confirmCheckOut) && run(() => checkOutTireSet(id, note, notifyOut), t.toast.checkedOut)}
           >
             {t.detail.checkOut}
+          </button>
+          <label className="flex items-center gap-2 text-xs text-slate-600 w-full sm:w-auto">
+            <input type="checkbox" checked={notifyOut} onChange={(e) => setNotifyOut(e.target.checked)} />
+            {t.detail.notifyOnCheckOut}
+          </label>
+        </div>
+        <div>
+          <button
+            className={`${btn} border border-slate-300 text-slate-700`}
+            disabled={pending}
+            onClick={() => window.confirm(t.detail.confirmNotify) && run(() => notifyTireSetCustomer(id), t.toast.notified)}
+          >
+            {t.detail.notifyCustomer}
           </button>
         </div>
         <div className="flex flex-wrap gap-2 items-center">

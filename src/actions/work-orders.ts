@@ -6,11 +6,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { WorkOrderStatus, JobStatus } from "@prisma/client";
 import { db } from "@/lib/db";
+import { findForeignRef, findForeignDocumentRefs, foreignRefMessage } from "@/lib/ownership";
 import { getShopId, getWritableShopId } from "@/lib/shop-context";
 import { workOrderSchema, type WorkOrderFormData } from "@/lib/validations";
 import { allocateNextInvoiceNumber, allocateNextWorkOrderNumber } from "@/lib/invoice-number";
 import { computeDocumentTax } from "@/lib/fiscal";
-import { syncSavedLineItems } from "@/actions/line-items";
+import { syncSavedLineItems } from "@/lib/saved-line-items";
 import { canTransitionWorkOrder } from "@/domain/work-order";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import type { AdminLocale } from "@/lib/admin-locale";
@@ -173,6 +174,9 @@ export async function createWorkOrder(formData: WorkOrderFormData) {
   const { clientId, vehicleId, mechanicId, concern, diagnosis, mileageIn, mileageOut, lineItems } =
     parsed.data;
 
+  const foreignRef = await findForeignRef(shopId, { clientId, vehicleId, mechanicId });
+  if (foreignRef) return { error: { _form: [foreignRefMessage(await getAdminLocale(), foreignRef)] } };
+
   // Consumo automático de inventario: Pro+ (server-side; ocultar el selector no cuenta).
   if (lineItems.some((l) => l.partId)) {
     const entitlementError = await checkEntitlement(shopId, "inventory.manage");
@@ -254,7 +258,9 @@ export async function createWorkOrdersFromQuote(quoteId: string) {
           vehicleId: qv.vehicleId,
           quoteId: quote.id,
           orderNumber,
-          status: "OPEN",
+          // The customer already approved this exact estimate (hash-bound approval): the job starts APPROVED
+          // instead of forcing staff through two pointless status clicks.
+          status: "APPROVED",
           concern: quote.notes?.trim() || `Quote ${quote.quoteNumber}`,
           mileageIn: qv.mileageIn,
           mileageOut: qv.mileageOut,
@@ -306,6 +312,9 @@ export async function updateWorkOrder(id: string, formData: WorkOrderFormData) {
 
   const { clientId, vehicleId, mechanicId, concern, diagnosis, mileageIn, mileageOut, lineItems } =
     parsed.data;
+
+  const foreignRef = await findForeignRef(shopId, { clientId, vehicleId, mechanicId });
+  if (foreignRef) return { error: { _form: [foreignRefMessage(locale, foreignRef)] } };
 
   // Igual que en la creación: usar piezas de inventario es Pro+. Editar una orden que ya tenía
   // piezas sin agregar nuevas sigue permitido (el ledger debe seguir cuadrando).

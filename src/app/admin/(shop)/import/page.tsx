@@ -23,7 +23,6 @@ export default async function ImportPage() {
         <p className="text-slate-500 text-sm mt-1">{t.subtitle}</p>
       </div>
       <ImportWizard
-        t={t}
         fullImport={full}
         basicMaxRows={IMPORT_LIMITS.basicMaxRows}
         recentRuns={runs.map((r) => ({

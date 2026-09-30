@@ -45,6 +45,9 @@ type Strings = {
   itemTypes: Record<string, string>;
   statuses: Record<string, string>;
   paidWatermark: string;
+  refundedWatermark: string;
+  refundedLine: (date: string) => string;
+  netPaid: string;
   months: string[];
   mail: {
     preview: (num: string, shop: string) => string;
@@ -110,6 +113,7 @@ const EN: Strings = {
     DRAFT: "PENDING",
     SENT: "PENDING",
     PAID: "PAID",
+    REFUNDED: "REFUNDED",
     OVERDUE: "OVERDUE",
     CANCELLED: "CANCELLED",
     ACCEPTED: "ACCEPTED",
@@ -118,6 +122,9 @@ const EN: Strings = {
     CONVERTED: "CONVERTED",
   },
   paidWatermark: "PAID",
+  refundedWatermark: "REFUNDED",
+  refundedLine: (date) => `Refunded ${date}`,
+  netPaid: "NET PAID",
   months: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
   mail: {
     preview: (num, shop) => `Invoice ${num} from ${shop}`,
@@ -184,6 +191,7 @@ const FR: Strings = {
     DRAFT: "EN ATTENTE",
     SENT: "EN ATTENTE",
     PAID: "PAYÉE",
+    REFUNDED: "REMBOURSÉE",
     OVERDUE: "EN RETARD",
     CANCELLED: "ANNULÉE",
     ACCEPTED: "ACCEPTÉE",
@@ -192,6 +200,9 @@ const FR: Strings = {
     CONVERTED: "CONVERTIE",
   },
   paidWatermark: "PAYÉ",
+  refundedWatermark: "REMBOURSÉ",
+  refundedLine: (date) => `Remboursé le ${date}`,
+  netPaid: "NET PAYÉ",
   months: ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."],
   mail: {
     preview: (num, shop) => `Facture ${num} de ${shop}`,

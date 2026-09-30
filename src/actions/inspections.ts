@@ -5,6 +5,7 @@ import { ADMIN } from "@/lib/routes";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
+import { findForeignRef, findForeignDocumentRefs, foreignRefMessage } from "@/lib/ownership";
 import { getShopId, getWritableShopId } from "@/lib/shop-context";
 import {
   newInspectionSchema,
@@ -15,6 +16,7 @@ import { INSPECTION_CHECKLIST_CATEGORIES, isFinding } from "@/domain/inspection"
 import { allocateNextQuoteNumber } from "@/lib/invoice-number";
 import { computeDocumentTax } from "@/lib/fiscal";
 import { uploadToStorage } from "@/lib/storage";
+import { isAllowedPhotoType } from "@/lib/upload-policy";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import type { AdminLocale } from "@/lib/admin-locale";
 import { INSPECTIONS_DICT } from "@/lib/admin-locale/inspections";
@@ -138,6 +140,13 @@ export async function createInspection(formData: NewInspectionFormData) {
 
   const { clientId, vehicleId, workOrderId, mechanicId, mileage, templateId } = parsed.data;
 
+  const foreignRef = await findForeignRef(shopId, { clientId, vehicleId, mechanicId });
+  if (foreignRef) return { error: { vehicleId: [foreignRefMessage(await getAdminLocale(), foreignRef)] } };
+  if (workOrderId) {
+    const wo = await db.workOrder.findFirst({ where: { id: workOrderId, shopId, vehicleId }, select: { id: true } });
+    if (!wo) return { error: { workOrderId: [INSPECTION_NOT_FOUND[await getAdminLocale()]] } };
+  }
+
   // Plantilla personalizada = DVI avanzado (Pro+); sin templateId, checklist estándar para todos.
   let checklist: readonly string[] = INSPECTION_CHECKLIST_CATEGORIES;
   if (templateId) {
@@ -259,6 +268,7 @@ export async function uploadInspectionPhoto(itemId: string, formData: FormData) 
   const file = formData.get("file") as File | null;
   if (!file) return { error: UPLOAD_ERROR[locale] };
   if (file.size > MAX_PHOTO_SIZE) return { error: FILE_TOO_LARGE[locale] };
+  if (!isAllowedPhotoType(file.type)) return { error: UPLOAD_ERROR[locale] };
 
   const buffer = Buffer.from(await file.arrayBuffer());
 

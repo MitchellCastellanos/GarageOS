@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Upload, Lock } from "lucide-react";
 import { ADMIN } from "@/lib/routes";
 import { toCsv, type ImportEntity } from "@/domain/import";
-import type { ImportDictionary } from "@/lib/admin-locale/import";
+import { IMPORT_DICT, type ImportDictionary } from "@/lib/admin-locale/import";
 import {
   commitImportAction,
   previewImportAction,
@@ -27,7 +27,6 @@ interface RecentRun {
 }
 
 interface Props {
-  t: ImportDictionary;
   fullImport: boolean;
   basicMaxRows: number;
   recentRuns: RecentRun[];
@@ -37,7 +36,10 @@ interface Props {
 const inputCls = "px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
 const btnCls = "bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors";
 
-export function ImportWizard({ t, fullImport, basicMaxRows, recentRuns, locale }: Props) {
+export function ImportWizard({ fullImport, basicMaxRows, recentRuns, locale }: Props) {
+  // The dictionary holds functions (plural/limit formatters), which cannot cross the server -> client
+  // boundary as props — so the client resolves it from the locale itself.
+  const t = IMPORT_DICT[locale as keyof typeof IMPORT_DICT] ?? IMPORT_DICT.en;
   const [entity, setEntity] = useState<ImportEntity>("customers");
   const [file, setFile] = useState<File | null>(null);
   const [analysis, setAnalysis] = useState<ImportAnalysis | null>(null);

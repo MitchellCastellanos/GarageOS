@@ -2,6 +2,7 @@ import NextAuth, { type NextAuthConfig, customFetch } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
+import { RATE_LIMITS, checkRateLimit, resetRateLimit } from "@/lib/rate-limit";
 import { db } from "@/lib/db";
 import { provisionDefaultSenderIdentities } from "@/lib/communications/sender-identity";
 import { createPendingSubscription } from "@/lib/subscription";
@@ -154,6 +155,11 @@ export const authConfig: NextAuthConfig = {
 
           if (!email || !password) return null;
 
+          // Per-account brute-force throttle (Block 15). This is the real gate: /api/auth/callback/credentials
+          // reaches authorize() directly, bypassing /api/auth/login.
+          const emailRule = RATE_LIMITS.loginEmail(email);
+          if (!(await checkRateLimit(emailRule)).allowed) return null;
+
           const user = await db.user.findUnique({
             where: { email },
             select: {
@@ -179,6 +185,8 @@ export const authConfig: NextAuthConfig = {
           // bloquea — ver src/app/api/auth/login/route.ts para el mensaje
           // amigable que precede a este bloqueo real.
           if (user.role === "OWNER" && !user.emailVerified) return null;
+
+          await resetRateLimit(emailRule);
 
           return {
             id: user.id,

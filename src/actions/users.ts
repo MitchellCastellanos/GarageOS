@@ -9,6 +9,7 @@ import { canAddUser, checkEntitlement } from "@/lib/subscription";
 import { isRole, sanitizeOverrides } from "@/domain/permissions";
 import { sendVerificationEmail } from "@/lib/email-verification";
 import bcrypt from "bcryptjs";
+import { RATE_LIMITS, checkRateLimit } from "@/lib/rate-limit";
 import { z } from "zod";
 
 const roleSchema = z.enum(["OWNER", "MECHANIC", "VIEWER"]);
@@ -235,6 +236,8 @@ export async function deleteTeamMember(userId: string) {
  */
 export async function resendVerificationEmailPublic(email: string) {
   const trimmed = email.trim().toLowerCase();
+  // Same answer whether or not we send (no enumeration) and capped per address (no email bombing).
+  if (!(await checkRateLimit(RATE_LIMITS.verifyResend(trimmed))).allowed) return { success: true };
   const user = await db.user.findUnique({
     where: { email: trimmed },
     select: { name: true, emailVerified: true },
@@ -255,6 +258,7 @@ export async function resendMyVerificationEmail() {
   });
   if (!user) return { error: "User not found" };
   if (user.emailVerified) return { error: "This email is already confirmed" };
+  if (!(await checkRateLimit(RATE_LIMITS.verifyResend(user.email))).allowed) return { error: "Too many requests. Try again later." };
 
   await sendVerificationEmail({ email: user.email, name: user.name });
   return { success: true };
@@ -270,6 +274,7 @@ export async function resendTeamMemberVerification(userId: string) {
   });
   if (!target) return { error: "User not found" };
   if (target.emailVerified) return { error: "This email is already confirmed" };
+  if (!(await checkRateLimit(RATE_LIMITS.verifyResend(target.email))).allowed) return { error: "Too many requests. Try again later." };
 
   await sendVerificationEmail({ email: target.email, name: target.name });
   return { success: true };

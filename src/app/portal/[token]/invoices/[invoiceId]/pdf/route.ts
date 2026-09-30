@@ -10,7 +10,10 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(_request: Request, { params }: { params: Promise<{ token: string; invoiceId: string }> }) {
   const { token, invoiceId } = await params;
-  const resolved = await resolvePortalAccess(token);
+  const resolved = await resolvePortalAccess(token, new Date(), "pdf");
+  if (!resolved.ok && resolved.reason === "RATE_LIMITED") {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429, headers: { "Retry-After": "60" } });
+  }
   if (!resolved.ok) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const invoice = await getPortalInvoice(resolved.access, invoiceId);
   if (!invoice) return NextResponse.json({ error: "Not found" }, { status: 404 });

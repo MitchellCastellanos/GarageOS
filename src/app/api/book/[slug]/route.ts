@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
+import { RATE_LIMITS, checkRateLimit, clientIpFromHeaders } from "@/lib/rate-limit";
 import { isTransactionConflictError } from "@/lib/db-errors";
 import { findAvailableMechanic, getShopBySlug, getShopServiceDurations } from "@/lib/booking-slots";
 import { resolveServiceDuration } from "@/lib/service-catalog";
@@ -21,6 +22,10 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
+  const ip = clientIpFromHeaders(req.headers);
+  if (!(await checkRateLimit(RATE_LIMITS.bookingSubmitIp(ip))).allowed) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429, headers: { "Retry-After": "60" } });
+  }
   const { slug } = await params;
   const shop = await getShopBySlug(slug);
 

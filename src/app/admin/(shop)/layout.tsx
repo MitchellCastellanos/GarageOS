@@ -10,7 +10,7 @@ import { AdminLocaleProvider } from "@/components/admin/AdminLocaleProvider";
 import { getAccessibleShops } from "@/actions/locations";
 import { getOrganizationAdminContext } from "@/lib/organization";
 import { canView, getEffectiveSubscription } from "@/lib/subscription";
-import { hasUnreadSupportMessage } from "@/actions/support";
+import { hasUnreadSupportMessage } from "@/lib/support-unread";
 import { hasUnreadInboxThreads } from "@/lib/communications/inbox";
 import { getMyStaffNotifications } from "@/actions/staff-notifications";
 import { ImpersonationBanner } from "@/components/admin/ImpersonationBanner";

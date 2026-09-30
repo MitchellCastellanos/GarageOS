@@ -53,6 +53,7 @@ export default async function TireSetDetailPage({ params }: Props) {
         <Info label={t.detail.location} value={set.storageLocation ?? t.detail.noLocation} mono={!!set.storageLocation} />
         <Info label={t.table.status} value={t.status[set.status]} />
         <Info label={t.detail.checkedInOn} value={formatDate(set.checkedInAt)} />
+        {stored && <Info label={t.detail.expectedPickup} value={set.expectedPickupDate ? `${set.expectedPickupDate.toISOString().slice(0, 10)} · ${t.detail.remindersOn}` : t.detail.noExpectedPickup} />}
         {set.checkedOutAt && <Info label={t.detail.checkedOutOn} value={formatDate(set.checkedOutAt)} />}
         {set.notes && <div className="sm:col-span-2"><Info label={t.form.notes} value={set.notes} /></div>}
       </div>

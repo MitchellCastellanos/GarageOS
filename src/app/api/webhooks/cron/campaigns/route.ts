@@ -1,5 +1,6 @@
-import { createOperatingChecker } from "@/lib/subscription";
+import { can, createOperatingChecker } from "@/lib/subscription";
 import { NextResponse } from "next/server";
+import { isAuthorizedCronRequest } from "@/lib/cron-auth";
 import { db } from "@/lib/db";
 import { isSuppressed } from "@/lib/communications/suppression";
 import { sendCampaignEmail } from "@/lib/communications/campaigns";
@@ -20,8 +21,7 @@ const BATCH_SIZE_PER_CAMPAIGN = 25;
 const GLOBAL_RECIPIENT_LIMIT_PER_RUN = 150;
 
 export async function GET(request: Request) {
-  const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!isAuthorizedCronRequest(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -49,6 +49,8 @@ export async function GET(request: Request) {
 
     // Taller restringido (sin pago vigente): la campaña queda en pausa, no se borra.
     if (!(await canOperate(shop.id))) continue;
+    // A shop that dropped below Pro after scheduling must not keep sending campaigns.
+    if (!(await can(shop.id, "communications.campaigns"))) continue;
 
     results.campaignsProcessed++;
 
@@ -86,6 +88,7 @@ export async function GET(request: Request) {
           campaign,
           client: recipient.client,
           address: recipient.address,
+          recipientId: recipient.id,
         });
         await db.campaignRecipient.update({
           where: { id: recipient.id },

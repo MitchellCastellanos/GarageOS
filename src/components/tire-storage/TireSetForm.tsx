@@ -45,6 +45,8 @@ export function TireSetForm({ clients, initial, mode, onSubmit, cancelHref }: Pr
     withRims: false,
     storageLocation: "",
     notes: "",
+    expectedPickupDate: "",
+    notifyCustomer: true,
     ...initial,
   });
   const set = <K extends keyof TireStorageFormData>(k: K, val: TireStorageFormData[K]) => setV((p) => ({ ...p, [k]: val }));
@@ -112,11 +114,23 @@ export function TireSetForm({ clients, initial, mode, onSubmit, cancelHref }: Pr
             <input className={field} value={v.storageLocation ?? ""} placeholder={t.form.locationHint} onChange={(e) => set("storageLocation", e.target.value)} />
           </div>
         )}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">{t.form.expectedPickup}</label>
+          <input className={field} type="date" value={v.expectedPickupDate ?? ""} onChange={(e) => set("expectedPickupDate", e.target.value)} />
+          <p className="text-xs text-slate-400 mt-1">{t.form.expectedPickupHint}</p>
+          {err("expectedPickupDate") && <p className="text-xs text-red-600 mt-1">{err("expectedPickupDate")}</p>}
+        </div>
         <label className="flex items-center gap-2 text-sm text-slate-700 self-end pb-2">
           <input type="checkbox" checked={v.withRims} onChange={(e) => set("withRims", e.target.checked)} />
           {t.form.withRims}
         </label>
       </div>
+      {mode === "create" && (
+        <label className="flex items-center gap-2 text-sm text-slate-700">
+          <input type="checkbox" checked={v.notifyCustomer !== false} onChange={(e) => set("notifyCustomer", e.target.checked)} />
+          {t.form.notifyOnCheckIn}
+        </label>
+      )}
       <div>
         <label className="block text-sm font-medium text-slate-700 mb-1.5">{t.form.notes}</label>
         <textarea className={field} rows={3} value={v.notes ?? ""} onChange={(e) => set("notes", e.target.value)} />

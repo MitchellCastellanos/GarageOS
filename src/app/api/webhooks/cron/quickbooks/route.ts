@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isAuthorizedCronRequest } from "@/lib/cron-auth";
 import { db } from "@/lib/db";
 import { runQuickBooksSync } from "@/lib/quickbooks/sync";
 
@@ -8,7 +9,7 @@ export const maxDuration = 60;
 // candado por taller, revisa el plan/estado de suscripción y acota el trabajo (lotes) — lo que no cabe
 // se retoma al día siguiente o con "Sincronizar ahora". SEGURIDAD: CRON_SECRET.
 export async function GET(request: Request) {
-  if (request.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!isAuthorizedCronRequest(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const deadline = Date.now() + 50_000;

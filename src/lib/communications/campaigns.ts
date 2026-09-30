@@ -32,6 +32,8 @@ export async function sendCampaignEmail(params: {
   /** null solo para el envío de prueba a la propia cuenta del dueño (sin cliente real). */
   client: Client | null;
   address: string;
+  /** Recipient row id — makes the send idempotent per (campaign, recipient) so an overlapping/retried cron cannot double-send. */
+  recipientId?: string;
 }): Promise<SendCampaignEmailResult> {
   const identity = await resolveSenderIdentity(params.shop.id, "CAMPAIGN", "EMAIL");
   if (!identity) {
@@ -69,6 +71,7 @@ export async function sendCampaignEmail(params: {
     textBody: params.campaign.bodyHtml,
     businessEntityType: "CAMPAIGN",
     businessEntityId: params.campaign.id,
+    idempotencyKey: params.recipientId ? `campaign:${params.campaign.id}:${params.recipientId}` : undefined,
     send: async () => {
       const { data, error } = await getResend().emails.send({
         from,

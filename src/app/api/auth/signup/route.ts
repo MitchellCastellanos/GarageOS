@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { RATE_LIMITS, checkRateLimit, clientIpFromHeaders } from "@/lib/rate-limit";
 import { ADMIN } from "@/lib/routes";
 import { createPendingSubscription } from "@/lib/subscription";
 import { sendVerificationEmail } from "@/lib/email-verification";
@@ -35,6 +36,10 @@ export async function POST(req: NextRequest) {
   const formData = await req.formData();
   const locale = resolveLocale(formData.get("locale"));
   const errors = MARKETING_DICTIONARIES[locale].auth.errors;
+
+  if (!(await checkRateLimit(RATE_LIMITS.signupIp(clientIpFromHeaders(req.headers)))).allowed) {
+    return signupRedirect(req, errors.tooManyAttempts);
+  }
 
   const parsed = signupSchema(errors).safeParse({
     shopName: formData.get("shopName"),

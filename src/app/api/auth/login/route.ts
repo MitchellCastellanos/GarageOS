@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
+import { isSafeCallbackPath } from "@/lib/safe-redirect";
 import { signIn } from "@/lib/auth";
+import { RATE_LIMITS, checkRateLimit, clientIpFromHeaders } from "@/lib/rate-limit";
 import { ADMIN, PLATFORM, adminPath } from "@/lib/routes";
 import { MARKETING_DICTIONARIES, DEFAULT_MARKETING_LOCALE, type MarketingLocale } from "@/lib/marketing-locale";
 
@@ -18,6 +20,7 @@ function loginRedirect(req: NextRequest, error: string) {
 }
 
 function normalizeCallbackUrl(callbackUrl: string): string {
+  if (!isSafeCallbackPath(callbackUrl)) return ADMIN.dashboard;
   if (callbackUrl === "/admin" || callbackUrl === PLATFORM.home) {
     return PLATFORM.home;
   }
@@ -59,8 +62,23 @@ export async function POST(req: NextRequest) {
 
   callbackUrl = normalizeCallbackUrl(callbackUrl);
 
+  // Brute-force throttle per client IP (the per-account throttle lives in authorize()).
+  const ip = clientIpFromHeaders(req.headers);
+  if (!(await checkRateLimit(RATE_LIMITS.loginIp(ip))).allowed) {
+    const limited = MARKETING_DICTIONARIES[locale].auth.errors.tooManyAttempts;
+    if (contentType.includes("form")) return loginRedirect(req, limited);
+    return NextResponse.json({ error: limited }, { status: 429, headers: { "Retry-After": "900" } });
+  }
+
   const isFormRequest = contentType.includes("form");
   const errors = MARKETING_DICTIONARIES[locale].auth.errors;
+
+  // Per-account budget: this route rejects wrong passwords itself (before NextAuth's authorize() runs), so a
+  // distributed guessing attack on ONE account must be counted here too.
+  if (email && password && !(await checkRateLimit(RATE_LIMITS.loginEmail(email))).allowed) {
+    if (isFormRequest) return loginRedirect(req, errors.tooManyAttempts);
+    return NextResponse.json({ error: errors.tooManyAttempts }, { status: 429, headers: { "Retry-After": "900" } });
+  }
 
   if (!email || !password) {
     if (isFormRequest) return loginRedirect(req, errors.missingCredentials);

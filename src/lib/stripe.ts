@@ -6,7 +6,7 @@
 // y las instrucciales de qué pegar en el Dashboard de Stripe.
 
 import Stripe from "stripe";
-import type { Plan } from "@/config/entitlements";
+import { PLAN_PRICING_CAD, type Plan } from "@/config/entitlements";
 import type { TrialPlan } from "@/domain/subscription-state";
 
 let client: Stripe | null = null;
@@ -70,6 +70,27 @@ export interface CreateCheckoutSessionParams {
 }
 
 /**
+ * Fail-closed guard (Block 15): the UI quotes PLAN_PRICING_CAD but Stripe charges the Price in env.
+ * If someone points STRIPE_PRICE_* at a stale/wrong Price (e.g. the pre-launch $149/$249/$399 set),
+ * customers would be charged something different from what they were shown, so refuse to open Checkout.
+ */
+export function priceMismatchReason(
+  price: Pick<Stripe.Price, "currency" | "unit_amount" | "recurring" | "active">,
+  plan: Plan,
+  interval: BillingInterval
+): string | null {
+  const expected = PLAN_PRICING_CAD[plan][interval === "YEARLY" ? "yearly" : "monthly"] * 100;
+  if (!price.active) return "the Price is archived";
+  if (price.currency !== "cad") return `currency is ${price.currency}, expected cad`;
+  if (price.unit_amount !== expected) return `amount is ${price.unit_amount}, expected ${expected}`;
+  if (price.recurring?.interval !== (interval === "YEARLY" ? "year" : "month") || price.recurring?.interval_count !== 1) {
+    return "billing interval does not match";
+  }
+  if (price.recurring?.usage_type === "metered") return "the Price is metered";
+  return null;
+}
+
+/**
  * Checkout hospedado en modo suscripción con método de pago OBLIGATORIO
  * (`payment_method_collection: "always"`) — la tarjeta la captura Stripe, jamás
  * GarageOS. Con trial, el cobro de hoy es $0 y Stripe cobra solo al terminar.
@@ -82,6 +103,12 @@ export async function createCheckoutSession(params: CreateCheckoutSessionParams)
     throw new Error(
       `No hay Price ID configurado para ${params.plan}/${params.interval} (falta ${priceEnvVar(params.plan, params.interval)})`
     );
+  }
+
+  const price = await stripe.prices.retrieve(priceId);
+  const mismatch = priceMismatchReason(price, params.plan, params.interval);
+  if (mismatch) {
+    throw new Error(`Stripe Price ${priceId} does not match ${params.plan}/${params.interval}: ${mismatch}`);
   }
 
   // El item de excedente de SMS es "metered" (sin quantity) — se factura solo

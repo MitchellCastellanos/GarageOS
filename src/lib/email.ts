@@ -477,3 +477,38 @@ export async function sendPortalLinkEmail(data: PortalLinkEmailData): Promise<Re
     businessEntityId: data.clientId,
   });
 }
+
+export interface TireStorageEmailData {
+  shop: ShopEmailConfig;
+  to: string;
+  clientId?: string;
+  setId: string;
+  lang: "EN" | "FR";
+  subject: string;
+  subtitle: string;
+  body: string;
+  /** Reminders go through the REMINDER channel (refused for restricted shops); the rest through WORK_ORDER's transactional route. */
+  channel: "REMINDER" | "WORK_ORDER";
+  idempotencyKey: string;
+}
+
+export async function sendTireStorageEmail(data: TireStorageEmailData): Promise<RecordAndSendResult> {
+  const element = React.createElement(PlainMessageEmail, {
+    shopName: data.shop.name,
+    headerSubtitle: data.subtitle,
+    bodyText: data.body,
+    footerText: data.lang === "FR" ? `Ce courriel a été envoyé par ${data.shop.name}.` : `This email was sent by ${data.shop.name}.`,
+    lang: data.lang.toLowerCase(),
+  });
+  return sendTransactionalEmail({
+    shop: data.shop,
+    channel: data.channel,
+    to: data.to,
+    subject: data.subject,
+    react: element,
+    clientId: data.clientId,
+    businessEntityType: "TIRE_STORAGE_SET",
+    businessEntityId: data.setId,
+    idempotencyKey: data.idempotencyKey,
+  });
+}

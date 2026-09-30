@@ -47,3 +47,10 @@ export function mockSubscription(
   };
   return patchDb(t, "shop", "findUnique", async () => ({ organizationId: null, subscription: row }));
 }
+
+/** Ownership checks (`findForeignRef`) pass: the referenced customer / vehicle / mechanic belong to the acting shop. */
+export function allowOwnership(t: TestContext) {
+  patchDb(t, "client", "findFirst", (async () => ({ id: "owned" })) as never);
+  patchDb(t, "vehicle", "findFirst", (async () => ({ id: "owned" })) as never);
+  patchDb(t, "user", "findFirst", (async () => ({ id: "owned" })) as never);
+}

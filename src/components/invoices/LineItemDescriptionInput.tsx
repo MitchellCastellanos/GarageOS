@@ -51,6 +51,7 @@ export function LineItemDescriptionInput({
   useEffect(() => {
     const q = value.trim();
     if (q.length < 2) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clear stale suggestions when the query is too short
       setSuggestions([]);
       setOpen(false);
       return;

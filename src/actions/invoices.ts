@@ -13,6 +13,7 @@ import { ADMIN, PLATFORM, adminPath } from "@/lib/routes";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
+import { findForeignRef, findForeignDocumentRefs, foreignRefMessage } from "@/lib/ownership";
 import { getShopId, getWritableShopId } from "@/lib/shop-context";
 import { invoiceSchema, type InvoiceFormData } from "@/lib/validations";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -40,7 +41,7 @@ import {
   storagePathsToParts,
 } from "@/lib/invoice-document-package";
 import { uploadToStorage } from "@/lib/storage";
-import { syncSavedLineItems } from "@/actions/line-items";
+import { syncSavedLineItems } from "@/lib/saved-line-items";
 import { formatClientName } from "@/lib/client-name";
 import { INVOICE_PENDING_FILTER, INVOICE_PENDING_STATUSES } from "@/lib/invoice-status";
 import {
@@ -48,7 +49,7 @@ import {
   type InvoicePaymentMode,
   type PaymentEntryInput,
 } from "@/lib/invoice-payments";
-import { ensureCashInFromInvoice } from "@/actions/cash-drawer";
+import { ensureCashInFromInvoice } from "@/lib/cash-drawer-server";
 import { auth } from "@/lib/auth";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import type { AdminLocale } from "@/lib/admin-locale";
@@ -263,6 +264,9 @@ export async function createInvoice(formData: InvoiceFormData) {
 
   const { clientId, vehicles, language, notes, dueAt } = parsed.data;
   const taxRate = parsed.data.taxRate;
+
+  const foreignRef = await findForeignDocumentRefs(shopId, clientId, vehicles.map((v) => v.vehicleId));
+  if (foreignRef) return { error: { _form: [foreignRefMessage(locale, foreignRef)] } };
 
   // Calcular totales con Decimal para evitar errores de punto flotante.
   // Problema real: 0.1 + 0.2 = 0.30000000000000004 en JavaScript.
@@ -994,6 +998,9 @@ export async function updateInvoice(id: string, formData: InvoiceFormData) {
 
   const { clientId, vehicles, language, notes, dueAt } = parsed.data;
   const taxRate = parsed.data.taxRate;
+
+  const foreignRef = await findForeignDocumentRefs(shopId, clientId, vehicles.map((v) => v.vehicleId));
+  if (foreignRef) return { error: { _form: [foreignRefMessage(locale, foreignRef)] } };
 
   const allLineItems = vehicles.flatMap((v) => v.lineItems);
   const subtotal = allLineItems.reduce((sum, item) => {

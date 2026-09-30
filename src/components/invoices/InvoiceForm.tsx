@@ -11,10 +11,13 @@
 // - Los totales se calculan en el cliente para feedback inmediato,
 //   pero se RE-CALCULAN en el servidor (Server Action) para seguridad.
 
+import type { z } from "zod";
 import { useForm, useFieldArray, useWatch, Controller, type Control, type UseFormRegister, type UseFormSetValue, type FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTransition, useMemo } from "react";
 import { invoiceSchema, type InvoiceFormData } from "@/lib/validations";
+
+type InvoiceFormInput = z.input<typeof invoiceSchema>;
 import { formatClientName } from "@/lib/client-name";
 import { calculateTaxBreakdown, sumTaxLineRates, type ShopTaxLine } from "@/lib/taxes";
 import { INVOICE_LANGUAGES } from "@/lib/invoice-i18n";
@@ -97,7 +100,7 @@ export function InvoiceForm({
     setValue,
     setError,
     formState: { errors },
-  } = useForm<InvoiceFormData>({
+  } = useForm<InvoiceFormInput, unknown, InvoiceFormData>({
     resolver: zodResolver(invoiceSchema),
     defaultValues: {
       clientId: "",
@@ -163,7 +166,7 @@ export function InvoiceForm({
       const result = await onSubmit(data);
       if (result?.error) {
         for (const [field, messages] of Object.entries(result.error)) {
-          setError(field as keyof InvoiceFormData, { message: messages[0] });
+          setError(field as keyof InvoiceFormInput, { message: messages[0] });
         }
       }
     });
@@ -381,10 +384,10 @@ function VehicleSection({
   itemTypes,
 }: {
   vehicleIndex: number;
-  control: Control<InvoiceFormData>;
-  register: UseFormRegister<InvoiceFormData>;
-  setValue: UseFormSetValue<InvoiceFormData>;
-  errors: FieldErrors<InvoiceFormData>;
+  control: Control<InvoiceFormInput, unknown, InvoiceFormData>;
+  register: UseFormRegister<InvoiceFormInput>;
+  setValue: UseFormSetValue<InvoiceFormInput>;
+  errors: FieldErrors<InvoiceFormInput>;
   isQuote: boolean;
   selectedClientId: string;
   availableVehicles: VehicleOption[];

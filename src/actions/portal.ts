@@ -18,6 +18,7 @@ import {
 } from "@/lib/portal";
 import { PORTAL_LINK_TTL_DAYS, PORTAL_REQUESTS_PER_HOUR, canCustomerDecideQuote } from "@/domain/portal";
 import { formatClientName } from "@/lib/client-name";
+import { RATE_LIMITS, checkRateLimit, currentRequestIp } from "@/lib/rate-limit";
 
 // ── Staff (panel del taller) ────────────────────────────────
 // Emitir/enviar/revocar enlaces es una acción operativa con clientes: getWritableShopId("customers.write")
@@ -94,6 +95,11 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export async function requestPortalLink(slug: string, email: string): Promise<{ ok: true }> {
   const normalized = String(email ?? "").trim().toLowerCase().slice(0, 254);
   if (!EMAIL_RE.test(normalized) || typeof slug !== "string" || !slug) return { ok: true };
+
+  // Per-IP cap on top of the per-customer cap: stops an attacker mailing many customers of a shop
+  // (email bombing) or probing for addresses. The reply stays identical either way (no enumeration).
+  const ip = await currentRequestIp();
+  if (ip && !(await checkRateLimit(RATE_LIMITS.portalRequestIp(ip))).allowed) return { ok: true };
 
   const shop = await db.shop.findUnique({ where: { slug }, select: { id: true, name: true, email: true } });
   if (!shop) return { ok: true };

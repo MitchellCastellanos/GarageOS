@@ -11,7 +11,7 @@ export default async function PortalVehiclePage({ params }: { params: Promise<{ 
   const { token, vehicleId } = await params;
   const resolved = await resolvePortalAccess(token);
   if (!resolved.ok) {
-    if (resolved.reason === "INVALID") notFound();
+    if (resolved.reason === "INVALID" || resolved.reason === "RATE_LIMITED") notFound();
     return <PortalLinkExpired shopName={resolved.shopName} shopSlug={resolved.shopSlug} />;
   }
   const { access } = resolved;
