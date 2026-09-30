@@ -313,8 +313,18 @@ test("createCheckoutSession: server-controlled price, card required, 14-day tria
     created.push({ params, opts });
     return { id: "cs_1", url: "https://checkout.stripe.test/cs_1" };
   };
+  const originalRetrieve = stripe.prices.retrieve;
+  const table: Record<string, [number, "month" | "year"]> = {
+    price_complete_y: [449000, "year"],
+    price_core_m: [19900, "month"],
+    price_pro_m: [29900, "month"],
+  };
+  (stripe.prices as unknown as { retrieve: unknown }).retrieve = async (id: string) => ({
+    id, active: true, currency: "cad", unit_amount: table[id][0], recurring: { interval: table[id][1], interval_count: 1, usage_type: "licensed" },
+  });
   t.after(() => {
     (stripe.checkout.sessions as unknown as { create: unknown }).create = original;
+    (stripe.prices as unknown as { retrieve: unknown }).retrieve = originalRetrieve;
   });
 
   const base = {
@@ -350,6 +360,33 @@ test("createCheckoutSession: server-controlled price, card required, 14-day tria
   const endsAt = future(5);
   await createCheckoutSession({ ...base, plan: "PRO", interval: "MONTHLY", trial: { kind: "until", endsAt } });
   assert.equal((created[3].params as Record<string, any>).subscription_data.trial_end, Math.floor(endsAt.getTime() / 1000));
+});
+
+test("createCheckoutSession refuses a Stripe Price whose amount/currency/interval disagrees with the quoted plan price", async (t) => {
+  const stripe = getStripeClient();
+  const originalRetrieve = stripe.prices.retrieve;
+  const originalCreate = stripe.checkout.sessions.create;
+  let opened = 0;
+  (stripe.checkout.sessions as unknown as { create: unknown }).create = async () => {
+    opened++;
+    return { id: "cs", url: "u" };
+  };
+  t.after(() => {
+    (stripe.prices as unknown as { retrieve: unknown }).retrieve = originalRetrieve;
+    (stripe.checkout.sessions as unknown as { create: unknown }).create = originalCreate;
+  });
+  const args = { shopId: "s", plan: "PRO", interval: "MONTHLY", stripeCustomerId: "c", trial: { kind: "fresh", days: 14 }, successUrl: "x", cancelUrl: "y" } as const;
+  // The pre-launch sandbox Price ($249) must never be sold as the current $299 plan.
+  for (const bad of [
+    { unit_amount: 24900, currency: "cad", recurring: { interval: "month", interval_count: 1 } },
+    { unit_amount: 29900, currency: "usd", recurring: { interval: "month", interval_count: 1 } },
+    { unit_amount: 29900, currency: "cad", recurring: { interval: "year", interval_count: 1 } },
+    { unit_amount: 29900, currency: "cad", recurring: { interval: "month", interval_count: 1, usage_type: "metered" } },
+  ]) {
+    (stripe.prices as unknown as { retrieve: unknown }).retrieve = async () => ({ active: true, ...bad });
+    await assert.rejects(() => createCheckoutSession(args), /does not match PRO\/MONTHLY/);
+  }
+  assert.equal(opened, 0, "no Checkout Session is ever created for a mismatched Price");
 });
 
 test("createCheckoutSession refuses a plan/interval with no configured Stripe Price", async () => {
