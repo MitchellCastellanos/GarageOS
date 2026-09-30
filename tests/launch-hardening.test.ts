@@ -243,3 +243,56 @@ test("shop-local time parsing survives DST: gap times don't throw, days are 23/2
   assert.equal(tz.formatShopDate(late, Z), "2027-04-01");
   assert.throws(() => tz.parseShopDateTime("2027-02-30", "10:00", Z));
 });
+
+// ── Server -> Client boundary: dictionaries containing functions crash production renders ─────────────
+function hasFunction(value: unknown, seen = new Set<unknown>()): string | null {
+  if (typeof value === "function") return "(function)";
+  if (value && typeof value === "object") {
+    if (seen.has(value)) return null;
+    seen.add(value);
+    for (const [k, v] of Object.entries(value)) {
+      const hit = hasFunction(v, seen);
+      if (hit) return `${k}.${hit}`;
+    }
+  }
+  return null;
+}
+
+test("server pages never hand a function-bearing dictionary to a client component", async () => {
+  const { globSync } = await import("node:fs");
+  const files = globSync("src/app/**/*.tsx", { cwd: ROOT }).filter((f) => !f.endsWith("layout.tsx") || true);
+  const offenders: string[] = [];
+  const dictModules = new Map<string, Record<string, unknown>>();
+  for (const f of readdirSync(path.join(ROOT, "src/lib/admin-locale")).filter((n) => n.endsWith(".ts"))) {
+    const mod = (await import(`../src/lib/admin-locale/${f.replace(/\.ts$/, "")}`)) as Record<string, unknown>;
+    for (const [name, value] of Object.entries(mod)) if (/_DICT$/.test(name)) dictModules.set(name, value as Record<string, unknown>);
+  }
+  for (const rel of files) {
+    const src = readFileSync(path.join(ROOT, rel), "utf8");
+    if (src.startsWith('"use client"')) continue; // only server components can violate the rule
+    // aliases: const t = FOO_DICT[locale];  ->  prop={t} / prop={t.section}
+    const aliases = new Map<string, string>();
+    for (const a of src.matchAll(/const\s+(\w+)\s*=\s*(?:await\s+)?([A-Z0-9_]+_DICT)\[\w+\]\s*;/g)) aliases.set(a[1], a[2]);
+    const candidates: { text: string; index: number; dict: string; sub: string }[] = [];
+    for (const m of src.matchAll(/=\{\s*([A-Z0-9_]+_DICT)\[(\w+)\]((?:\.\w+)*)\s*\}/g)) candidates.push({ text: m[0], index: m.index!, dict: m[1], sub: m[3] });
+    for (const [alias, dict] of aliases) {
+      for (const m of src.matchAll(new RegExp(`=\\{\\s*${alias}((?:\\.\\w+)*)\\s*\\}`, "g"))) candidates.push({ text: m[0], index: m.index!, dict, sub: m[1] });
+    }
+    for (const c of candidates) {
+      const dict = dictModules.get(c.dict);
+      if (!dict) continue;
+      let node: unknown = dict.en ?? Object.values(dict)[0];
+      for (const key of c.sub.split(".").filter(Boolean)) node = (node as Record<string, unknown>)?.[key];
+      const fn = hasFunction(node);
+      if (!fn) continue;
+      // Only a violation when the receiving component is a client component.
+      const before = src.slice(0, c.index);
+      const tag = [...before.matchAll(/<([A-Z]\w*)/g)].pop()?.[1];
+      const importLine = tag && new RegExp(`import[^;]*\\b${tag}\\b[^;]*from\\s+"@/([^"]+)"`).exec(src);
+      const target = importLine ? path.join(ROOT, "src", importLine[1]) : null;
+      const file = target && [".tsx", ".ts", "/index.tsx"].map((e) => target + e).find((x) => { try { readFileSync(x); return true; } catch { return false; } });
+      if (file && readFileSync(file, "utf8").trimStart().startsWith('"use client"')) offenders.push(`${rel}: <${tag}> (client) receives ${c.text} containing ${fn}`);
+    }
+  }
+  assert.deepEqual(offenders, []);
+});
