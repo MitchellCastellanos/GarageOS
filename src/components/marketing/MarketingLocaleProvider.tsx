@@ -30,7 +30,6 @@ export function MarketingLocaleProvider({ children }: { children: React.ReactNod
       setLocaleState(stored);
     } else if (typeof navigator !== "undefined" && navigator.language?.toLowerCase().startsWith("fr")) {
       // First visit from a French browser (Quebec launch market): start in French; the toggle still wins.
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time post-hydration language detection
       setLocaleState("fr");
     }
   }, []);

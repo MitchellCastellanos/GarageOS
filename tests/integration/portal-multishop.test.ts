@@ -6,7 +6,6 @@ import { setSession } from "../helpers/action-harness";
 
 const skip = ENABLED ? false : "set GARAGEOS_INTEGRATION_DB=1 with a migrated DATABASE_URL";
 let S1: Tenant, S2: Tenant, X: Tenant; // S1 and S2: two customers... (S2 is a second shop), X: unrelated shop
-let C2ClientId: string; // a second customer INSIDE shop S1
 let C2VehicleId: string, C2InvoiceId: string, C2QuoteId: string;
 
 before(async () => {
@@ -15,7 +14,6 @@ before(async () => {
   S2 = await seedTenant({ label: "PortalB", plan: "CORE" });
   X = await seedTenant({ label: "PortalX", plan: "PRO" });
   const c2 = await db.client.create({ data: { shopId: S1.shopId, firstName: "OtherCustomerSecret", phone: "5145550999", email: "other.customer@ex.test" } });
-  C2ClientId = c2.id;
   const v = await db.vehicle.create({ data: { clientId: c2.id, make: "Tesla", model: "OtherCarSecret", year: 2022, licensePlate: "OTHER99" } });
   C2VehicleId = v.id;
   const inv = await db.invoice.create({ data: { shopId: S1.shopId, clientId: c2.id, invoiceNumber: "OTHER-INV", subtotal: "50.00", taxRate: "0.05", taxAmount: "2.50", total: "52.50", status: "SENT", issuedAt: new Date() } });
