@@ -6,133 +6,45 @@ import { Bilingual } from "@/components/marketing/Bilingual";
 
 export const metadata: Metadata = {
   title: "Privacy Policy · Politique de confidentialité",
-  description: "How GarageOS collects, uses and protects your data. · Comment GarageOS recueille, utilise et protège vos données.",
+  description: "How GarageOS handles personal information. · Comment GarageOS traite les renseignements personnels.",
 };
 
 const H = "text-base font-semibold text-slate-900 mb-2";
 const A = "font-semibold text-brand-blue hover:underline";
+const EMAIL = "mcastellanos@garage-os.ca";
 
 function English() {
-  return (
-    <>
-      <PageHero eyebrow="Company" heading="Privacy Policy" description="Last updated September 2026" />
-      <section className="bg-white">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 py-16 sm:py-24 space-y-8 text-slate-600 leading-relaxed text-sm">
-          <div>
-            <h2 className={H}>Information we collect</h2>
-            <p>
-              When you use GarageOS, we collect the information your shop provides to run the product — account
-              details, shop information, and the client, vehicle, appointment and invoice records your shop enters.
-              We also collect basic technical information (such as browser and device data) to keep the service
-              secure and reliable.
-            </p>
-          </div>
-          <div>
-            <h2 className={H}>How we use it</h2>
-            <p>
-              We use this information to provide and improve GarageOS, to communicate with you about your account,
-              and to send the appointment confirmations, estimates, invoices and reminders your shop sends to its
-              own customers.
-            </p>
-          </div>
-          <div>
-            <h2 className={H}>Data separation between shops</h2>
-            <p>
-              Each shop&apos;s data is kept separate from every other shop using GarageOS. We do not share one
-              shop&apos;s client or business data with another shop.
-            </p>
-          </div>
-          <div>
-            <h2 className={H}>Third parties</h2>
-            <p>
-              We use third-party providers for things like email delivery, SMS, payments and hosting, solely to operate
-              GarageOS. We do not sell your data.
-            </p>
-          </div>
-          <div>
-            <h2 className={H}>Your choices</h2>
-            <p>
-              You can request access to, correction of, or deletion of your account&apos;s data at any time by
-              contacting us.
-            </p>
-          </div>
-          <div>
-            <h2 className={H}>Changes to this policy</h2>
-            <p>We may update this policy as GarageOS evolves. We&apos;ll post changes on this page.</p>
-          </div>
-          <div>
-            <h2 className={H}>Questions</h2>
-            <p>Reach out through our <Link href="/contact" className={A}>contact page</Link> for anything related to this policy.</p>
-          </div>
-        </div>
-      </section>
-    </>
-  );
+  return <><PageHero eyebrow="Company" heading="Privacy Policy" description="Last updated September 2026" />
+    <section className="bg-white"><div className="max-w-2xl mx-auto px-4 sm:px-6 py-16 sm:py-24 space-y-8 text-slate-600 leading-relaxed text-sm">
+      <div><h2 className={H}>Scope and roles</h2><p>GarageOS is a shop-management service operated by GABAN Solutions. This policy explains how GarageOS handles personal information. For customer, vehicle, appointment, work-order, inspection, invoice and communication records entered by a shop, the shop decides why the information is collected and used and GarageOS processes it to provide the service. GarageOS separately handles account, billing, security and support information needed to operate its own service.</p></div>
+      <div><h2 className={H}>Information we handle</h2><p>Depending on how GarageOS is used, information may include account and shop details; names and contact details; customer and vehicle records; appointments; estimates and approvals; work orders; inspection records and photos; invoices, payments and tax information; tire-storage records; email and SMS communications; customer-portal activity; import data; support information; and technical, security and audit data. Payment-card details are handled by our payment provider rather than stored as full card numbers by GarageOS.</p></div>
+      <div><h2 className={H}>Purposes</h2><p>We use personal information to provide, secure, support and improve GarageOS; authenticate users; process subscriptions and payments; deliver shop-requested email and SMS communications; provide customer-portal and integration features; prevent abuse; troubleshoot problems; maintain records; and meet legal obligations. We do not sell personal information.</p></div>
+      <div><h2 className={H}>Shops and communications</h2><p>Shops are responsible for the information they enter into GarageOS and for ensuring that their collection and use of customer information and their electronic communications comply with applicable law. GarageOS provides operational and marketing communication tools, but a shop must have the authority or consent required for the messages it sends. Recipients may use the unsubscribe or STOP mechanisms made available for applicable commercial messages.</p></div>
+      <div><h2 className={H}>Service providers and transfers</h2><p>We use service providers to operate GarageOS, including providers for hosting and infrastructure, payments, email, SMS, file/media services and integrations selected or enabled by a shop. Personal information may therefore be processed outside Quebec or Canada. We assess applicable privacy risks and use contractual and security safeguards appropriate to the services involved.</p></div>
+      <div><h2 className={H}>Safeguards and shop separation</h2><p>We use administrative, technical and organizational safeguards appropriate to the information we handle, including access controls and separation of shop data. No online service can guarantee absolute security.</p></div>
+      <div><h2 className={H}>Retention and deletion</h2><p>We retain personal information only as long as reasonably necessary for the purposes for which it was collected and for applicable legal, accounting, security and dispute-resolution requirements. When information is no longer required, it is securely destroyed or, where permitted, anonymized. A shop may request account-data export or deletion, subject to information that must be retained by law or for legitimate legal purposes.</p></div>
+      <div><h2 className={H}>Access, correction and privacy requests</h2><p>You may ask to access or correct personal information GarageOS holds about you and may make other requests available under applicable privacy law. If the information was provided by a shop about one of its customers, we may direct the request to that shop where appropriate. We may need to verify identity before responding.</p></div>
+      <div><h2 className={H}>Privacy incidents</h2><p>GarageOS maintains a process for assessing and responding to confidentiality incidents. Where required by law, affected persons and the appropriate privacy authority will be notified.</p></div>
+      <div><h2 className={H}>Privacy Officer</h2><p><strong>Mitchell Jeussef Castellanos Fuentes</strong><br/>Privacy Officer / Person responsible for the protection of personal information<br/><a className={A} href={"mailto:"+EMAIL}>{EMAIL}</a></p><p className="mt-3">Contact the Privacy Officer for access or correction requests, privacy complaints, questions about our practices, or concerns about a privacy incident.</p></div>
+      <div><h2 className={H}>Changes</h2><p>We may update this policy as GarageOS, our providers or applicable requirements change. The current version will be posted here with its update date.</p></div>
+      <div><h2 className={H}>Other questions</h2><p>You can also reach us through our <Link href="/contact" className={A}>contact page</Link>.</p></div>
+    </div></section></>;
 }
-
 function French() {
-  return (
-    <>
-      <PageHero eyebrow="Entreprise" heading="Politique de confidentialité" description="Dernière mise à jour : septembre 2026" />
-      <section className="bg-white">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 py-16 sm:py-24 space-y-8 text-slate-600 leading-relaxed text-sm">
-          <div>
-            <h2 className={H}>Renseignements que nous recueillons</h2>
-            <p>
-              Lorsque vous utilisez GarageOS, nous recueillons les renseignements que votre atelier fournit pour faire
-              fonctionner le produit — coordonnées du compte, informations sur l&apos;atelier, ainsi que les dossiers de
-              clients, de véhicules, de rendez-vous et de factures que votre atelier saisit. Nous recueillons aussi des
-              données techniques de base (par exemple sur le navigateur et l&apos;appareil) afin de maintenir le service
-              sécuritaire et fiable.
-            </p>
-          </div>
-          <div>
-            <h2 className={H}>Comment nous les utilisons</h2>
-            <p>
-              Nous utilisons ces renseignements pour fournir et améliorer GarageOS, pour communiquer avec vous au sujet
-              de votre compte et pour envoyer les confirmations de rendez-vous, les soumissions, les factures et les
-              rappels que votre atelier transmet à ses propres clients.
-            </p>
-          </div>
-          <div>
-            <h2 className={H}>Séparation des données entre ateliers</h2>
-            <p>
-              Les données de chaque atelier sont séparées de celles de tous les autres ateliers qui utilisent GarageOS.
-              Nous ne communiquons pas les données de clients ou d&apos;affaires d&apos;un atelier à un autre atelier.
-            </p>
-          </div>
-          <div>
-            <h2 className={H}>Tiers</h2>
-            <p>
-              Nous faisons appel à des fournisseurs tiers pour, entre autres, l&apos;envoi de courriels et de textos, les
-              paiements et l&apos;hébergement, uniquement pour exploiter GarageOS. Nous ne vendons pas vos données.
-            </p>
-          </div>
-          <div>
-            <h2 className={H}>Vos choix</h2>
-            <p>
-              Vous pouvez demander en tout temps l&apos;accès aux données de votre compte, leur rectification ou leur
-              suppression en communiquant avec nous.
-            </p>
-          </div>
-          <div>
-            <h2 className={H}>Modifications de la politique</h2>
-            <p>Nous pouvons mettre à jour cette politique à mesure que GarageOS évolue. Les changements seront publiés sur cette page.</p>
-          </div>
-          <div>
-            <h2 className={H}>Questions</h2>
-            <p>Pour toute question relative à cette politique, écrivez-nous depuis notre <Link href="/contact" className={A}>page de contact</Link>.</p>
-          </div>
-        </div>
-      </section>
-    </>
-  );
+  return <><PageHero eyebrow="Entreprise" heading="Politique de confidentialité" description="Dernière mise à jour : septembre 2026" />
+    <section className="bg-white"><div className="max-w-2xl mx-auto px-4 sm:px-6 py-16 sm:py-24 space-y-8 text-slate-600 leading-relaxed text-sm">
+      <div><h2 className={H}>Portée et rôles</h2><p>GarageOS est un service de gestion d&apos;atelier exploité par GABAN Solutions. La présente politique explique comment GarageOS traite les renseignements personnels. Pour les dossiers de clients, véhicules, rendez-vous, travaux, inspections, factures et communications saisis par un atelier, l&apos;atelier détermine les raisons de la collecte et de l&apos;utilisation et GarageOS traite les renseignements afin de fournir le service. GarageOS traite séparément les renseignements de compte, de facturation, de sécurité et de soutien nécessaires à l&apos;exploitation de son propre service.</p></div>
+      <div><h2 className={H}>Renseignements traités</h2><p>Selon l&apos;utilisation de GarageOS, les renseignements peuvent comprendre les données du compte et de l&apos;atelier; les noms et coordonnées; les dossiers de clients et de véhicules; les rendez-vous; les soumissions et approbations; les bons de travail; les inspections et photos; les factures, paiements et renseignements fiscaux; l&apos;entreposage de pneus; les communications par courriel et texto; l&apos;activité du portail client; les données importées; les renseignements de soutien; ainsi que les données techniques, de sécurité et d&apos;audit. Les données complètes de carte de paiement sont traitées par notre fournisseur de paiement plutôt que stockées par GarageOS.</p></div>
+      <div><h2 className={H}>Finalités</h2><p>Nous utilisons les renseignements personnels pour fournir, sécuriser, soutenir et améliorer GarageOS; authentifier les utilisateurs; traiter les abonnements et paiements; transmettre les courriels et textos demandés par les ateliers; offrir le portail client et les intégrations; prévenir les abus; résoudre les problèmes; tenir les dossiers nécessaires; et respecter nos obligations légales. Nous ne vendons pas de renseignements personnels.</p></div>
+      <div><h2 className={H}>Ateliers et communications</h2><p>Les ateliers sont responsables des renseignements qu&apos;ils saisissent dans GarageOS et doivent s&apos;assurer que leur collecte et leur utilisation des renseignements de leurs clients ainsi que leurs communications électroniques respectent les lois applicables. GarageOS fournit des outils de communication opérationnelle et commerciale, mais l&apos;atelier doit disposer de l&apos;autorisation ou du consentement requis pour les messages qu&apos;il envoie. Les destinataires peuvent utiliser les mécanismes de désabonnement ou le mot STOP lorsqu&apos;ils s&apos;appliquent aux messages commerciaux.</p></div>
+      <div><h2 className={H}>Fournisseurs et transferts</h2><p>Nous faisons appel à des fournisseurs pour exploiter GarageOS, notamment pour l&apos;hébergement et l&apos;infrastructure, les paiements, les courriels, les textos, les fichiers et médias ainsi que les intégrations choisies ou activées par un atelier. Des renseignements personnels peuvent donc être traités à l&apos;extérieur du Québec ou du Canada. Nous évaluons les risques applicables en matière de vie privée et utilisons des mesures contractuelles et de sécurité adaptées aux services concernés.</p></div>
+      <div><h2 className={H}>Mesures de protection et séparation des ateliers</h2><p>Nous appliquons des mesures administratives, techniques et organisationnelles adaptées aux renseignements traités, notamment des contrôles d&apos;accès et la séparation des données des ateliers. Aucun service en ligne ne peut toutefois garantir une sécurité absolue.</p></div>
+      <div><h2 className={H}>Conservation et destruction</h2><p>Nous conservons les renseignements personnels uniquement pendant la période raisonnablement nécessaire aux fins de leur collecte et pour respecter les exigences légales, comptables, de sécurité et de règlement des différends applicables. Lorsqu&apos;ils ne sont plus nécessaires, ils sont détruits de façon sécuritaire ou, lorsque la loi le permet, anonymisés. Un atelier peut demander l&apos;exportation ou la suppression des données de son compte, sous réserve des renseignements qui doivent être conservés en vertu de la loi ou à des fins juridiques légitimes.</p></div>
+      <div><h2 className={H}>Accès, rectification et demandes</h2><p>Vous pouvez demander l&apos;accès aux renseignements personnels que GarageOS détient à votre sujet, leur rectification et les autres mesures prévues par les lois applicables. Lorsque les renseignements ont été fournis par un atelier au sujet de l&apos;un de ses clients, nous pouvons diriger la demande vers cet atelier lorsque cela est approprié. Nous pouvons devoir vérifier votre identité avant de répondre.</p></div>
+      <div><h2 className={H}>Incidents de confidentialité</h2><p>GarageOS maintient un processus d&apos;évaluation et de traitement des incidents de confidentialité. Lorsque la loi l&apos;exige, les personnes concernées et l&apos;autorité compétente en matière de protection de la vie privée seront avisées.</p></div>
+      <div><h2 className={H}>Responsable de la protection des renseignements personnels</h2><p><strong>Mitchell Jeussef Castellanos Fuentes</strong><br/>Responsable de la protection des renseignements personnels<br/><a className={A} href={"mailto:"+EMAIL}>{EMAIL}</a></p><p className="mt-3">Communiquez avec le responsable pour une demande d&apos;accès ou de rectification, une plainte relative à la vie privée, une question sur nos pratiques ou une préoccupation concernant un incident de confidentialité.</p></div>
+      <div><h2 className={H}>Modifications</h2><p>Nous pouvons mettre cette politique à jour lorsque GarageOS, nos fournisseurs ou les exigences applicables changent. La version en vigueur sera publiée ici avec sa date de mise à jour.</p></div>
+      <div><h2 className={H}>Autres questions</h2><p>Vous pouvez également nous joindre depuis notre <Link href="/contact" className={A}>page de contact</Link>.</p></div>
+    </div></section></>;
 }
-
-export default function PrivacyPage() {
-  return (
-    <MarketingPageShell>
-      <Bilingual en={<English />} fr={<French />} />
-    </MarketingPageShell>
-  );
-}
+export default function PrivacyPage(){return <MarketingPageShell><Bilingual en={<English/>} fr={<French/>}/></MarketingPageShell>;}
