@@ -3,230 +3,38 @@ import Link from "next/link";
 import { MarketingPageShell } from "@/components/marketing/MarketingPageShell";
 import { PageHero } from "@/components/marketing/PageHero";
 import { Bilingual } from "@/components/marketing/Bilingual";
-
-export const metadata: Metadata = {
-  title: "Terms of Service · Conditions d'utilisation",
-  description: "The terms that govern your use of GarageOS. · Les conditions qui régissent votre utilisation de GarageOS.",
-};
-
-const H = "text-base font-semibold text-slate-900 mb-2";
-const A = "font-semibold text-brand-blue hover:underline";
-
-function English() {
-  return (
-    <>
-      <PageHero eyebrow="Company" heading="Terms of Service" description="Last updated September 2026" />
-
-      <section className="bg-white">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 py-16 sm:py-24 space-y-8 text-slate-600 leading-relaxed text-sm">
-          <div>
-            <h2 className={H}>Using GarageOS</h2>
-            <p>
-              GarageOS is provided to help independent auto shops manage their operations, including appointments,
-              customers and vehicles, estimates and approvals, work orders, inspections, invoicing, payments,
-              communications, reminders and related shop-management workflows. By using GarageOS, your shop agrees
-              to use it only for legitimate business purposes and to keep your account credentials secure.
-            </p>
-          </div>
-
-          <div>
-            <h2 className={H}>Subscription plans and pricing</h2>
-            <p>
-              GarageOS is offered in subscription plans with different included features, usage allowances, support
-              levels and organizational capabilities. Current public pricing is shown on our <Link href="/pricing" className={A}>pricing page</Link>. Unless stated otherwise, public prices are in Canadian dollars (CAD) and applicable taxes are additional.
-            </p>
-            <p className="mt-3">
-              Monthly plans are billed monthly. Annual plans are billed upfront for the annual term at the price shown
-              when you subscribe. Any promotional pricing may be limited by time, eligibility or introductory period, and the
-              regular renewal price will be disclosed with the offer. New accounts start with a 14-day free trial; a
-              payment method is collected when you choose your plan and your first charge date and amount are shown
-              before the trial begins.
-            </p>
-          </div>
-
-          <div>
-            <h2 className={H}>Plan features and usage</h2>
-            <p>
-              Access to some GarageOS capabilities may depend on your subscription plan. Core business records such
-              as customers, vehicles, estimates, work orders, invoices and inspections are not intended to be priced
-              by transaction count. Services with direct usage costs — such as SMS, storage or third-party
-              services — may include plan allowances, fair-use limits or additional usage charges. Any applicable
-              allowance or overage pricing will be disclosed before billing begins.
-            </p>
-          </div>
-
-          <div>
-            <h2 className={H}>Locations, users and add-ons</h2>
-            <p>
-              Plans may include different numbers of users or shop locations. Multi-location functionality,
-              additional locations, data migration or other add-ons may carry separate fees
-              as shown at the time of purchase. GarageOS will not charge a separate setup fee unless an optional paid
-              onboarding, migration or custom service is clearly agreed to in advance.
-            </p>
-          </div>
-
-          <div>
-            <h2 className={H}>Feature availability</h2>
-            <p>
-              GarageOS evolves over time. Features described as coming soon, in development, beta or otherwise not
-              generally available are not guaranteed to be available on a specific date. We may improve, replace or
-              retire functionality as the product changes, while aiming to preserve the overall value of the plan
-              you purchased.
-            </p>
-          </div>
-
-          <div>
-            <h2 className={H}>Your data</h2>
-            <p>
-              Your shop owns the client, vehicle, appointment, work and invoice data it enters into GarageOS. We only
-              use it to provide the service to you, as described in our <Link href="/privacy" className={A}>Privacy Policy</Link>.
-            </p>
-          </div>
-
-          <div>
-            <h2 className={H}>Accounts</h2>
-            <p>
-              Shop owners are responsible for the team members they invite and the access levels they grant. You&apos;re
-              responsible for activity that happens under your account.
-            </p>
-          </div>
-
-          <div>
-            <h2 className={H}>Availability</h2>
-            <p>
-              We work to keep GarageOS available and reliable, but the service is provided on an &quot;as is&quot;
-              basis without guarantee of uninterrupted availability.
-            </p>
-          </div>
-
-          <div>
-            <h2 className={H}>Changes to these terms</h2>
-            <p>We may update these terms as GarageOS evolves. We&apos;ll post changes on this page.</p>
-          </div>
-
-          <div>
-            <h2 className={H}>Questions</h2>
-            <p>Reach out through our <Link href="/contact" className={A}>contact page</Link> for anything related to these terms.</p>
-          </div>
-        </div>
-      </section>
-    </>
-  );
-}
-
-function French() {
-  return (
-    <>
-      <PageHero eyebrow="Entreprise" heading="Conditions d'utilisation" description="Dernière mise à jour : septembre 2026" />
-
-      <section className="bg-white">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 py-16 sm:py-24 space-y-8 text-slate-600 leading-relaxed text-sm">
-          <div>
-            <h2 className={H}>Utilisation de GarageOS</h2>
-            <p>
-              GarageOS est offert pour aider les ateliers de mécanique indépendants à gérer leurs opérations, notamment les
-              rendez-vous, les clients et les véhicules, les soumissions et approbations, les bons de travail, les
-              inspections, la facturation, les paiements, les communications, les rappels et les flux de travail connexes.
-              En utilisant GarageOS, votre atelier s&apos;engage à l&apos;utiliser uniquement à des fins commerciales légitimes
-              et à protéger les identifiants de son compte.
-            </p>
-          </div>
-
-          <div>
-            <h2 className={H}>Forfaits d&apos;abonnement et prix</h2>
-            <p>
-              GarageOS est offert en forfaits d&apos;abonnement comportant des fonctionnalités, des volumes d&apos;utilisation, des
-              niveaux de soutien et des capacités organisationnelles différents. Les prix publics actuels figurent sur notre{" "}
-              <Link href="/pricing" className={A}>page des tarifs</Link>. Sauf indication contraire, les prix publics sont en
-              dollars canadiens (CAD) et les taxes applicables s&apos;ajoutent.
-            </p>
-            <p className="mt-3">
-              Les forfaits mensuels sont facturés mensuellement. Les forfaits annuels sont facturés d&apos;avance pour la durée
-              annuelle, au prix affiché au moment de l&apos;abonnement. Tout prix promotionnel peut être limité dans le temps, selon
-              l&apos;admissibilité ou pour une période d&apos;introduction, et le prix de renouvellement régulier est indiqué avec
-              l&apos;offre. Les nouveaux comptes bénéficient d&apos;un essai gratuit de 14 jours; un mode de paiement est recueilli
-              lorsque vous choisissez votre forfait, et la date et le montant de votre premier paiement sont affichés avant le
-              début de l&apos;essai.
-            </p>
-          </div>
-
-          <div>
-            <h2 className={H}>Fonctionnalités des forfaits et utilisation</h2>
-            <p>
-              L&apos;accès à certaines fonctionnalités de GarageOS peut dépendre de votre forfait. Les dossiers d&apos;affaires
-              essentiels, tels que les clients, les véhicules, les soumissions, les bons de travail, les factures et les
-              inspections, ne sont pas destinés à être tarifés selon le nombre de transactions. Les services entraînant des coûts
-              directs d&apos;utilisation — comme les textos, le stockage ou les services de tiers — peuvent comporter des volumes
-              inclus, des limites d&apos;utilisation raisonnable ou des frais d&apos;utilisation additionnels. Tout volume inclus ou
-              tarif de dépassement applicable sera communiqué avant le début de la facturation.
-            </p>
-          </div>
-
-          <div>
-            <h2 className={H}>Emplacements, utilisateurs et options</h2>
-            <p>
-              Les forfaits peuvent inclure un nombre différent d&apos;utilisateurs ou d&apos;emplacements. La fonctionnalité
-              multi-emplacements, les emplacements additionnels, la migration de données ou d&apos;autres options peuvent comporter
-              des frais distincts, tels qu&apos;indiqués au moment de l&apos;achat. GarageOS n&apos;exigera pas de frais d&apos;installation
-              distincts, sauf si un service optionnel payant d&apos;intégration, de migration ou sur mesure est clairement convenu à
-              l&apos;avance.
-            </p>
-          </div>
-
-          <div>
-            <h2 className={H}>Disponibilité des fonctionnalités</h2>
-            <p>
-              GarageOS évolue avec le temps. Les fonctionnalités décrites comme « à venir », en développement, en version bêta ou
-              autrement non offertes à tous ne sont pas garanties à une date précise. Nous pouvons améliorer, remplacer ou retirer
-              des fonctionnalités au fil de l&apos;évolution du produit, tout en visant à préserver la valeur globale du forfait que
-              vous avez acheté.
-            </p>
-          </div>
-
-          <div>
-            <h2 className={H}>Vos données</h2>
-            <p>
-              Votre atelier demeure propriétaire des données de clients, de véhicules, de rendez-vous, de travaux et de factures
-              qu&apos;il saisit dans GarageOS. Nous les utilisons uniquement pour vous fournir le service, comme le décrit notre{" "}
-              <Link href="/privacy" className={A}>politique de confidentialité</Link>.
-            </p>
-          </div>
-
-          <div>
-            <h2 className={H}>Comptes</h2>
-            <p>
-              Les propriétaires d&apos;atelier sont responsables des membres d&apos;équipe qu&apos;ils invitent et des niveaux d&apos;accès
-              qu&apos;ils accordent. Vous êtes responsable de l&apos;activité qui survient sous votre compte.
-            </p>
-          </div>
-
-          <div>
-            <h2 className={H}>Disponibilité du service</h2>
-            <p>
-              Nous nous efforçons de maintenir GarageOS disponible et fiable, mais le service est fourni « tel quel », sans
-              garantie de disponibilité ininterrompue.
-            </p>
-          </div>
-
-          <div>
-            <h2 className={H}>Modifications des conditions</h2>
-            <p>Nous pouvons mettre à jour ces conditions à mesure que GarageOS évolue. Les changements seront publiés sur cette page.</p>
-          </div>
-
-          <div>
-            <h2 className={H}>Questions</h2>
-            <p>Pour toute question relative à ces conditions, écrivez-nous depuis notre <Link href="/contact" className={A}>page de contact</Link>.</p>
-          </div>
-        </div>
-      </section>
-    </>
-  );
-}
-
-export default function TermsPage() {
-  return (
-    <MarketingPageShell>
-      <Bilingual en={<English />} fr={<French />} />
-    </MarketingPageShell>
-  );
-}
+export const metadata: Metadata={title:"Terms of Service · Conditions d'utilisation",description:"Terms governing GarageOS. · Conditions régissant GarageOS."};
+const H="text-base font-semibold text-slate-900 mb-2"; const A="font-semibold text-brand-blue hover:underline";
+function English(){return <><PageHero eyebrow="Company" heading="Terms of Service" description="Last updated September 2026"/><section className="bg-white"><div className="max-w-2xl mx-auto px-4 sm:px-6 py-16 sm:py-24 space-y-8 text-slate-600 leading-relaxed text-sm">
+<div><h2 className={H}>Business service and acceptance</h2><p>GarageOS, operated by GABAN Solutions, is a business-to-business shop-management service. By creating or using an account on behalf of a shop, you represent that you are authorized to bind that business to these Terms. The French version of these Terms is available through the language control on this page.</p></div>
+<div><h2 className={H}>Service</h2><p>GarageOS supports shop workflows such as customers and vehicles, appointments, estimates and approvals, work orders, inspections, invoicing, payments, communications, reminders, tire storage, reporting and other features made available under the selected plan. Features may evolve, and beta or future features are not promised for a particular date.</p></div>
+<div><h2 className={H}>Plans, trial and billing</h2><p>Current plan pricing is shown on our <Link href="/pricing" className={A}>pricing page</Link>. Unless stated otherwise, prices are in Canadian dollars and applicable taxes are additional. New eligible accounts may receive the 14-day free trial shown at signup. When a payment method is collected, the first charge date and amount are shown before the trial begins. Monthly plans renew monthly; annual plans are billed upfront for the annual term. Subscriptions renew unless cancelled in accordance with the cancellation controls made available by GarageOS.</p></div>
+<div><h2 className={H}>Usage charges</h2><p>Some services with direct usage costs, including SMS, may have included allowances and overage charges disclosed in the product or at purchase. The shop is responsible for charges generated by authorized account activity. GarageOS does not activate unannounced add-on charges.</p></div>
+<div><h2 className={H}>Failed payments, restriction and cancellation</h2><p>If payment fails, GarageOS may retry collection and may temporarily restrict access after any applicable grace period while preserving the account data as described in our retention practices. Cancellation normally takes effect at the end of the paid subscription period unless the product clearly states otherwise. Amounts already paid are non-refundable except where required by law or expressly agreed by GarageOS.</p></div>
+<div><h2 className={H}>Shop responsibilities and electronic messages</h2><p>The shop is responsible for the legality and accuracy of information it enters, the users it authorizes, and the messages it sends through GarageOS. The shop must have any consent or other authority required to contact its customers, must respect opt-outs and applicable anti-spam requirements, and must not use GarageOS for unlawful, deceptive, abusive or unsolicited messaging.</p></div>
+<div><h2 className={H}>Customer data</h2><p>As between GarageOS and the shop, the shop retains its rights in the business and customer data it submits. The shop authorizes GarageOS and its service providers to host, process, transmit, back up and otherwise handle that data as necessary to provide, secure and support the service and as described in our <Link href="/privacy" className={A}>Privacy Policy</Link>. The shop represents that it has the authority necessary to provide the data to GarageOS.</p></div>
+<div><h2 className={H}>Security and accounts</h2><p>You must protect account credentials and promptly notify GarageOS of suspected unauthorized access. Shop owners are responsible for users they invite and permissions they grant. GarageOS may suspend access when reasonably necessary to protect the service, customers or data, investigate abuse, comply with law or address material breaches of these Terms.</p></div>
+<div><h2 className={H}>Third-party services</h2><p>GarageOS may integrate with third-party services such as payment, accounting, email and SMS providers. Third-party services may have their own terms and availability. GarageOS is not responsible for a third party&apos;s independent service, outage or policy, but remains responsible for its own obligations regarding personal information it handles.</p></div>
+<div><h2 className={H}>Availability and warranty</h2><p>We work to keep GarageOS reliable and secure, but no online service is uninterrupted or error-free. To the extent permitted by applicable law, GarageOS is provided on an “as is” and “as available” basis without warranties not expressly stated in these Terms.</p></div>
+<div><h2 className={H}>Liability</h2><p>To the extent permitted by applicable law, neither party is liable to the other for indirect, incidental, special or consequential damages arising from the service. Nothing in these Terms excludes liability that cannot lawfully be excluded or limited. Any more specific written agreement signed by GarageOS and the shop controls to the extent of a conflict with these Terms.</p></div>
+<div><h2 className={H}>Termination and data</h2><p>After termination or cancellation, access may end when the applicable subscription period ends. Shops should export data they need before access ends. GarageOS may retain or delete information in accordance with its Privacy Policy, retention practices and legal obligations.</p></div>
+<div><h2 className={H}>Changes</h2><p>We may update these Terms as the service or applicable requirements change. Material changes will be communicated or presented as appropriate before they apply. Continued use after an applicable effective date constitutes acceptance where permitted by law.</p></div>
+<div><h2 className={H}>Contact</h2><p>Questions about these Terms can be sent through our <Link href="/contact" className={A}>contact page</Link>.</p></div>
+</div></section></>}
+function French(){return <><PageHero eyebrow="Entreprise" heading="Conditions d'utilisation" description="Dernière mise à jour : septembre 2026"/><section className="bg-white"><div className="max-w-2xl mx-auto px-4 sm:px-6 py-16 sm:py-24 space-y-8 text-slate-600 leading-relaxed text-sm">
+<div><h2 className={H}>Service commercial et acceptation</h2><p>GarageOS, exploité par GABAN Solutions, est un service de gestion d&apos;atelier destiné aux entreprises. En créant ou en utilisant un compte au nom d&apos;un atelier, vous déclarez être autorisé à lier cette entreprise aux présentes Conditions. La version française est accessible au moyen du contrôle de langue de cette page.</p></div>
+<div><h2 className={H}>Service</h2><p>GarageOS prend en charge des activités comme les clients et véhicules, rendez-vous, soumissions et approbations, bons de travail, inspections, facturation, paiements, communications, rappels, entreposage de pneus, rapports et autres fonctions offertes selon le forfait choisi. Les fonctionnalités peuvent évoluer et aucune date précise n&apos;est promise pour les fonctions bêta ou futures.</p></div>
+<div><h2 className={H}>Forfaits, essai et facturation</h2><p>Les prix actuels figurent sur notre <Link href="/pricing" className={A}>page des tarifs</Link>. Sauf indication contraire, les prix sont en dollars canadiens et les taxes applicables s&apos;ajoutent. Les nouveaux comptes admissibles peuvent bénéficier de l&apos;essai gratuit de 14 jours affiché lors de l&apos;inscription. Lorsque le mode de paiement est recueilli, la date et le montant du premier prélèvement sont affichés avant le début de l&apos;essai. Les forfaits mensuels se renouvellent mensuellement; les forfaits annuels sont facturés d&apos;avance pour la période annuelle. L&apos;abonnement se renouvelle à moins d&apos;être annulé au moyen des contrôles d&apos;annulation offerts par GarageOS.</p></div>
+<div><h2 className={H}>Frais d&apos;utilisation</h2><p>Certains services entraînant des coûts directs, notamment les textos, peuvent comprendre un volume inclus et des frais de dépassement indiqués dans le produit ou au moment de l&apos;achat. L&apos;atelier est responsable des frais générés par l&apos;activité autorisée de son compte. GarageOS n&apos;active pas de frais additionnels non annoncés.</p></div>
+<div><h2 className={H}>Paiements échoués, restriction et annulation</h2><p>En cas d&apos;échec de paiement, GarageOS peut tenter de percevoir de nouveau le montant et peut restreindre temporairement l&apos;accès après toute période de grâce applicable, tout en conservant les données du compte conformément à ses pratiques de conservation. L&apos;annulation prend normalement effet à la fin de la période d&apos;abonnement payée, sauf indication claire contraire dans le produit. Les sommes déjà payées ne sont pas remboursables, sauf lorsque la loi l&apos;exige ou que GarageOS l&apos;accepte expressément.</p></div>
+<div><h2 className={H}>Responsabilités de l&apos;atelier et messages électroniques</h2><p>L&apos;atelier est responsable de la légalité et de l&apos;exactitude des renseignements qu&apos;il saisit, des utilisateurs qu&apos;il autorise et des messages qu&apos;il transmet par GarageOS. Il doit disposer de tout consentement ou autre autorisation nécessaire pour communiquer avec ses clients, respecter les désabonnements et les règles anti-pourriel applicables, et ne pas utiliser GarageOS pour des communications illégales, trompeuses, abusives ou non sollicitées.</p></div>
+<div><h2 className={H}>Données de l&apos;atelier</h2><p>Entre GarageOS et l&apos;atelier, l&apos;atelier conserve ses droits sur les données commerciales et les renseignements de clients qu&apos;il soumet. L&apos;atelier autorise GarageOS et ses fournisseurs à héberger, traiter, transmettre, sauvegarder et autrement traiter ces données dans la mesure nécessaire pour fournir, sécuriser et soutenir le service, conformément à notre <Link href="/privacy" className={A}>Politique de confidentialité</Link>. L&apos;atelier déclare disposer de l&apos;autorité nécessaire pour fournir ces données à GarageOS.</p></div>
+<div><h2 className={H}>Sécurité et comptes</h2><p>Vous devez protéger les identifiants du compte et aviser rapidement GarageOS de tout accès non autorisé soupçonné. Les propriétaires d&apos;atelier sont responsables des utilisateurs invités et des permissions accordées. GarageOS peut suspendre l&apos;accès lorsque cela est raisonnablement nécessaire pour protéger le service, les clients ou les données, enquêter sur un abus, respecter la loi ou remédier à une violation importante des présentes Conditions.</p></div>
+<div><h2 className={H}>Services de tiers</h2><p>GarageOS peut s&apos;intégrer à des services de tiers, notamment des fournisseurs de paiement, de comptabilité, de courriel et de textos. Ces services peuvent être soumis à leurs propres conditions et disponibilité. GarageOS n&apos;est pas responsable du service, d&apos;une panne ou d&apos;une politique indépendante d&apos;un tiers, mais demeure responsable de ses propres obligations à l&apos;égard des renseignements personnels qu&apos;il traite.</p></div>
+<div><h2 className={H}>Disponibilité et garanties</h2><p>Nous cherchons à maintenir GarageOS fiable et sécuritaire, mais aucun service en ligne n&apos;est exempt d&apos;interruption ou d&apos;erreur. Dans la mesure permise par la loi applicable, GarageOS est fourni « tel quel » et « selon disponibilité », sans garantie autre que celles expressément prévues aux présentes Conditions.</p></div>
+<div><h2 className={H}>Responsabilité</h2><p>Dans la mesure permise par la loi applicable, aucune partie n&apos;est responsable envers l&apos;autre des dommages indirects, accessoires, spéciaux ou consécutifs découlant du service. Rien dans les présentes Conditions n&apos;exclut une responsabilité qui ne peut légalement être exclue ou limitée. Toute entente écrite plus précise signée par GarageOS et l&apos;atelier prévaut en cas de conflit avec les présentes Conditions.</p></div>
+<div><h2 className={H}>Fin du service et données</h2><p>Après la résiliation ou l&apos;annulation, l&apos;accès peut prendre fin à l&apos;expiration de la période d&apos;abonnement applicable. Les ateliers devraient exporter les données dont ils ont besoin avant la fin de l&apos;accès. GarageOS peut conserver ou supprimer les renseignements conformément à sa Politique de confidentialité, à ses pratiques de conservation et à ses obligations légales.</p></div>
+<div><h2 className={H}>Modifications</h2><p>Nous pouvons mettre à jour les présentes Conditions lorsque le service ou les exigences applicables changent. Les modifications importantes seront communiquées ou présentées de façon appropriée avant leur entrée en vigueur. L&apos;utilisation continue après la date d&apos;entrée en vigueur applicable constitue une acceptation lorsque la loi le permet.</p></div>
+<div><h2 className={H}>Nous joindre</h2><p>Pour toute question, utilisez notre <Link href="/contact" className={A}>page de contact</Link>.</p></div>
+</div></section></>}
+export default function TermsPage(){return <MarketingPageShell><Bilingual en={<English/>} fr={<French/>}/></MarketingPageShell>;}
