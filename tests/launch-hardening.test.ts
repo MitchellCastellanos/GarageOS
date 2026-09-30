@@ -204,3 +204,17 @@ test("public booking is closed for a shop without a paying subscription", async 
   sub = null;
   assert.equal((await getShopBySlug("s"))?.bookingEnabled, false, "missing subscription row is a recovery state, not free service");
 });
+
+// ── Upload policy ───────────────────────────────────────────────────────────
+test("uploads: only inert image/document types reach the public bucket", async () => {
+  const { isAllowedPhotoType, isAllowedDocumentType } = await import("../src/lib/upload-policy");
+  for (const ok of ["image/jpeg", "image/png", "image/webp", "IMAGE/JPEG"]) assert.equal(isAllowedPhotoType(ok), true, ok);
+  for (const bad of ["text/html", "image/svg+xml", "application/javascript", "application/octet-stream", "", null, undefined]) {
+    assert.equal(isAllowedPhotoType(bad as never), false, String(bad));
+    assert.equal(isAllowedDocumentType(bad as never), false, String(bad));
+  }
+  assert.equal(isAllowedDocumentType("application/pdf"), true);
+  assert.equal(isAllowedDocumentType("text/csv"), true);
+  assert.equal(isAllowedDocumentType("image/svg+xml"), false);
+  assert.equal(isAllowedDocumentType("text/html"), false);
+});

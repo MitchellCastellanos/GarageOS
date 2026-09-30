@@ -4,6 +4,7 @@ import { ADMIN } from "@/lib/routes";
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
+import { isAllowedDocumentType } from "@/lib/upload-policy";
 import { requirePermissions } from "@/lib/access";
 import { assertShopWritable } from "@/lib/shop-context";
 import { uploadToStorage, publicUrlForStoragePath } from "@/lib/storage";
@@ -74,6 +75,10 @@ export async function uploadDocument(formData: FormData) {
   const validCategories = DOC_CATEGORIES.map((c) => c.value);
   if (!validCategories.includes(category)) {
     return { error: "Invalid category" };
+  }
+
+  if (!isAllowedDocumentType(file.type)) {
+    return { error: "Unsupported file type (PDF, image, CSV, Word or Excel only)" };
   }
 
   const MAX_SIZE = 20 * 1024 * 1024;
