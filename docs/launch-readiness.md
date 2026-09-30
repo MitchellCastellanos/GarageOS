@@ -38,7 +38,7 @@ Real-DB suites: `GARAGEOS_INTEGRATION_DB=1 DATABASE_URL=<disposable migrated db>
 3. **`CRON_SECRET`** (≥16 chars) in Vercel. Cron routes now fail closed without it.
 4. **Database backups**: confirm the actual DB host's backup plan and take/restore-test one backup (see runbook). Don't onboard a paying shop on an unbacked database.
 5. **Support mailbox**: set `NEXT_PUBLIC_CONTACT_EMAIL` (default `hello@garageos.app` — confirm it exists and is monitored). Confirm the domains referenced in the product (`garage-os.ca` app domain, `garageos.com` footer link) are yours.
-6. **Legal review of Terms/Privacy** (Quebec Law 25 / PIPEDA: privacy officer, data location, incident process). The pages are bilingual now but are product-generic text, not legal advice.
+6. **Legal/compliance operations:** bilingual Terms/Privacy, Privacy Officer, governance, incident response/register, initial PIA/EFVP, CASL matrix and engineering rules are now in `docs/compliance/`. Before first paying customer, finish the provider/cross-border assessment, retention/backup periods, legal business identity/address, and the public-vs-private Supabase storage split identified in `docs/compliance/finalization-audit.md`. External legal review remains recommended.
 7. Required env for a working app: `DATABASE_URL`/`DIRECT_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `NEXT_PUBLIC_APP_URL`, Supabase (`NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`), `RESEND_API_KEY`, `EMAIL_MANAGED_DOMAIN` (SPF/DKIM verified), `PLATFORM_ADMIN_*`.
 
 ## REQUIRED BEFORE USING THAT FEATURE
