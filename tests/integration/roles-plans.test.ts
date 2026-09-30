@@ -53,7 +53,7 @@ function writes(t: Tenant, acts: Record<string, Record<string, (...a: never[]) =
     updateWorkOrderStatus: () => a.wo.updateWorkOrderStatus(t.workOrderId, "CANCELLED"),
     createQuote: () => a.quotes.createQuote(invoiceForm),
     createInvoice: () => a.inv.createInvoice(invoiceForm),
-    markInvoiceAsPaid: () => a.inv.markInvoiceAsPaid(t.invoiceId, fd({ paymentMode: "CASH", entries: JSON.stringify([{ method: "CASH", amount: "114.98" }]) })),
+    markInvoiceAsPaid: () => a.inv.markInvoiceAsPaid(t.invoiceId, fd({ paymentMode: "CASH", entries: JSON.stringify([{ method: "CASH", amount: 114.98 }]) })),
     cancelInvoice: () => a.inv.cancelInvoice(t.invoiceId),
     createInspection: () => a.insp.createInspection({ clientId: t.clientId, vehicleId: t.vehicleId }),
     createReminder: () => a.rem.createReminder({ vehicleId: t.vehicleId, serviceType: "n" }),
@@ -124,7 +124,7 @@ test("MECHANIC: operates the job flow, but no refunds, settings, team, campaigns
   const acts = await load();
   const forbidden = ["refund", "updateShopSettings", "createTeamMember", "setPermissions", "createLocation", "createCampaign", "createCashEntry", "createReminderRule"];
   assert.deepEqual(await whichWritesLand(COMPLETE, "mechanic", forbidden, acts), [], "forbidden for a mechanic");
-  const allowed = ["createClient", "createVehicle", "createAppointment", "createWorkOrder", "createQuote", "createInvoice", "createInspection", "createReminder", "createInventoryPart", "createTireSet"];
+  const allowed = ["markInvoiceAsPaid", "createClient", "createVehicle", "createAppointment", "createWorkOrder", "createQuote", "createInvoice", "createInspection", "createReminder", "createInventoryPart", "createTireSet"];
   const landed = await whichWritesLand(COMPLETE, "mechanic", allowed, acts);
   assert.deepEqual(landed.sort(), [...allowed].sort(), "the operational chain works for a mechanic");
 });
