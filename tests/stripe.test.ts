@@ -1,6 +1,23 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { findPlanSubscriptionItem, getSmsOverageItemPriceId, resolvePlanFromPriceId } from "../src/lib/stripe";
+import {
+  checkoutLineItems,
+  findPlanSubscriptionItem,
+  getSmsOverageItemPriceId,
+  resolvePlanFromPriceId,
+} from "../src/lib/stripe";
+
+test("checkoutLineItems adds the monthly SMS overage item only to monthly plans", () => {
+  assert.deepEqual(checkoutLineItems("price_pro_monthly", "MONTHLY", "price_sms_overage"), [
+    { price: "price_pro_monthly", quantity: 1 },
+    { price: "price_sms_overage" },
+  ]);
+  // Stripe Checkout rejects mixed billing intervals, so a yearly plan gets the plan item alone.
+  assert.deepEqual(checkoutLineItems("price_complete_yearly", "YEARLY", "price_sms_overage"), [
+    { price: "price_complete_yearly", quantity: 1 },
+  ]);
+  assert.deepEqual(checkoutLineItems("price_pro_monthly", "MONTHLY", null), [{ price: "price_pro_monthly", quantity: 1 }]);
+});
 
 process.env.STRIPE_PRICE_CORE_MONTHLY = "price_core_monthly";
 process.env.STRIPE_PRICE_PRO_MONTHLY = "price_pro_monthly";

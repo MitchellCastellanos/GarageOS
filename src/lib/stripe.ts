@@ -91,6 +91,22 @@ export function priceMismatchReason(
 }
 
 /**
+ * Line items del Checkout. El Price de excedente de SMS es mensual y Stripe
+ * Checkout rechaza mezclar intervalos ("Checkout does not support multiple
+ * prices with different billing intervals"), así que en un plan ANUAL el
+ * excedente NO se agrega: si se agregara, el Checkout anual no se podría abrir.
+ */
+export function checkoutLineItems(
+  planPriceId: string,
+  interval: BillingInterval,
+  overagePriceId: string | null
+): Stripe.Checkout.SessionCreateParams.LineItem[] {
+  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [{ price: planPriceId, quantity: 1 }];
+  if (overagePriceId && interval === "MONTHLY") lineItems.push({ price: overagePriceId });
+  return lineItems;
+}
+
+/**
  * Checkout hospedado en modo suscripción con método de pago OBLIGATORIO
  * (`payment_method_collection: "always"`) — la tarjeta la captura Stripe, jamás
  * GarageOS. Con trial, el cobro de hoy es $0 y Stripe cobra solo al terminar.
@@ -114,9 +130,7 @@ export async function createCheckoutSession(params: CreateCheckoutSessionParams)
   // El item de excedente de SMS es "metered" (sin quantity) — se factura solo
   // por lo que reporte reportSmsOverageUsage. Se agrega desde el arranque de
   // la suscripción para no tener que hacer un backfill después.
-  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [{ price: priceId, quantity: 1 }];
-  const overagePriceId = getSmsOverageItemPriceId();
-  if (overagePriceId) lineItems.push({ price: overagePriceId });
+  const lineItems = checkoutLineItems(priceId, params.interval, getSmsOverageItemPriceId());
 
   const subscriptionData: Stripe.Checkout.SessionCreateParams.SubscriptionData = {
     metadata: { shopId: params.shopId },
