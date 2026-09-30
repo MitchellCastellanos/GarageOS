@@ -6,6 +6,8 @@ import { requireSession } from "@/lib/permissions";
 import { ADMIN } from "@/lib/routes";
 import { publishPlatformMessage, publishPlatformConversationUpdate } from "@/lib/platform/pusher";
 import { sendPlatformTelegramAlert } from "@/lib/platform/telegram";
+import { buildPlatformTelegramAlertText } from "@/lib/platform/telegram-alert";
+import { getAppUrl } from "@/config/app";
 import { notifySupportMessageReceived, notifyAdminNewSupportMessage } from "@/lib/platform/notify";
 import { resolveSupportRecipient } from "@/lib/platform/support-recipient";
 
@@ -86,7 +88,8 @@ export async function sendSupportMessage(content: string) {
   // Solo alertamos una vez por espera — igual que MSC (evita spamear al equipo si el taller manda varios mensajes seguidos).
   if (!conversation.staffAlertedAt) {
     await db.platformConversation.update({ where: { id: conversation.id }, data: { staffAlertedAt: new Date() } });
-    await sendPlatformTelegramAlert(`💬 Mensaje nuevo de ${shop.name}\n"${trimmed}"\n/platform/messages/${conversation.id}`).catch(() => {});
+    // Solo nombre del taller + enlace: el contenido del mensaje no sale hacia Telegram.
+    await sendPlatformTelegramAlert(buildPlatformTelegramAlertText(shop.name, conversation.id, getAppUrl())).catch(() => {});
     await notifyAdminNewSupportMessage({ shopName: shop.name, message: trimmed, conversationId: conversation.id }).catch((err) =>
       console.error("[support] notifyAdminNewSupportMessage falló:", err)
     );

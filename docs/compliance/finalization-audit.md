@@ -1,6 +1,6 @@
 # GarageOS compliance finalization audit
 
-Date: 2026-09-29 (storage section updated 2026-09-30)
+Date: 2026-09-29 (storage 2026-09-30; provider/cross-border/backup review 2026-09-30)
 
 ## Verified in code
 - Campaign audience resolution requires `marketingEmailConsent=true`, no email marketing opt-out, and an email address.
@@ -19,6 +19,9 @@ Date: 2026-09-29 (storage section updated 2026-09-30)
 3. **Retention:** statutory accounting/tax retention periods still to be confirmed. Backups: the Supabase connector reports the organization on the **Free plan**, and does not expose backup/PITR settings, so backup retention is **not verified**; confirm in the dashboard (Project → Database → Backups) and upgrade the plan if production needs managed backups. Storage objects are not part of Supabase database backups.
 4. **Business identity:** confirm the legal contracting name/status and business mailing address to use in Terms/notices/invoices. Do not invent NEQ or tax-registration numbers.
 5. **Operational incident readiness:** keep the incident register accessible to the Privacy Officer and run one tabletop exercise.
+
+### Provider / cross-border / backup review (2026-09-30) — results
+Not closed; see `privacy-impact-assessment.md` §7 for the classified list. Highlights: **application DB host unidentified** (not the connected Supabase project); all verified destinations are in the **USA** (Vercel iad1, Supabase us-east-1, Pusher us2, Twilio US1 default, Resend US, Stripe US); Supabase org on **Free plan** with **no backups** and no backup of Storage objects; **Preview deployments share the production database and provider keys**; Telegram alert no longer carries support-message text (fixed); QuickBooks and AI providers confirmed **not active** in Production.
 
 ### P2 before enabling marketing campaigns for customers
 6. **Consent evidence workflow:** the current staff toggle records source=`manual` and timestamp. The shop must only turn it on when it has a valid consent/basis it can substantiate. Product copy should make that explicit; a future enhancement can record method/evidence/notes.
