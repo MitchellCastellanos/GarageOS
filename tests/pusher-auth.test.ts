@@ -113,7 +113,8 @@ function walk(dir: string, out: string[] = []): string[] {
 test("codebase guard: no public Pusher channel names and every client uses the auth endpoint", () => {
   for (const file of walk("src")) {
     const src = readFileSync(file, "utf8");
-    if (!file.endsWith("platform/pusher-channels.ts") && !file.endsWith("platform/pusher-authz.ts")) {
+    const rel = file.replace(/\\/g, "/"); // Windows: src\lib\x.ts -> src/lib/x.ts
+    if (!rel.endsWith("platform/pusher-channels.ts") && !rel.endsWith("platform/pusher-authz.ts")) {
       assert.doesNotMatch(src, /["'`](?:platform-conversation|staff-notifications|platform-messages-admin)/, `${file} hard-codes a public channel name`);
     }
     if (/new Pusher\(process\.env\.NEXT_PUBLIC_PUSHER_KEY/.test(src)) {

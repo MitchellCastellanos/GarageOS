@@ -32,9 +32,10 @@ export const DEFAULT_SIGNED_URL_TTL = 3600;
 export const SHORT_SIGNED_URL_TTL = 60;
 
 let clientOverride: SupabaseClient | null = null;
-/** Solo tests: inyecta un cliente falso. */
+/** Solo tests: inyecta un cliente falso (y descarta la caché de visibilidad). */
 export function __setStorageClientForTests(client: SupabaseClient | null) {
   clientOverride = client;
+  privateVerifiedAt.clear();
 }
 
 function getClient(): SupabaseClient {
@@ -68,6 +69,29 @@ async function ensureBucket(client: SupabaseClient, name: string, isPublic: bool
   }
   const { error } = await client.storage.createBucket(name, { public: isPublic });
   if (error) throw new Error(`No se pudo crear el bucket «${name}»: ${error.message}`);
+}
+
+// Lecturas privadas: fallan cerrado si el bucket es (o pasa a ser) público.
+// Solo se cachea el resultado "verificado privado" (nunca un fallo) por un TTL corto, para no
+// llamar a Storage en cada descarga; si alguien lo hace público, la lectura se bloquea en ≤ TTL.
+export const PRIVATE_BUCKET_CHECK_TTL_MS = 60_000;
+const privateVerifiedAt = new Map<string, number>();
+
+async function assertBucketPrivateForRead(client: SupabaseClient, name: string): Promise<void> {
+  const last = privateVerifiedAt.get(name);
+  if (last !== undefined && Date.now() - last < PRIVATE_BUCKET_CHECK_TTL_MS) return;
+  privateVerifiedAt.delete(name);
+  const { data: buckets, error } = await client.storage.listBuckets();
+  if (error) throw new Error(`No se pudo verificar la visibilidad del bucket «${name}»: ${error.message}`);
+  const bucket = buckets?.find((b) => b.name === name);
+  if (!bucket) throw new Error(`El bucket privado «${name}» no existe; se rechaza la lectura.`);
+  if (bucket.public) {
+    throw new Error(
+      `El bucket «${name}» está PÚBLICO pero debe ser PRIVADO; se rechaza la lectura/firma. ` +
+        `Corrige la visibilidad en Supabase → Storage (o con scripts/migrate-storage-privacy.ts --apply --finalize).`
+    );
+  }
+  privateVerifiedAt.set(name, Date.now());
 }
 
 /** Bucket público de assets. Se crea público solo si no existe. */
@@ -182,7 +206,9 @@ export async function uploadInvoiceClientPackage(
 /** Descarga server-side de un documento privado del taller `shopId`. */
 export async function downloadPrivateDocument(shopId: string, storagePath: string): Promise<Buffer> {
   const path = assertTenantStoragePath(shopId, storagePath);
-  const { data, error } = await getClient().storage.from(PRIVATE_DOCUMENTS_BUCKET).download(path);
+  const client = getClient();
+  await assertBucketPrivateForRead(client, PRIVATE_DOCUMENTS_BUCKET);
+  const { data, error } = await client.storage.from(PRIVATE_DOCUMENTS_BUCKET).download(path);
   if (error || !data) throw new Error(`Supabase download error: ${error?.message ?? "empty"}`);
   return Buffer.from(await data.arrayBuffer());
 }
@@ -197,8 +223,10 @@ export async function signedUrlForPrivateDocument(
   expiresInSeconds = DEFAULT_SIGNED_URL_TTL
 ): Promise<string> {
   const path = assertTenantStoragePath(shopId, storagePath);
-  const { data, error } = await getClient()
-    .storage.from(PRIVATE_DOCUMENTS_BUCKET)
+  const client = getClient();
+  await assertBucketPrivateForRead(client, PRIVATE_DOCUMENTS_BUCKET);
+  const { data, error } = await client.storage
+    .from(PRIVATE_DOCUMENTS_BUCKET)
     .createSignedUrl(path, expiresInSeconds);
   if (error || !data) throw new Error(`Supabase signed URL error: ${error?.message ?? "empty"}`);
   return data.signedUrl;
@@ -250,8 +278,10 @@ export async function signedUrlForCommunicationAttachment(
   expiresInSeconds = DEFAULT_SIGNED_URL_TTL
 ): Promise<string> {
   const path = assertTenantStoragePath(shopId, storagePath);
-  const { data, error } = await getClient()
-    .storage.from(COMMUNICATIONS_BUCKET)
+  const client = getClient();
+  await assertBucketPrivateForRead(client, COMMUNICATIONS_BUCKET);
+  const { data, error } = await client.storage
+    .from(COMMUNICATIONS_BUCKET)
     .createSignedUrl(path, expiresInSeconds);
   if (error || !data) throw new Error(`Supabase signed URL error: ${error?.message ?? "empty"}`);
   return data.signedUrl;
