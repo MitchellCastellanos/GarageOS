@@ -21,12 +21,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-
-  // TODO(garageos): temporal mientras se termina de adaptar el código
-  // importado (ver docs/reuse-audit.md). Quitar antes de producción.
-  typescript: {
-    ignoreBuildErrors: true,
-  },
 };
 
 export default nextConfig;
