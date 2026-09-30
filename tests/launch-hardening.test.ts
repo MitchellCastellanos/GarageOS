@@ -328,3 +328,12 @@ test("launch-critical public pages ship a French version (Quebec market)", () =>
   assert.match(terms, /Conditions d&apos;utilisation|Conditions d'utilisation/);
   assert.match(terms, /essai gratuit de 14 jours/);
 });
+
+test("login route counts failed passwords against the per-account budget (not only the IP budget)", () => {
+  const src = readFileSync(path.join(ROOT, "src/app/api/auth/login/route.ts"), "utf8");
+  assert.match(src, /RATE_LIMITS\.loginEmail\(email\)/);
+  assert.match(src, /RATE_LIMITS\.loginIp\(ip\)/);
+  const idxLimit = src.indexOf("RATE_LIMITS.loginEmail(email)");
+  const idxCompare = src.indexOf("bcrypt.compare");
+  assert.ok(idxLimit > 0 && idxLimit < idxCompare, "the account budget is checked BEFORE the password comparison");
+});

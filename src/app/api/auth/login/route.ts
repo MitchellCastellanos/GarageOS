@@ -73,6 +73,13 @@ export async function POST(req: NextRequest) {
   const isFormRequest = contentType.includes("form");
   const errors = MARKETING_DICTIONARIES[locale].auth.errors;
 
+  // Per-account budget: this route rejects wrong passwords itself (before NextAuth's authorize() runs), so a
+  // distributed guessing attack on ONE account must be counted here too.
+  if (email && password && !(await checkRateLimit(RATE_LIMITS.loginEmail(email))).allowed) {
+    if (isFormRequest) return loginRedirect(req, errors.tooManyAttempts);
+    return NextResponse.json({ error: errors.tooManyAttempts }, { status: 429, headers: { "Retry-After": "900" } });
+  }
+
   if (!email || !password) {
     if (isFormRequest) return loginRedirect(req, errors.missingCredentials);
     return NextResponse.json({ error: errors.missingCredentials }, { status: 400 });
