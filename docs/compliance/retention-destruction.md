@@ -25,7 +25,7 @@ Suspend scheduled destruction for records subject to a litigation, regulatory, t
 **Verified from our infrastructure (INFRA)**
 - The connected Supabase project "Garage OS" (`saccjhinmeaoqoeuhljd`, us-east-1) belongs to an organization on the **Free plan**. It holds **Storage only** (the application tables are not in it).
 - The Supabase connector cannot read backup/PITR settings; nothing about backups is verified from the account itself.
-- The application PostgreSQL database is on **Neon** (`neondb`, hostname `…us-east-2.aws.neon.tech`), identified from the datasource line Prisma prints in Vercel build logs — not from the Supabase project. Its plan, backup/restore window and retention are **unknown** (no Neon connector); check the Neon console. The Supabase backup facts below apply to the Supabase Storage project only.
+- The application PostgreSQL database is on **Neon PostgreSQL, AWS us-east-2** (owner-confirmed 2026-09-30; first indicated by Vercel build logs) — not the Supabase project. Its plan, backup/restore window and retention are **unknown** (no Neon connector); check the Neon console. The Supabase backup facts below apply to the Supabase Storage project only.
 
 **From official Supabase documentation (DOC; https://supabase.com/docs/guides/platform/backups, read via the Supabase docs API)**
 - Automatic daily backups exist for **Pro, Team and Enterprise** projects; Pro keeps the last **7** days, Team 14, Enterprise up to 30. Free-plan projects are told to export regularly with `supabase db dump` and keep off-site backups — i.e. **Free has no managed backups**.
