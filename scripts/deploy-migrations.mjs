@@ -7,6 +7,16 @@ import { spawnSync } from "node:child_process";
 
 const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL;
 
+// Guard de entorno: un build de Preview NO debe migrar, rellenar ni escribir el super admin en la BD
+// a la que apunte DATABASE_URL (hoy Preview comparte la BD de producción). Solo Production (o local,
+// sin VERCEL_ENV) ejecuta este script. Para migrar una BD de Preview PROPIA, definir en Vercel →
+// Preview: RUN_DB_STEPS_ON_PREVIEW=1 junto con su DATABASE_URL separada.
+const vercelEnv = process.env.VERCEL_ENV;
+if (vercelEnv && vercelEnv !== "production" && process.env.RUN_DB_STEPS_ON_PREVIEW !== "1") {
+  console.log(`[deploy-migrations] VERCEL_ENV=${vercelEnv} — skipping migrations, backfill and super-admin bootstrap (set RUN_DB_STEPS_ON_PREVIEW=1 with a dedicated Preview database to enable).`);
+  process.exit(0);
+}
+
 if (!connectionString) {
   console.log("[deploy-migrations] No DIRECT_URL/DATABASE_URL set — skipping prisma migrate deploy.");
   process.exit(0);

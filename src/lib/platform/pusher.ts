@@ -10,6 +10,12 @@ export const platformRealtimeConfigured = Boolean(
 
 let client: Pusher | null = null;
 
+/** Firma la suscripción a un canal privado. SOLO llamar tras `canSubscribeToPusherChannel`. */
+export function signPusherChannelAuth(socketId: string, channelName: string): { auth: string } | null {
+  const c = getClient();
+  return c ? (c.authorizeChannel(socketId, channelName) as { auth: string }) : null;
+}
+
 function getClient(): Pusher | null {
   if (!platformRealtimeConfigured) return null;
   if (!client) {

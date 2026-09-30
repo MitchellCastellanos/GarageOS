@@ -6,7 +6,7 @@ import { Toaster } from "sonner";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { PlatformNotificationBell, type PlatformPendingCounts } from "@/components/admin/PlatformNotificationBell";
 import { getPlatformPendingCount } from "@/actions/platform";
-import { PLATFORM_MESSAGES_CHANNEL } from "@/lib/platform/pusher-channels";
+import { PLATFORM_MESSAGES_CHANNEL, PUSHER_CLIENT_AUTH } from "@/lib/platform/pusher-channels";
 
 export function PlatformChrome({
   userName,
@@ -37,7 +37,7 @@ export function PlatformChrome({
 
     import("pusher-js").then(({ default: Pusher }) => {
       if (cancelled) return;
-      const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, { cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER! });
+      const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, { cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!, ...PUSHER_CLIENT_AUTH });
       const channel = pusher.subscribe(PLATFORM_MESSAGES_CHANNEL);
       const handler = () => refresh();
       channel.bind("conversation-updated", handler);

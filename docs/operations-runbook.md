@@ -6,12 +6,12 @@ Storage for files; Stripe, Twilio, Resend, QuickBooks Online as providers; Verce
 `/api/webhooks/cron/campaigns` 09:00, `/api/webhooks/cron/quickbooks` 10:00 — all need `Authorization: Bearer $CRON_SECRET`.
 
 ## Database and Storage backup and restore
-*Facts behind this section: `docs/compliance/retention-destruction.md` (verified 2026-09-30). Status today: the application DB host is not yet identified, the connected Supabase project is on the Free plan (no managed backups), and Storage objects have no backup.*
+*Facts behind this section: `docs/compliance/retention-destruction.md` (verified 2026-09-30). Status today: the application DB is on Neon (backup plan not yet recorded), the connected Supabase project is Free-plan and Storage-only (no managed backups), and Storage objects have no backup.* **Preview builds no longer touch the database** (`scripts/deploy-migrations.mjs` skips unless `VERCEL_ENV=production`).
 
 **What is (and is not) covered automatically**
 | Data | Automatic coverage |
 |---|---|
-| App PostgreSQL | Depends on the DB host/plan — **unknown until identified**. Supabase Pro+ = daily backups (7 days on Pro); Free = none. |
+| App PostgreSQL (Neon) | Depends on the Neon plan — **record it from the Neon console**. |
 | Supabase Storage objects (invoices, receipts, DVI photos, attachments, logos) | **None on any Supabase plan** (DB backups contain only object metadata). |
 | Secrets/keys (`INTEGRATIONS_ENCRYPTION_KEY`, `NEXTAUTH_SECRET`) | None — keep an offline copy in a password manager (lost key = QuickBooks tokens unreadable, sessions invalid). |
 
