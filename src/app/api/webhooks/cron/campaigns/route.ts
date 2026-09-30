@@ -1,4 +1,4 @@
-import { createOperatingChecker } from "@/lib/subscription";
+import { can, createOperatingChecker } from "@/lib/subscription";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { isSuppressed } from "@/lib/communications/suppression";
@@ -49,6 +49,8 @@ export async function GET(request: Request) {
 
     // Taller restringido (sin pago vigente): la campaña queda en pausa, no se borra.
     if (!(await canOperate(shop.id))) continue;
+    // A shop that dropped below Pro after scheduling must not keep sending campaigns.
+    if (!(await can(shop.id, "communications.campaigns"))) continue;
 
     results.campaignsProcessed++;
 
@@ -86,6 +88,7 @@ export async function GET(request: Request) {
           campaign,
           client: recipient.client,
           address: recipient.address,
+          recipientId: recipient.id,
         });
         await db.campaignRecipient.update({
           where: { id: recipient.id },

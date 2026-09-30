@@ -55,6 +55,17 @@ function isUniqueConstraintViolation(err: unknown): boolean {
 /** Estados que significan "ya se entregó de verdad" — solo estos deduplican sin reintentar. */
 const TERMINAL_SUCCESS_STATUSES = new Set(["SENT", "DELIVERED"]);
 
+/**
+ * A QUEUED row this young belongs to a concurrent caller that is sending RIGHT NOW (a duplicated cron
+ * run, a double click, a webhook retry). Treating it as "already handled" prevents a double send;
+ * an older QUEUED row means the earlier attempt died, so the retry may take it over.
+ */
+export const IN_FLIGHT_WINDOW_MS = 120_000;
+
+function isInFlight(existing: { status: string; createdAt: Date }, now = Date.now()): boolean {
+  return existing.status === "QUEUED" && now - existing.createdAt.getTime() < IN_FLIGHT_WINDOW_MS;
+}
+
 async function reserveMessageId(params: RecordAndSendParams): Promise<
   | { messageId: string; deduped: false }
   | { deduped: true; providerMessageId: string | null; messageId: string }
@@ -95,7 +106,7 @@ async function reserveMessageId(params: RecordAndSendParams): Promise<
       where: { idempotencyKey: params.idempotencyKey },
     });
     if (existing) {
-      if (TERMINAL_SUCCESS_STATUSES.has(existing.status)) {
+      if (TERMINAL_SUCCESS_STATUSES.has(existing.status) || isInFlight(existing)) {
         return { deduped: true, providerMessageId: existing.providerMessageId, messageId: existing.id };
       }
       // Intento anterior quedó FAILED/QUEUED (ej. reintento de cron tras una caída del
@@ -117,7 +128,7 @@ async function reserveMessageId(params: RecordAndSendParams): Promise<
       const existing = await db.communicationMessage.findUniqueOrThrow({
         where: { idempotencyKey: params.idempotencyKey },
       });
-      if (TERMINAL_SUCCESS_STATUSES.has(existing.status)) {
+      if (TERMINAL_SUCCESS_STATUSES.has(existing.status) || isInFlight(existing)) {
         return { deduped: true, providerMessageId: existing.providerMessageId, messageId: existing.id };
       }
       return { messageId: existing.id, deduped: false };
