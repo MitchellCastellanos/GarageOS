@@ -339,36 +339,28 @@ A secure, mobile-first customer window into the SAME records (no parallel invoic
 **EN/FR:** bilingual: homepage, header/footer, `/pricing`, `/features`, `/product`, `/integrations`, `/get-started`, `/demo`, `/quick-start`. **Still EN-only (pre-existing, not regressed):** Help FAQ, Guides, Blog, Changelog, About, Privacy, Terms, Contact, and page `<title>`/meta (server metadata is EN). Translate before a French-market push.
 - Not done: sitemap/robots/JSON-LD (none existed), real screenshots/video, per-page OG images.
 
-### 15 — Launch hardening — VALIDATE — P0 before real customer data
-Use dedicated audit sessions.
+### 15 — Launch hardening — DONE in code (2026-09-30); provider validation = external (see `docs/launch-readiness.md`)
 
-Required:
-- tenant/shop isolation and ownership;
-- auth and server-side entitlement/access enforcement;
-- concurrency/idempotency;
-- booking DST;
-- backups/restore procedure;
-- responsive/mobile;
-- media ownership/uploads;
-- Quebec/Canada fiscal tests;
-- Stripe webhook and subscription E2E (live test-mode pass incl. Stripe test clocks — Block 1 is unit-tested with mocks only);
-- real email/SMS E2E;
-- import safety;
-- Multi-Shop isolation;
-- smoke/regression suite.
+Full operational source of truth: **`docs/launch-readiness.md`** (verdict, gates, provider status, checklist) and **`docs/operations-runbook.md`** (backup/restore, migrations, outages). Real-database suites live in `tests/integration/` (`npm run test:integration`, needs a disposable migrated Postgres + `GARAGEOS_INTEGRATION_DB=1`).
 
-A green build alone is not launch readiness.
+**Real defects found and fixed (each has a regression test):**
+- **P1 — cross-tenant references.** `createAppointment/updateAppointment`, `createWorkOrder/updateWorkOrder`, `createQuote/updateQuote`, `createInvoice/updateInvoice`, `createInspection`, `createReminder` stored a caller-supplied `clientId`/`vehicleId`/`mechanicId` without checking it belonged to the acting shop (a forged request could attach another shop's customer, expose their data through the document, and notify them). New `src/lib/ownership.ts`; found by the real-DB attack suite (129 attacks across reads and writes).
+- **P1 — `/admin/import` crashed in production** (a dictionary containing functions was passed from a server page to a client component; Block 2 was never browser-tested). Fixed; a static guard test now scans every server page for that pattern.
+- **P1 — shopId-taking helpers exposed as public server actions** (`ensureCashInFromInvoice` could inject cash-drawer entries into any shop; `syncSavedLineItems`, `hasUnreadSupportMessage`). Moved to server-only lib modules; a guard test forbids `shopId` parameters on unauthenticated server actions.
+- **P1 — cron endpoints accepted `Bearer undefined`** when `CRON_SECRET` was unset. Now fail closed with constant-time compare (`src/lib/cron-auth.ts`).
+- **P1 (config) — Stripe Prices.** Sandbox Prices were the old $149/$249/$399; the app now refuses Checkout when a Price disagrees with `PLAN_PRICING_CAD` (amount/currency/interval/metered).
+- P2: no rate limiting anywhere → DB-backed limiter (`RateLimitBucket`, atomic upsert; login per IP and per account, signup, verification resend, portal views/PDF/invalid tokens/self-request, booking submit/contact/slots); open redirect via login `callbackUrl`; invoice/receipt PDFs printed a plain "PAID" after a full refund (now REFUNDED / refund lines / net paid, EN/FR, for staff/email/public/portal PDFs); campaign sends had no per-recipient idempotency and a duplicated cron could double-send (idempotency key + in-flight outbox dedupe); scheduled campaigns kept sending after a downgrade (cron re-checks `communications.campaigns`); restricted shops kept accepting online bookings (now closed); DVI photo/accounting uploads accepted any MIME type into a public bucket (allow-list); `parseShopDateTime` threw inside the DST spring-forward gap (now the first valid instant); a Work Order created from an approved estimate started OPEN and forced two pointless status clicks (now APPROVED); Shop.billingEmail schema drift (migration `20261003100000` drops the unused legacy column; schema diff is now empty); the 9 TypeScript errors (react-hook-form input/output generics) and 5 ESLint errors; `typescript.ignoreBuildErrors` removed from `next.config.ts`.
+- French surface: Privacy, Terms, Contact, About, Help (FAQ), Changelog are bilingual (`<Bilingual>`), titles carry FR, first visit from a French browser starts in French. Still English-only: Guides and Blog articles.
 
-### 16 — Final GO/NO-GO audit — TODO
-Use an audit-first agent that does not begin by implementing.
+**Tire Storage communication lifecycle (I-2, built on the existing pipeline — no new scheduler/messaging system):** `TireStorageSet.expectedPickupDate` (+ `checkInNotifiedAt`, `pickupReminder14SentAt`, `pickupReminder3SentAt`, event `NOTIFIED`; migration `20261003120000`). Check-in confirmation (default on, checkbox), optional check-out confirmation, manual **Notify customer**, and automatic pickup/seasonal-change reminders at **14 and 3 days** before the expected date from the existing daily cron (skipped right after check-in; shop-local calendar day, DST-safe). SMS first with email fallback / both / email per the customer's `notifyChannel`, through `sendSms` (allowance + overage accounting, suppression/STOP) and the transactional email route (history, bounces). Idempotent per event (outbox key `tire-storage:<set>:<event>:<channel>` + business timestamps; manual = one message per 5-minute bucket). Customer-safe copy only (shop, vehicle, size/season, dates, derived reference `TS-XXXXXX`; **the internal rack/location is never sent**). Pro+ entitlement, restricted shops refused, tenant scoped. Tests: `tests/tire-storage-notify.test.ts`.
 
-Must successfully exercise:
+**Evidence:** 378 unit + 36 real-Postgres integration tests, fresh-DB migrations, empty schema diff, `tsc` 0 errors, `eslint` 0 errors (51 harmless warnings), production build, Playwright pass over 34 pages × 390/820/1280 px (no overflow/crashes; import wizard and Tire Storage check-in driven in a real browser). Import: 10,000 customers/vehicles/parts and a 10,000-row XLSX each import in ~2–3 s (+~340 MB RSS peak).
 
-**signup → verify → select plan/payment → $0 trial → onboarding → import → customer → vehicle → appointment → DVI → estimate → approval → Work Order → parts → status → notification → invoice → payment → history → reminder → reporting → billing transition.**
+**What is NOT verified (external):** real Stripe checkout completion / test clocks / webhooks, Twilio, Resend, QuickBooks sandbox, real backups — see `docs/launch-readiness.md`.
 
-Repeat entitlement/access checks for Core, Pro and Complete. Test Stripe trial completion and failed-payment/restricted recovery.
+### 16 — Final GO/NO-GO audit — DONE (2026-09-30)
 
-When all launch-critical blocks are DONE and this audit passes: **GO SELL GARAGEOS.**
+**Final decision: CODE GO — PROVIDER VALIDATION REQUIRED.** No known P0/P1 remains in the repository. The core chain (customer → vehicle → appointment → DVI → estimate → customer approval → Work Order + stock → status → notification attempt → invoice (GST/QST snapshot) → payment (cash+card) → history → maintenance reminder → reports → refunds/void/delete rules) runs green end to end against a real database, with notification providers absent (outage condition). It is **not** "GO SELL" yet because billing, SMS, email and QuickBooks have never touched their real test/sandbox environments end to end; the REQUIRED BEFORE FIRST CUSTOMER items in `docs/launch-readiness.md` (correct Stripe Prices + test-clock pass, `CRON_SECRET`, tested backup, support mailbox, legal review) gate the first paying shop.
 
 ## Explicitly outside V1
 
@@ -386,18 +378,11 @@ These can be reconsidered from real customer demand after launch.
 
 ## Current next move
 
-**Blocks 0–14 are DONE in code.** Next: **Block 15 — Launch hardening**, then **Block 16 — Final GO/NO-GO audit**.
+**Blocks 0–16 are DONE in code.** What remains is external: work through `docs/launch-readiness.md` (Stripe Prices + test-clock pass, cron secret, backups, provider validation per feature), then flip the status to **GO SELL GARAGEOS**. Post-launch backlog only: additional-location billing (needs the price decision), private storage bucket, French Guides/Blog, monitoring.
 
-Block 15 should start with (from Blocks 12–14):
-- Multi-Shop isolation pass (`tests/multishop.test.ts` covers the helpers; re-audit server actions for reliance on `session.user.shopId` only; `User.shopId` is the *active* location and moves on switch, so team lists show a switching owner under the active location).
-- Customer Portal: `/portal/*` GETs have no rate limiting (256-bit tokens make guessing infeasible, but add edge limits); confirm `Referrer-Policy`/`noindex` in production; verify deliverability of the link email (channel `WEB_CONTACT`); decide whether SMS delivery of the link is wanted.
-- Public site: French for Help/Guides/Blog/Terms/Privacy/metadata; visual QA of `/pricing` on real phones; sitemap/robots.
-- Manual config pending from earlier blocks (Stripe prices/webhook/tax, Intuit app, Twilio/Resend, `INTEGRATIONS_ENCRYPTION_KEY`) and the **additional-location billing decision** (Block 12).
-- Known pre-existing drift: a fresh DB from the migrations keeps a legacy `Shop.billingEmail` column that `schema.prisma` no longer declares (harmless).
-
-Rules every following block must respect:
-- Operational writes go through `getWritableShopId(permission?)`; sensitive reads through `getShopId(permission)`; new Pro+ functionality through a key in `src/config/entitlements.ts` + `checkEntitlement`/`can`/`canView`. Any new plan-dependent public claim must be a row in `src/lib/marketing-plans.ts` (tests enforce it). Fiscal (Block 9): never read `Shop.taxLines`/`taxId` to render an issued document — use `Invoice.taxSnapshot`/`taxRegistration`/`currency`.
-- Multi-Shop: organization administration via `getOrganizationAdminContext`; accessible locations via `resolveLocationAccess` (never trust an id from the client).
-- Tests for real server actions: reuse `tests/helpers/*` (`setSession`, `patchDb`, `mockSubscription`).
-- Migrations added by Blocks 2–13 (all additive): `20260930100000_import_runs`, `…110000_work_order_parts`, `…120000_tire_storage`, `…130000_dvi_advanced`, `…140000_reminder_rules`, `…150000_user_permissions`, `20261001110000_fiscal_snapshots_refunds`, `20261001120000_quickbooks_online`, `20261002100000_customer_portal`. The full chain was applied to a fresh PostgreSQL 16 in Block 13/14.
-- Still open from earlier blocks: real-provider validation (Block 15) of reminders, XLSX with real exports and large imports, Supabase photo storage; import error CSV capped at 1,000 rows.
+Rules every future change must respect:
+- Operational writes go through `getWritableShopId(permission?)`; sensitive reads through `getShopId(permission)`; new Pro+ functionality through a key in `src/config/entitlements.ts` + `checkEntitlement`/`can`/`canView`. Any new plan-dependent public claim must be a row in `src/lib/marketing-plans.ts`. Fiscal: never read `Shop.taxLines`/`taxId` to render an issued document — use the invoice snapshot.
+- **Any client-supplied customer/vehicle/mechanic id inside a write payload must be verified with `src/lib/ownership.ts`.** Helpers that take a `shopId` must live in a server-only lib module, never in a `"use server"` file. Never pass a dictionary containing functions from a server page to a client component (guard test enforces it).
+- Rate-limit public/sensitive endpoints with `src/lib/rate-limit.ts` (`RATE_LIMITS` table). Cron routes use `isAuthorizedCronRequest`.
+- Multi-Shop: organization administration via `getOrganizationAdminContext`; accessible locations via `resolveLocationAccess`.
+- Add tenant/plan tests for new actions to `tests/integration/` (real DB) — mocks cannot prove isolation.
