@@ -45,7 +45,7 @@ const STRINGS: Record<PlatformEmailLanguage, {
     intro: (byUs) => (byUs ? "Votre abonnement GarageOS a été annulé par notre équipe." : "Nous confirmons l'annulation de votre abonnement GarageOS."),
     activeUntil: (date) => (
       <>
-        {" "}Il restera actif jusqu'au <strong>{date}</strong>.
+        {" "}Il restera actif jusqu&apos;au <strong>{date}</strong>.
       </>
     ),
     reasonLabel: "Motif",

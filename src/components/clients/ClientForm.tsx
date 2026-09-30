@@ -1,5 +1,6 @@
 "use client";
 
+import type { z } from "zod";
 import { ADMIN, PLATFORM, adminPath } from "@/lib/routes";
 
 // ClientForm — formulario reutilizable para crear Y editar clientes.
@@ -40,7 +41,7 @@ export function ClientForm({
     handleSubmit,
     setError,
     formState: { errors },
-  } = useForm<ClientFormData>({
+  } = useForm<z.input<typeof clientSchema>, unknown, ClientFormData>({
     resolver: zodResolver(clientSchema),
     defaultValues: defaultValues ?? {
       firstName: "",
