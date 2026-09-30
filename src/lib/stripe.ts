@@ -91,6 +91,24 @@ export function priceMismatchReason(
 }
 
 /**
+ * Line items del Checkout. El Price de excedente de SMS es MENSUAL y Stripe
+ * Checkout rechaza mezclar intervalos ("Checkout does not support multiple
+ * prices with different billing intervals"), así que en un plan ANUAL el
+ * excedente NO va en el Checkout: se agrega justo después, sobre la misma
+ * suscripción, con ensureSmsOverageItem (modo de facturación flexible). El
+ * excedente sigue midiéndose y cobrándose cada mes para todos los planes.
+ */
+export function checkoutLineItems(
+  planPriceId: string,
+  interval: BillingInterval,
+  overagePriceId: string | null
+): Stripe.Checkout.SessionCreateParams.LineItem[] {
+  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [{ price: planPriceId, quantity: 1 }];
+  if (overagePriceId && interval === "MONTHLY") lineItems.push({ price: overagePriceId });
+  return lineItems;
+}
+
+/**
  * Checkout hospedado en modo suscripción con método de pago OBLIGATORIO
  * (`payment_method_collection: "always"`) — la tarjeta la captura Stripe, jamás
  * GarageOS. Con trial, el cobro de hoy es $0 y Stripe cobra solo al terminar.
@@ -114,9 +132,7 @@ export async function createCheckoutSession(params: CreateCheckoutSessionParams)
   // El item de excedente de SMS es "metered" (sin quantity) — se factura solo
   // por lo que reporte reportSmsOverageUsage. Se agrega desde el arranque de
   // la suscripción para no tener que hacer un backfill después.
-  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [{ price: priceId, quantity: 1 }];
-  const overagePriceId = getSmsOverageItemPriceId();
-  if (overagePriceId) lineItems.push({ price: overagePriceId });
+  const lineItems = checkoutLineItems(priceId, params.interval, getSmsOverageItemPriceId());
 
   const subscriptionData: Stripe.Checkout.SessionCreateParams.SubscriptionData = {
     metadata: { shopId: params.shopId },
@@ -175,6 +191,43 @@ export async function createBillingPortalSession(params: {
 }
 
 /**
+ * Las suscripciones con ítems de intervalos distintos (plan anual + excedente
+ * de SMS mensual) exigen el modo de facturación "flexible". El SDK crea las
+ * nuevas en flexible por defecto; una heredada en "classic" se migra (la
+ * migración es de un solo sentido y solo afecta actividad futura).
+ */
+export async function ensureFlexibleBillingMode(subscription: Stripe.Subscription): Promise<void> {
+  if (subscription.billing_mode?.type === "flexible") return;
+  await getStripeClient().subscriptions.migrate(subscription.id, { billing_mode: { type: "flexible" } });
+}
+
+const LIVE_STRIPE_STATUSES = new Set<string>(["trialing", "active", "past_due"]);
+
+/**
+ * Garantiza que una suscripción VIVA tenga el ítem de excedente de SMS
+ * (mensual, medido) — para los planes anuales es la única vía, porque el
+ * Checkout no admite intervalos mezclados. Idempotente: si el ítem ya está
+ * (reintento, Checkout mensual, webhook repetido) no hace nada, y la llamada
+ * de escritura lleva una idempotency key por suscripción, así que dos
+ * ejecuciones concurrentes nunca crean dos ítems.
+ */
+export async function ensureSmsOverageItem(
+  subscription: Stripe.Subscription
+): Promise<"added" | "present" | "skipped"> {
+  const overagePriceId = getSmsOverageItemPriceId();
+  if (!overagePriceId || !LIVE_STRIPE_STATUSES.has(subscription.status)) return "skipped";
+  if (subscription.items.data.some((item) => item.price.id === overagePriceId)) return "present";
+
+  await ensureFlexibleBillingMode(subscription);
+  await getStripeClient().subscriptions.update(
+    subscription.id,
+    { items: [{ price: overagePriceId }], proration_behavior: "none" },
+    { idempotencyKey: `sms-overage-item:${subscription.id}` }
+  );
+  return "added";
+}
+
+/**
  * Mueve una suscripción de Stripe ya existente al price de un plan/intervalo
  * distinto, con proration automático — usado por el cambio de plan manual de
  * super admin (src/actions/platform.ts changeShopPlan) para que Stripe y la
@@ -191,15 +244,48 @@ export async function updateStripeSubscriptionPrice(
   if (!itemId) {
     throw new Error(`La suscripción de Stripe ${stripeSubscriptionId} no tiene item de plan`);
   }
-  return stripe.subscriptions.update(stripeSubscriptionId, {
+  // Mensual ↔ anual deja intervalos distintos en la misma suscripción (plan + excedente mensual).
+  await ensureFlexibleBillingMode(subscription);
+  const updated = await stripe.subscriptions.update(stripeSubscriptionId, {
     items: [{ id: itemId, price: newPriceId }],
     proration_behavior: "create_prorations",
   });
+  // `cancel_at: max_period_end` se resuelve a una FECHA al programarse: si el plan cambió de
+  // intervalo hay que recalcularla, o el cliente quedaría cancelado antes de fin de lo pagado.
+  if (subscription.cancel_at != null) {
+    return stripe.subscriptions.update(stripeSubscriptionId, { cancel_at: "max_period_end" });
+  }
+  return updated;
 }
 
-/** Cancela al final del período actual — nunca de inmediato, para no cortar un servicio ya pagado. */
+/**
+ * Cancela al final de lo PAGADO — nunca de inmediato ni al fin del mes del
+ * excedente. Una suscripción anual con ítem de excedente mensual mezcla
+ * intervalos y `cancel_at_period_end` usaría el período MÁS CORTO (y además
+ * acorta el período del plan anual): por eso se usa `cancel_at: max_period_end`,
+ * que respeta el año pagado. En una suscripción "classic" (un solo intervalo)
+ * `cancel_at_period_end` es equivalente y es lo único que admite.
+ */
 export async function cancelStripeSubscriptionAtPeriodEnd(stripeSubscriptionId: string): Promise<Stripe.Subscription> {
-  return getStripeClient().subscriptions.update(stripeSubscriptionId, { cancel_at_period_end: true });
+  const stripe = getStripeClient();
+  const subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
+  if (subscription.billing_mode?.type === "classic") {
+    return stripe.subscriptions.update(stripeSubscriptionId, { cancel_at_period_end: true });
+  }
+  return stripe.subscriptions.update(stripeSubscriptionId, { cancel_at: "max_period_end" });
+}
+
+/** Deshace una cancelación programada (la suscripción sigue como estaba; el período pagado no cambia). */
+export async function resumeStripeSubscription(stripeSubscriptionId: string): Promise<Stripe.Subscription> {
+  const stripe = getStripeClient();
+  const subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
+  if (subscription.cancel_at != null) {
+    return stripe.subscriptions.update(stripeSubscriptionId, { cancel_at: "" });
+  }
+  if (subscription.cancel_at_period_end) {
+    return stripe.subscriptions.update(stripeSubscriptionId, { cancel_at_period_end: false });
+  }
+  return subscription;
 }
 
 export function constructWebhookEvent(payload: string | Buffer, signature: string): Stripe.Event {
