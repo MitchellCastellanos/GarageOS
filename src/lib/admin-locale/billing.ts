@@ -29,6 +29,9 @@ export interface BillingDictionary {
     managePortal: string;
     updatePayment: string;
     portalChangeHint: string;
+    cancelSubscription: string;
+    cancelConfirm: (date: string) => string;
+    keepSubscription: string;
     reactivateTitle: string;
     chooseTitle: string;
   };
@@ -60,6 +63,8 @@ export interface BillingDictionary {
     noActiveSubscription: string;
     checkoutGeneric: string;
     portalGeneric: string;
+    cancelGeneric: string;
+    resumeGeneric: string;
     checkoutNoUrl: string;
     alreadySubscribed: string;
   };
@@ -93,7 +98,10 @@ export const BILLING_DICT: Record<AdminLocale, BillingDictionary> = {
       restrictedNoPlan: "No hay una suscripción activa. Elige un plan para volver a editar — tus datos siguen intactos.",
       managePortal: "Administrar facturación",
       updatePayment: "Actualizar método de pago",
-      portalChangeHint: "Para cambiar de plan, de intervalo o de método de pago usa el portal de facturación.",
+      portalChangeHint: "Usa el portal de facturación para tu método de pago, tus facturas y tus datos de facturación.",
+      cancelSubscription: "Cancelar suscripción",
+      cancelConfirm: (date) => `Tu suscripción seguirá activa hasta el ${date} y luego se cancelará. ¿Confirmas?`,
+      keepSubscription: "Mantener mi suscripción",
       reactivateTitle: "Reactivar tu cuenta",
       chooseTitle: "Elige tu plan",
     },
@@ -152,6 +160,8 @@ export const BILLING_DICT: Record<AdminLocale, BillingDictionary> = {
       noActiveSubscription: "Este taller todavía no tiene una suscripción de Stripe activa",
       checkoutGeneric: "Error al iniciar el checkout",
       portalGeneric: "Error al abrir el portal de facturación",
+      cancelGeneric: "No se pudo cancelar la suscripción — intenta de nuevo",
+      resumeGeneric: "No se pudo mantener la suscripción — intenta de nuevo",
       checkoutNoUrl: "Stripe no devolvió una URL de checkout",
       alreadySubscribed: "Ya tienes una suscripción activa — cámbiala desde el portal de facturación.",
     },
@@ -183,7 +193,10 @@ export const BILLING_DICT: Record<AdminLocale, BillingDictionary> = {
       restrictedNoPlan: "There is no active subscription. Choose a plan to edit again — your data is safe.",
       managePortal: "Manage billing",
       updatePayment: "Update payment method",
-      portalChangeHint: "To change plan, interval or payment method use the billing portal.",
+      portalChangeHint: "Use the billing portal for your payment method, invoices and billing details.",
+      cancelSubscription: "Cancel subscription",
+      cancelConfirm: (date) => `Your subscription stays active until ${date} and then ends. Confirm?`,
+      keepSubscription: "Keep my subscription",
       reactivateTitle: "Reactivate your account",
       chooseTitle: "Choose your plan",
     },
@@ -242,6 +255,8 @@ export const BILLING_DICT: Record<AdminLocale, BillingDictionary> = {
       noActiveSubscription: "This shop doesn't have an active Stripe subscription yet",
       checkoutGeneric: "Error starting checkout",
       portalGeneric: "Error opening the billing portal",
+      cancelGeneric: "Could not cancel the subscription — please try again",
+      resumeGeneric: "Could not keep the subscription — please try again",
       checkoutNoUrl: "Stripe didn't return a checkout URL",
       alreadySubscribed: "You already have an active subscription — change it from the billing portal.",
     },
@@ -273,7 +288,10 @@ export const BILLING_DICT: Record<AdminLocale, BillingDictionary> = {
       restrictedNoPlan: "Aucun abonnement actif. Choisissez un forfait pour modifier à nouveau — vos données sont conservées.",
       managePortal: "Gérer la facturation",
       updatePayment: "Mettre à jour le mode de paiement",
-      portalChangeHint: "Pour changer de forfait, d'intervalle ou de mode de paiement, utilisez le portail de facturation.",
+      portalChangeHint: "Utilisez le portail de facturation pour votre mode de paiement, vos factures et vos coordonnées de facturation.",
+      cancelSubscription: "Annuler l'abonnement",
+      cancelConfirm: (date) => `Votre abonnement reste actif jusqu'au ${date}, puis prend fin. Confirmer ?`,
+      keepSubscription: "Conserver mon abonnement",
       reactivateTitle: "Réactiver votre compte",
       chooseTitle: "Choisissez votre forfait",
     },
@@ -332,6 +350,8 @@ export const BILLING_DICT: Record<AdminLocale, BillingDictionary> = {
       noActiveSubscription: "Ce garage n'a pas encore d'abonnement Stripe actif",
       checkoutGeneric: "Erreur lors du démarrage du paiement",
       portalGeneric: "Erreur lors de l'ouverture du portail de facturation",
+      cancelGeneric: "Impossible d'annuler l'abonnement — réessayez",
+      resumeGeneric: "Impossible de conserver l'abonnement — réessayez",
       checkoutNoUrl: "Stripe n'a pas renvoyé d'URL de paiement",
       alreadySubscribed: "Vous avez déjà un abonnement actif — modifiez-le depuis le portail de facturation.",
     },

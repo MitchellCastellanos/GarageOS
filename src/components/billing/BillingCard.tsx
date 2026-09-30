@@ -4,7 +4,12 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, CheckCircle2, ExternalLink, AlertTriangle } from "lucide-react";
-import { openBillingPortalAction, confirmCheckoutAction } from "@/actions/billing";
+import {
+  openBillingPortalAction,
+  confirmCheckoutAction,
+  cancelSubscriptionAction,
+  resumeSubscriptionAction,
+} from "@/actions/billing";
 import { PLAN_LABELS, type Plan } from "@/config/entitlements";
 import type { EffectiveSubscription } from "@/lib/subscription";
 import { daysUntil, isLiveStripeStatus } from "@/domain/subscription-state";
@@ -20,6 +25,7 @@ export function BillingCard({ subscription }: { subscription: EffectiveSubscript
   const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
   const [portalPending, setPortalPending] = useState(false);
+  const [cancelPending, setCancelPending] = useState(false);
   const confirmedRef = useRef(false);
 
   const checkoutResult = searchParams.get("checkout");
@@ -37,6 +43,21 @@ export function BillingCard({ subscription }: { subscription: EffectiveSubscript
       router.refresh();
     });
   }, [checkoutResult, sessionId, router]);
+
+  function runSubscriptionChange(action: () => Promise<{ error?: string } | undefined>) {
+    setCancelPending(true);
+    startTransition(async () => {
+      const result = await action();
+      setCancelPending(false);
+      if (result?.error) toast.error(result.error);
+      router.refresh();
+    });
+  }
+
+  function handleCancel(endsAt: Date | string | null) {
+    if (!window.confirm(t.status.cancelConfirm(endsAt ? fmtDate(endsAt) : ""))) return;
+    runSubscriptionChange(() => cancelSubscriptionAction());
+  }
 
   function handleOpenPortal() {
     setPortalPending(true);
@@ -162,7 +183,29 @@ export function BillingCard({ subscription }: { subscription: EffectiveSubscript
           />
         </div>
       ) : (
-        <p className="text-sm text-slate-500">{t.status.portalChangeHint}</p>
+        <div className="space-y-3">
+          <p className="text-sm text-slate-500">{t.status.portalChangeHint}</p>
+          {/* La cancelación vive en GarageOS (no en el portal de Stripe): respeta el período pagado. */}
+          {subscription.cancelAtPeriodEnd ? (
+            <button
+              type="button"
+              onClick={() => runSubscriptionChange(() => resumeSubscriptionAction())}
+              disabled={cancelPending}
+              className="border border-slate-300 hover:bg-slate-50 disabled:opacity-50 text-slate-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            >
+              {t.status.keepSubscription}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => handleCancel(subscription.currentPeriodEnd ?? subscription.trialEndsAt)}
+              disabled={cancelPending}
+              className="text-sm text-red-700 hover:underline disabled:opacity-50"
+            >
+              {t.status.cancelSubscription}
+            </button>
+          )}
+        </div>
       )}
     </div>
   );

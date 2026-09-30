@@ -6,7 +6,13 @@ import { findSubscriptionRow, getEffectiveSubscription } from "@/lib/subscriptio
 import { ensureStripeCustomer, confirmCheckoutSession } from "@/lib/stripe-sync";
 import { decideTrialPlan, isLiveStripeStatus } from "@/domain/subscription-state";
 import { ONBOARDING_PLAN_STEP } from "@/config/onboarding";
-import { createCheckoutSession, createBillingPortalSession, type BillingInterval } from "@/lib/stripe";
+import {
+  createCheckoutSession,
+  createBillingPortalSession,
+  cancelStripeSubscriptionAtPeriodEnd,
+  resumeStripeSubscription,
+  type BillingInterval,
+} from "@/lib/stripe";
 import { getAppUrl } from "@/config/app";
 import { ADMIN } from "@/lib/routes";
 import type { Plan } from "@/config/entitlements";
@@ -137,5 +143,70 @@ export async function openBillingPortalAction() {
   } catch (err) {
     console.error("[billing] openBillingPortalAction:", err);
     return { error: err instanceof Error ? err.message : t.errors.portalGeneric };
+  }
+}
+
+/**
+ * Cancelación iniciada por el dueño. El portal de Stripe NO ofrece cancelar:
+ * en una suscripción anual con excedente mensual su "cancelar al fin del
+ * período" cortaría el año pagado. Aquí se cancela con `cancel_at:
+ * max_period_end` (fin de lo pagado) y se guarda el historial.
+ * Idempotente: repetir la acción no crea otra fila de historial.
+ */
+export async function cancelSubscriptionAction(reason?: string) {
+  const session = await requireOwner();
+  const shopId = session.user.shopId!;
+  const t = BILLING_DICT[await getAdminLocale()];
+
+  try {
+    const row = await findSubscriptionRow(shopId);
+    if (!row?.stripeSubscriptionId || !isLiveStripeStatus(row.status)) {
+      return { error: t.errors.noActiveSubscription };
+    }
+    if (row.cancelAtPeriodEnd) return { success: true };
+
+    const stripeSub = await cancelStripeSubscriptionAtPeriodEnd(row.stripeSubscriptionId);
+    const effectiveAt = stripeSub.cancel_at ? new Date(stripeSub.cancel_at * 1000) : row.currentPeriodEnd;
+
+    await db.$transaction([
+      db.subscription.update({ where: { id: row.id }, data: { cancelAtPeriodEnd: true } }),
+      db.subscriptionCancellation.create({
+        data: {
+          subscriptionId: row.id,
+          shopId: row.shopId,
+          planAtCancellation: row.plan ?? "CORE",
+          reason: reason?.trim().slice(0, 500) || "Cancelled by the shop owner",
+          initiatedBy: "OWNER",
+          initiatedByUserId: session.user.id,
+          effectiveAt,
+        },
+      }),
+    ]);
+    return { success: true };
+  } catch (err) {
+    console.error("[billing] cancelSubscriptionAction:", err);
+    return { error: t.errors.cancelGeneric };
+  }
+}
+
+/** Deshace una cancelación programada (mientras siga el período pagado). */
+export async function resumeSubscriptionAction() {
+  const session = await requireOwner();
+  const shopId = session.user.shopId!;
+  const t = BILLING_DICT[await getAdminLocale()];
+
+  try {
+    const row = await findSubscriptionRow(shopId);
+    if (!row?.stripeSubscriptionId || !isLiveStripeStatus(row.status)) {
+      return { error: t.errors.noActiveSubscription };
+    }
+    if (!row.cancelAtPeriodEnd) return { success: true };
+
+    await resumeStripeSubscription(row.stripeSubscriptionId);
+    await db.subscription.update({ where: { id: row.id }, data: { cancelAtPeriodEnd: false } });
+    return { success: true };
+  } catch (err) {
+    console.error("[billing] resumeSubscriptionAction:", err);
+    return { error: t.errors.resumeGeneric };
   }
 }

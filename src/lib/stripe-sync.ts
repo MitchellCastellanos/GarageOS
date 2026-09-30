@@ -7,6 +7,7 @@ import type Stripe from "stripe";
 import { db } from "@/lib/db";
 import {
   createStripeCustomer,
+  ensureSmsOverageItem,
   findPlanSubscriptionItem,
   getStripeClient,
   resolvePlanFromPriceId,
@@ -16,6 +17,8 @@ import { decideStripeSync, mapStripeStatus } from "@/domain/subscription-state";
 export interface StripeSyncApi {
   cancelSubscription(subscriptionId: string): Promise<void>;
   retrieveSubscription(subscriptionId: string): Promise<Stripe.Subscription>;
+  /** Agrega el ítem mensual de excedente de SMS si falta (ver ensureSmsOverageItem). Opcional en fakes de test. */
+  ensureSmsOverageItem?(subscription: Stripe.Subscription): Promise<unknown>;
 }
 
 function defaultApi(): StripeSyncApi {
@@ -24,6 +27,7 @@ function defaultApi(): StripeSyncApi {
       await getStripeClient().subscriptions.cancel(id);
     },
     retrieveSubscription: (id) => getStripeClient().subscriptions.retrieve(id),
+    ensureSmsOverageItem,
   };
 }
 
@@ -44,8 +48,10 @@ export type SyncResult =
 export async function syncStripeSubscription(
   stripeSub: Stripe.Subscription,
   shopIdHint: string | null,
-  api: StripeSyncApi = defaultApi()
+  api: StripeSyncApi = defaultApi(),
+  opts: { strict?: boolean } = {}
 ): Promise<SyncResult> {
+  const strict = opts.strict ?? true;
   const item = findPlanSubscriptionItem(stripeSub.items.data);
   const priceId = item?.price.id;
   const resolved = priceId ? resolvePlanFromPriceId(priceId) : null;
@@ -104,13 +110,26 @@ export async function syncStripeSubscription(
     billingInterval: resolved.interval,
     trialEndsAt: stripeSub.trial_end ? new Date(stripeSub.trial_end * 1000) : null,
     currentPeriodEnd: new Date(item.current_period_end * 1000),
-    cancelAtPeriodEnd: stripeSub.cancel_at_period_end,
+    // Las cancelaciones de GarageOS usan `cancel_at` (max_period_end), no `cancel_at_period_end`.
+    cancelAtPeriodEnd: stripeSub.cancel_at_period_end || stripeSub.cancel_at != null,
     stripeCustomerId: customerId,
     stripeSubscriptionId: stripeSub.id,
     stripePriceId: priceId,
   };
 
   await db.subscription.upsert({ where: { shopId }, create: { shopId, ...data }, update: data });
+
+  // Plan anual: el excedente de SMS (mensual) no cabe en el Checkout, se agrega aquí, ya con la
+  // suscripción vinculada. En el webhook un fallo se propaga (500 → Stripe reintenta; es idempotente);
+  // al volver de Checkout no debe romper la confirmación de un pago ya hecho (el webhook lo repara).
+  if (api.ensureSmsOverageItem) {
+    try {
+      await api.ensureSmsOverageItem(stripeSub);
+    } catch (err) {
+      console.error("[stripe sync] no se pudo agregar el ítem de excedente de SMS", stripeSub.id, err);
+      if (strict) throw err;
+    }
+  }
   return "applied";
 }
 
@@ -208,6 +227,15 @@ export async function handleStripeEvent(event: Stripe.Event, api: StripeSyncApi 
     }
     case "customer.subscription.deleted": {
       const stripeSub = event.data.object as Stripe.Subscription;
+      if (stripeSub.cancellation_details?.reason === "payment_failed") {
+        // No debería pasar: en Stripe → Billing → "Manage failed payments" la opción al agotar
+        // reintentos debe ser "mark as unpaid" / "leave past due", NUNCA "cancel". Con una factura
+        // de excedente de SMS impaga, cancelar destruiría también un plan anual ya pagado.
+        console.error(
+          "[stripe webhook] CRITICAL: suscripción cancelada por falta de pago — revisar la configuración de pagos fallidos de Stripe",
+          stripeSub.id
+        );
+      }
       // Solo afecta a la fila si apunta a ESTA suscripción (no a una posterior).
       await db.subscription.updateMany({
         where: { stripeSubscriptionId: stripeSub.id },
@@ -237,7 +265,9 @@ export async function confirmCheckoutSession(
   if (session.status !== "complete") return "incomplete";
   const subscriptionId = typeof session.subscription === "string" ? session.subscription : session.subscription?.id;
   if (!subscriptionId) return "incomplete";
-  await syncStripeSubscription(await api.retrieveSubscription(subscriptionId), subscriptionOwnerShopId, api);
+  await syncStripeSubscription(await api.retrieveSubscription(subscriptionId), subscriptionOwnerShopId, api, {
+    strict: false,
+  });
   return "confirmed";
 }
 
