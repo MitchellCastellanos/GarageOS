@@ -1892,6 +1892,12 @@ model TireStorageSet {
   checkedInAt     DateTime          @default(now())
   checkedOutAt    DateTime?
   notes           String?           @db.Text
+  /// Fecha esperada de retiro / cambio de temporada (día calendario del taller, sin hora). Base de los recordatorios.
+  expectedPickupDate DateTime?      @db.Date
+  /// Marcas de envío (idempotencia de negocio; la idempotencyKey del outbox es la segunda barrera).
+  checkInNotifiedAt      DateTime?
+  pickupReminder14SentAt DateTime?
+  pickupReminder3SentAt  DateTime?
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
@@ -1900,6 +1906,7 @@ model TireStorageSet {
   @@index([shopId, status])
   @@index([shopId, clientId])
   @@index([vehicleId])
+  @@index([status, expectedPickupDate])
   @@schema("garageos")
 }
 
@@ -1947,6 +1954,7 @@ enum TireStorageEventType {
   CHECK_IN
   CHECK_OUT
   MOVED
+  NOTIFIED
 
   @@schema("garageos")
 }

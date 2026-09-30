@@ -343,3 +343,29 @@ export async function sendServiceReminderSms(data: ServiceReminderSmsData): Prom
     idempotencyKey: `service-reminder-sms:${data.reminderId}`,
   });
 }
+
+export interface TireStorageSmsData {
+  to: string;
+  shopId: string;
+  clientId?: string;
+  setId: string;
+  body: string;
+  /** Reminders use purpose REMINDER (refused for restricted shops by the outbox); the rest are TIRE_STORAGE. */
+  purpose: "REMINDER" | "TIRE_STORAGE";
+  idempotencyKey: string;
+  createdByUserId?: string;
+}
+
+export async function sendTireStorageSms(data: TireStorageSmsData): Promise<RecordAndSendResult> {
+  return sendSms({
+    to: data.to,
+    body: data.body,
+    shopId: data.shopId,
+    purpose: data.purpose,
+    clientId: data.clientId,
+    createdByUserId: data.createdByUserId,
+    businessEntityType: "TIRE_STORAGE_SET",
+    businessEntityId: data.setId,
+    idempotencyKey: data.idempotencyKey,
+  });
+}

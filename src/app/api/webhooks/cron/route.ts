@@ -5,6 +5,7 @@ import { shopToEmailConfig } from "@/lib/email-config";
 import { SYSTEM_ACTOR, recordAppointmentEvent } from "@/lib/appointment-events";
 import { runSmsNumberLifecycle } from "@/lib/communications/sms-numbers";
 import { retryPendingSmsOverage } from "@/lib/communications/sms-usage";
+import { deliverDueTirePickupReminders } from "@/lib/tire-storage-notify";
 import { purgeExpiredRateLimits } from "@/lib/rate-limit";
 import { reconcileStaleSmsStatuses } from "@/lib/communications/sms-status";
 import { createOperatingChecker } from "@/lib/subscription";
@@ -51,6 +52,7 @@ export async function GET(request: Request) {
     serviceReminders: { sent: 0, skipped: 0, errors: 0 },
     automatedReminders: { sent: 0, skipped: 0, errors: 0 },
     appointmentReminders: { sent: 0, skipped: 0, errors: 0 },
+    tirePickupReminders: null as { sent: number; skipped: number; errors: number } | null,
   };
 
   // Un taller restringido (sin pago vigente) no envía recordatorios automáticos.
@@ -98,6 +100,11 @@ export async function GET(request: Request) {
   }
 
   results.automatedReminders = await deliverDueAutomatedReminders(new Date(), canOperate);
+  // Tire Storage pickup / seasonal-change reminders (14 and 3 days before the expected date).
+  results.tirePickupReminders = await deliverDueTirePickupReminders(new Date(), canOperate).catch((err) => {
+    console.error("[cron] recordatorios de entreposaje de pneus fallaron:", err);
+    return null;
+  });
 
   const shopsWithAppointments = await db.shop.findMany({
     where: { OR: [{ appointmentEmailsEnabled: true }, { appointmentSmsEnabled: true }] },

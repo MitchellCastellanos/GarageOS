@@ -221,6 +221,10 @@ export const tireStorageSchema = z.object({
   withRims: z.boolean(),
   storageLocation: z.string().max(40).optional().or(z.literal("")),
   notes: z.string().max(1000).optional().or(z.literal("")),
+  /** Expected pickup / seasonal-change day (YYYY-MM-DD, shop calendar). Drives the reminders. */
+  expectedPickupDate: z.string().optional().or(z.literal("")),
+  /** Check-in only: send the customer a storage confirmation (default true). */
+  notifyCustomer: z.boolean().optional(),
 });
 export type TireStorageFormData = z.infer<typeof tireStorageSchema>;
 
