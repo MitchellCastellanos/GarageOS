@@ -296,3 +296,21 @@ test("server pages never hand a function-bearing dictionary to a client componen
   }
   assert.deepEqual(offenders, []);
 });
+
+// ── Cron endpoints fail closed ──────────────────────────────────────────────
+test("cron auth: no secret configured authorizes nothing (not even 'Bearer undefined'); wrong/short secrets refused", async () => {
+  const { isAuthorizedCronRequest } = await import("../src/lib/cron-auth");
+  const req = (h?: string) => new Request("https://x.test/api/webhooks/cron", { headers: h ? { authorization: h } : {} });
+  const SECRET = "a-long-enough-cron-secret-0123456789";
+  assert.equal(isAuthorizedCronRequest(req(`Bearer ${SECRET}`), SECRET), true);
+  assert.equal(isAuthorizedCronRequest(req(`Bearer ${SECRET}x`), SECRET), false);
+  assert.equal(isAuthorizedCronRequest(req(), SECRET), false);
+  assert.equal(isAuthorizedCronRequest(req("Bearer undefined"), undefined), false, "unset secret must fail closed");
+  assert.equal(isAuthorizedCronRequest(req("Bearer "), ""), false);
+  assert.equal(isAuthorizedCronRequest(req("Bearer short"), "short"), false, "guessable secrets are refused");
+  for (const route of ["cron/route.ts", "cron/campaigns/route.ts", "cron/quickbooks/route.ts"]) {
+    const src = readFileSync(path.join(ROOT, "src/app/api/webhooks", route), "utf8");
+    assert.match(src, /isAuthorizedCronRequest/, route);
+    assert.doesNotMatch(src, /Bearer \$\{process\.env\.CRON_SECRET\}/, route);
+  }
+});

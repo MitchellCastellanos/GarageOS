@@ -1,5 +1,6 @@
 import { can, createOperatingChecker } from "@/lib/subscription";
 import { NextResponse } from "next/server";
+import { isAuthorizedCronRequest } from "@/lib/cron-auth";
 import { db } from "@/lib/db";
 import { isSuppressed } from "@/lib/communications/suppression";
 import { sendCampaignEmail } from "@/lib/communications/campaigns";
@@ -20,8 +21,7 @@ const BATCH_SIZE_PER_CAMPAIGN = 25;
 const GLOBAL_RECIPIENT_LIMIT_PER_RUN = 150;
 
 export async function GET(request: Request) {
-  const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!isAuthorizedCronRequest(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
