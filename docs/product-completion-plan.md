@@ -380,6 +380,8 @@ These can be reconsidered from real customer demand after launch.
 
 **Blocks 0–16 are DONE in code.** What remains is external: work through `docs/launch-readiness.md` (Stripe Prices + test-clock pass, cron secret, backups, provider validation per feature), then flip the status to **GO SELL GARAGEOS**. Post-launch backlog only: additional-location billing (needs the price decision), private storage bucket, French Guides/Blog, monitoring.
 
+Migrations added in Block 15 (additive except the legacy column drop): `20261003100000_drop_legacy_shop_billing_email`, `20261003110000_rate_limit_buckets`, `20261003120000_tire_storage_notifications`.
+
 Rules every future change must respect:
 - Operational writes go through `getWritableShopId(permission?)`; sensitive reads through `getShopId(permission)`; new Pro+ functionality through a key in `src/config/entitlements.ts` + `checkEntitlement`/`can`/`canView`. Any new plan-dependent public claim must be a row in `src/lib/marketing-plans.ts`. Fiscal: never read `Shop.taxLines`/`taxId` to render an issued document — use the invoice snapshot.
 - **Any client-supplied customer/vehicle/mechanic id inside a write payload must be verified with `src/lib/ownership.ts`.** Helpers that take a `shopId` must live in a server-only lib module, never in a `"use server"` file. Never pass a dictionary containing functions from a server page to a client component (guard test enforces it).
