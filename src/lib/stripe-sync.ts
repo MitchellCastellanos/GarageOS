@@ -4,6 +4,7 @@
 // Stripe dos veces deja la misma fila.
 
 import type Stripe from "stripe";
+import { finalizeSalesDemo } from "@/lib/sales-demo-finalize";
 import { db } from "@/lib/db";
 import {
   createStripeCustomer,
@@ -124,7 +125,10 @@ export async function syncStripeSubscription(
     stripePriceId: priceId,
   };
 
-  await db.subscription.upsert({ where: { shopId }, create: { shopId, ...data }, update: data });
+  await db.$transaction(async (tx) => {
+    await tx.subscription.upsert({ where: { shopId }, create: { shopId, ...data }, update: data });
+    await finalizeSalesDemo(tx, shopId, data);
+  });
 
   // Plan anual: el excedente de SMS (mensual) no cabe en el Checkout, se agrega aquí, ya con la
   // suscripción vinculada. En el webhook un fallo se propaga (500 → Stripe reintenta; es idempotente);
@@ -190,14 +194,22 @@ export async function processStripeEvent(
   clock: Clock = systemClock
 ): Promise<"processed" | "duplicate"> {
   try {
-    await db.stripeWebhookEvent.create({ data: { id: event.id, type: event.type } });
+    await db.stripeWebhookEvent.create({ data: { id: event.id, type: event.type, completedAt: null } });
   } catch (err) {
-    if (isUniqueViolation(err)) return "duplicate";
+    if (isUniqueViolation(err)) {
+      const marker = await db.stripeWebhookEvent.findUnique({ where: { id: event.id } });
+      if (marker?.completedAt) return "duplicate";
+      // An in-flight/crashed worker must not acknowledge unfinished work. After
+      // a five-minute lease, a retry claims it; all state application is idempotent.
+      const reclaimed = await db.stripeWebhookEvent.updateMany({ where: { id: event.id, completedAt: null, processedAt: { lt: new Date(clock().getTime() - 5 * 60_000) } }, data: { processedAt: clock() } });
+      if (reclaimed.count !== 1) throw new Error("STRIPE_EVENT_IN_PROGRESS");
+    } else
     throw err;
   }
 
   try {
     await handleStripeEvent(event, api, clock);
+    await db.stripeWebhookEvent.update({ where: { id: event.id }, data: { completedAt: clock() } });
   } catch (err) {
     await db.stripeWebhookEvent.delete({ where: { id: event.id } }).catch(() => {});
     throw err;
@@ -281,10 +293,10 @@ export async function confirmCheckoutSession(
   if (session.status !== "complete") return "incomplete";
   const subscriptionId = typeof session.subscription === "string" ? session.subscription : session.subscription?.id;
   if (!subscriptionId) return "incomplete";
-  await syncStripeSubscription(await api.retrieveSubscription(subscriptionId), subscriptionOwnerShopId, api, {
+  const result = await syncStripeSubscription(await api.retrieveSubscription(subscriptionId), subscriptionOwnerShopId, api, {
     strict: false,
     clock,
   });
-  return "confirmed";
+  return result === "applied" ? "confirmed" : "incomplete";
 }
 

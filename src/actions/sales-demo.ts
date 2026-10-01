@@ -44,8 +44,8 @@ export async function createProspectDemo(form: FormData) {
 export async function startSalesDemo(demoId: string) {
   const { actor, session, demo } = await requirePreparedDemo(demoId);
   await db.salesDemo.updateMany({ where: {
-    id: demo.id, shopId: demo.shopId, status: { in: ["PREPARING", "ACTIVE"] }, expiresAt: { gt: new Date() },
-  }, data: { status: "ACTIVE" } }).then((r) => { if (r.count !== 1) throw new Error("DEMO_UNAVAILABLE"); });
+    id: demo.id, shopId: demo.shopId, status: demo.status, expiresAt: { gt: new Date() },
+  }, data: { status: demo.status === "PREPARING" ? "ACTIVE" : demo.status } }).then((r) => { if (r.count !== 1) throw new Error("DEMO_UNAVAILABLE"); });
   await unstable_update({ impersonation: {
     salesDemoId: demo.id, shopId: demo.shopId, shopName: demo.shop.name,
     startedByUserId: actor.id, startedByName: session.user.name ?? "Sales",
@@ -59,7 +59,7 @@ export async function setSalesDemoPlan(demoId: string, plan: string) {
   const parsed = demoPlanSchema.safeParse(plan);
   if (!parsed.success) return { error: "invalid" as const };
   const changed = await db.salesDemo.updateMany({ where: {
-    id: demo.id, shopId: demo.shopId, status: { in: ["PREPARING", "ACTIVE"] }, expiresAt: { gt: new Date() },
+    id: demo.id, shopId: demo.shopId, status: { in: ["PREPARING", "ACTIVE", "ACTIVATION_SENT", "AWAITING_PAYMENT"] }, expiresAt: { gt: new Date() },
   }, data: { currentPlan: parsed.data } });
   if (changed.count !== 1) throw new Error("DEMO_UNAVAILABLE");
   // Never mutate Subscription or call commercial plan/billing/email helpers.
@@ -104,7 +104,7 @@ export async function uploadSalesDemoAsset(demoId: string, form: FormData) {
     // Revalidate lifecycle after processing/storage; do not accept arbitrary URLs.
     await db.$transaction(async (tx) => {
       const valid = await tx.salesDemo.updateMany({ where: {
-        id: demo.id, shopId: demo.shopId, status: { in: ["PREPARING", "ACTIVE"] }, expiresAt: { gt: new Date() },
+        id: demo.id, shopId: demo.shopId, status: { in: ["PREPARING", "ACTIVE", "ACTIVATION_SENT", "AWAITING_PAYMENT"] }, expiresAt: { gt: new Date() },
       }, data: { updatedAt: new Date() } });
       if (valid.count !== 1) throw new Error("DEMO_UNAVAILABLE");
       const field = kind.data === "logo" ? "logoUrl" : kind.data === "cover" ? "bookingCoverImageUrl" : "bookingShopImageUrl";

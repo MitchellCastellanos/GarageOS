@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 import type Stripe from "stripe";
-import { patchDb } from "./helpers/db-mock";
+import { patchDb, patchTransaction } from "./helpers/db-mock";
 import {
   PAST_DUE_GRACE_MS,
   nextPastDueSince,
@@ -14,6 +14,7 @@ import {
   type SubscriptionRowLike,
 } from "../src/domain/subscription-state";
 import { confirmCheckoutSession, handleStripeEvent, syncStripeSubscription, type StripeSyncApi } from "../src/lib/stripe-sync";
+import { db } from "../src/lib/db";
 import { getEffectiveSubscription } from "../src/lib/subscription";
 
 process.env.STRIPE_PRICE_PRO_MONTHLY = "price_pro_m";
@@ -89,6 +90,8 @@ test("nextPastDueSince: first past_due starts the clock; repeats never reset it;
 type Db = { current: any; upserts: any[] };
 
 function statefulDb(t: TestContext, initial: Record<string, unknown>): Db {
+  patchTransaction(t, db);
+  patchDb(t, "salesDemo", "findUnique", async () => null);
   const state: Db = { current: { shopId: "shop-A", stripeCustomerId: "cus_A", stripeSubscriptionId: "sub_A", pastDueSince: null, ...initial }, upserts: [] };
   patchDb(t, "subscription", "findUnique", (async ({ where }: any) => {
     if (where.stripeSubscriptionId) return state.current.stripeSubscriptionId === where.stripeSubscriptionId ? { shopId: state.current.shopId } : null;

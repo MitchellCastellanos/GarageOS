@@ -81,6 +81,9 @@ export interface CreateCheckoutSessionParams {
   stripeCustomerId: string;
   /** Trial a aplicar — lo decide el SERVIDOR (decideTrialPlan), nunca el cliente. */
   trial: TrialPlan;
+  checkoutAttemptId?: string;
+  idempotencyKey?: string;
+  expiresAt?: number;
   successUrl: string;
   cancelUrl: string;
 }
@@ -195,7 +198,7 @@ export async function createCheckoutSession(params: CreateCheckoutSessionParams)
   const lineItems = checkoutLineItems(priceId, params.interval, overagePriceId);
 
   const subscriptionData: Stripe.Checkout.SessionCreateParams.SubscriptionData = {
-    metadata: { shopId: params.shopId },
+    metadata: { shopId: params.shopId, ...(params.checkoutAttemptId ? { checkoutAttemptId: params.checkoutAttemptId } : {}) },
   };
   if (params.trial.kind === "fresh") {
     subscriptionData.trial_period_days = params.trial.days;
@@ -211,6 +214,7 @@ export async function createCheckoutSession(params: CreateCheckoutSessionParams)
   const bucket = Math.floor(Date.now() / (15 * 60 * 1000));
   return stripe.checkout.sessions.create(
     {
+      ...(params.expiresAt ? { expires_at: params.expiresAt } : {}),
       mode: "subscription",
       line_items: lineItems,
       client_reference_id: params.shopId,
@@ -218,7 +222,7 @@ export async function createCheckoutSession(params: CreateCheckoutSessionParams)
       customer_update: { address: "auto", name: "auto" },
       payment_method_collection: "always",
       subscription_data: subscriptionData,
-      metadata: { shopId: params.shopId, plan: params.plan, interval: params.interval },
+      metadata: { ...(params.checkoutAttemptId ? { checkoutAttemptId: params.checkoutAttemptId } : {}), shopId: params.shopId, plan: params.plan, interval: params.interval },
       allow_promotion_codes: true,
       billing_address_collection: "required",
       automatic_tax: { enabled: true },
@@ -226,7 +230,7 @@ export async function createCheckoutSession(params: CreateCheckoutSessionParams)
       success_url: params.successUrl,
       cancel_url: params.cancelUrl,
     },
-    { idempotencyKey: `checkout:${params.shopId}:${params.plan}:${params.interval}:${params.trial.kind}:${bucket}` }
+    { idempotencyKey: params.idempotencyKey ?? `checkout:${params.shopId}:${params.plan}:${params.interval}:${params.trial.kind}:${bucket}` }
   );
 }
 

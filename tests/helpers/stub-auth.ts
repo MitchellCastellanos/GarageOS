@@ -11,3 +11,5 @@ export async function auth() {
   return current;
 }
 export async function unstable_update() {}
+
+export async function signIn() {}

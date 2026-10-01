@@ -27,7 +27,7 @@ const pending = { plan: null, status: "AWAITING_PLAN", stripeCustomerId: null, s
 
 test("domain: closed lifecycle, exact relationships, actor id and expiration", () => {
   assert.ok(isDemoAvailable(demo()));
-  for (const status of ["EXPIRED", "CONVERTED", "ACTIVATION_SENT", "AWAITING_PAYMENT"]) assert.equal(isDemoAvailable(demo({ status })), false);
+  for (const status of ["EXPIRED", "CONVERTED"]) assert.equal(isDemoAvailable(demo({ status })), false);
   assert.equal(isDemoAvailable(demo({ expiresAt: new Date(0) })), false);
   assert.ok(isDemoSession(session(), demo()));
   for (const invalid of [{ salesDemoId: "other" }, { shopId: "other" }, { startedByUserId: "owner" }, { expiresAt: 0 }]) assert.equal(isDemoSession(session(invalid), demo()), false);

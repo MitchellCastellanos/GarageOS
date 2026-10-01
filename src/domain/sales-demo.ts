@@ -19,7 +19,7 @@ export interface DemoSessionLike {
 }
 export const DEMO_DURATION_MS = 30 * 86400_000;
 export function isDemoAvailable(demo: DemoLike, now = new Date()): boolean {
-  return ["PREPARING", "ACTIVE"].includes(demo.status) && demo.expiresAt.getTime() > now.getTime();
+  return ["PREPARING", "ACTIVE", "ACTIVATION_SENT", "AWAITING_PAYMENT"].includes(demo.status) && demo.expiresAt.getTime() > now.getTime();
 }
 export function isDemoSession(session: DemoSessionLike | null, demo: DemoLike, now = new Date()): boolean {
   const claim = session?.impersonation;

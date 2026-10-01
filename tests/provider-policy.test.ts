@@ -363,6 +363,7 @@ test("STRIPE INBOUND: webhook signature verification and processing are NOT disa
   env(t, undefined);
   const { POST } = await import("../src/app/api/stripe/webhook/route");
   const created: string[] = [];
+  patchDb(t, "stripeWebhookEvent", "update", async () => ({}));
   patchDb(t, "stripeWebhookEvent", "create", (async ({ data }: any) => (created.push(data.id), data)) as never);
 
   const payload = JSON.stringify({ id: "evt_inbound_1", object: "event", type: "invoice.paid", data: { object: {} } });
@@ -412,6 +413,7 @@ test("CRON: the reminders job skips every outbound step when disabled (and repor
   patchDb(t, "serviceReminder", "findMany", (async () => (outboundQueries++, [])) as never);
   patchDb(t, "shop", "findMany", (async () => (outboundQueries++, [])) as never);
   patchDb(t, "rateLimitBucket", "deleteMany", (async () => ({ count: 0 })) as never);
+  patchDb(t, "salesDemo", "updateMany", async () => ({ count: 0 }));
   const { GET } = await import("../src/app/api/webhooks/cron/route");
   const res = await GET(new Request("http://x/cron", { headers: { authorization: `Bearer ${FAKE_ENV.CRON_SECRET}` } }));
   const body = await res.json();

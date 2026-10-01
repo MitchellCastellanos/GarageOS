@@ -1,11 +1,19 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Mail } from "lucide-react";
 import { useMarketingLocale } from "@/components/marketing/MarketingLocaleProvider";
 import { PasswordField } from "@/components/auth/PasswordField";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
+
+function subscribeHash(onChange: () => void) {
+  window.addEventListener("hashchange", onChange);
+  return () => window.removeEventListener("hashchange", onChange);
+}
+const readHash = () => window.location.hash;
+const serverHash = () => "";
 
 interface LoginFormProps {
   error?: string;
@@ -15,6 +23,10 @@ interface LoginFormProps {
 export function LoginForm({ error, destination }: LoginFormProps) {
   const { locale, t } = useMarketingLocale();
   const { login } = t.auth;
+  const hash = useSyncExternalStore(subscribeHash, readHash, serverHash);
+  const token = new URLSearchParams(hash.slice(1)).get("token");
+  const callbackPath = destination.startsWith("/activate-demo/") && token && /^[a-f0-9]{64}$/.test(token)
+    ? `${destination}#token=${token}` : destination;
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8">
@@ -32,7 +44,7 @@ export function LoginForm({ error, destination }: LoginFormProps) {
       </div>
 
       <form action="/api/auth/login" method="POST" className="space-y-3">
-        <input type="hidden" name="callbackUrl" value={destination} />
+        <input type="hidden" name="callbackUrl" value={callbackPath} />
         <input type="hidden" name="locale" value={locale} />
 
         <div>
@@ -81,7 +93,7 @@ export function LoginForm({ error, destination }: LoginFormProps) {
         <div className="h-px bg-slate-200 flex-1" />
       </div>
 
-      <GoogleSignInButton callbackUrl={destination} label={login.continueWithGoogle} />
+      <GoogleSignInButton callbackUrl={callbackPath} label={login.continueWithGoogle} />
 
       <p className="text-center text-xs text-slate-400 mt-4">
         {login.termsPrefix}{" "}

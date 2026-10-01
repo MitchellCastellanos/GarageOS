@@ -41,6 +41,8 @@ export default async function DashboardLayout({
     redirect(ADMIN.login);
   }
 
+  const conversion = await db.salesDemo.findUnique({ where: { shopId: session.user.shopId }, select: { status: true, activatedOwnerId: true } });
+  if (!session.impersonation && conversion?.status === "AWAITING_PAYMENT" && conversion.activatedOwnerId === session.user.id) redirect("/admin/activation-payment");
   const [shop, locale, accessibleShops, inventoryEntitled, campaignsEntitled, tireStorageEntitled, currentUser, hasUnreadSupport, hasUnreadInbox, staffNotifications] = await Promise.all([
     db.shop.findUnique({
       where: { id: session.user.shopId },

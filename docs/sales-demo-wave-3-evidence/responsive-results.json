@@ -1,0 +1,362 @@
+[
+  {
+    "fields": [
+      {
+        "height": 44,
+        "type": null
+      },
+      {
+        "height": 0,
+        "type": "text"
+      },
+      {
+        "height": 44,
+        "type": null
+      },
+      {
+        "height": 44,
+        "type": "email"
+      },
+      {
+        "height": 44,
+        "type": null
+      },
+      {
+        "height": 44,
+        "type": null
+      },
+      {
+        "height": 20,
+        "type": "checkbox"
+      }
+    ],
+    "heading": "Convert to customer",
+    "scroll": 375,
+    "width": 375,
+    "page": "conversion",
+    "locale": "en"
+  },
+  {
+    "fields": [
+      {
+        "height": 44,
+        "type": null
+      },
+      {
+        "height": 0,
+        "type": "text"
+      },
+      {
+        "height": 44,
+        "type": null
+      },
+      {
+        "height": 44,
+        "type": "email"
+      },
+      {
+        "height": 44,
+        "type": null
+      },
+      {
+        "height": 44,
+        "type": null
+      },
+      {
+        "height": 20,
+        "type": "checkbox"
+      }
+    ],
+    "heading": "Convert to customer",
+    "scroll": 430,
+    "width": 430,
+    "page": "conversion",
+    "locale": "en"
+  },
+  {
+    "fields": [
+      {
+        "height": 44,
+        "type": null
+      },
+      {
+        "height": 38,
+        "type": "text"
+      },
+      {
+        "height": 44,
+        "type": null
+      },
+      {
+        "height": 44,
+        "type": "email"
+      },
+      {
+        "height": 44,
+        "type": null
+      },
+      {
+        "height": 44,
+        "type": null
+      },
+      {
+        "height": 20,
+        "type": "checkbox"
+      }
+    ],
+    "heading": "Convert to customer",
+    "scroll": 768,
+    "width": 768,
+    "page": "conversion",
+    "locale": "en"
+  },
+  {
+    "fields": [
+      {
+        "height": 44,
+        "type": null
+      },
+      {
+        "height": 38,
+        "type": "text"
+      },
+      {
+        "height": 44,
+        "type": null
+      },
+      {
+        "height": 44,
+        "type": "email"
+      },
+      {
+        "height": 44,
+        "type": null
+      },
+      {
+        "height": 44,
+        "type": null
+      },
+      {
+        "height": 20,
+        "type": "checkbox"
+      }
+    ],
+    "heading": "Convert to customer",
+    "scroll": 1024,
+    "width": 1024,
+    "page": "conversion",
+    "locale": "en"
+  },
+  {
+    "fields": [
+      {
+        "height": 44,
+        "type": null
+      },
+      {
+        "height": 38,
+        "type": "text"
+      },
+      {
+        "height": 44,
+        "type": null
+      },
+      {
+        "height": 44,
+        "type": "email"
+      },
+      {
+        "height": 44,
+        "type": null
+      },
+      {
+        "height": 44,
+        "type": null
+      },
+      {
+        "height": 20,
+        "type": "checkbox"
+      }
+    ],
+    "heading": "Convert to customer",
+    "scroll": 1440,
+    "width": 1440,
+    "page": "conversion",
+    "locale": "en"
+  },
+  {
+    "heading": "Convertir en client",
+    "scroll": 375,
+    "width": 375,
+    "page": "conversion",
+    "locale": "fr"
+  },
+  {
+    "heading": "Convertir en client",
+    "scroll": 430,
+    "width": 430,
+    "page": "conversion",
+    "locale": "fr"
+  },
+  {
+    "heading": "Convertir en client",
+    "scroll": 768,
+    "width": 768,
+    "page": "conversion",
+    "locale": "fr"
+  },
+  {
+    "heading": "Convertir en client",
+    "scroll": 1024,
+    "width": 1024,
+    "page": "conversion",
+    "locale": "fr"
+  },
+  {
+    "heading": "Convertir en client",
+    "scroll": 1440,
+    "width": 1440,
+    "page": "conversion",
+    "locale": "fr"
+  },
+  {
+    "page": "activation",
+    "locale": "en",
+    "passwordType": "password",
+    "scroll": 375,
+    "width": 375
+  },
+  {
+    "page": "activation",
+    "locale": "en",
+    "passwordType": "password",
+    "scroll": 430,
+    "width": 430
+  },
+  {
+    "page": "activation",
+    "locale": "en",
+    "passwordType": "password",
+    "scroll": 768,
+    "width": 768
+  },
+  {
+    "page": "activation",
+    "locale": "en",
+    "passwordType": "password",
+    "scroll": 1024,
+    "width": 1024
+  },
+  {
+    "page": "activation",
+    "locale": "en",
+    "passwordType": "password",
+    "scroll": 1440,
+    "width": 1440
+  },
+  {
+    "page": "activation",
+    "locale": "fr",
+    "scroll": 375,
+    "width": 375
+  },
+  {
+    "page": "activation",
+    "locale": "fr",
+    "scroll": 430,
+    "width": 430
+  },
+  {
+    "page": "activation",
+    "locale": "fr",
+    "scroll": 768,
+    "width": 768
+  },
+  {
+    "page": "activation",
+    "locale": "fr",
+    "scroll": 1024,
+    "width": 1024
+  },
+  {
+    "page": "activation",
+    "locale": "fr",
+    "scroll": 1440,
+    "width": 1440
+  },
+  {
+    "page": "payment",
+    "locale": "fr",
+    "copy": true,
+    "scroll": 360,
+    "selected": "Le plus populairePro299 $ CAD / mois· Utilisateurs illimités · 1 emplacement· Inventaire, campagnes et DVI complète· Domaine personnalisé, identité d'envoi et rapports avancés· Personnalisation avancée de la page de réservation",
+    "width": 375
+  },
+  {
+    "page": "payment",
+    "locale": "fr",
+    "copy": true,
+    "scroll": 415,
+    "selected": "Le plus populairePro299 $ CAD / mois· Utilisateurs illimités · 1 emplacement· Inventaire, campagnes et DVI complète· Domaine personnalisé, identité d'envoi et rapports avancés· Personnalisation avancée de la page de réservation",
+    "width": 430
+  },
+  {
+    "page": "payment",
+    "locale": "fr",
+    "copy": true,
+    "scroll": 768,
+    "selected": "Le plus populairePro299 $ CAD / mois· Utilisateurs illimités · 1 emplacement· Inventaire, campagnes et DVI complète· Domaine personnalisé, identité d'envoi et rapports avancés· Personnalisation avancée de la page de réservation",
+    "width": 768
+  },
+  {
+    "page": "payment",
+    "locale": "fr",
+    "copy": true,
+    "scroll": 1024,
+    "selected": "Le plus populairePro299 $ CAD / mois· Utilisateurs illimités · 1 emplacement· Inventaire, campagnes et DVI complète· Domaine personnalisé, identité d'envoi et rapports avancés· Personnalisation avancée de la page de réservation",
+    "width": 1024
+  },
+  {
+    "page": "payment",
+    "locale": "fr",
+    "copy": true,
+    "scroll": 1440,
+    "selected": "Le plus populairePro299 $ CAD / mois· Utilisateurs illimités · 1 emplacement· Inventaire, campagnes et DVI complète· Domaine personnalisé, identité d'envoi et rapports avancés· Personnalisation avancée de la page de réservation",
+    "width": 1440
+  },
+  {
+    "page": "payment",
+    "locale": "en",
+    "copy": true,
+    "scroll": 360,
+    "width": 375
+  },
+  {
+    "page": "payment",
+    "locale": "en",
+    "copy": true,
+    "scroll": 415,
+    "width": 430
+  },
+  {
+    "page": "payment",
+    "locale": "en",
+    "copy": true,
+    "scroll": 768,
+    "width": 768
+  },
+  {
+    "page": "payment",
+    "locale": "en",
+    "copy": true,
+    "scroll": 1024,
+    "width": 1024
+  },
+  {
+    "page": "payment",
+    "locale": "en",
+    "copy": true,
+    "scroll": 1440,
+    "width": 1440
+  }
+]
