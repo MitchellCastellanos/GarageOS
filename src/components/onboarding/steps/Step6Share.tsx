@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Loader2, Sparkles } from "lucide-react";
 import { getBookingPageSettings } from "@/actions/booking-page";
 import { completeOnboarding } from "@/actions/onboarding";
+import { completeSalesDemoOnboarding } from "@/actions/sales-demo";
 import { getBillingOverview } from "@/actions/billing";
 import { OnlineBookingSettings } from "@/components/settings/OnlineBookingSettings";
 import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
@@ -17,6 +18,7 @@ import { ONBOARDING_PLAN_STEP } from "@/config/onboarding";
 import { PLAN_LABELS } from "@/config/entitlements";
 
 interface Step6ShareProps {
+  demoId?: string;
   step: number;
   totalSteps: number;
   onBack: () => void;
@@ -29,7 +31,7 @@ interface BookingPageShop {
   publicUrl: string | null;
 }
 
-export function Step6Share({ step, totalSteps, onBack }: Step6ShareProps) {
+export function Step6Share({ step, totalSteps, onBack, demoId }: Step6ShareProps) {
   const locale = useAdminLocale();
   const t = ONBOARDING_DICT[toOnboardingLocale(locale)].step6;
   const router = useRouter();
@@ -60,7 +62,7 @@ export function Step6Share({ step, totalSteps, onBack }: Step6ShareProps) {
 
   function handleFinish() {
     startFinishing(async () => {
-      const result = await completeOnboarding();
+      const result = demoId ? await completeSalesDemoOnboarding(demoId) : await completeOnboarding();
       if (result?.success) router.push(ADMIN.dashboard);
       else if (result?.error === "PLAN_REQUIRED") router.push(`${ADMIN.onboarding}?step=${ONBOARDING_PLAN_STEP}`);
       else toast.error("Error");

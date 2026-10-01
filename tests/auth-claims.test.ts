@@ -38,6 +38,24 @@ function users(t: Parameters<typeof patchDb>[0], rows: (DbUser & { email?: strin
 const claims = (over: Record<string, unknown> = {}) => ({ name: "N", email: "n@example.test", userId: "u1", shopId: "shopA", role: "OWNER", ...over });
 const FUTURE = Date.now() + 3_600_000;
 
+test("Sales demo claims are revalidated against lifecycle, actor and Shop on every JWT request", async (t) => {
+  users(t, [{ id: "root", shopId: null, role: "SUPER_ADMIN" }]);
+  let demo: any = { id: "demo", shopId: "shopA", status: "ACTIVE", currentPlan: "PRO", expiresAt: new Date(FUTURE) };
+  patchDb(t, "salesDemo", "findUnique", async () => demo);
+  const impersonation = { salesDemoId: "demo", shopId: "shopA", shopName: "A", startedByUserId: "root", startedByName: "Sales", expiresAt: FUTURE };
+  const run = (over = {}) => jwtCb({ token: claims({ userId: "root", impersonation: { ...impersonation, ...over } }) });
+  assert.equal((await run()).impersonation.salesDemoId, "demo");
+  assert.equal((await run({ shopId: "shopB" })).impersonation, undefined);
+  assert.equal((await run({ startedByUserId: "owner" })).impersonation, undefined);
+  for (const status of ["CONVERTED", "EXPIRED", "AWAITING_PAYMENT", "ACTIVATION_SENT"]) {
+    demo.status = status;
+    const token = await run(); assert.equal(token.impersonation, undefined); assert.equal(token.role, "SUPER_ADMIN");
+  }
+  demo.status = "ACTIVE"; demo.expiresAt = new Date(0);
+  assert.equal((await run()).impersonation, undefined);
+  demo = null; assert.equal((await run()).impersonation, undefined);
+});
+
 // ── Usuario no validable en este entorno ─────────────────────────────────────
 
 test("signed token whose user does not exist in THIS environment's DB loses everything (session destroyed)", async (t) => {

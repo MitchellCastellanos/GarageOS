@@ -10,6 +10,7 @@ datasource db {
 }
 
 model Shop {
+  salesDemo SalesDemo?
   defaultLanguage    InvoiceLanguage     @default(FR)
   workOrders         WorkOrder[]
   inspections        Inspection[]
@@ -239,6 +240,7 @@ enum BillingInterval {
 }
 
 model User {
+  createdSalesDemos SalesDemo[]
   id              String          @id @default(cuid())
   shopId          String?
   shop            Shop?           @relation(fields: [shopId], references: [id])
@@ -280,6 +282,44 @@ enum Role {
   OWNER
   MECHANIC
   VIEWER
+
+  @@schema("garageos")
+}
+
+// Sales owns the lifecycle; deleting this record never deletes its Shop.
+model SalesDemo {
+  id String @id @default(cuid())
+  shopId String @unique
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Restrict)
+  createdByUserId String
+  createdBy User @relation(fields: [createdByUserId], references: [id], onDelete: Restrict)
+  contactName String?
+  contactEmail String?
+  contactPhone String?
+  preferredLanguage InvoiceLanguage @default(FR)
+  currentPlan Plan @default(PRO)
+  proposedPlan Plan @default(PRO)
+  proposedBillingInterval BillingInterval @default(MONTHLY)
+  status SalesDemoStatus @default(PREPARING)
+  expiresAt DateTime
+  activationSentAt DateTime?
+  activatedAt DateTime?
+  convertedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, expiresAt])
+  @@index([createdByUserId, createdAt])
+  @@schema("garageos")
+}
+
+enum SalesDemoStatus {
+  PREPARING
+  ACTIVE
+  ACTIVATION_SENT
+  AWAITING_PAYMENT
+  CONVERTED
+  EXPIRED
 
   @@schema("garageos")
 }

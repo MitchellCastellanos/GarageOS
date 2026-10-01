@@ -30,7 +30,7 @@ export type DbSubscriptionStatus =
  * - PAST_DUE: cobro fallido; conserva el plan durante los reintentos de Stripe.
  * - RESTRICTED: sin pago vigente (trial vencido, cancelada, unpaid, sin fila) — solo lectura.
  */
-export type AccessState = "SETUP_REQUIRED" | "TRIALING" | "ACTIVE" | "PAST_DUE" | "RESTRICTED";
+export type AccessState = "SETUP_REQUIRED" | "TRIALING" | "ACTIVE" | "PAST_DUE" | "RESTRICTED" | "SALES_DEMO";
 
 export const TRIAL_DAYS = 14;
 

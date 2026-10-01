@@ -118,16 +118,19 @@ export async function uploadShopLogoToStorage(
   shopId: string,
   buffer: Buffer,
   mimeType: string,
-  ext: string
+  ext: string,
+  assetId?: string
 ): Promise<{ storagePath: string; publicUrl: string }> {
   const supabase = getClient();
   await ensurePublicAssetsBucket(supabase);
 
   const safeExt = ext.replace(/[^a-z0-9]/gi, "").toLowerCase().slice(0, 5) || "png";
-  const storagePath = `logos/${assertShopSegment(shopId)}/logo.${safeExt}`;
+  // Sales preparation uses immutable versions so a late/expired upload cannot
+  // overwrite the live logo of a Shop whose lifecycle changed meanwhile.
+  const storagePath = `logos/${assertShopSegment(shopId)}/logo${assetId ? `-${assertShopSegment(assetId)}` : ""}.${safeExt}`;
   const { error } = await supabase.storage
     .from(PUBLIC_ASSETS_BUCKET)
-    .upload(storagePath, buffer, { contentType: mimeType, upsert: true });
+    .upload(storagePath, buffer, { contentType: mimeType, upsert: !assetId });
   if (error) throw new Error(`Supabase upload error: ${error.message}`);
   return { storagePath, publicUrl: publicAssetUrl(storagePath) };
 }

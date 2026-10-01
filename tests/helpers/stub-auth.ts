@@ -1,6 +1,7 @@
 // Sesión de prueba para las server actions bajo node:test (ver action-harness.ts).
 export interface TestSession {
   user: { id: string; role: string; shopId: string | null; email?: string };
+  impersonation?: { salesDemoId?: string; shopId: string; shopName: string; startedByUserId: string; startedByName: string; expiresAt: number };
 }
 let current: TestSession | null = null;
 export function setSession(s: TestSession | null) {

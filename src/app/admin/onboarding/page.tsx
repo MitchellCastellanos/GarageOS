@@ -23,6 +23,8 @@ export default async function OnboardingPage() {
         taxId: shop.taxId,
         slug: shop.slug,
         logoUrl: shop.logoUrl,
+        bookingCoverImageUrl: shop.bookingCoverImageUrl,
+        bookingShopImageUrl: shop.bookingShopImageUrl,
         brandColor: shop.brandColor,
         taxLines: shop.taxLines,
       }}

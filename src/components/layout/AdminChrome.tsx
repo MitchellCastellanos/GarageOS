@@ -7,6 +7,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import type { StaffNotificationRow } from "@/actions/staff-notifications";
 
 interface AdminChromeProps {
+  salesDemoToolbar?: React.ReactNode;
   shopName?: string | null;
   shopLogoUrl?: string | null;
   userName?: string | null;
@@ -30,6 +31,7 @@ interface AdminChromeProps {
 }
 
 export function AdminChrome({
+  salesDemoToolbar,
   shopName,
   shopLogoUrl,
   userName,
@@ -51,6 +53,7 @@ export function AdminChrome({
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-slate-50">
+      {salesDemoToolbar}
       <Topbar
         shopName={shopName}
         shopLogoUrl={shopLogoUrl}

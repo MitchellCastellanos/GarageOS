@@ -11,6 +11,7 @@ import { ADMIN, PLATFORM } from "@/lib/routes";
 import { APP_NAME } from "@/config/app";
 
 const NAV_ITEMS = [
+  { href: PLATFORM.sales, label: "Sales demos", icon: Shield, exact: false },
   { href: PLATFORM.home, label: "Talleres", icon: LayoutDashboard, exact: true },
   { href: PLATFORM.analytics, label: "Analytics", icon: BarChart3, exact: false },
   { href: PLATFORM.messages, label: "Mensajes", icon: MessagesSquare, exact: false },

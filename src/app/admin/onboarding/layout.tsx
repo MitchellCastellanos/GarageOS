@@ -6,6 +6,9 @@ import { ADMIN, PLATFORM } from "@/lib/routes";
 import { getAdminLocale } from "@/lib/get-admin-locale";
 import { AdminLocaleProvider } from "@/components/admin/AdminLocaleProvider";
 import { GarageOSAppIcon } from "@/components/marketing/GarageOSLogo";
+import { getCurrentDemo } from "@/lib/sales-demo";
+import { SalesDemoToolbar } from "@/components/sales-demo/SalesDemoToolbar";
+import { ImpersonationBanner } from "@/components/admin/ImpersonationBanner";
 
 export default async function OnboardingLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -21,10 +24,12 @@ export default async function OnboardingLayout({ children }: { children: React.R
     getAdminLocale(),
   ]);
   if (shop?.onboardingCompletedAt) redirect(ADMIN.dashboard);
+  const demo = await getCurrentDemo();
 
   return (
     <AdminLocaleProvider locale={locale}>
       <div className="min-h-screen bg-slate-50 flex flex-col">
+        {demo ? <SalesDemoToolbar demoId={demo.id} shopName={demo.shop.name} plan={demo.currentPlan} /> : session.impersonation ? <ImpersonationBanner shopName={session.impersonation.shopName} startedByName={session.impersonation.startedByName} /> : null}
         <header className="flex-shrink-0 py-4 flex justify-center border-b border-slate-200 bg-white">
           <GarageOSAppIcon className="w-9 h-9" />
         </header>

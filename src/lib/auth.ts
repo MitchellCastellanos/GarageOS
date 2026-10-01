@@ -8,6 +8,7 @@ import { provisionDefaultSenderIdentities } from "@/lib/communications/sender-id
 import { createPendingSubscription } from "@/lib/subscription";
 
 import { ADMIN } from "@/lib/routes";
+import { isDemoAvailable } from "@/domain/sales-demo";
 
 export const authConfig: NextAuthConfig = {
   session: { strategy: "jwt" },
@@ -107,6 +108,16 @@ export const authConfig: NextAuthConfig = {
       // "viendo como el taller" indefinidamente.
       if (token.impersonation && token.impersonation.expiresAt < Date.now()) {
         delete token.impersonation;
+      }
+
+      // Re-check the demo relationship/lifecycle every request. An expired open
+      // tab returns to the real platform identity, never an unrestricted OWNER.
+      if (token.impersonation?.salesDemoId) {
+        const demo = await db.salesDemo.findUnique({ where: { id: token.impersonation.salesDemoId } });
+        if (!demo || demo.shopId !== token.impersonation.shopId ||
+            token.impersonation.startedByUserId !== dbUser.id || !isDemoAvailable(demo)) {
+          delete token.impersonation;
+        }
       }
 
       return token;

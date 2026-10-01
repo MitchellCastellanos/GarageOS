@@ -7,8 +7,6 @@ import { RATE_LIMITS, checkRateLimit, clientIpFromHeaders } from "@/lib/rate-lim
 import { ADMIN, PLATFORM, adminPath } from "@/lib/routes";
 import { MARKETING_DICTIONARIES, DEFAULT_MARKETING_LOCALE, type MarketingLocale } from "@/lib/marketing-locale";
 
-export const BUILD_ID = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? Date.now().toString(36);
-
 function resolveLocale(value: unknown): MarketingLocale {
   return value === "fr" ? "fr" : DEFAULT_MARKETING_LOCALE;
 }

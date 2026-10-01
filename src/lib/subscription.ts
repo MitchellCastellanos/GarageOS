@@ -27,7 +27,8 @@ export interface EffectiveSubscription {
   accessState: AccessState;
   /** El taller puede hacer escrituras operativas (ver requireWriteAccess). */
   canWrite: boolean;
-  status: SubscriptionStatus | "NONE";
+  status: SubscriptionStatus | "NONE" | "SALES_DEMO";
+  salesDemoId?: string;
   billingInterval: BillingInterval | null;
   trialEndsAt: Date | null;
   currentPeriodEnd: Date | null;
@@ -84,24 +85,37 @@ function missingSubscription(): EffectiveSubscription {
  * del modelo en schema.prisma). La fila trae su propio `shopId`: es el
  * "dueño" de la suscripción y a quien apuntan Stripe (metadata) y Facturación.
  */
-export async function findSubscriptionRow(shopId: string) {
+async function findSubscriptionContext(shopId: string) {
   const shop = await db.shop.findUnique({
     where: { id: shopId },
-    select: { organizationId: true, subscription: true },
+    select: { organizationId: true, subscription: true, salesDemo: true },
   });
-  if (!shop) return null;
-  if (shop.subscription) return shop.subscription;
-  if (!shop.organizationId) return null;
+  if (!shop) return { row: null, demo: null };
+  if (shop.subscription || !shop.organizationId) return { row: shop.subscription, demo: shop.salesDemo ?? null };
 
   const sibling = await db.shop.findFirst({
     where: { organizationId: shop.organizationId, subscription: { isNot: null } },
     select: { subscription: true },
   });
-  return sibling?.subscription ?? null;
+  return { row: sibling?.subscription ?? null, demo: shop.salesDemo ?? null };
+}
+
+export async function findSubscriptionRow(shopId: string) {
+  return (await findSubscriptionContext(shopId)).row;
 }
 
 export async function getEffectiveSubscription(shopId: string, now: Date = new Date()): Promise<EffectiveSubscription> {
-  const row = await findSubscriptionRow(shopId);
+  const { row, demo } = await findSubscriptionContext(shopId);
+  if (demo) {
+    const { authorizedDemoSession } = await import("@/lib/sales-demo");
+    if (await authorizedDemoSession(demo, now)) {
+      return {
+        ...missingSubscription(), subscriptionMissing: !row,
+        plan: demo.currentPlan, subscribedPlan: null, canWrite: true,
+        accessState: "SALES_DEMO", status: "SALES_DEMO", salesDemoId: demo.id,
+      };
+    }
+  }
   if (!row) return missingSubscription();
 
   const access = resolveAccess(row, now);

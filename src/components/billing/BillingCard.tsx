@@ -16,6 +16,7 @@ import { daysUntil, isLiveStripeStatus } from "@/domain/subscription-state";
 import { PlanCheckout } from "@/components/billing/PlanCheckout";
 import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
 import { BILLING_DICT } from "@/lib/admin-locale/billing";
+import { salesDemoCopy } from "@/lib/admin-locale/sales-demo";
 
 export function BillingCard({ subscription }: { subscription: EffectiveSubscription }) {
   const locale = useAdminLocale();
@@ -35,6 +36,7 @@ export function BillingCard({ subscription }: { subscription: EffectiveSubscript
 
   // Al volver de Stripe Checkout: confirma la sesión contra Stripe (sin esperar al webhook).
   useEffect(() => {
+    if (subscription.salesDemoId) return;
     if (checkoutResult !== "success" || !sessionId || confirmedRef.current) return;
     confirmedRef.current = true;
     confirmCheckoutAction(sessionId).then((result) => {
@@ -42,7 +44,7 @@ export function BillingCard({ subscription }: { subscription: EffectiveSubscript
       router.replace("?tab=billing");
       router.refresh();
     });
-  }, [checkoutResult, sessionId, router]);
+  }, [checkoutResult, sessionId, router, subscription.salesDemoId]);
 
   function runSubscriptionChange(action: () => Promise<{ error?: string } | undefined>) {
     setCancelPending(true);
@@ -88,6 +90,8 @@ export function BillingCard({ subscription }: { subscription: EffectiveSubscript
     accessState === "PAST_DUE" ||
     (accessState === "RESTRICTED" && subscription.hasStripeSubscription && subscription.status !== "CANCELED");
   const nc = subscription.nextCharge;
+
+  if (subscription.salesDemoId) return <p className="rounded-xl border border-amber-200 bg-amber-50 p-5">{salesDemoCopy(locale).billing}</p>;
 
   return (
     <div className="space-y-6 max-w-3xl">

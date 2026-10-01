@@ -4,6 +4,7 @@ import "next-auth/jwt";
 
 /** Estado de impersonación activa ("login as") — ver src/lib/platform/impersonation.ts. */
 export interface ImpersonationClaim {
+  salesDemoId?: string;
   shopId: string;
   shopName: string;
   startedByUserId: string;
