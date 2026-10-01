@@ -47,10 +47,11 @@ test("Sales demo claims are revalidated against lifecycle, actor and Shop on eve
   assert.equal((await run()).impersonation.salesDemoId, "demo");
   assert.equal((await run({ shopId: "shopB" })).impersonation, undefined);
   assert.equal((await run({ startedByUserId: "owner" })).impersonation, undefined);
-  for (const status of ["CONVERTED", "EXPIRED", "AWAITING_PAYMENT", "ACTIVATION_SENT"]) {
+  for (const status of ["CONVERTED", "EXPIRED"]) {
     demo.status = status;
     const token = await run(); assert.equal(token.impersonation, undefined); assert.equal(token.role, "SUPER_ADMIN");
   }
+  for (const status of ["ACTIVATION_SENT", "AWAITING_PAYMENT"]) { demo.status = status; assert.equal((await run()).impersonation.salesDemoId, "demo"); }
   demo.status = "ACTIVE"; demo.expiresAt = new Date(0);
   assert.equal((await run()).impersonation, undefined);
   demo = null; assert.equal((await run()).impersonation, undefined);

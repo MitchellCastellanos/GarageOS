@@ -47,7 +47,11 @@ process.env.NEXT_PUBLIC_APP_URL = "https://app.example.test";
 
 type AnyFn = (...args: never[]) => unknown;
 
-function mockDb<M extends keyof typeof db, K extends keyof (typeof db)[M]>(t: TestContext, model: M, method: K, impl: AnyFn) {
+function mockDb<M extends keyof typeof db, K extends keyof (typeof db)[M]>(t: TestContext, model: M, method: K, impl: AnyFn): any {
+  if (model === "subscription" && method === "upsert") {
+    mockTransaction(t, db);
+    mockDb(t, "salesDemo", "findUnique", async () => null);
+  }
   const original = db[model][method];
   const fn = t.mock.fn(impl);
   db[model][method] = fn as unknown as (typeof db)[M][K];
@@ -507,6 +511,8 @@ test("sync: an unmapped price never writes a plan (no guessing)", async (t) => {
 
 test("webhook idempotency: the same event id is processed once; a replay is a no-op", async (t) => {
   const seen = new Set<string>();
+  mockDb(t, "stripeWebhookEvent", "update", async () => ({}));
+  mockDb(t, "stripeWebhookEvent", "findUnique", async () => ({ completedAt: new Date() }));
   mockDb(t, "stripeWebhookEvent", "create", async ({ data }: { data: { id: string } }) => {
     if (seen.has(data.id)) throw Object.assign(new Error("unique"), { code: "P2002" });
     seen.add(data.id);

@@ -1,3 +1,4 @@
+import { expireSalesDemos } from "@/lib/sales-demo-conversion";
 import { NextResponse } from "next/server";
 import { isAuthorizedCronRequest } from "@/lib/cron-auth";
 import { db } from "@/lib/db";
@@ -28,6 +29,7 @@ export async function GET(request: Request) {
   // Envíos salientes (recordatorios, citas, ciclo de vida de números SMS) solo con efectos externos
   // autorizados. Si no: se omiten enteros — nada se marca como enviado ni como fallido, y se retoman
   // solos cuando el entorno esté autorizado. La limpieza y las lecturas de conciliación siguen corriendo.
+  await expireSalesDemos();
   const outbound = providerSideEffectsEnabled();
 
   const sevenDaysFromNow = new Date();

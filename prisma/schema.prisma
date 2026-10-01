@@ -176,6 +176,7 @@ model StripeWebhookEvent {
   id          String   @id // event.id de Stripe
   type        String
   processedAt DateTime @default(now())
+  completedAt DateTime? @default(now())
 
   @@schema("garageos")
 }
@@ -307,6 +308,15 @@ model SalesDemo {
   convertedAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  activationTokenHash String? @unique
+  activationExpiresAt DateTime?
+  ownerName String?
+  ownerEmail String?
+  activatedOwnerId String? @unique
+  retainScenario Boolean @default(true)
+  checkoutAttemptId String? @unique
+  checkoutAttemptAt DateTime?
+  checkoutSessionId String? @unique
   communicationsEnabled Boolean @default(false)
   scenarioBatchId String? @unique
 

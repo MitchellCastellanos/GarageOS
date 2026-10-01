@@ -19,6 +19,8 @@ export default async function OnboardingLayout({ children }: { children: React.R
   // solo el dueño puede completarlo, igual que el resto de Configuración.
   if (session.user.role !== "OWNER") redirect(ADMIN.dashboard);
 
+  const conversion = await db.salesDemo.findUnique({ where: { shopId: session.user.shopId }, select: { status: true, activatedOwnerId: true } });
+  if (!session.impersonation && conversion?.status === "AWAITING_PAYMENT" && conversion.activatedOwnerId === session.user.id) redirect("/admin/activation-payment");
   const [shop, locale] = await Promise.all([
     db.shop.findUnique({ where: { id: session.user.shopId }, select: { onboardingCompletedAt: true } }),
     getAdminLocale(),

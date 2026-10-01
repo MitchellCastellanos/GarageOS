@@ -41,6 +41,7 @@ export async function getPlatformOverview() {
   await requireSuperAdmin();
 
   const shops = await db.shop.findMany({
+    where: { OR: [{ salesDemo: null }, { salesDemo: { status: "CONVERTED" } }] },
     include: {
       _count: { select: { users: true, clients: true, invoices: true } },
       users: {
@@ -77,21 +78,27 @@ export async function getPlatformPendingCount(): Promise<{ waitingMessages: numb
 export async function getPlatformGrowth() {
   await requireSuperAdmin();
 
+  const commercial = { OR: [{ salesDemo: null }, { salesDemo: { status: "CONVERTED" as const } }] };
+  const commercialSince = (date: Date) => ({ OR: [
+    { salesDemo: null, createdAt: { gte: date } },
+    { salesDemo: { status: "CONVERTED" as const, convertedAt: { gte: date } } },
+  ] });
   const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const since90d = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
   const since180d = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000);
 
   const [totalShops, newShops30d, newShops90d, subscriptions, cancellations30d, cancellationsAll, cohortsRaw] = await Promise.all([
-    db.shop.count(),
-    db.shop.count({ where: { createdAt: { gte: since30d } } }),
-    db.shop.count({ where: { createdAt: { gte: since90d } } }),
-    db.subscription.findMany({ select: { plan: true, status: true, billingInterval: true } }),
-    db.subscriptionCancellation.count({ where: { createdAt: { gte: since30d } } }),
-    db.subscriptionCancellation.count(),
+    db.shop.count({ where: commercial }),
+    db.shop.count({ where: commercialSince(since30d) }),
+    db.shop.count({ where: commercialSince(since90d) }),
+    db.subscription.findMany({ where: { shop: commercial }, select: { plan: true, status: true, billingInterval: true } }),
+    db.subscriptionCancellation.count({ where: { shop: commercial, createdAt: { gte: since30d } } }),
+    db.subscriptionCancellation.count({ where: { shop: commercial } }),
     db.$queryRaw<{ month: Date; count: bigint }[]>`
-      SELECT date_trunc('month', "createdAt") AS month, COUNT(*)::bigint AS count
-      FROM "garageos"."Shop"
-      WHERE "createdAt" >= ${since180d}
+      SELECT date_trunc('month', COALESCE(d."convertedAt", s."createdAt")) AS month, COUNT(*)::bigint AS count
+      FROM "garageos"."Shop" s
+      LEFT JOIN "garageos"."SalesDemo" d ON d."shopId" = s.id
+      WHERE (d.id IS NULL OR d.status = 'CONVERTED') AND COALESCE(d."convertedAt", s."createdAt") >= ${since180d}
       GROUP BY 1 ORDER BY 1 ASC
     `,
   ]);
@@ -280,6 +287,8 @@ export async function createShopOwner(formData: FormData) {
 
   const shop = await db.shop.findUnique({ where: { id: shopId } });
   if (!shop) return { error: "Taller no encontrado" };
+  const demo = await db.salesDemo.findUnique({ where: { shopId } });
+  if (demo && demo.status !== "CONVERTED") return { error: "DEMO_OWNER_ACTIVATION_REQUIRED" };
 
   const existing = await db.user.findUnique({ where: { email: normalizedEmail } });
   if (existing) return { error: "Este correo ya está registrado" };

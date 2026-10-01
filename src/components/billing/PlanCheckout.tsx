@@ -12,7 +12,8 @@ import { cn } from "@/lib/utils";
 
 interface PlanCheckoutProps {
   /** Dónde vuelve el dueño desde Stripe — el servidor arma la URL real. */
-  returnTo: "onboarding" | "billing";
+  returnTo: "onboarding" | "billing" | "activation";
+  lockSelection?: boolean;
   /** ¿Un Checkout nuevo daría trial de 14 días? (lo decide el servidor) */
   trialEligible: boolean;
   defaultPlan?: Plan;
@@ -25,7 +26,7 @@ interface PlanCheckoutProps {
  * decide el Price (STRIPE_PRICE_*), el trial y las fechas — nada de esto
  * viaja al servidor salvo `plan` e `interval`, que se validan allí.
  */
-export function PlanCheckout({ returnTo, trialEligible, defaultPlan = "PRO", defaultInterval = "MONTHLY" }: PlanCheckoutProps) {
+export function PlanCheckout({ returnTo, trialEligible, defaultPlan = "PRO", defaultInterval = "MONTHLY", lockSelection = false }: PlanCheckoutProps) {
   const locale = useAdminLocale();
   const t = BILLING_DICT[locale];
   const intlLocale = locale === "fr" ? "fr-CA" : locale === "es" ? "es-CA" : "en-CA";
@@ -61,6 +62,7 @@ export function PlanCheckout({ returnTo, trialEligible, defaultPlan = "PRO", def
           <button
             key={value}
             type="button"
+            disabled={pending || lockSelection}
             onClick={() => setInterval(value)}
             className={cn(
               "px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
@@ -81,6 +83,7 @@ export function PlanCheckout({ returnTo, trialEligible, defaultPlan = "PRO", def
               type="button"
               role="radio"
               aria-checked={selected}
+              disabled={pending || lockSelection}
               onClick={() => setPlan(p)}
               className={cn(
                 "relative text-left rounded-xl border p-4 flex flex-col transition-colors",
@@ -114,11 +117,11 @@ export function PlanCheckout({ returnTo, trialEligible, defaultPlan = "PRO", def
         {trialEligible ? (
           <>
             <p className="font-semibold text-slate-900">{t.summary.trialBadge(TRIAL_DAYS)} · {planLabel}</p>
-            <div className="flex justify-between text-slate-700">
+            <div className="flex flex-wrap justify-between gap-2 text-slate-700">
               <span>{t.summary.todayLabel}</span>
               <span className="font-semibold">{money(0)} CAD</span>
             </div>
-            <div className="flex justify-between text-slate-700">
+            <div className="flex flex-wrap justify-between gap-2 text-slate-700">
               <span>{t.summary.dueLabel(dueDate)}</span>
               <span className="font-semibold">
                 {money(quote.firstChargeAmountCad)} CAD <span className="font-normal text-slate-500">{t.summary.plusTax}</span>
@@ -128,7 +131,7 @@ export function PlanCheckout({ returnTo, trialEligible, defaultPlan = "PRO", def
           </>
         ) : (
           <>
-            <div className="flex justify-between text-slate-700">
+            <div className="flex flex-wrap justify-between gap-2 text-slate-700">
               <span>{t.summary.noTrialToday}</span>
               <span className="font-semibold">
                 {money(planPriceCad(plan, interval))} CAD <span className="font-normal text-slate-500">{t.summary.plusTax}</span>

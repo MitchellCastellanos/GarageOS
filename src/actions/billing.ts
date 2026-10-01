@@ -1,5 +1,7 @@
 "use server";
 
+import { claimDemoCheckout } from "@/lib/sales-demo-conversion";
+import { getStripeClient } from "@/lib/stripe";
 import { db } from "@/lib/db";
 import { requireOwner } from "@/lib/permissions";
 import { findSubscriptionRow, getEffectiveSubscription } from "@/lib/subscription";
@@ -22,11 +24,16 @@ import { BILLING_DICT } from "@/lib/admin-locale/billing";
 const VALID_PLANS: Plan[] = ["CORE", "PRO", "COMPLETE"];
 const VALID_INTERVALS: BillingInterval[] = ["MONTHLY", "YEARLY"];
 
-// Demo completion is deliberately separate. Wave 3 will reuse this path only
-// after owner activation; Sales can never accidentally open Checkout now.
-async function assertCommercialBilling(shopId: string) {
-  const shop = await db.shop.findUnique({ where: { id: shopId }, select: { salesDemo: { select: { status: true } } } });
-  if (shop?.salesDemo && shop.salesDemo.status !== "CONVERTED") throw new Error("DEMO_BILLING_DISABLED");
+// The shared commercial path opens for the authenticated, activated owner.
+// Sales impersonation can never open Checkout.
+async function assertCommercialBilling(shopId: string, activation = false) {
+  const shop = await db.shop.findUnique({ where: { id: shopId }, select: { salesDemo: true } });
+  const demo = shop?.salesDemo;
+  if (demo && demo.status !== "CONVERTED") {
+    const session = await requireOwner();
+    if (!activation || demo.status !== "AWAITING_PAYMENT" || demo.activatedOwnerId !== session.user.id || session.impersonation) throw new Error("DEMO_BILLING_DISABLED");
+  }
+  return demo;
 }
 
 export async function getBillingOverview() {
@@ -37,8 +44,12 @@ export async function getBillingOverview() {
 }
 
 /** Rutas de retorno decididas en el SERVIDOR — el cliente solo elige entre dos contextos conocidos. */
-function checkoutReturnUrls(returnTo: "onboarding" | "billing") {
+function checkoutReturnUrls(returnTo: "onboarding" | "billing" | "activation") {
   const appUrl = getAppUrl();
+  if (returnTo === "activation") {
+    const base = `${appUrl}/admin/activation-payment`;
+    return { successUrl: `${base}?checkout=success&session_id={CHECKOUT_SESSION_ID}`, cancelUrl: `${base}?checkout=cancelled` };
+  }
   if (returnTo === "onboarding") {
     const base = `${appUrl}${ADMIN.onboarding}?step=${ONBOARDING_PLAN_STEP}`;
     return {
@@ -60,12 +71,13 @@ function checkoutReturnUrls(returnTo: "onboarding" | "billing") {
 export async function startCheckoutAction(formData: FormData) {
   const session = await requireOwner();
   const shopId = session.user.shopId!;
-  await assertCommercialBilling(shopId);
+  const demo = await assertCommercialBilling(shopId, true);
   const t = BILLING_DICT[await getAdminLocale()];
 
-  const plan = formData.get("plan") as string;
-  const interval = formData.get("interval") as string;
-  const returnTo = formData.get("returnTo") === "onboarding" ? "onboarding" : "billing";
+  const converting = demo?.status === "AWAITING_PAYMENT";
+  const plan = converting ? demo.proposedPlan : formData.get("plan") as string;
+  const interval = converting ? demo.proposedBillingInterval : formData.get("interval") as string;
+  const returnTo = converting ? "activation" : formData.get("returnTo") === "onboarding" ? "onboarding" : "billing";
   if (!VALID_PLANS.includes(plan as Plan) || !VALID_INTERVALS.includes(interval as BillingInterval)) {
     return { error: t.errors.invalidPlanOrInterval };
   }
@@ -94,7 +106,37 @@ export async function startCheckoutAction(formData: FormData) {
       name: shop?.name ?? "GarageOS",
     });
 
+    let attempt;
+    if (converting) {
+      attempt = await claimDemoCheckout(demo.id, session.user.id);
+      if (!attempt.checkoutSessionId && attempt.checkoutAttemptAt && Date.now() - attempt.checkoutAttemptAt.getTime() > 22 * 3600_000) {
+        // Recover a crash between Stripe creation and local persistence by the
+        // stable metadata identity. Exhaust the customer list before rotating.
+        let recovered: string | null = null;
+        for await (const candidate of getStripeClient().checkout.sessions.list({ customer: stripeCustomerId, limit: 100 })) {
+          if (candidate.client_reference_id === shopId && candidate.metadata?.checkoutAttemptId === attempt.checkoutAttemptId) { recovered = candidate.id; break; }
+        }
+        if (recovered) {
+          await db.salesDemo.updateMany({ where: { id: demo.id, checkoutAttemptId: attempt.checkoutAttemptId }, data: { checkoutSessionId: recovered } });
+          attempt = { ...attempt, checkoutSessionId: recovered };
+        } else {
+          await db.salesDemo.updateMany({ where: { id: demo.id, checkoutAttemptId: attempt.checkoutAttemptId, checkoutSessionId: null }, data: { checkoutAttemptId: null, checkoutAttemptAt: null } });
+          attempt = await claimDemoCheckout(demo.id, session.user.id);
+        }
+      }
+      if (attempt.checkoutSessionId) {
+        const prior = await getStripeClient().checkout.sessions.retrieve(attempt.checkoutSessionId);
+        if (prior.status === "open" && prior.url) return { url: prior.url };
+        if (prior.status === "complete") return { url: `${getAppUrl()}/admin/activation-payment?checkout=success&session_id=${prior.id}` };
+        // Rotate only after Stripe proves the old session cannot be completed.
+        await db.salesDemo.updateMany({ where: { id: demo.id, checkoutSessionId: prior.id, status: "AWAITING_PAYMENT" },
+          data: { checkoutSessionId: null, checkoutAttemptId: null, checkoutAttemptAt: null } });
+        attempt = await claimDemoCheckout(demo.id, session.user.id);
+      }
+      if (attempt.checkoutAttemptAt && Date.now() - attempt.checkoutAttemptAt.getTime() > 23 * 3600_000) return { error: t.errors.checkoutGeneric };
+    }
     const checkoutSession = await createCheckoutSession({
+      ...(attempt ? { checkoutAttemptId: attempt.checkoutAttemptId!, idempotencyKey: `demo-checkout:${attempt.checkoutAttemptId}`, expiresAt: Math.floor(attempt.checkoutAttemptAt!.getTime() / 1000) + 24 * 3600 } : {}),
       shopId: row.shopId,
       plan: plan as Plan,
       interval: interval as BillingInterval,
@@ -102,6 +144,7 @@ export async function startCheckoutAction(formData: FormData) {
       trial: decideTrialPlan(row),
       ...checkoutReturnUrls(returnTo),
     });
+    if (attempt) await db.salesDemo.updateMany({ where: { id: demo!.id, checkoutAttemptId: attempt.checkoutAttemptId, status: "AWAITING_PAYMENT" }, data: { checkoutSessionId: checkoutSession.id } });
     if (!checkoutSession.url) return { error: t.errors.checkoutNoUrl };
     return { url: checkoutSession.url };
   } catch (err) {
@@ -117,7 +160,7 @@ export async function startCheckoutAction(formData: FormData) {
 export async function confirmCheckoutAction(sessionId: string) {
   const session = await requireOwner();
   const shopId = session.user.shopId!;
-  await assertCommercialBilling(shopId);
+  const demo = await assertCommercialBilling(shopId, true);
   const t = BILLING_DICT[await getAdminLocale()];
   if (!sessionId || !sessionId.startsWith("cs_")) return { error: t.errors.checkoutGeneric };
 
@@ -126,6 +169,10 @@ export async function confirmCheckoutAction(sessionId: string) {
     if (!row) return { error: t.errors.noActiveSubscription };
     const result = await confirmCheckoutSession(sessionId, row.shopId);
     if (result !== "confirmed") return { error: t.errors.checkoutGeneric };
+    if (demo?.status === "AWAITING_PAYMENT") {
+      const finalized = await db.salesDemo.findUnique({ where: { id: demo.id }, select: { status: true } });
+      if (finalized?.status !== "CONVERTED") return { error: t.errors.checkoutGeneric };
+    }
     return { success: true };
   } catch (err) {
     console.error("[billing] confirmCheckoutAction:", err);

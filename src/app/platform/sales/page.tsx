@@ -1,3 +1,5 @@
+import { expireSalesDemos } from "@/lib/sales-demo-conversion";
+import { conversionCopy } from "@/lib/admin-locale/sales-demo-conversion";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireSalesActor } from "@/lib/sales-demo";
@@ -9,6 +11,7 @@ import { PLAN_LABELS } from "@/config/entitlements";
 
 export default async function SalesPage() {
   await requireSalesActor();
+  await expireSalesDemos();
   const locale = await getAdminLocale();
   const t = salesDemoCopy(locale);
   const demos = await db.salesDemo.findMany({ include: { shop: { select: { name: true } } }, orderBy: { createdAt: "desc" }, take: 100 });
@@ -24,6 +27,7 @@ export default async function SalesPage() {
         <p className="text-sm text-slate-600">{demo.expiresAt <= new Date() && demo.status !== "CONVERTED" ? t.expired : t.states[demo.status]}</p>
         <p className="text-sm">{t.current}: {PLAN_LABELS[demo.currentPlan]} · {t.proposed}: {PLAN_LABELS[demo.proposedPlan]} ({demo.proposedBillingInterval === "YEARLY" ? "12" : "1"} mo)</p>
         <p className="text-sm text-slate-500">{t.created}: {date(demo.createdAt)}<br />{t.expires}: {date(demo.expiresAt)}</p>
+        {isDemoAvailable(demo) && <Link className="inline-flex min-h-11 items-center text-blue-700" href={`/platform/sales/${demo.id}/convert`}>{demo.status === "ACTIVATION_SENT" ? conversionCopy(locale).resend : conversionCopy(locale).title}</Link>}
         {isDemoAvailable(demo) && <Link className="inline-flex min-h-11 items-center rounded-lg border px-4 text-blue-700" href={PLATFORM.salesDemo(demo.id)}>{t.resume}</Link>}
       </article>)}
     </div>

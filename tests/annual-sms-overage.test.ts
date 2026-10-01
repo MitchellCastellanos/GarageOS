@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 import type Stripe from "stripe";
 import { setSession } from "./helpers/action-harness";
-import { patchDb } from "./helpers/db-mock";
+import { patchDb, patchTransaction } from "./helpers/db-mock";
 import { db } from "../src/lib/db";
 import {
   cancelStripeSubscriptionAtPeriodEnd,
@@ -159,6 +159,10 @@ const row = (over: Record<string, unknown> = {}) => ({
 });
 
 function syncDb(t: TestContext, current = row()) {
+  patchTransaction(t, db);
+  patchDb(t, "salesDemo", "findUnique", async () => null);
+  patchDb(t, "stripeWebhookEvent", "update", async () => ({}));
+  patchDb(t, "stripeWebhookEvent", "findUnique", async () => ({ completedAt: new Date() }));
   const upserts: any[] = [];
   patchDb(t, "subscription", "findUnique", (async () => current) as never);
   patchDb(t, "subscription", "upsert", (async (args: any) => (upserts.push(args), args)) as never);

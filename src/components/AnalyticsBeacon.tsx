@@ -14,7 +14,7 @@ export default function AnalyticsBeacon() {
   const lastSent = useRef<string | null>(null);
 
   useEffect(() => {
-    if (pathname.startsWith("/admin") || pathname.startsWith("/platform")) return;
+    if (pathname.startsWith("/admin") || pathname.startsWith("/platform") || pathname.startsWith("/activate-demo/")) return;
     if (lastSent.current === pathname) return;
     lastSent.current = pathname;
 

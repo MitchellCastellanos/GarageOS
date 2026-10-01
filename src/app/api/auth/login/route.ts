@@ -30,7 +30,8 @@ function normalizeCallbackUrl(callbackUrl: string): string {
     !callbackUrl.startsWith("/admin") &&
     !callbackUrl.startsWith("/platform") &&
     !callbackUrl.startsWith("/book") &&
-    !callbackUrl.startsWith("/api")
+    !callbackUrl.startsWith("/api") &&
+    !callbackUrl.startsWith("/activate-demo/")
   ) {
     return adminPath(callbackUrl);
   }
