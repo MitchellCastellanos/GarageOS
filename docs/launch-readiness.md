@@ -27,9 +27,44 @@ Real-DB suites: see `docs/integration-testing.md` — `npm run test:integration 
 | Provider | Code-tested (mocks) | Sandbox / test-provider verified | Production verified |
 | --- | --- | --- | --- |
 | Stripe | Yes — lifecycle, webhooks (idempotency, stale events, duplicate subscription), price guard | **Partially:** the exact Checkout parameter set (14-day trial, card required, `trial_settings`, CAD, automatic tax, address/tax-id collection) was accepted by the Stripe **test-mode** sandbox and produced a $0-today session. **Not** exercised: completing checkout with a card, webhook delivery to the deployed URL, trial→active, failed payment → PAST_DUE → RESTRICTED → recovery (needs a browser + test clock). | No |
-| Twilio | Yes (signature validation, callbacks, allowances, overage, reconciliation) | **No** (no credentials in the audit environment) | No |
+| Twilio | Yes (signature validation, callbacks, allowances, overage, reconciliation) | **No** (no credentials in the audit environment) | **PASS for the dedicated-number two-way Inbox path (2026-10-01).** **NOT validated:** the shared `TWILIO_FROM_NUMBER` path, US/A2P 10DLC traffic, and Stripe SMS overage. Evidence and limits: "Twilio Production validation evidence" below. |
 | Resend | Yes (send, webhook signature, suppressions, fallback) | **No** | No |
 | QuickBooks Online | Yes (fake Intuit: OAuth state, token rotation, idempotency, mappings) | **No** | No |
+
+### Twilio Production validation evidence (2026-10-01)
+
+Controlled, human-supervised test on Production (`PROVIDER_SIDE_EFFECTS=enabled`, deployment of `main` at `835b352`), using the internal test shop below, its dedicated Twilio number (a Canadian number in the shop's own Twilio subaccount) and the operator's own phone (Canada → Canada). No customer or prospect was messaged. Evidence combines the Production database (read-only), Vercel runtime logs, and the operator's physical observations.
+
+**Dedicated-number two-way Inbox path — PASS / Production verified:**
+
+- **Outbound delivery:** a real SMS sent from Inbox through the application path was **physically received** by the operator. GarageOS recorded one message with a Twilio Message SID, 1 segment, status SENT → DELIVERED.
+- **Status callbacks:** the Production status webhook received signed Twilio callbacks (2 per message, SENT and DELIVERED), each answered HTTP 200, with no 4xx/5xx; local status progressed accordingly.
+- **Inbound:** a reply from the operator's phone reached the Production inbound webhook (one POST, HTTP 200, signature accepted), was stored once, resolved to the correct shop, existing client and existing thread, and appeared in the Inbox. No other shop, client or thread changed.
+- **STOP:** the inbound STOP was stored once; an `UNSUBSCRIBE` suppression was created for that shop and number only, `smsOptOutAt` and `smsMarketingOptOutAt` were set, and `marketingSmsConsent` stayed false.
+- **UI enforcement:** after STOP the thread composer is replaced by a "replied STOP" banner.
+- **Server-side enforcement before the provider call:** a send attempted through Inbox → New SMS was rejected with `The recipient opted out of SMS (…)`. No outbound row, no Twilio SID, no status callback and no usage change resulted, and the operator received nothing.
+- **START recovery:** the inbound START was stored once; only the `UNSUBSCRIBE` suppression was removed (one audit entry) and `smsOptOutAt` was cleared. **START did not recreate marketing consent:** `smsMarketingOptOutAt` stayed set and `marketingSmsConsent` stayed false, with no consent source or timestamp. Manual/bounce suppressions (none existed) were untouched.
+- **Post-START delivery:** two further sends — one from the existing thread reply and one from Inbox → New SMS — were each created exactly once with their own Twilio SID, DELIVERED (2 callbacks each, HTTP 200) and **physically received**. (Which row was which is inferred from the request paths in the runtime logs; both go through the same `sendInboxSms` code.)
+- **Usage from this test:** **3 outbound messages / 3 segments / 0 overage segments** (3 of the Complete plan's 2,500 monthly segments). 3 inbound messages are not counted toward usage. Twilio's own STOP/START auto-confirmations are outside GarageOS usage.
+
+**Not proven / outside this validation (do not read the PASS above as covering these):**
+
+- **Shared `TWILIO_FROM_NUMBER` (438) path is NOT end-to-end validated.** Its status callbacks and inbound handling were not exercised on Production; older sends from it remain in SENT with no segment count.
+- **US / A2P 10DLC path is outside this validation** (all test traffic was Canada → Canada). The provisioning code does not attach dedicated numbers to a Messaging Service or A2P campaign.
+- **Stripe SMS overage path remains separately unvalidated:** no overage was generated and no meter event emitted.
+- Twilio's provider-side `numSegments` and message status were **not independently queried** (the stored segment count is what the application recorded from Twilio's send response).
+- The **Twilio-level 21610 STOP fallback was not exercised**, because GarageOS blocked the send first.
+- Staff-alert email content and Pusher/realtime delivery were not directly observed (in-app notification rows were created).
+
+### Internal Production SMS smoke-test fixture: Pichitos Garage
+
+Pichitos Garage is an **internal Production smoke-test fixture**, confirmed by the operator. It is **intentionally retained**.
+
+- Not a paying customer; plan Complete, status ACTIVE, **no Stripe customer or subscription**, so nothing can bill.
+- Has its own **dedicated Twilio number**, which is intentionally retained, and an existing **test client using the operator's own phone**, also intentionally retained. Do not copy that number into docs, tickets or tests.
+- **Do not delete or automatically clean up** this shop, its number, its test client or its thread during future launch validation.
+- Because `PROVIDER_SIDE_EFFECTS=enabled` in Production, **avoid future-dated appointments, reminders or campaigns** on this shop unless performing an explicit, controlled test: they would send real SMS/email to the operator's phone.
+- Any further provider test on it needs explicit human authorization and should be one controlled action at a time. After the 2026-10-01 test its SMS suppression is clear, `smsOptOutAt` is clear, `smsMarketingOptOutAt` remains set, and `marketingSmsConsent` is false (by design START does not restore marketing consent).
 
 ## REQUIRED BEFORE FIRST CUSTOMER
 
@@ -45,7 +80,7 @@ Real-DB suites: see `docs/integration-testing.md` — `npm run test:integration 
 
 ## REQUIRED BEFORE USING THAT FEATURE
 
-- **SMS / two-way inbox**: Twilio env (`TWILIO_ACCOUNT_SID` root, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`, `TWILIO_WEBHOOK_BASE_URL` if origin differs), A2P 10DLC / toll-free verification, shared-number webhook by hand; send a real SMS and confirm DELIVERED, reply → Inbox, STOP/START.
+- **SMS / two-way inbox**: Twilio env (`TWILIO_ACCOUNT_SID` root, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`, `TWILIO_WEBHOOK_BASE_URL` if origin differs), A2P 10DLC / toll-free verification, shared-number webhook by hand; send a real SMS and confirm DELIVERED, reply → Inbox, STOP/START. *Status 2026-10-01: done and verified for the dedicated-number Inbox path (see "Twilio Production validation evidence"); still open for the shared-number path and for any US-bound/A2P use.*
 - **SMS overage billing**: Stripe Billing Meter + metered Price → `STRIPE_SMS_OVERAGE_METER_EVENT_NAME`, `STRIPE_SMS_OVERAGE_PRICE_ID`; force an overage in test mode and confirm the meter event/invoice line.
 - **Stripe failed-payment + Portal settings (annual plans)**: Billing → Manage failed payments must be *mark as unpaid* / *leave past due*, **never** *cancel* (an unpaid SMS-overage invoice would otherwise cancel a prepaid annual plan); Customer Portal must have *cancel* and *plan switching* OFF (cancellation is in GarageOS). With a test card that fails (`4000 0000 0000 0341`) and a Test Clock, confirm PAST_DUE → (GarageOS restricts 48 h after the first past_due, regardless of Stripe) RESTRICTED (subscription NOT canceled) → pay the open invoice → ACTIVE.
 - **Email delivery status**: Resend webhook `<origin>/api/webhooks/resend` (`email.delivered|bounced|complained|failed`) + `RESEND_WEBHOOK_SECRET`; bounce a real address and confirm suppression + SMS fallback.
