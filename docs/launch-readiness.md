@@ -28,7 +28,7 @@ Real-DB suites: see `docs/integration-testing.md` — `npm run test:integration 
 | --- | --- | --- | --- |
 | Stripe | Yes — lifecycle, webhooks (idempotency, stale events, duplicate subscription), price guard | **Partially:** the exact Checkout parameter set (14-day trial, card required, `trial_settings`, CAD, automatic tax, address/tax-id collection) was accepted by the Stripe **test-mode** sandbox and produced a $0-today session. **Not** exercised: completing checkout with a card, webhook delivery to the deployed URL, trial→active, failed payment → PAST_DUE → RESTRICTED → recovery (needs a browser + test clock). | No |
 | Twilio | Yes (signature validation, callbacks, allowances, overage, reconciliation) | **No** (no credentials in the audit environment) | **PASS for the dedicated-number two-way Inbox path (2026-10-01).** **NOT validated:** the shared `TWILIO_FROM_NUMBER` path, US/A2P 10DLC traffic, and Stripe SMS overage. Evidence and limits: "Twilio Production validation evidence" below. |
-| Resend | Yes (send, webhook signature, suppressions, fallback) | **No** | No |
+| Resend | Yes (send, webhook signature, suppressions, fallback) | **No** | **PASS for the QUOTE transactional channel on a GarageOS-managed sender identity (2026-10-01).** **NOT validated:** other email channels (invoice, appointment, reminder, work order, web contact), other shops, live bounce/complaint/suppression, and duplicate-webhook retry. Evidence and limits: "Resend Production validation evidence" below. |
 | QuickBooks Online | Yes (fake Intuit: OAuth state, token rotation, idempotency, mappings) | **No** | No |
 
 ### Twilio Production validation evidence (2026-10-01)
@@ -56,15 +56,35 @@ Controlled, human-supervised test on Production (`PROVIDER_SIDE_EFFECTS=enabled`
 - The **Twilio-level 21610 STOP fallback was not exercised**, because GarageOS blocked the send first.
 - Staff-alert email content and Pusher/realtime delivery were not directly observed (in-app notification rows were created).
 
-### Internal Production SMS smoke-test fixture: Pichitos Garage
+### Resend Production validation evidence (2026-10-01)
 
-Pichitos Garage is an **internal Production smoke-test fixture**, confirmed by the operator. It is **intentionally retained**.
+Controlled, human-supervised test on Production (`PROVIDER_SIDE_EFFECTS=enabled`, deployment of `main` at `a1490ae`, which includes Sales Demo Wave 1 / PR #70 — re-audited after that merge and confirmed to not touch the email/Resend/sender-identity/outbox code paths, and the test fixture shop carries no `SalesDemo` record, so none of that feature's new branches engaged), using the internal test shop below and an explicitly authorized test mailbox owned by the operator. No real customer or prospect was emailed. Evidence combines the Production database (read-only), Vercel runtime logs, and the operator's physical observation of the received email. No recipient address, provider message ID, or database ID is recorded here by design.
 
-- Not a paying customer; plan Complete, status ACTIVE, **no Stripe customer or subscription**, so nothing can bill.
-- Has its own **dedicated Twilio number**, which is intentionally retained, and an existing **test client using the operator's own phone**, also intentionally retained. Do not copy that number into docs, tickets or tests.
-- **Do not delete or automatically clean up** this shop, its number, its test client or its thread during future launch validation.
-- Because `PROVIDER_SIDE_EFFECTS=enabled` in Production, **avoid future-dated appointments, reminders or campaigns** on this shop unless performing an explicit, controlled test: they would send real SMS/email to the operator's phone.
-- Any further provider test on it needs explicit human authorization and should be one controlled action at a time. After the 2026-10-01 test its SMS suppression is clear, `smsOptOutAt` is clear, `smsMarketingOptOutAt` remains set, and `marketingSmsConsent` is false (by design START does not restore marketing consent).
+**QUOTE transactional channel, GarageOS-managed sender identity — PASS / Production verified:**
+
+- **Pre-send configuration (read-only):** the fixture shop's QUOTE route resolved to a GarageOS-managed sending identity (not a legacy/raw fallback), with Reply-To set to the shop's own verified contact address, and the underlying `SenderIdentity` row ACTIVE. No existing suppression on the test address.
+- **Outbound delivery:** a real quote sent from the GarageOS Production UI through the normal application action was accepted by Resend. GarageOS recorded exactly **one** `CommunicationMessage` (one outbox row, one provider send — no duplicate), `status` progressing QUEUED → SENT → DELIVERED, with the correct From, Reply-To, recipient and subject, and a real provider message ID stored.
+- **Webhook:** the Production Resend webhook received exactly one event for this send, signature-verified, answered **HTTP 200**, within seconds of the send. Local status advanced to DELIVERED accordingly; no duplicate webhook delivery occurred in the surrounding window, and no error/warning/fatal logs were associated with it.
+- **Physical delivery:** the operator **physically received** the email in the **Inbox** (not Spam) of the authorized test mailbox, with the From name/address matching exactly what the database recorded.
+- **Side effects:** no SMS was sent by this action; no suppression was created (no bounce/complaint occurred); no Stripe, Twilio or QuickBooks activity resulted; no other shop, client or message was touched.
+
+**Not proven / outside this validation (do not read the PASS above as covering these):**
+
+- **Only the QUOTE channel was exercised.** Invoice, appointment, reminder, work-order and web-contact emails use the same underlying send/outbox/webhook code but were **not independently sent and observed** in Production.
+- **Only one shop (the retained test fixture) was exercised.** Other shops' sender identities (custom domains, legacy fallback addresses) are not validated by this test.
+- **Live bounce/complaint/suppression behavior was not exercised** — this test deliberately avoided provoking a real bounce or complaint to protect sender reputation. Suppression logic is covered by deterministic tests only.
+- **Actual duplicate webhook delivery/retry was not exercised live** — only one webhook event arrived; idempotent handling of a true duplicate is covered by deterministic tests only, not by live Production evidence.
+- **Resend's own dashboard/account configuration** (domain verification status, webhook endpoint subscription list) was **not directly inspected** in this session — no Resend account connector was available; conclusions here are inferred from application-side behavior only.
+
+### Internal Production smoke-test fixture: Pichitos Garage
+
+Pichitos Garage is an **internal Production smoke-test fixture**, confirmed by the operator. It is **intentionally retained**, and has now been used for both the Twilio and the Resend Production validations above.
+
+- Not a paying customer; plan Complete, status ACTIVE, **no Stripe customer or subscription**, so nothing can bill. No `SalesDemo` record either — the Sales Demo Wave 1 feature does not affect this fixture.
+- Has its own **dedicated Twilio number**, which is intentionally retained, and an existing **test client using the operator's own phone/email**, also intentionally retained. Do not copy that number/address into docs, tickets or tests.
+- **Do not delete or automatically clean up** this shop, its number, its test client(s), its threads, or any quote created for validation purposes, during future launch validation.
+- Because `PROVIDER_SIDE_EFFECTS=enabled` in Production, **avoid future-dated appointments, reminders or campaigns** on this shop unless performing an explicit, controlled test: they would send real SMS/email to the operator.
+- Any further provider test on it needs explicit human authorization and should be one controlled action at a time. After the 2026-10-01 SMS test its SMS suppression is clear, `smsOptOutAt` is clear, `smsMarketingOptOutAt` remains set, and `marketingSmsConsent` is false (by design START does not restore marketing consent). After the 2026-10-01 Resend test, no email suppression exists on the test address (no bounce/complaint occurred).
 
 ## REQUIRED BEFORE FIRST CUSTOMER
 
@@ -83,7 +103,7 @@ Pichitos Garage is an **internal Production smoke-test fixture**, confirmed by t
 - **SMS / two-way inbox**: Twilio env (`TWILIO_ACCOUNT_SID` root, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`, `TWILIO_WEBHOOK_BASE_URL` if origin differs), A2P 10DLC / toll-free verification, shared-number webhook by hand; send a real SMS and confirm DELIVERED, reply → Inbox, STOP/START. *Status 2026-10-01: done and verified for the dedicated-number Inbox path (see "Twilio Production validation evidence"); still open for the shared-number path and for any US-bound/A2P use.*
 - **SMS overage billing**: Stripe Billing Meter + metered Price → `STRIPE_SMS_OVERAGE_METER_EVENT_NAME`, `STRIPE_SMS_OVERAGE_PRICE_ID`; force an overage in test mode and confirm the meter event/invoice line.
 - **Stripe failed-payment + Portal settings (annual plans)**: Billing → Manage failed payments must be *mark as unpaid* / *leave past due*, **never** *cancel* (an unpaid SMS-overage invoice would otherwise cancel a prepaid annual plan); Customer Portal must have *cancel* and *plan switching* OFF (cancellation is in GarageOS). With a test card that fails (`4000 0000 0000 0341`) and a Test Clock, confirm PAST_DUE → (GarageOS restricts 48 h after the first past_due, regardless of Stripe) RESTRICTED (subscription NOT canceled) → pay the open invoice → ACTIVE.
-- **Email delivery status**: Resend webhook `<origin>/api/webhooks/resend` (`email.delivered|bounced|complained|failed`) + `RESEND_WEBHOOK_SECRET`; bounce a real address and confirm suppression + SMS fallback.
+- **Email delivery status**: Resend webhook `<origin>/api/webhooks/resend` (`email.delivered|bounced|complained|failed`) + `RESEND_WEBHOOK_SECRET`. *Status 2026-10-01: the QUOTE channel's send → webhook → DELIVERED path is done and verified on the GarageOS-managed sender identity (see "Resend Production validation evidence"); still open: bounce/complaint/suppression behavior live, the other email channels, and other shops' sender identities.*
 - **Tire Storage reminders / customer notices**: need the SMS/Resend items above; the reminders run inside the existing daily cron.
 - **QuickBooks Online**: Intuit app + `QBO_CLIENT_ID/SECRET/ENVIRONMENT`, `INTEGRATIONS_ENCRYPTION_KEY` (back it up!), redirect URI; run a sandbox Canadian company end to end (invoice + payment + refund). **Quebec tax mapping**: the connection maps ONE tax code (plus a zero-rated code). This is correct only if the QBO company has a *combined* GST/QST code (the usual Quebec setup); per-tax (GST vs QST) mapping is not built. Whether that reproduces GarageOS totals cannot be known without a sandbox run — the sync raises a per-invoice warning when QBO's total differs. Treat as validation-required, not as a known bug.
 - **Customer Portal by email**: confirm deliverability of the portal-link email (channel `WEB_CONTACT`).
