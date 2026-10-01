@@ -18,6 +18,8 @@ import { EmailVerificationBanner } from "@/components/admin/EmailVerificationBan
 import type { PlanBadge } from "@/components/layout/Topbar";
 import { daysUntil } from "@/domain/subscription-state";
 import { SubscriptionBanner, type SubscriptionBannerData } from "@/components/admin/SubscriptionBanner";
+import { getCurrentDemo } from "@/lib/sales-demo";
+import { SalesDemoToolbar } from "@/components/sales-demo/SalesDemoToolbar";
 
 
 export default async function DashboardLayout({
@@ -65,12 +67,13 @@ export default async function DashboardLayout({
   }
 
   const isOwner = session.user.role === "OWNER";
+  const demo = await getCurrentDemo();
   let planBadge: PlanBadge | null = null;
   let billingBanner: SubscriptionBannerData | null = null;
   if (isOwner) {
     const sub = await getEffectiveSubscription(session.user.shopId);
     const trialDays = sub.isTrialing && sub.trialEndsAt ? Math.max(daysUntil(sub.trialEndsAt), 0) : 0;
-    planBadge = {
+    planBadge = sub.salesDemoId ? null : {
       plan: sub.plan ?? sub.subscribedPlan,
       state:
         sub.accessState === "RESTRICTED" || sub.accessState === "SETUP_REQUIRED"
@@ -132,12 +135,13 @@ export default async function DashboardLayout({
 
   return (
     <AdminLocaleProvider locale={locale}>
-      {session.impersonation && (
+      {session.impersonation && !demo && (
         <ImpersonationBanner shopName={session.impersonation.shopName} startedByName={session.impersonation.startedByName} />
       )}
       {currentUser && !currentUser.emailVerified && <EmailVerificationBanner email={currentUser.email} />}
       {billingBanner && <SubscriptionBanner data={billingBanner} />}
       <AdminChrome
+        salesDemoToolbar={demo ? <SalesDemoToolbar demoId={demo.id} shopName={shop?.name ?? demo.shop.name} plan={demo.currentPlan} /> : undefined}
         shopName={shop?.name}
         shopLogoUrl={shop?.logoUrl}
         userName={session.user.name}

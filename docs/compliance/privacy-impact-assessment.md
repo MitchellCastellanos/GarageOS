@@ -9,6 +9,13 @@ GarageOS is a multi-tenant B2B SaaS for independent automotive shops. It handles
 ## Necessity and purposes
 The core data categories support identifiable shop-management workflows. New categories should not be collected merely because they may be useful later. Direct-cost communications and integrations are activated for service delivery or shop-selected workflows.
 
+### Sales Demo Wave 1 (2026-10-01)
+Purpose: a platform salesperson prepares a prospect's real Shop for an in-person product demonstration. The dedicated SalesDemo record stores optional contact name/email/phone, preferred language, Sales actor id, tier/lifecycle choices and timestamps. Only shop name is required. No prospect login, password, card, activation token or commercial subscription is created in this wave. Server authorization checks the real SUPER_ADMIN account even during impersonation; tenant users cannot manage demos or gain the demo entitlement override. Demo access expires after 30 days and impersonation after at most one hour, rechecked on every request.
+
+Logo, storefront and interior uploads are explicitly public business brand assets, using the existing Supabase public-assets classification and tenant-scoped paths. The UI explains this classification; optional images can be skipped. Decoding/type/size/pixel limits, EXIF removal and normalized output apply to uploads. Immutable demo logo versions prevent a late upload overwriting a live asset after a lifecycle change. The optional ChatGPT helper only copies a prompt; GarageOS does not transfer images or prospect information to an AI service. The salesperson decides whether to attach a logo externally. No new app provider or integration is introduced; existing database/hosting/storage transfer-assessment gaps remain unchanged. Wave 1 suspends communications using the existing Shop flag; operational sending and its durable billing exclusion are deferred to Wave 2.
+
+Residual gap and owner: Sales/platform operations and the Privacy Officer must review expired/unconverted leads and unreferenced asset versions for manual retention/destruction. Access expiry is not deletion. Automated cleanup is deferred; deleting a SalesDemo must never delete its associated Shop, especially a converted Shop. See retention-destruction.md. No Terms, CASL matrix or provider-register changes are introduced by this preparation-only wave; prospect-data/public-asset disclosure and the final retention policy must be reviewed before operational rollout.
+
 ## Principal privacy risks and current mitigations
 - Cross-tenant disclosure: tenant ownership checks, role/access controls and attack tests.
 - Excessive internal access: role/permission controls and least-privilege policy.

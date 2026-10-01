@@ -28,6 +28,9 @@ export const ADMIN = {
 
 /** Panel super-admin de la plataforma — separado del /admin de cada taller */
 export const PLATFORM = {
+  sales: "/platform/sales",
+  salesNew: "/platform/sales/new",
+  salesDemo: (id: string) => `/platform/sales/${id}`,
   home: "/platform",
   shop: (id: string) => `/platform/shops/${id}`,
   analytics: "/platform/analytics",

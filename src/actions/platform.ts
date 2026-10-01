@@ -457,8 +457,9 @@ export async function changeShopPlan(shopId: string, newPlan: Plan, reason: stri
   }
   if (!PLANS.includes(newPlan)) return { error: "Plan inválido" };
 
-  const shop = await db.shop.findUnique({ where: { id: shopId }, include: { subscription: true } });
+  const shop = await db.shop.findUnique({ where: { id: shopId }, include: { subscription: true, salesDemo: true } });
   if (!shop) return { error: "Taller no encontrado" };
+  if (shop.salesDemo && shop.salesDemo.status !== "CONVERTED") return { error: "DEMO_BILLING_DISABLED" };
 
   const previousPlan: Plan | null = shop.subscription?.plan ?? null;
   if (previousPlan === newPlan) return { error: "El taller ya está en ese plan" };
@@ -515,8 +516,9 @@ export async function updateBillingContact(shopId: string, billingEmail: string)
     return { error: "Email inválido" };
   }
 
-  const shop = await db.shop.findUnique({ where: { id: shopId }, include: { subscription: true } });
+  const shop = await db.shop.findUnique({ where: { id: shopId }, include: { subscription: true, salesDemo: true } });
   if (!shop) return { error: "Taller no encontrado" };
+  if (shop.salesDemo && shop.salesDemo.status !== "CONVERTED") return { error: "DEMO_BILLING_DISABLED" };
 
   if (shop.subscription) {
     await db.subscription.update({ where: { id: shop.subscription.id }, data: { billingEmail: trimmed || null } });
@@ -551,8 +553,9 @@ export async function cancelShopSubscription(shopId: string, reason: string) {
     return { error: `Escribe un motivo (mínimo ${REASON_MIN_LENGTH} caracteres) — se le enviará al taller por correo` };
   }
 
-  const shop = await db.shop.findUnique({ where: { id: shopId }, include: { subscription: true } });
+  const shop = await db.shop.findUnique({ where: { id: shopId }, include: { subscription: true, salesDemo: true } });
   if (!shop?.subscription) return { error: "Este taller no tiene una suscripción" };
+  if (shop.salesDemo && shop.salesDemo.status !== "CONVERTED") return { error: "DEMO_BILLING_DISABLED" };
   const sub = shop.subscription;
 
   if (sub.status === "CANCELED" || sub.cancelAtPeriodEnd) {
@@ -620,8 +623,13 @@ export async function cancelShopSubscription(shopId: string, reason: string) {
 export async function startImpersonation(shopId: string) {
   const session = await requireSuperAdmin();
 
-  const shop = await db.shop.findUnique({ where: { id: shopId }, select: { id: true, name: true } });
+  const shop = await db.shop.findUnique({ where: { id: shopId }, select: { id: true, name: true, salesDemo: { select: { id: true } } } });
   if (!shop) return { error: "Taller no encontrado" };
+
+  if (shop.salesDemo) {
+    const { startSalesDemo } = await import("@/actions/sales-demo");
+    return startSalesDemo(shop.salesDemo.id);
+  }
 
   await unstable_update({
     impersonation: {

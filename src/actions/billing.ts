@@ -22,6 +22,13 @@ import { BILLING_DICT } from "@/lib/admin-locale/billing";
 const VALID_PLANS: Plan[] = ["CORE", "PRO", "COMPLETE"];
 const VALID_INTERVALS: BillingInterval[] = ["MONTHLY", "YEARLY"];
 
+// Demo completion is deliberately separate. Wave 3 will reuse this path only
+// after owner activation; Sales can never accidentally open Checkout now.
+async function assertCommercialBilling(shopId: string) {
+  const shop = await db.shop.findUnique({ where: { id: shopId }, select: { salesDemo: { select: { status: true } } } });
+  if (shop?.salesDemo && shop.salesDemo.status !== "CONVERTED") throw new Error("DEMO_BILLING_DISABLED");
+}
+
 export async function getBillingOverview() {
   const session = await requireOwner();
   const shopId = session.user.shopId!;
@@ -53,6 +60,7 @@ function checkoutReturnUrls(returnTo: "onboarding" | "billing") {
 export async function startCheckoutAction(formData: FormData) {
   const session = await requireOwner();
   const shopId = session.user.shopId!;
+  await assertCommercialBilling(shopId);
   const t = BILLING_DICT[await getAdminLocale()];
 
   const plan = formData.get("plan") as string;
@@ -109,6 +117,7 @@ export async function startCheckoutAction(formData: FormData) {
 export async function confirmCheckoutAction(sessionId: string) {
   const session = await requireOwner();
   const shopId = session.user.shopId!;
+  await assertCommercialBilling(shopId);
   const t = BILLING_DICT[await getAdminLocale()];
   if (!sessionId || !sessionId.startsWith("cs_")) return { error: t.errors.checkoutGeneric };
 
@@ -127,6 +136,7 @@ export async function confirmCheckoutAction(sessionId: string) {
 export async function openBillingPortalAction() {
   const session = await requireOwner();
   const shopId = session.user.shopId!;
+  await assertCommercialBilling(shopId);
   const subscription = await getEffectiveSubscription(shopId);
   const t = BILLING_DICT[await getAdminLocale()];
 
@@ -156,6 +166,7 @@ export async function openBillingPortalAction() {
 export async function cancelSubscriptionAction(reason?: string) {
   const session = await requireOwner();
   const shopId = session.user.shopId!;
+  await assertCommercialBilling(shopId);
   const t = BILLING_DICT[await getAdminLocale()];
 
   try {
@@ -193,6 +204,7 @@ export async function cancelSubscriptionAction(reason?: string) {
 export async function resumeSubscriptionAction() {
   const session = await requireOwner();
   const shopId = session.user.shopId!;
+  await assertCommercialBilling(shopId);
   const t = BILLING_DICT[await getAdminLocale()];
 
   try {

@@ -14,6 +14,10 @@ import { DEFAULT_ADMIN_LOCALE, resolveAdminLocale, type AdminLocale } from "@/li
 export async function getAdminLocale(): Promise<AdminLocale> {
   const session = await auth();
   if (!session?.user?.id) return DEFAULT_ADMIN_LOCALE;
+  if (session.impersonation?.salesDemoId) {
+    const demo = await db.salesDemo.findUnique({ where: { id: session.impersonation.salesDemoId }, select: { shopId: true, preferredLanguage: true } });
+    if (demo && demo.shopId === session.user.shopId) return resolveAdminLocale(demo.preferredLanguage);
+  }
 
   const user = await db.user.findUnique({
     where: { id: session.user.id },

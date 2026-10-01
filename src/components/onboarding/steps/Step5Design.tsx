@@ -17,11 +17,13 @@ interface Step5DesignProps {
   shopName: string;
   logoUrl: string | null;
   initialBrandColor: string | null;
+  coverImageUrl: string | null;
+  shopImageUrl: string | null;
   onNext: () => void;
   onBack: () => void;
 }
 
-export function Step5Design({ step, totalSteps, shopName, logoUrl, initialBrandColor, onNext, onBack }: Step5DesignProps) {
+export function Step5Design({ step, totalSteps, shopName, logoUrl, initialBrandColor, coverImageUrl, shopImageUrl, onNext, onBack }: Step5DesignProps) {
   const locale = useAdminLocale();
   const t = ONBOARDING_DICT[toOnboardingLocale(locale)].step5;
   const [color, setColor] = useState(initialBrandColor ?? DEFAULT_BRAND_COLOR);
@@ -46,8 +48,8 @@ export function Step5Design({ step, totalSteps, shopName, logoUrl, initialBrandC
         template: "CLASSIC",
         typography: "GARAGE",
         brandColor: isValidHexColor(color) ? color : null,
-        coverImageUrl: null,
-        shopImageUrl: null,
+        coverImageUrl,
+        shopImageUrl,
       });
       if ("success" in result) onNext();
       else toast.error("Error");

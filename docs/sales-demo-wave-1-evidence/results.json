@@ -1,0 +1,469 @@
+{
+  "results": [
+    {
+      "name": "workspace-empty",
+      "width": 375,
+      "viewport": 375,
+      "document": 375,
+      "topbar": 0
+    },
+    {
+      "name": "workspace-empty",
+      "width": 430,
+      "viewport": 430,
+      "document": 430,
+      "topbar": 0
+    },
+    {
+      "name": "workspace-empty",
+      "width": 768,
+      "viewport": 768,
+      "document": 768,
+      "topbar": 0
+    },
+    {
+      "name": "workspace-empty",
+      "width": 1024,
+      "viewport": 1024,
+      "document": 1024,
+      "topbar": 0
+    },
+    {
+      "name": "workspace-empty",
+      "width": 1440,
+      "viewport": 1440,
+      "document": 1440,
+      "topbar": 0
+    },
+    {
+      "name": "prospect-form",
+      "width": 375,
+      "viewport": 375,
+      "document": 375,
+      "topbar": 0
+    },
+    {
+      "name": "prospect-form",
+      "width": 430,
+      "viewport": 430,
+      "document": 430,
+      "topbar": 0
+    },
+    {
+      "name": "prospect-form",
+      "width": 768,
+      "viewport": 768,
+      "document": 768,
+      "topbar": 0
+    },
+    {
+      "name": "prospect-form",
+      "width": 1024,
+      "viewport": 1024,
+      "document": 1024,
+      "topbar": 0
+    },
+    {
+      "name": "prospect-form",
+      "width": 1440,
+      "viewport": 1440,
+      "document": 1440,
+      "topbar": 0
+    },
+    {
+      "name": "branding-empty",
+      "width": 375,
+      "viewport": 375,
+      "document": 375,
+      "topbar": 0
+    },
+    {
+      "name": "branding-empty",
+      "width": 430,
+      "viewport": 430,
+      "document": 430,
+      "topbar": 0
+    },
+    {
+      "name": "branding-empty",
+      "width": 768,
+      "viewport": 768,
+      "document": 768,
+      "topbar": 0
+    },
+    {
+      "name": "branding-empty",
+      "width": 1024,
+      "viewport": 1024,
+      "document": 1024,
+      "topbar": 0
+    },
+    {
+      "name": "branding-empty",
+      "width": 1440,
+      "viewport": 1440,
+      "document": 1440,
+      "topbar": 0
+    },
+    {
+      "name": "logo-editor",
+      "width": 375,
+      "viewport": 375,
+      "document": 375,
+      "topbar": -556
+    },
+    {
+      "name": "logo-editor",
+      "width": 430,
+      "viewport": 430,
+      "document": 430,
+      "topbar": -556
+    },
+    {
+      "name": "logo-editor",
+      "width": 768,
+      "viewport": 768,
+      "document": 768,
+      "topbar": -556
+    },
+    {
+      "name": "logo-editor",
+      "width": 1024,
+      "viewport": 1024,
+      "document": 1024,
+      "topbar": -556
+    },
+    {
+      "name": "logo-editor",
+      "width": 1440,
+      "viewport": 1440,
+      "document": 1440,
+      "topbar": -556
+    },
+    {
+      "name": "branding-saved",
+      "width": 375,
+      "viewport": 375,
+      "document": 375,
+      "topbar": -926
+    },
+    {
+      "name": "branding-saved",
+      "width": 430,
+      "viewport": 430,
+      "document": 430,
+      "topbar": -828
+    },
+    {
+      "name": "branding-saved",
+      "width": 768,
+      "viewport": 768,
+      "document": 768,
+      "topbar": -828
+    },
+    {
+      "name": "branding-saved",
+      "width": 1024,
+      "viewport": 1024,
+      "document": 1024,
+      "topbar": -142
+    },
+    {
+      "name": "branding-saved",
+      "width": 1440,
+      "viewport": 1440,
+      "document": 1440,
+      "topbar": -34
+    },
+    {
+      "name": "onboarding-business",
+      "width": 375,
+      "viewport": 375,
+      "document": 375,
+      "toolbar": 7,
+      "topbar": 7
+    },
+    {
+      "name": "onboarding-business",
+      "width": 430,
+      "viewport": 430,
+      "document": 430,
+      "toolbar": 47,
+      "topbar": 47
+    },
+    {
+      "name": "onboarding-business",
+      "width": 768,
+      "viewport": 768,
+      "document": 768,
+      "toolbar": 79,
+      "topbar": 79
+    },
+    {
+      "name": "onboarding-business",
+      "width": 1024,
+      "viewport": 1024,
+      "document": 1024,
+      "toolbar": 61,
+      "topbar": 61
+    },
+    {
+      "name": "onboarding-business",
+      "width": 1440,
+      "viewport": 1440,
+      "document": 1440,
+      "toolbar": 61,
+      "topbar": 61
+    },
+    {
+      "name": "onboarding-fiscal",
+      "width": 375,
+      "viewport": 375,
+      "document": 375,
+      "toolbar": 109,
+      "topbar": 109
+    },
+    {
+      "name": "onboarding-fiscal",
+      "width": 430,
+      "viewport": 430,
+      "document": 430,
+      "toolbar": 109,
+      "topbar": 109
+    },
+    {
+      "name": "onboarding-fiscal",
+      "width": 768,
+      "viewport": 768,
+      "document": 768,
+      "toolbar": 89,
+      "topbar": 89
+    },
+    {
+      "name": "onboarding-fiscal",
+      "width": 1024,
+      "viewport": 1024,
+      "document": 1024,
+      "toolbar": 61,
+      "topbar": 61
+    },
+    {
+      "name": "onboarding-fiscal",
+      "width": 1440,
+      "viewport": 1440,
+      "document": 1440,
+      "toolbar": 61,
+      "topbar": 61
+    },
+    {
+      "name": "demo-plan",
+      "width": 375,
+      "viewport": 375,
+      "document": 375,
+      "toolbar": 109,
+      "topbar": 109
+    },
+    {
+      "name": "demo-plan",
+      "width": 430,
+      "viewport": 430,
+      "document": 430,
+      "toolbar": 109,
+      "topbar": 109
+    },
+    {
+      "name": "demo-plan",
+      "width": 768,
+      "viewport": 768,
+      "document": 768,
+      "toolbar": 89,
+      "topbar": 89
+    },
+    {
+      "name": "demo-plan",
+      "width": 1024,
+      "viewport": 1024,
+      "document": 1024,
+      "toolbar": 61,
+      "topbar": 61
+    },
+    {
+      "name": "demo-plan",
+      "width": 1440,
+      "viewport": 1440,
+      "document": 1440,
+      "toolbar": 61,
+      "topbar": 61
+    },
+    {
+      "name": "dashboard",
+      "width": 375,
+      "viewport": 375,
+      "document": 375,
+      "toolbar": 109,
+      "topbar": 109
+    },
+    {
+      "name": "dashboard",
+      "width": 430,
+      "viewport": 430,
+      "document": 430,
+      "toolbar": 109,
+      "topbar": 109
+    },
+    {
+      "name": "dashboard",
+      "width": 768,
+      "viewport": 768,
+      "document": 768,
+      "toolbar": 89,
+      "topbar": 89
+    },
+    {
+      "name": "dashboard",
+      "width": 1024,
+      "viewport": 1024,
+      "document": 1024,
+      "toolbar": 61,
+      "topbar": 61
+    },
+    {
+      "name": "dashboard",
+      "width": 1440,
+      "viewport": 1440,
+      "document": 1440,
+      "toolbar": 61,
+      "topbar": 61
+    },
+    {
+      "name": "tier-gate",
+      "tier": "CORE",
+      "inventory": "Inventaire\n\nL’inventaire est une fonction Pro\n\nSuivez vos pièces, niveaux de stock et la consommation automatique sur les travaux. Inclus dans Pro et Complete.\n\nPasser à Pro"
+    },
+    {
+      "name": "tier-gate",
+      "tier": "PRO",
+      "inventory": "Inventaire\n\n0 pièces enregistrées\n\nNouvelle pièce\n\nAucune pièce enregistrée pour l'instant\n\nAjouter la première"
+    },
+    {
+      "name": "tier-gate",
+      "tier": "COMPLETE",
+      "inventory": "Inventaire\n\n0 pièces enregistrées\n\nNouvelle pièce\n\nAucune pièce enregistrée pour l'instant\n\nAjouter la première"
+    },
+    {
+      "name": "workspace-active",
+      "width": 375,
+      "viewport": 375,
+      "document": 375,
+      "topbar": 0
+    },
+    {
+      "name": "workspace-active",
+      "width": 430,
+      "viewport": 430,
+      "document": 430,
+      "topbar": 0
+    },
+    {
+      "name": "workspace-active",
+      "width": 768,
+      "viewport": 768,
+      "document": 768,
+      "topbar": 0
+    },
+    {
+      "name": "workspace-active",
+      "width": 1024,
+      "viewport": 1024,
+      "document": 1024,
+      "topbar": 0
+    },
+    {
+      "name": "workspace-active",
+      "width": 1440,
+      "viewport": 1440,
+      "document": 1440,
+      "topbar": 0
+    },
+    {
+      "name": "open-tab-expiration",
+      "returnsToPlatform": true
+    },
+    {
+      "name": "prospect-form-en",
+      "width": 375,
+      "viewport": 375,
+      "document": 375,
+      "topbar": 0
+    },
+    {
+      "name": "prospect-form-en",
+      "width": 430,
+      "viewport": 430,
+      "document": 430,
+      "topbar": 0
+    },
+    {
+      "name": "prospect-form-en",
+      "width": 768,
+      "viewport": 768,
+      "document": 768,
+      "topbar": 0
+    },
+    {
+      "name": "prospect-form-en",
+      "width": 1024,
+      "viewport": 1024,
+      "document": 1024,
+      "topbar": 0
+    },
+    {
+      "name": "prospect-form-en",
+      "width": 1440,
+      "viewport": 1440,
+      "document": 1440,
+      "topbar": 0
+    },
+    {
+      "name": "normal-owner",
+      "salesRejected": true,
+      "noDemoToolbar": true,
+      "paymentStillRequired": true
+    }
+  ],
+  "state": {
+    "demos": [
+      {
+        "id": "cmupq4evm00026s6nkl11au7w",
+        "shopId": "cmupq4ev900006s6ny4ogeqy2",
+        "createdByUserId": "qa-sales",
+        "contactName": "Jean Dupont",
+        "contactEmail": "jean@example.test",
+        "contactPhone": null,
+        "preferredLanguage": "FR",
+        "currentPlan": "COMPLETE",
+        "proposedPlan": "PRO",
+        "proposedBillingInterval": "MONTHLY",
+        "status": "ACTIVE",
+        "expiresAt": "2026-10-31T20:03:30.509Z",
+        "activationSentAt": null,
+        "activatedAt": null,
+        "convertedAt": null,
+        "createdAt": "2026-10-01T20:03:30.514Z",
+        "updatedAt": "2026-10-01T20:04:28.413Z",
+        "name": "Garage Démonstration Dupont et Fils — Réparation et entretien automobile",
+        "logoUrl": "http://127.0.0.1:55441/storage/v1/object/public/public-assets/logos/cmupq4ev900006s6ny4ogeqy2/logo-a569d199-12da-43f4-84e6-49e4a855319f.png?v=1790870614732",
+        "bookingCoverImageUrl": "http://127.0.0.1:55441/storage/v1/object/public/public-assets/booking-page/cmupq4ev900006s6ny4ogeqy2/cover-1790870615096.webp",
+        "bookingShopImageUrl": "http://127.0.0.1:55441/storage/v1/object/public/public-assets/booking-page/cmupq4ev900006s6ny4ogeqy2/shop-1790870615420.webp",
+        "onboardingCompletedAt": "2026-10-01T20:03:47.268Z",
+        "communicationsSuspendedAt": "2026-10-01T20:03:30.495Z",
+        "plan": null,
+        "subscriptionStatus": "AWAITING_PLAN",
+        "stripeCustomerId": null,
+        "stripeSubscriptionId": null
+      }
+    ],
+    "storedImages": 4
+  },
+  "errors": []
+}

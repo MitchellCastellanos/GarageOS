@@ -14,6 +14,7 @@ import { Step4Hours } from "@/components/onboarding/steps/Step4Hours";
 import { Step5Design } from "@/components/onboarding/steps/Step5Design";
 import { StepPlan } from "@/components/onboarding/steps/StepPlan";
 import { Step6Share } from "@/components/onboarding/steps/Step6Share";
+import { DemoPlanStep } from "@/components/sales-demo/DemoPlanStep";
 
 interface ServiceCatalogRow {
   id: string;
@@ -35,6 +36,8 @@ interface OnboardingWizardProps {
     taxId: string | null;
     slug: string | null;
     logoUrl: string | null;
+    bookingCoverImageUrl: string | null;
+    bookingShopImageUrl: string | null;
     brandColor: string | null;
     taxLines: unknown;
   };
@@ -139,16 +142,19 @@ export function OnboardingWizard({
           shopName={shop.name}
           logoUrl={logoUrl}
           initialBrandColor={shop.brandColor}
+          coverImageUrl={shop.bookingCoverImageUrl}
+          shopImageUrl={shop.bookingShopImageUrl}
           onNext={goNext}
           onBack={goBack}
         />
       );
     case ONBOARDING_PLAN_STEP:
+      if (subscription.salesDemoId && subscription.plan) return <DemoPlanStep demoId={subscription.salesDemoId} initialPlan={subscription.plan} step={displayStep} totalSteps={totalSteps} onNext={goNext} onBack={goBack} />;
       return (
         <StepPlan step={displayStep} totalSteps={totalSteps} subscription={subscription} onNext={goNext} onBack={goBack} />
       );
     case ONBOARDING_FINISH_STEP:
-      return <Step6Share step={displayStep} totalSteps={totalSteps} onBack={goBack} />;
+      return <Step6Share step={displayStep} totalSteps={totalSteps} onBack={goBack} demoId={subscription.salesDemoId} />;
     default:
       return null;
   }

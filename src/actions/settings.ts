@@ -63,7 +63,7 @@ export async function updateShopSettings(formData: FormData) {
 
   const previous = await db.shop.findUnique({ where: { id: shopId }, select: { email: true, emailVerified: true } });
   const previousEmail = previous?.email?.trim().toLowerCase() || null;
-  const loginEmailMatch = session.user.role === "OWNER" && normalizedEmail === session.user.email?.trim().toLowerCase();
+  const loginEmailMatch = !session.impersonation?.salesDemoId && session.user.role === "OWNER" && normalizedEmail === session.user.email?.trim().toLowerCase();
 
   let emailVerified: Date | null;
   let shouldSendVerification = false;
@@ -94,7 +94,7 @@ export async function updateShopSettings(formData: FormData) {
     },
   });
 
-  if (shouldSendVerification && normalizedEmail) {
+  if (shouldSendVerification && normalizedEmail && !session.impersonation?.salesDemoId) {
     await sendShopEmailVerification({ shopId, email: normalizedEmail, shopName: updatedShop.name }).catch((err) =>
       console.error("[updateShopSettings] sendShopEmailVerification falló:", err)
     );

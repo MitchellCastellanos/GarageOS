@@ -10,6 +10,9 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["@react-pdf/renderer", "googleapis", "canvas", "sharp", "pdf-lib"],
 
   images: {
+    // Disposable browser QA uses fake loopback storage. Production keeps its
+    // existing image optimizer and remote-host allowlist unchanged.
+    unoptimized: process.env.NODE_ENV === "development" && process.env.GARAGEOS_LOCAL_QA === "1",
     remotePatterns: [
       {
         protocol: "https",
