@@ -11,6 +11,7 @@ import { resolveSenderIdentity } from "@/lib/communications/sender-identity";
 import { isSuppressed } from "@/lib/communications/suppression";
 import { getEffectiveSubscription } from "@/lib/subscription";
 import { assertProviderSideEffects } from "@/lib/provider-policy";
+import { resolveDemoCommunication } from "@/lib/communications/demo-origin";
 
 export interface RecordAndSendParams {
   shopId: string;
@@ -45,6 +46,7 @@ export interface RecordAndSendResult {
   providerMessageId: string | null;
   /** null si el historial no se pudo escribir (el mensaje igual salió). */
   messageId: string | null;
+  salesDemoOriginId?: string | null;
   /** Segmentos reales que reportó el proveedor (SMS), si los hubo. */
   segments?: number | null;
 }
@@ -63,19 +65,21 @@ const TERMINAL_SUCCESS_STATUSES = new Set(["SENT", "DELIVERED"]);
  */
 export const IN_FLIGHT_WINDOW_MS = 120_000;
 
-function isInFlight(existing: { status: string; createdAt: Date }, now = Date.now()): boolean {
-  return existing.status === "QUEUED" && now - existing.createdAt.getTime() < IN_FLIGHT_WINDOW_MS;
+function isInFlight(existing: { status: string; createdAt: Date; sendAttemptedAt?: Date | null }, now = Date.now()): boolean {
+  return ["QUEUED", "SENDING"].includes(existing.status) && now - (existing.sendAttemptedAt ?? existing.createdAt).getTime() < IN_FLIGHT_WINDOW_MS;
 }
 
-async function reserveMessageId(params: RecordAndSendParams): Promise<
-  | { messageId: string; deduped: false }
-  | { deduped: true; providerMessageId: string | null; messageId: string }
+async function reserveMessageId(params: RecordAndSendParams, salesDemoOriginId: string | null): Promise<
+  | { messageId: string; deduped: false; salesDemoOriginId: string | null }
+  | { deduped: true; providerMessageId: string | null; messageId: string; salesDemoOriginId: string | null }
 > {
   const senderIdentity = await resolveSenderIdentity(params.shopId, params.purpose, params.channel).catch(
     () => null
   );
 
   const createData = {
+    salesDemoOriginId,
+    sendAttemptedAt: new Date(),
     shopId: params.shopId,
     clientId: params.clientId ?? null,
     threadId: params.threadId ?? null,
@@ -99,7 +103,7 @@ async function reserveMessageId(params: RecordAndSendParams): Promise<
     htmlBody: params.htmlBody ?? null,
     createdByUserId: params.createdByUserId ?? null,
     segments: params.segments ?? null,
-    billedOverageSegments: params.billedOverageSegments ?? null,
+    billedOverageSegments: salesDemoOriginId ? 0 : params.billedOverageSegments ?? null,
   } satisfies Prisma.CommunicationMessageUncheckedCreateInput;
 
   if (params.idempotencyKey) {
@@ -107,32 +111,39 @@ async function reserveMessageId(params: RecordAndSendParams): Promise<
       where: { idempotencyKey: params.idempotencyKey },
     });
     if (existing) {
+      if (existing.shopId !== params.shopId) throw new Error("COMMUNICATION_TENANT_MISMATCH");
       if (TERMINAL_SUCCESS_STATUSES.has(existing.status) || isInFlight(existing)) {
-        return { deduped: true, providerMessageId: existing.providerMessageId, messageId: existing.id };
+        return { deduped: true, providerMessageId: existing.providerMessageId, messageId: existing.id, salesDemoOriginId: existing.salesDemoOriginId ?? salesDemoOriginId };
       }
       // Intento anterior quedó FAILED/QUEUED (ej. reintento de cron tras una caída del
       // proveedor) — reintenta reusando la misma fila en vez de duplicarla.
-      await db.communicationMessage.update({
-        where: { id: existing.id },
-        data: { ...createData, status: "QUEUED", errorMessage: null, errorCode: null, failedAt: null },
+      const claimed = await db.communicationMessage.updateMany({
+        where: { id: existing.id, status: existing.status, sendAttemptedAt: existing.sendAttemptedAt },
+        data: { ...createData, salesDemoOriginId: existing.salesDemoOriginId ?? salesDemoOriginId,
+          billedOverageSegments: existing.salesDemoOriginId || salesDemoOriginId ? 0 : createData.billedOverageSegments,
+          status: "QUEUED", errorMessage: null, errorCode: null, failedAt: null },
       });
-      return { messageId: existing.id, deduped: false };
+      const durableOrigin = existing.salesDemoOriginId ?? salesDemoOriginId;
+      return claimed.count === 1 ? { messageId: existing.id, deduped: false, salesDemoOriginId: durableOrigin } :
+        { deduped: true, providerMessageId: existing.providerMessageId, messageId: existing.id, salesDemoOriginId: durableOrigin };
     }
   }
 
   try {
     const message = await db.communicationMessage.create({ data: createData });
-    return { messageId: message.id, deduped: false };
+    return { messageId: message.id, deduped: false, salesDemoOriginId: message.salesDemoOriginId ?? salesDemoOriginId };
   } catch (err) {
     if (params.idempotencyKey && isUniqueConstraintViolation(err)) {
       // Carrera: otra llamada concurrente creó la fila entre el findUnique y el create.
       const existing = await db.communicationMessage.findUniqueOrThrow({
         where: { idempotencyKey: params.idempotencyKey },
       });
+      if (existing.shopId !== params.shopId) throw new Error("COMMUNICATION_TENANT_MISMATCH");
       if (TERMINAL_SUCCESS_STATUSES.has(existing.status) || isInFlight(existing)) {
-        return { deduped: true, providerMessageId: existing.providerMessageId, messageId: existing.id };
+        return { deduped: true, providerMessageId: existing.providerMessageId, messageId: existing.id, salesDemoOriginId: existing.salesDemoOriginId ?? salesDemoOriginId };
       }
-      return { messageId: existing.id, deduped: false };
+      // Another caller owns the reservation; never send without winning a lease.
+      return { deduped: true, providerMessageId: existing.providerMessageId, messageId: existing.id, salesDemoOriginId: existing.salesDemoOriginId ?? salesDemoOriginId };
     }
     throw err;
   }
@@ -155,11 +166,12 @@ export async function recordAndSend(params: RecordAndSendParams): Promise<Record
   }
   const shop = await db.shop.findUnique({
     where: { id: params.shopId },
-    select: { communicationsSuspendedAt: true },
+    select: { communicationsSuspendedAt: true, salesDemo: true },
   });
   if (shop?.communicationsSuspendedAt) {
     throw new Error("This shop's communications are suspended by the platform.");
   }
+  const salesDemoOriginId = await resolveDemoCommunication(params.shopId, shop?.salesDemo);
 
   // Última barrera de estado de cuenta: un taller restringido no envía campañas ni
   // recordatorios (los crons ya lo filtran; esto cubre cualquier otro camino).
@@ -190,17 +202,27 @@ export async function recordAndSend(params: RecordAndSendParams): Promise<Record
   // el aviso al cliente igual sale — se pierde el registro, no el mensaje.
   let reserved: Awaited<ReturnType<typeof reserveMessageId>> | null = null;
   try {
-    reserved = await reserveMessageId(params);
+    reserved = await reserveMessageId(params, salesDemoOriginId);
   } catch (err) {
+    // A demo must never send without its durable non-meterable provenance.
+    // Tenant mismatches always fail closed, including normal shops.
+    if (salesDemoOriginId || (err instanceof Error && err.message === "COMMUNICATION_TENANT_MISMATCH")) throw err;
     console.error(`[outbox] no se pudo registrar el mensaje (${params.purpose}, ${params.shopId}); se envía sin historial:`, err);
   }
   if (reserved?.deduped) {
-    return { deduped: true, providerMessageId: reserved.providerMessageId, messageId: reserved.messageId };
+    return { deduped: true, providerMessageId: reserved.providerMessageId, messageId: reserved.messageId, salesDemoOriginId: reserved.salesDemoOriginId };
   }
   const messageId = reserved?.messageId ?? null;
 
   let result: Awaited<ReturnType<RecordAndSendParams["send"]>>;
   try {
+    if (salesDemoOriginId && shop?.salesDemo && shop.salesDemo.status !== "CONVERTED") {
+      const current = await db.salesDemo.findUnique({ where: { id: salesDemoOriginId } });
+      const { authorizedDemoSession } = await import("@/lib/sales-demo");
+      if (!current?.communicationsEnabled || !await authorizedDemoSession(current)) throw new Error("DEMO_COMMUNICATION_FORBIDDEN");
+      const state = await db.shop.findUnique({ where: { id: params.shopId }, select: { communicationsSuspendedAt: true } });
+      if (state?.communicationsSuspendedAt) throw new Error("This shop's communications are suspended by the platform.");
+    }
     result = await params.send();
   } catch (err) {
     if (messageId) {
@@ -237,6 +259,7 @@ export async function recordAndSend(params: RecordAndSendParams): Promise<Record
     deduped: false,
     providerMessageId: result.providerMessageId ?? null,
     messageId,
+    salesDemoOriginId: reserved?.salesDemoOriginId ?? salesDemoOriginId,
     segments: result.segments ?? null,
   };
 }

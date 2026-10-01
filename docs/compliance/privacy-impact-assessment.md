@@ -16,6 +16,9 @@ Logo, storefront and interior uploads are explicitly public business brand asset
 
 Residual gap and owner: Sales/platform operations and the Privacy Officer must review expired/unconverted leads and unreferenced asset versions for manual retention/destruction. Access expiry is not deletion. Automated cleanup is deferred; deleting a SalesDemo must never delete its associated Shop, especially a converted Shop. See retention-destruction.md. No Terms, CASL matrix or provider-register changes are introduced by this preparation-only wave; prospect-data/public-asset disclosure and the final retention policy must be reviewed before operational rollout.
 
+### Sales Demo Wave 2 (2026-10-01)
+Sales explicitly enables real transactional communications for a live authorized demo, then uses the existing communication controls, sender identities, providers, suppression and delivery records. The global provider gate remains mandatory; background jobs cannot gain Sales impersonation privileges. CommunicationMessage carries durable demo provenance for permanent SMS billing exclusion, including fallback/retry after conversion or deletion. This provenance is retained with communication history and is not removed by Restart. Synthetic scenario records have an explicit batch identity, no contact recipients and no automatic sends. Restart preserves live-entered records and preparation; optional removal is restricted to the synthetic batch, with confirmation and transactional refusal when linked to financial/approval/live data. Existing Terms/CASL/provider-register requirements still apply.
+
 ## Principal privacy risks and current mitigations
 - Cross-tenant disclosure: tenant ownership checks, role/access controls and attack tests.
 - Excessive internal access: role/permission controls and least-privilege policy.

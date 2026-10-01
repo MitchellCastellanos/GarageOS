@@ -105,9 +105,9 @@ export async function sendSms(params: SendSmsParams): Promise<RecordAndSendResul
   if (!result.deduped) {
     // El cupo se recalcula con los segmentos REALES que reportó Twilio (el estimado
     // local puede diferir p. ej. con caracteres raros) antes de reportar el excedente.
-    let billed = overage.overageSegments;
+    let billed = result.salesDemoOriginId ? 0 : overage.overageSegments;
     if (result.segments != null && result.segments !== segments) {
-      billed = computeOverageSegments(overage.usedBefore, overage.allowance, result.segments);
+      billed = result.salesDemoOriginId ? 0 : computeOverageSegments(overage.usedBefore, overage.allowance, result.segments);
       if (result.messageId) {
         await db.communicationMessage
           .update({ where: { id: result.messageId }, data: { billedOverageSegments: billed } })
@@ -118,7 +118,7 @@ export async function sendSms(params: SendSmsParams): Promise<RecordAndSendResul
     if (billed > 0 && result.messageId) await settleSmsOverage(result.messageId);
 
     // Import diferido: staff-alerts es server-only (correo de plataforma).
-    await checkSmsUsageAlerts(params.shopId, async (alert) => {
+    if (!result.salesDemoOriginId) await checkSmsUsageAlerts(params.shopId, async (alert) => {
       const { alertStaffSmsUsage } = await import("@/lib/staff-alerts");
       await alertStaffSmsUsage({ shopId: params.shopId, ...alert });
     }).catch((err) => console.error(`[sms] alerta de uso falló (${params.shopId}):`, err));

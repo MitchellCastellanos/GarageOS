@@ -7,6 +7,7 @@
 
 import Stripe from "stripe";
 import { PLAN_PRICING_CAD, type Plan } from "@/config/entitlements";
+import { db } from "@/lib/db";
 import type { TrialPlan } from "@/domain/subscription-state";
 import { SMS_OVERAGE_PRICE_CAD_PER_SEGMENT } from "@/domain/sms";
 import { assertStripeMutationAllowed, gateClient, stripeMutationsAllowed } from "@/lib/provider-policy";
@@ -404,6 +405,13 @@ export async function reportSmsOverageUsage(params: {
   if (!eventName || params.segments <= 0) return false;
   // Sin autorización de mutación no se reporta (ni se loguea como error): el cron reintentará cuando la haya.
   if (!stripeMutationsAllowed()) return false;
+
+  // Lowest billing boundary also checks durable origin. No caller (including a
+  // future reconciliation job) can meter an SMS from a converted/deleted demo.
+  const source = await db.communicationMessage.findUnique({
+    where: { id: params.messageId }, select: { salesDemoOriginId: true },
+  });
+  if (!source || source.salesDemoOriginId) return false;
 
   const age = params.occurredAt ? Date.now() - params.occurredAt.getTime() : 0;
   const timestamp =

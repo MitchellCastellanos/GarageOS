@@ -21,6 +21,8 @@ const database = await PGlite.create();
 const migrations = readdirSync(path.join(repo, "prisma/migrations"), { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort();
 for (const migration of migrations) await database.exec(readFileSync(path.join(repo, "prisma/migrations", migration, "migration.sql"), "utf8").replace(/^\uFEFF/, ""));
 console.log(`[wave1-qa] Applied all ${migrations.length} migrations to disposable local database.`);
+const wave2 = process.env.GARAGEOS_QA_WAVE2 === "1" ? await import("./qa-sales-demo-wave2-sql.mjs") : null;
+if (wave2) await wave2.verifyWave2Sql(database);
 
 // Exercise actual foreign keys/uniqueness, including deleting a converted SalesDemo.
 await database.query(`INSERT INTO garageos."Shop" (id,name) VALUES ('qa-shop','QA')`);
@@ -73,6 +75,7 @@ child.on("exit", () => process.exit());
 // Local-only introspection/control endpoint for browser QA; never shipped with the app.
 const control = createServer(async (req, res) => {
   res.setHeader("Content-Type", "application/json");
+  if (wave2 && await wave2.wave2Control(database, req, res)) return;
   if (req.method === "POST" && req.url === "/expire") {
     await database.query(`UPDATE garageos."SalesDemo" SET "expiresAt"=now()-interval '1 second'`);
     res.end(JSON.stringify({ ok: true })); return;

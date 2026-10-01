@@ -36,6 +36,7 @@ export async function getSmsSegmentsUsed(shopId: string, now: Date = new Date())
     shopId,
     channel: "SMS" as const,
     direction: "OUTBOUND" as const,
+    salesDemoOriginId: null,
     createdAt: { gte: start, lt: end },
     OR: [
       { status: { in: ["QUEUED", "SENDING", "SENT", "DELIVERED"] as ("QUEUED" | "SENDING" | "SENT" | "DELIVERED")[] } },
@@ -148,9 +149,11 @@ export async function settleSmsOverage(messageId: string): Promise<OverageSettle
         overageReportedAt: true,
         providerMessageId: true,
         createdAt: true,
+        salesDemoOriginId: true,
       },
     });
     if (!message || message.channel !== "SMS" || message.direction !== "OUTBOUND") return "not_applicable";
+    if (message.salesDemoOriginId) return "not_applicable";
     if (!message.billedOverageSegments || message.billedOverageSegments <= 0) return "not_applicable";
     if (message.overageReportedAt) return "already_reported";
     if (!message.providerMessageId) return "not_applicable"; // nunca salió: no se cobra
@@ -207,6 +210,7 @@ export async function retryPendingSmsOverage(now: Date = new Date(), limit = 200
     where: {
       channel: "SMS",
       direction: "OUTBOUND",
+      salesDemoOriginId: null,
       billedOverageSegments: { gt: 0 },
       overageReportedAt: null,
       providerMessageId: { not: null },

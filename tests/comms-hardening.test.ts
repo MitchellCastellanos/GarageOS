@@ -206,7 +206,7 @@ test("a provider failure marks FAILED and rethrows the original error", async (t
 
 test("an idempotent retry of an already-sent message is deduped without calling the provider", async (t) => {
   mockOutboxBasics(t);
-  mockDb(t, "communicationMessage", "findUnique", async () => ({ id: "m1", status: "SENT", providerMessageId: "re_1" }));
+  mockDb(t, "communicationMessage", "findUnique", async () => ({ id: "m1", shopId: "shop-A", status: "SENT", providerMessageId: "re_1" }));
   const send = t.mock.fn(async () => ({ providerMessageId: "re_2" }));
   const result = await recordAndSend({ ...baseSend(send), idempotencyKey: "k1" });
   assert.equal(result.deduped, true);
