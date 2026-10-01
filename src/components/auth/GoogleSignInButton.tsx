@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+import { Loader2 } from "lucide-react";
 import { signIn } from "next-auth/react";
 
 interface GoogleSignInButtonProps {
@@ -8,13 +10,47 @@ interface GoogleSignInButtonProps {
 }
 
 export function GoogleSignInButton({ callbackUrl, label = "Continue with Google" }: GoogleSignInButtonProps) {
+  const [pending, setPending] = useState(false);
+  // Guardia síncrona (el estado tarda un render): cada signIn("google") crea
+  // su propia cookie PKCE (code_verifier). Un doble clic arrancaba dos flujos
+  // y el segundo pisaba la cookie del primero → Google rechazaba el callback
+  // con `invalid_grant: Invalid code verifier` (CallbackRouteError en prod).
+  const startedRef = useRef(false);
+
+  // Volver con "atrás" desde Google restaura la página desde bfcache con el
+  // botón deshabilitado — se reactiva para poder intentar de nuevo.
+  useEffect(() => {
+    function onPageShow(event: PageTransitionEvent) {
+      if (!event.persisted) return;
+      startedRef.current = false;
+      setPending(false);
+    }
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, []);
+
+  async function handleClick() {
+    if (startedRef.current) return;
+    startedRef.current = true;
+    setPending(true);
+    try {
+      await signIn("google", { callbackUrl });
+    } catch {
+      // Si no llegó a redirigir (red caída, etc.), permitir reintentar.
+      startedRef.current = false;
+      setPending(false);
+    }
+  }
+
   return (
     <button
       type="button"
-      onClick={() => signIn("google", { callbackUrl })}
-      className="w-full flex items-center justify-center gap-2 border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium py-2.5 px-4 rounded-lg text-sm transition-colors"
+      onClick={handleClick}
+      disabled={pending}
+      aria-busy={pending}
+      className="w-full flex items-center justify-center gap-2 border border-slate-300 hover:bg-slate-50 disabled:opacity-60 disabled:cursor-wait text-slate-700 font-medium py-2.5 px-4 rounded-lg text-sm transition-colors"
     >
-      <GoogleIcon />
+      {pending ? <Loader2 className="w-4 h-4 animate-spin" /> : <GoogleIcon />}
       {label}
     </button>
   );

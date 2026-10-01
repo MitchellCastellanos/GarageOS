@@ -12,9 +12,20 @@ interface LoginFormProps {
   destination: string;
 }
 
+/** Códigos de Auth.js (?error=) de un flujo OAuth fallido — ver https://errors.authjs.dev */
+const OAUTH_ERROR_CODES = new Set(["Configuration", "OAuthSignin", "OAuthCallbackError", "OAuthAccountNotLinked", "AccessDenied", "Callback"]);
+
 export function LoginForm({ error, destination }: LoginFormProps) {
   const { locale, t } = useMarketingLocale();
   const { login } = t.auth;
+  // Nunca mostrar el código crudo de Auth.js ("CredentialsSignin", "Configuration"…).
+  const errorMessage = !error
+    ? null
+    : error === "CredentialsSignin"
+      ? login.errors.credentials
+      : OAUTH_ERROR_CODES.has(error)
+        ? login.errors.oauth
+        : login.errors.generic;
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8">
@@ -61,9 +72,9 @@ export function LoginForm({ error, destination }: LoginFormProps) {
           </Link>
         </div>
 
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-3 py-2">
-            {error}
+        {errorMessage && (
+          <div role="alert" className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-3 py-2">
+            {errorMessage}
           </div>
         )}
 
