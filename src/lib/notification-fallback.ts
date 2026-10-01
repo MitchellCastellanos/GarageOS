@@ -16,6 +16,7 @@ import { sendWorkOrderReadyEmail } from "@/lib/email";
 import { sendWorkOrderReadySms } from "@/lib/sms";
 import { shopToEmailConfig } from "@/lib/email-config";
 import { formatClientName } from "@/lib/client-name";
+import { withCommunicationOrigin } from "@/lib/communications/demo-origin";
 
 export type DeliveryChannel = "SMS" | "EMAIL";
 
@@ -141,13 +142,15 @@ async function fallbackWorkOrderReady(workOrderId: string, shopId: string, faile
 export async function handleNotificationDeliveryFailure(messageId: string, failedChannel: DeliveryChannel): Promise<void> {
   const message = await db.communicationMessage.findUnique({
     where: { id: messageId },
-    select: { shopId: true, purpose: true, businessEntityType: true, businessEntityId: true, createdAt: true },
+    select: { shopId: true, purpose: true, businessEntityType: true, businessEntityId: true, createdAt: true, salesDemoOriginId: true },
   });
   if (!message || Date.now() - message.createdAt.getTime() > FALLBACK_WINDOW_MS) return;
 
-  if (message.purpose === "APPOINTMENT") {
-    await fallbackAppointmentNotice(messageId, failedChannel);
-  } else if (message.purpose === "WORK_ORDER" && message.businessEntityType === "WORK_ORDER" && message.businessEntityId) {
-    await fallbackWorkOrderReady(message.businessEntityId, message.shopId, failedChannel);
-  }
+  await withCommunicationOrigin(message.salesDemoOriginId, async () => {
+    if (message.purpose === "APPOINTMENT") {
+      await fallbackAppointmentNotice(messageId, failedChannel);
+    } else if (message.purpose === "WORK_ORDER" && message.businessEntityType === "WORK_ORDER" && message.businessEntityId) {
+      await fallbackWorkOrderReady(message.businessEntityId, message.shopId, failedChannel);
+    }
+  });
 }

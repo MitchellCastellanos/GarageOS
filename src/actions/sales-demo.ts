@@ -64,6 +64,7 @@ export async function setSalesDemoPlan(demoId: string, plan: string) {
   if (changed.count !== 1) throw new Error("DEMO_UNAVAILABLE");
   // Never mutate Subscription or call commercial plan/billing/email helpers.
   revalidatePath("/admin", "layout");
+  revalidatePath("/book", "layout");
   revalidatePath(PLATFORM.sales);
   return { success: true as const };
 }

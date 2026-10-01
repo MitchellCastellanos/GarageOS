@@ -1,0 +1,805 @@
+{
+  "results": [
+    {
+      "name": "workspace-empty",
+      "width": 375,
+      "viewport": 375,
+      "document": 375,
+      "topbar": 0
+    },
+    {
+      "name": "workspace-empty",
+      "width": 430,
+      "viewport": 430,
+      "document": 430,
+      "topbar": 0
+    },
+    {
+      "name": "workspace-empty",
+      "width": 768,
+      "viewport": 768,
+      "document": 768,
+      "topbar": 0
+    },
+    {
+      "name": "workspace-empty",
+      "width": 1024,
+      "viewport": 1024,
+      "document": 1024,
+      "topbar": 0
+    },
+    {
+      "name": "workspace-empty",
+      "width": 1440,
+      "viewport": 1440,
+      "document": 1440,
+      "topbar": 0
+    },
+    {
+      "name": "prospect-form",
+      "width": 375,
+      "viewport": 375,
+      "document": 375,
+      "topbar": 0
+    },
+    {
+      "name": "prospect-form",
+      "width": 430,
+      "viewport": 430,
+      "document": 430,
+      "topbar": 0
+    },
+    {
+      "name": "prospect-form",
+      "width": 768,
+      "viewport": 768,
+      "document": 768,
+      "topbar": 0
+    },
+    {
+      "name": "prospect-form",
+      "width": 1024,
+      "viewport": 1024,
+      "document": 1024,
+      "topbar": 0
+    },
+    {
+      "name": "prospect-form",
+      "width": 1440,
+      "viewport": 1440,
+      "document": 1440,
+      "topbar": 0
+    },
+    {
+      "name": "branding-empty",
+      "width": 375,
+      "viewport": 375,
+      "document": 375,
+      "topbar": 0
+    },
+    {
+      "name": "branding-empty",
+      "width": 430,
+      "viewport": 430,
+      "document": 430,
+      "topbar": 0
+    },
+    {
+      "name": "branding-empty",
+      "width": 768,
+      "viewport": 768,
+      "document": 768,
+      "topbar": 0
+    },
+    {
+      "name": "branding-empty",
+      "width": 1024,
+      "viewport": 1024,
+      "document": 1024,
+      "topbar": 0
+    },
+    {
+      "name": "branding-empty",
+      "width": 1440,
+      "viewport": 1440,
+      "document": 1440,
+      "topbar": 0
+    },
+    {
+      "name": "logo-editor",
+      "width": 375,
+      "viewport": 375,
+      "document": 375,
+      "topbar": -556
+    },
+    {
+      "name": "logo-editor",
+      "width": 430,
+      "viewport": 430,
+      "document": 430,
+      "topbar": -480
+    },
+    {
+      "name": "logo-editor",
+      "width": 768,
+      "viewport": 768,
+      "document": 768,
+      "topbar": -480
+    },
+    {
+      "name": "logo-editor",
+      "width": 1024,
+      "viewport": 1024,
+      "document": 1024,
+      "topbar": -560
+    },
+    {
+      "name": "logo-editor",
+      "width": 1440,
+      "viewport": 1440,
+      "document": 1440,
+      "topbar": -476
+    },
+    {
+      "name": "branding-saved",
+      "width": 375,
+      "viewport": 375,
+      "document": 375,
+      "topbar": -926
+    },
+    {
+      "name": "branding-saved",
+      "width": 430,
+      "viewport": 430,
+      "document": 430,
+      "topbar": -828
+    },
+    {
+      "name": "branding-saved",
+      "width": 768,
+      "viewport": 768,
+      "document": 768,
+      "topbar": -828
+    },
+    {
+      "name": "branding-saved",
+      "width": 1024,
+      "viewport": 1024,
+      "document": 1024,
+      "topbar": -142
+    },
+    {
+      "name": "branding-saved",
+      "width": 1440,
+      "viewport": 1440,
+      "document": 1440,
+      "topbar": -34
+    },
+    {
+      "name": "onboarding-business",
+      "width": 375,
+      "viewport": 375,
+      "document": 375,
+      "toolbar": 7,
+      "topbar": 7
+    },
+    {
+      "name": "onboarding-business",
+      "width": 430,
+      "viewport": 430,
+      "document": 430,
+      "toolbar": 47,
+      "topbar": 47
+    },
+    {
+      "name": "onboarding-business",
+      "width": 768,
+      "viewport": 768,
+      "document": 768,
+      "toolbar": 79,
+      "topbar": 79
+    },
+    {
+      "name": "onboarding-business",
+      "width": 1024,
+      "viewport": 1024,
+      "document": 1024,
+      "toolbar": 103,
+      "topbar": 103
+    },
+    {
+      "name": "onboarding-business",
+      "width": 1440,
+      "viewport": 1440,
+      "document": 1440,
+      "toolbar": 61,
+      "topbar": 61
+    },
+    {
+      "name": "onboarding-fiscal",
+      "width": 375,
+      "viewport": 375,
+      "document": 375,
+      "toolbar": 161,
+      "topbar": 161
+    },
+    {
+      "name": "onboarding-fiscal",
+      "width": 430,
+      "viewport": 430,
+      "document": 430,
+      "toolbar": 161,
+      "topbar": 161
+    },
+    {
+      "name": "onboarding-fiscal",
+      "width": 768,
+      "viewport": 768,
+      "document": 768,
+      "toolbar": 89,
+      "topbar": 89
+    },
+    {
+      "name": "onboarding-fiscal",
+      "width": 1024,
+      "viewport": 1024,
+      "document": 1024,
+      "toolbar": 113,
+      "topbar": 113
+    },
+    {
+      "name": "onboarding-fiscal",
+      "width": 1440,
+      "viewport": 1440,
+      "document": 1440,
+      "toolbar": 61,
+      "topbar": 61
+    },
+    {
+      "name": "demo-plan",
+      "width": 375,
+      "viewport": 375,
+      "document": 375,
+      "toolbar": 161,
+      "topbar": 161
+    },
+    {
+      "name": "demo-plan",
+      "width": 430,
+      "viewport": 430,
+      "document": 430,
+      "toolbar": 161,
+      "topbar": 161
+    },
+    {
+      "name": "demo-plan",
+      "width": 768,
+      "viewport": 768,
+      "document": 768,
+      "toolbar": 89,
+      "topbar": 89
+    },
+    {
+      "name": "demo-plan",
+      "width": 1024,
+      "viewport": 1024,
+      "document": 1024,
+      "toolbar": 113,
+      "topbar": 113
+    },
+    {
+      "name": "demo-plan",
+      "width": 1440,
+      "viewport": 1440,
+      "document": 1440,
+      "toolbar": 61,
+      "topbar": 61
+    },
+    {
+      "name": "dashboard",
+      "width": 375,
+      "viewport": 375,
+      "document": 375,
+      "toolbar": 161,
+      "topbar": 161
+    },
+    {
+      "name": "dashboard",
+      "width": 430,
+      "viewport": 430,
+      "document": 430,
+      "toolbar": 161,
+      "topbar": 161
+    },
+    {
+      "name": "dashboard",
+      "width": 768,
+      "viewport": 768,
+      "document": 768,
+      "toolbar": 89,
+      "topbar": 89
+    },
+    {
+      "name": "dashboard",
+      "width": 1024,
+      "viewport": 1024,
+      "document": 1024,
+      "toolbar": 113,
+      "topbar": 113
+    },
+    {
+      "name": "dashboard",
+      "width": 1440,
+      "viewport": 1440,
+      "document": 1440,
+      "toolbar": 61,
+      "topbar": 61
+    },
+    {
+      "name": "tier-gate",
+      "tier": "CORE",
+      "inventory": "Inventaire\n\nL’inventaire est une fonction Pro\n\nSuivez vos pièces, niveaux de stock et la consommation automatique sur les travaux. Inclus dans Pro et Complete.\n\nPasser à Pro"
+    },
+    {
+      "name": "tier-gate",
+      "tier": "PRO",
+      "inventory": "Inventaire\n\n0 pièces enregistrées\n\nNouvelle pièce\n\nAucune pièce enregistrée pour l'instant\n\nAjouter la première"
+    },
+    {
+      "name": "tier-gate",
+      "tier": "COMPLETE",
+      "inventory": "Inventaire\n\n0 pièces enregistrées\n\nNouvelle pièce\n\nAucune pièce enregistrée pour l'instant\n\nAjouter la première"
+    },
+    {
+      "name": "wave2-controls-fr",
+      "width": 375,
+      "viewport": 375,
+      "document": 375,
+      "toolbar": 161,
+      "topbar": 161
+    },
+    {
+      "name": "wave2-controls-fr",
+      "width": 430,
+      "viewport": 430,
+      "document": 430,
+      "toolbar": 161,
+      "topbar": 161
+    },
+    {
+      "name": "wave2-controls-fr",
+      "width": 768,
+      "viewport": 768,
+      "document": 768,
+      "toolbar": 89,
+      "topbar": 89
+    },
+    {
+      "name": "wave2-controls-fr",
+      "width": 1024,
+      "viewport": 1024,
+      "document": 1024,
+      "toolbar": 113,
+      "topbar": 113
+    },
+    {
+      "name": "wave2-controls-fr",
+      "width": 1440,
+      "viewport": 1440,
+      "document": 1440,
+      "toolbar": 61,
+      "topbar": 61
+    },
+    {
+      "name": "wave2-scenario-loaded",
+      "width": 375,
+      "viewport": 375,
+      "document": 375,
+      "toolbar": 161,
+      "topbar": 161
+    },
+    {
+      "name": "wave2-scenario-loaded",
+      "width": 430,
+      "viewport": 430,
+      "document": 430,
+      "toolbar": 161,
+      "topbar": 161
+    },
+    {
+      "name": "wave2-scenario-loaded",
+      "width": 768,
+      "viewport": 768,
+      "document": 768,
+      "toolbar": 89,
+      "topbar": 89
+    },
+    {
+      "name": "wave2-scenario-loaded",
+      "width": 1024,
+      "viewport": 1024,
+      "document": 1024,
+      "toolbar": 113,
+      "topbar": 113
+    },
+    {
+      "name": "wave2-scenario-loaded",
+      "width": 1440,
+      "viewport": 1440,
+      "document": 1440,
+      "toolbar": 61,
+      "topbar": 61
+    },
+    {
+      "name": "wave2-scenario-communications",
+      "batch": "5366ea10-8ed6-4514-a1c7-f02d8c3dc0ca",
+      "counts": {
+        "Client": 1,
+        "Vehicle": 1,
+        "Appointment": 1,
+        "Quote": 1,
+        "WorkOrder": 1,
+        "Invoice": 1
+      },
+      "providerActions": "disabled"
+    },
+    {
+      "name": "wave2-booking-core",
+      "width": 375,
+      "viewport": 375,
+      "document": 375,
+      "topbar": 0
+    },
+    {
+      "name": "wave2-booking-core",
+      "width": 430,
+      "viewport": 430,
+      "document": 430,
+      "topbar": 0
+    },
+    {
+      "name": "wave2-booking-core",
+      "width": 768,
+      "viewport": 768,
+      "document": 768,
+      "topbar": 0
+    },
+    {
+      "name": "wave2-booking-core",
+      "width": 1024,
+      "viewport": 1024,
+      "document": 1024,
+      "topbar": 0
+    },
+    {
+      "name": "wave2-booking-core",
+      "width": 1440,
+      "viewport": 1440,
+      "document": 1440,
+      "topbar": 0
+    },
+    {
+      "name": "wave2-booking-tier",
+      "tier": "CORE",
+      "persistedTemplate": "MODERN"
+    },
+    {
+      "name": "wave2-booking-pro",
+      "width": 375,
+      "viewport": 375,
+      "document": 375,
+      "topbar": 0
+    },
+    {
+      "name": "wave2-booking-pro",
+      "width": 430,
+      "viewport": 430,
+      "document": 430,
+      "topbar": 0
+    },
+    {
+      "name": "wave2-booking-pro",
+      "width": 768,
+      "viewport": 768,
+      "document": 768,
+      "topbar": 0
+    },
+    {
+      "name": "wave2-booking-pro",
+      "width": 1024,
+      "viewport": 1024,
+      "document": 1024,
+      "topbar": 0
+    },
+    {
+      "name": "wave2-booking-pro",
+      "width": 1440,
+      "viewport": 1440,
+      "document": 1440,
+      "topbar": 0
+    },
+    {
+      "name": "wave2-booking-tier",
+      "tier": "PRO",
+      "persistedTemplate": "MODERN"
+    },
+    {
+      "name": "wave2-booking-complete",
+      "width": 375,
+      "viewport": 375,
+      "document": 375,
+      "topbar": 0
+    },
+    {
+      "name": "wave2-booking-complete",
+      "width": 430,
+      "viewport": 430,
+      "document": 430,
+      "topbar": 0
+    },
+    {
+      "name": "wave2-booking-complete",
+      "width": 768,
+      "viewport": 768,
+      "document": 768,
+      "topbar": 0
+    },
+    {
+      "name": "wave2-booking-complete",
+      "width": 1024,
+      "viewport": 1024,
+      "document": 1024,
+      "topbar": 0
+    },
+    {
+      "name": "wave2-booking-complete",
+      "width": 1440,
+      "viewport": 1440,
+      "document": 1440,
+      "topbar": 0
+    },
+    {
+      "name": "wave2-booking-tier",
+      "tier": "COMPLETE",
+      "persistedTemplate": "MODERN"
+    },
+    {
+      "name": "wave2-restart-refused",
+      "width": 375,
+      "viewport": 375,
+      "document": 375,
+      "toolbar": 161,
+      "topbar": 161
+    },
+    {
+      "name": "wave2-restart-refused",
+      "width": 430,
+      "viewport": 430,
+      "document": 430,
+      "toolbar": 161,
+      "topbar": 161
+    },
+    {
+      "name": "wave2-restart-refused",
+      "width": 768,
+      "viewport": 768,
+      "document": 768,
+      "toolbar": 89,
+      "topbar": 89
+    },
+    {
+      "name": "wave2-restart-refused",
+      "width": 1024,
+      "viewport": 1024,
+      "document": 1024,
+      "toolbar": 113,
+      "topbar": 113
+    },
+    {
+      "name": "wave2-restart-refused",
+      "width": 1440,
+      "viewport": 1440,
+      "document": 1440,
+      "toolbar": 61,
+      "topbar": 61
+    },
+    {
+      "name": "wave2-restart-onboarding",
+      "width": 375,
+      "viewport": 375,
+      "document": 375,
+      "toolbar": 161,
+      "topbar": 161
+    },
+    {
+      "name": "wave2-restart-onboarding",
+      "width": 430,
+      "viewport": 430,
+      "document": 430,
+      "toolbar": 161,
+      "topbar": 161
+    },
+    {
+      "name": "wave2-restart-onboarding",
+      "width": 768,
+      "viewport": 768,
+      "document": 768,
+      "toolbar": 89,
+      "topbar": 89
+    },
+    {
+      "name": "wave2-restart-onboarding",
+      "width": 1024,
+      "viewport": 1024,
+      "document": 1024,
+      "toolbar": 113,
+      "topbar": 113
+    },
+    {
+      "name": "wave2-restart-onboarding",
+      "width": 1440,
+      "viewport": 1440,
+      "document": 1440,
+      "toolbar": 61,
+      "topbar": 61
+    },
+    {
+      "name": "wave2-restart-safe",
+      "removedScenario": true,
+      "preservedLiveClient": true,
+      "preservedBranding": true
+    },
+    {
+      "name": "wave2-controls-en",
+      "width": 375,
+      "viewport": 375,
+      "document": 375,
+      "topbar": 161
+    },
+    {
+      "name": "wave2-controls-en",
+      "width": 430,
+      "viewport": 430,
+      "document": 430,
+      "topbar": 161
+    },
+    {
+      "name": "wave2-controls-en",
+      "width": 768,
+      "viewport": 768,
+      "document": 768,
+      "topbar": 113
+    },
+    {
+      "name": "wave2-controls-en",
+      "width": 1024,
+      "viewport": 1024,
+      "document": 1024,
+      "topbar": 61
+    },
+    {
+      "name": "wave2-controls-en",
+      "width": 1440,
+      "viewport": 1440,
+      "document": 1440,
+      "topbar": 61
+    },
+    {
+      "name": "workspace-active",
+      "width": 375,
+      "viewport": 375,
+      "document": 375,
+      "topbar": 0
+    },
+    {
+      "name": "workspace-active",
+      "width": 430,
+      "viewport": 430,
+      "document": 430,
+      "topbar": 0
+    },
+    {
+      "name": "workspace-active",
+      "width": 768,
+      "viewport": 768,
+      "document": 768,
+      "topbar": 0
+    },
+    {
+      "name": "workspace-active",
+      "width": 1024,
+      "viewport": 1024,
+      "document": 1024,
+      "topbar": 0
+    },
+    {
+      "name": "workspace-active",
+      "width": 1440,
+      "viewport": 1440,
+      "document": 1440,
+      "topbar": 0
+    },
+    {
+      "name": "open-tab-expiration",
+      "returnsToPlatform": true
+    },
+    {
+      "name": "prospect-form-en",
+      "width": 375,
+      "viewport": 375,
+      "document": 375,
+      "topbar": 0
+    },
+    {
+      "name": "prospect-form-en",
+      "width": 430,
+      "viewport": 430,
+      "document": 430,
+      "topbar": 0
+    },
+    {
+      "name": "prospect-form-en",
+      "width": 768,
+      "viewport": 768,
+      "document": 768,
+      "topbar": 0
+    },
+    {
+      "name": "prospect-form-en",
+      "width": 1024,
+      "viewport": 1024,
+      "document": 1024,
+      "topbar": 0
+    },
+    {
+      "name": "prospect-form-en",
+      "width": 1440,
+      "viewport": 1440,
+      "document": 1440,
+      "topbar": 0
+    },
+    {
+      "name": "normal-owner",
+      "salesRejected": true,
+      "noDemoToolbar": true,
+      "paymentStillRequired": true
+    }
+  ],
+  "state": {
+    "demos": [
+      {
+        "id": "cmuq20bfg0002n46nonus8s2c",
+        "shopId": "cmuq20bf70000n46nda8hu63j",
+        "createdByUserId": "qa-sales",
+        "contactName": "Jean Dupont",
+        "contactEmail": "jean@example.test",
+        "contactPhone": null,
+        "preferredLanguage": "FR",
+        "currentPlan": "COMPLETE",
+        "proposedPlan": "PRO",
+        "proposedBillingInterval": "MONTHLY",
+        "status": "ACTIVE",
+        "expiresAt": "2026-11-01T01:36:14.809Z",
+        "activationSentAt": null,
+        "activatedAt": null,
+        "convertedAt": null,
+        "createdAt": "2026-10-02T01:36:14.812Z",
+        "updatedAt": "2026-10-02T01:36:43.183Z",
+        "communicationsEnabled": false,
+        "scenarioBatchId": null,
+        "name": "Garage Démonstration Dupont et Fils — Réparation et entretien automobile",
+        "logoUrl": "http://127.0.0.1:55441/storage/v1/object/public/public-assets/logos/cmuq20bf70000n46nda8hu63j/logo-f949740b-263a-48a9-8cf0-ab62ad0bcf78.png?v=1790890578604",
+        "bookingCoverImageUrl": "http://127.0.0.1:55441/storage/v1/object/public/public-assets/booking-page/cmuq20bf70000n46nda8hu63j/cover-1790890578868.webp",
+        "bookingShopImageUrl": "http://127.0.0.1:55441/storage/v1/object/public/public-assets/booking-page/cmuq20bf70000n46nda8hu63j/shop-1790890579240.webp",
+        "onboardingCompletedAt": "2026-10-02T01:36:29.021Z",
+        "communicationsSuspendedAt": "2026-10-02T01:36:14.800Z",
+        "plan": null,
+        "subscriptionStatus": "AWAITING_PLAN",
+        "stripeCustomerId": null,
+        "stripeSubscriptionId": null
+      }
+    ],
+    "storedImages": 4
+  },
+  "errors": []
+}

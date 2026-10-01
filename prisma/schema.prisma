@@ -307,6 +307,8 @@ model SalesDemo {
   convertedAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  communicationsEnabled Boolean @default(false)
+  scenarioBatchId String? @unique
 
   @@index([status, expiresAt])
   @@index([createdByUserId, createdAt])
@@ -365,6 +367,7 @@ model VerificationToken {
 }
 
 model Client {
+  demoSeedBatchId String?
   workOrders  WorkOrder[]
   inspections Inspection[]
 
@@ -414,6 +417,7 @@ model Client {
 }
 
 model Vehicle {
+  demoSeedBatchId String?
   workOrders  WorkOrder[]
   inspections Inspection[]
 
@@ -455,6 +459,7 @@ enum MileageUnit {
 }
 
 model Invoice {
+  demoSeedBatchId String?
   sourceQuote Quote?      @relation("QuoteConversion")
   workOrders  WorkOrder[]
 
@@ -654,6 +659,7 @@ enum LineItemType {
 }
 
 model Quote {
+  demoSeedBatchId String?
   approvals  QuoteApproval[]
   workOrders WorkOrder[]
 
@@ -737,6 +743,7 @@ model QuoteLineItem {
 }
 
 model Appointment {
+  demoSeedBatchId String?
   id                 String            @id @default(cuid())
   shopId             String
   shop               Shop              @relation(fields: [shopId], references: [id])
@@ -1042,6 +1049,7 @@ enum ApprovalDecision {
 }
 
 model WorkOrder {
+  demoSeedBatchId String?
   id                       String          @id @default(cuid())
   shopId                   String
   shop                     Shop            @relation(fields: [shopId], references: [id])
@@ -1271,6 +1279,9 @@ model CommunicationRoute {
 }
 
 model CommunicationMessage {
+  // Immutable origin, intentionally no FK: deleting/converting a demo never makes its SMS billable.
+  salesDemoOriginId String?
+  sendAttemptedAt DateTime?
   id                 String               @id @default(cuid())
   shopId             String
   shop               Shop                 @relation(fields: [shopId], references: [id], onDelete: Cascade)

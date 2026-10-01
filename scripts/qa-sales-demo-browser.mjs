@@ -23,6 +23,17 @@ const widths = [375, 430, 768, 1024, 1440];
 async function responsive(name) {
   for (const width of widths) {
     await page.setViewportSize({ width, height: 900 });
+    if (name.startsWith("wave2-booking-")) {
+      // Exercise the real renderer's scroll reveals before retaining a full-page image.
+      await page.evaluate(async () => {
+        for (let y = 0; y < document.body.scrollHeight; y += innerHeight * 0.75) {
+          window.scrollTo(0, y);
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+        window.scrollTo(0, 0);
+      });
+      await page.waitForTimeout(700);
+    }
     const measures = await page.evaluate(() => ({ viewport: innerWidth, document: document.documentElement.scrollWidth,
       toolbar: document.querySelector('aside[aria-label="DÉMO DE VENTE"]')?.getBoundingClientRect().bottom,
       topbar: document.querySelector('header')?.getBoundingClientRect().top,
@@ -88,6 +99,7 @@ try {
   await page.getByRole("combobox", { name: "Forfait de démonstration" }).waitFor();
   assert.equal(await page.locator('input[name="name"]').inputValue(), shopName);
   assert.equal(await page.locator('input[name="email"]').inputValue(), "garage@example.test");
+  if (process.env.GARAGEOS_QA_WAVE2 === "1") await page.locator('input[type="text"]:not([name])').fill("garage-demo-wave2");
   await responsive("onboarding-business");
   await page.getByRole("button", { name: "Continuer", exact: true }).click();
   await page.waitForURL("**step=2");
@@ -126,6 +138,10 @@ try {
   assert.equal(state.demos[0].stripeCustomerId, null); assert.equal(state.demos[0].stripeSubscriptionId, null);
   assert.ok(state.demos[0].onboardingCompletedAt); assert.ok(state.demos[0].communicationsSuspendedAt);
   assert.ok(state.demos[0].logoUrl && state.demos[0].bookingCoverImageUrl && state.demos[0].bookingShopImageUrl);
+  if (process.env.GARAGEOS_QA_WAVE2 === "1") {
+    const { verifyWave2Browser } = await import("./qa-sales-demo-wave2-browser.mjs");
+    await verifyWave2Browser({ page, responsive, results });
+  }
   await page.getByRole("button", { name: "Quitter la démo" }).click();
   await page.waitForURL("**/platform/sales");
   await responsive("workspace-active");
