@@ -18,6 +18,56 @@ Billing is the boundary:
 - no Stripe SMS-overage charges for demo messages;
 - Stripe becomes real only during Demo → Customer conversion.
 
+### Implementation scope and execution boundaries
+
+This document is the complete implementation authority for Sales Demo Mode. An implementation agent should not need a separate planning conversation to determine product intent, scope, sequencing, or acceptance criteria. When repository reality conflicts with a suggested internal implementation detail, preserve the product behavior and security invariants in this document while adapting to the current architecture.
+
+Implement in **three reviewable waves/PRs**, in order. Do not combine all three into one uncontrolled change:
+
+**Wave 1 — Sales Demo foundation (blocks A–G)**
+- schema/migration and SalesDemo domain helpers;
+- platform Sales authorization;
+- responsive Sales workspace and prospect creation;
+- logo/photo capture, preparation and storage;
+- demo impersonation/session and persistent toolbar;
+- centralized demo-aware entitlement resolution;
+- reuse of real onboarding with the explicit no-Stripe demo divergence.
+
+Wave 1 is complete when an authorized SUPER_ADMIN can create a prospect demo from a phone, prepare branding, enter the real onboarding/product, select Core/Pro/Complete without Stripe, reach the real Dashboard, switch tiers and see the real entitlement gates respond. Normal signup/payment protection must remain unchanged.
+
+**Wave 2 — Demo experience (blocks H–I plus Restart and Booking Page)**
+- real SMS/email through the existing communication stack;
+- central, durable exclusion of demo SMS from Stripe overage billing;
+- optional explicitly-marked quick demo scenario;
+- safe Restart semantics;
+- real Booking Page behavior and tier fallback.
+
+Do not begin Wave 2 until the repository's current communication/provider state has been audited. If Production-provider validation is being performed separately, implementation must not interfere with it or use real recipients without explicit authorization.
+
+**Wave 3 — Conversion and completion (blocks J–O)**
+- Convert to customer handoff;
+- owner activation email/token and collision handling;
+- direct final payment step using the existing Stripe path;
+- idempotent Stripe-confirmed conversion to the same Shop;
+- analytics exclusions and expiration;
+- final responsive/accessibility pass;
+- complete tests/build/migration/hostile QA.
+
+A Wave 3 conversion is not complete merely because Checkout was created: Stripe-backed access must actually be confirmed through the existing billing lifecycle before the demo override disappears and the Shop becomes commercial.
+
+**Out of scope for this feature**
+- a separate fake demo application or duplicate feature matrix;
+- a new billing/Stripe implementation;
+- collecting cards or passwords by Sales;
+- adding SALES to the tenant Role enum merely for this feature;
+- automatic AI/logo APIs or a ChatGPT API integration;
+- speculative AI extraction from prospect assets;
+- redesigning unrelated GarageOS modules;
+- weakening normal signup/onboarding/payment gates;
+- broad provider refactors unrelated to the Sales Demo requirements.
+
+Each wave must leave the repository in a valid, reviewable state and include tests for the security/billing invariants it introduces. Do not proceed by silently weakening an existing invariant just to make demo mode work.
+
 ## 2. Audit first
 
 Before coding, inspect at minimum:
@@ -131,12 +181,50 @@ V1 should reliably support:
 - preview
 - crop
 - rotate/straighten if practical
-- background removal only if reliable without a fragile external dependency
 - normalized output
 - replace/retry
 - use original
+- an optional **Prepare with ChatGPT** helper for difficult/low-quality/backgrounded logos.
 
-Leave room for future AI extraction, but do not make V1 depend on it.
+GarageOS must **not** depend on an AI API for logo preparation. Do not add a ChatGPT/OpenAI integration, API key, server call or external background-removal dependency for this workflow. Normal upload and **Use original** must always work without ChatGPT.
+
+The logo UI should offer a small helper such as **Prepare with ChatGPT** / **Copy ChatGPT prompt**. Explain that Sales should attach the original logo in ChatGPT with the copied prompt, then upload the resulting transparent PNG back into GarageOS. Copying the prompt is the entire integration.
+
+The copied prompt must be stored as maintainable application copy/constant rather than assembled ad hoc in the component, and should preserve this intent:
+
+```text
+Prepare the attached business logo for use in GarageOS.
+
+Preserve the logo's original design exactly. Do not redesign it, change the wording, replace the typography, alter the proportions, add effects, or invent missing elements.
+
+Remove the background completely and return the logo as a clean PNG with a transparent background.
+
+Requirements:
+- transparent background
+- preserve original colors
+- preserve sharp edges and fine details
+- remove halos, white borders, shadows, or background artifacts caused by the original image
+- center the logo with reasonable transparent padding
+- do not crop any part of the logo
+- high-quality output suitable for a business website, invoices, booking pages, and application UI
+- target approximately 2000 px on the longest side when the source quality permits
+- PNG output
+- do not place the logo on a mockup or colored background
+
+If the source is low resolution, clean and enhance it conservatively without changing the actual logo design.
+
+Return only the prepared logo image.
+```
+
+UX requirements for the helper:
+- one-tap copy with visible copied/success feedback;
+- concise instructions to attach the original logo and upload the returned PNG;
+- usable on phone without blocking camera/device upload;
+- EN/FR copy following existing localization conventions;
+- no claim that GarageOS itself processed or generated the logo;
+- no dependency on ChatGPT availability for completing the demo.
+
+GarageOS should still validate and normalize the returned upload exactly like any other logo. Leave room for future AI extraction/background removal, but do not make V1 depend on it.
 
 ### Photos
 
@@ -431,7 +519,7 @@ At minimum cover:
 
 Run the repository's full validation suite, including `npm run check`, `npm run build`, tests and Prisma/migration validation.
 
-## 29. Suggested implementation blocks
+## 29. Required implementation blocks
 
 A. Schema + migration + Sales domain helpers  
 B. Sales authorization + platform route/navigation  
@@ -508,11 +596,29 @@ A SUPER_ADMIN can, from a phone:
 
 ## 32. Agent instructions
 
+This file is the implementation handoff. Read it completely before editing. Do not ask for a separate product plan when the answer is already defined here.
+
+Work only on the requested wave. For a Wave 1 assignment, implement **A–G only** and do not opportunistically begin H–O. For Wave 2 or Wave 3, likewise respect the boundaries above.
+
 Do not stop after planning.
 
-**Audit → implement → migrate → test → build → hostile QA.**
+For the assigned wave: **audit current code → implement → create proper migration when required → add/update tests → run validation → hostile QA → report.**
 
-If current code has a newer/safer pattern than this document, preserve the product behavior while adapting implementation to current architecture.
+Before editing, reconcile this document against current `main`. Reuse newer/safer repository patterns when they exist; internal names in this document are suggestions unless explicitly stated as product/security requirements. Do not duplicate existing systems.
+
+Provider safety:
+- never print or commit secrets;
+- do not trigger real Twilio, Resend, Stripe or QBO side effects merely to prove implementation;
+- deterministic/mocked tests are the default during development;
+- real Production provider validation is a separate explicitly-authorized activity;
+- do not run a repository command against Production if it can execute migrations or side effects; use the repository's safe validation/build path where available.
+
+Git/review discipline:
+- keep each wave on its own branch/PR unless the human explicitly requests otherwise;
+- do not mix unrelated cleanup/refactors into the Sales Demo PR;
+- never edit an applied migration;
+- preserve a clean diff and explain any necessary change outside the expected feature area;
+- if a required change would materially weaken an existing security, tenant-isolation, billing or provider invariant, stop and report the conflict instead of bypassing it.
 
 At completion report:
 1. implementation summary;
@@ -526,4 +632,8 @@ At completion report:
 9. tests/results;
 10. `npm run check`;
 11. `npm run build`;
-12. remaining risks/manual infrastructure.
+12. remaining risks/manual infrastructure;
+13. exact assigned-wave acceptance criteria proven;
+14. anything intentionally deferred to the next wave.
+
+For **Wave 1**, the implementation agent should stop after A–G are complete, validated and reviewable. Do not implement real demo communications, quick-scenario seeding, activation, conversion, payment handoff, analytics exclusions or final conversion lifecycle in Wave 1 except for minimal schema/domain hooks strictly required to make A–G safe.
