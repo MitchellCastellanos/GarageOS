@@ -38,6 +38,9 @@ Storage for files; Stripe, Twilio, Resend, QuickBooks Online as providers; Verce
   Production migration-history notes in `docs/db-migrations.md`; resolve manually and deliberately, never from the build script).
 - Verify drift any time: `npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script` should print an empty migration.
 
+## Provider side effects are opt-in per environment
+Outbound effects (SMS, email, Pusher events, Telegram, Twilio/Resend management, Stripe mutations, QuickBooks) only happen when `PROVIDER_SIDE_EFFECTS=enabled` is set — Production explicitly, **Preview never** (except a provider-specific controlled test; for Stripe TEST use `STRIPE_TEST_MUTATIONS=enabled` with a test key). If SMS/email/realtime silently stop in Production, check that variable first. Crons report `providerSideEffects: "disabled"` and skip outbound steps. `NEXTAUTH_SECRET` must be different per environment. Details: `docs/provider-isolation.md`.
+
 ## Provider outages
 - **Stripe**: signed-in shops keep working (subscription state is stored locally). Webhooks are retried by Stripe and are idempotent
   per `event.id`; after an outage, resend failed events from the Stripe dashboard. New signups/upgrades can't reach Checkout until Stripe is back.

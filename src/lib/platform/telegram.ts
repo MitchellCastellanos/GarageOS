@@ -1,10 +1,14 @@
 import "server-only";
 
+import { providerSideEffectsEnabledOrLog } from "@/lib/provider-policy";
+
 export const platformTelegramConfigured = Boolean(process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID);
 
 /** Push al teléfono del equipo de GarageOS cuando un taller espera respuesta en /platform/messages. Nunca lanza. */
 export async function sendPlatformTelegramAlert(text: string): Promise<boolean> {
   if (!platformTelegramConfigured) return false;
+  // Efecto saliente real (mensaje a un chat): exige PROVIDER_SIDE_EFFECTS=enabled. Mejor esfuerzo: devuelve false.
+  if (!providerSideEffectsEnabledOrLog("telegram", "sendMessage")) return false;
   try {
     const res = await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
       method: "POST",

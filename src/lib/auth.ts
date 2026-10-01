@@ -57,38 +57,49 @@ export const authConfig: NextAuthConfig = {
       return true;
     },
     async jwt({ token, user, trigger, session }) {
+      // Las autorizaciones (userId/shopId/role) NUNCA se heredan de los claims del JWT: una firma válida
+      // solo prueba que el token lo emitió alguien con el secreto (este entorno u otro que lo comparta,
+      // o una sesión anterior a que el usuario cambiara/se borrara). Se derivan SIEMPRE de la DB DE ESTE
+      // ENTORNO en cada request — así cambiar de ubicación activa (switchActiveShop) o de rol toma efecto
+      // sin cerrar sesión. `user` solo viene en el sign-in inicial — ahí se busca por email (Google no
+      // trae shopId/role en su perfil); después se busca por token.userId.
+      const dbUser = user?.email
+        ? await db.user.findUnique({
+            where: { email: user.email },
+            select: { id: true, shopId: true, role: true },
+          })
+        : typeof token.userId === "string" && token.userId
+          ? await db.user.findUnique({
+              where: { id: token.userId },
+              select: { id: true, shopId: true, role: true },
+            })
+          : null;
+
+      // Usuario inexistente / no validable aquí (borrado, de otra base de datos, sin identidad de
+      // aplicación): el token NO conserva ningún claim privilegiado — se devuelve null y Auth.js
+      // destruye la sesión (la cookie se limpia). Falla cerrado.
+      if (!dbUser) return null;
+
+      token.userId = dbUser.id;
+      token.shopId = dbUser.shopId ?? undefined;
+      token.role = dbUser.role;
+
       // Disparado por unstable_update() en src/lib/platform/impersonation.ts —
       // arranca/termina el "login as" sin tocar la identidad real del super
-      // admin (token.userId/shopId/role abajo siguen siendo los suyos).
+      // admin (token.userId/shopId/role arriba siguen siendo los suyos). Solo un SUPER_ADMIN
+      // vigente en la DB puede iniciar una impersonación.
       if (trigger === "update" && session && "impersonation" in session) {
-        if (session.impersonation) {
+        if (session.impersonation && dbUser.role === "SUPER_ADMIN") {
           token.impersonation = session.impersonation;
         } else {
           delete token.impersonation;
         }
       }
 
-      // Se re-resuelve shopId/role desde la DB en cada request (no solo en
-      // el sign-in inicial) para que cambiar de ubicación activa
-      // (switchActiveShop, multi-sucursal) tome efecto sin tener que cerrar
-      // sesión. `user` solo viene en el sign-in inicial — ahí se busca por
-      // email (Google no trae shopId/role en su perfil); después se busca
-      // por token.userId, ya resuelto.
-      const dbUser = user?.email
-        ? await db.user.findUnique({
-            where: { email: user.email },
-            select: { id: true, shopId: true, role: true },
-          })
-        : token.userId
-          ? await db.user.findUnique({
-              where: { id: token.userId as string },
-              select: { id: true, shopId: true, role: true },
-            })
-          : null;
-      if (dbUser) {
-        token.userId = dbUser.id;
-        token.shopId = dbUser.shopId ?? undefined;
-        token.role = dbUser.role;
+      // Una impersonación solo vale si el usuario REAL sigue siendo SUPER_ADMIN en la DB (un claim
+      // `impersonation` de un token viejo/foráneo no otorga acceso a ningún taller).
+      if (token.impersonation && dbUser.role !== "SUPER_ADMIN") {
+        delete token.impersonation;
       }
 
       // Auto-expira una impersonación vencida en vez de esperar a que alguien

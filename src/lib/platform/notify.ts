@@ -1,6 +1,7 @@
 import "server-only";
 import { render } from "@react-email/render";
-import { Resend } from "resend";
+import type { Resend } from "resend";
+import { tryGetResendClient } from "@/lib/providers/resend";
 import React from "react";
 import { PlanChangedEmail } from "@/emails/PlanChangedEmail";
 import { SubscriptionCanceledEmail } from "@/emails/SubscriptionCanceledEmail";
@@ -22,9 +23,7 @@ import { resolveShopEmailLanguage, type PlatformEmailLanguage } from "@/lib/plat
  */
 
 function getResend(): Resend | null {
-  const key = process.env.RESEND_API_KEY;
-  if (!key || key === "re_placeholder") return null;
-  return new Resend(key);
+  return tryGetResendClient();
 }
 
 function platformFromAddress(): string {
@@ -36,7 +35,7 @@ function platformFromAddress(): string {
 export async function sendPlatformEmail(to: string | string[], subject: string, react: React.ReactElement): Promise<void> {
   const resend = getResend();
   if (!resend) {
-    console.warn(`[platform/notify] RESEND_API_KEY no configurada — correo "${subject}" a ${to} omitido.`);
+    console.warn(`[platform/notify] proveedor de correo no disponible (sin clave o efectos externos deshabilitados) — correo "${subject}" omitido.`);
     return;
   }
   const html = await render(react);

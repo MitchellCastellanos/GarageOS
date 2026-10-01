@@ -4,7 +4,7 @@
 // se renderiza a través del mismo layout seguro que el resto de los correos.
 
 import { render } from "@react-email/render";
-import { Resend } from "resend";
+import { getResendClient } from "@/lib/providers/resend";
 import React from "react";
 import type { Campaign, Client, Shop } from "@prisma/client";
 import { recordAndSend } from "@/lib/communications/outbox";
@@ -15,11 +15,7 @@ import { PlainMessageEmail } from "@/emails/PlainMessageEmail";
 import { getAppUrl } from "@/lib/app-url";
 
 function getResend() {
-  const key = process.env.RESEND_API_KEY;
-  if (!key || key === "re_placeholder") {
-    throw new Error("RESEND_API_KEY no está configurado");
-  }
-  return new Resend(key);
+  return getResendClient("RESEND_API_KEY no está configurado");
 }
 
 export interface SendCampaignEmailResult {

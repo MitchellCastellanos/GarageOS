@@ -8,14 +8,29 @@
 import Stripe from "stripe";
 import { PLAN_PRICING_CAD, type Plan } from "@/config/entitlements";
 import type { TrialPlan } from "@/domain/subscription-state";
+import { SMS_OVERAGE_PRICE_CAD_PER_SEGMENT } from "@/domain/sms";
+import { assertStripeMutationAllowed, gateClient, stripeMutationsAllowed } from "@/lib/provider-policy";
 
 let client: Stripe | null = null;
+
+/** Métodos de SOLO LECTURA (o verificación local de firma) — los únicos que pasan sin autorización de mutación. */
+const STRIPE_READ_ONLY_VERB = /^(retrieve|list|search|construct)/;
+
+/**
+ * Envuelve el cliente de Stripe: toda función que no sea de lectura (create, update, cancel, migrate,
+ * del, pay…, a cualquier profundidad) exige `assertStripeMutationAllowed` EN EL MOMENTO DE LA LLAMADA.
+ * Es el límite común más bajo: ningún sitio de llamada puede mutar Stripe con solo tener STRIPE_SECRET_KEY.
+ * Las lecturas y `webhooks.constructEvent` (firma de webhooks ENTRANTES) quedan intactas.
+ */
+export function gateStripeClient<T extends object>(target: T, path = "stripe"): T {
+  return gateClient(target, STRIPE_READ_ONLY_VERB, (action) => assertStripeMutationAllowed(action), path);
+}
 
 export function getStripeClient(): Stripe {
   if (client) return client;
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) throw new Error("STRIPE_SECRET_KEY no está configurada");
-  client = new Stripe(key);
+  client = gateStripeClient(new Stripe(key));
   return client;
 }
 
@@ -91,6 +106,46 @@ export function priceMismatchReason(
 }
 
 /**
+ * Validación del Price de excedente de SMS (mismo principio fail-closed que `priceMismatchReason`): el Checkout
+ * usa `automatic_tax`, y Stripe exige que todo Price tenga `tax_behavior` (exclusive/inclusive) o que la cuenta
+ * tenga un comportamiento de impuestos POR DEFECTO en Tax settings. Un Price 'unspecified' sin ese default rompe
+ * el Checkout (plan mensual), la alta posterior del ítem en planes anuales y la facturación del medido. Devuelve
+ * el motivo del rechazo o null. `accountDefaultTaxBehavior`: undefined = no se pudo leer (no concluyente → se permite).
+ */
+export function overagePriceProblem(
+  price: Pick<Stripe.Price, "active" | "currency" | "recurring" | "tax_behavior" | "unit_amount_decimal">,
+  accountDefaultTaxBehavior: string | null | undefined
+): string | null {
+  if (!price.active) return "the SMS overage Price is archived";
+  if (price.currency !== "cad") return `currency is ${price.currency}, expected cad`;
+  if (price.recurring?.usage_type !== "metered") return "the SMS overage Price is not metered";
+  if (price.recurring.interval !== "month" || price.recurring.interval_count !== 1) return "the SMS overage Price is not monthly";
+  if (Number(price.unit_amount_decimal) !== Math.round(SMS_OVERAGE_PRICE_CAD_PER_SEGMENT * 100)) {
+    return `unit amount is ${price.unit_amount_decimal}¢, expected ${Math.round(SMS_OVERAGE_PRICE_CAD_PER_SEGMENT * 100)}¢`;
+  }
+  if (price.tax_behavior === "exclusive" || price.tax_behavior === "inclusive") return null;
+  if (accountDefaultTaxBehavior === undefined) return null;
+  if (accountDefaultTaxBehavior === "exclusive" || accountDefaultTaxBehavior === "inclusive" || accountDefaultTaxBehavior === "inferred_by_currency") {
+    return null;
+  }
+  return "the SMS overage Price has tax_behavior 'unspecified' and the Stripe account has no default tax behavior (automatic tax would fail)";
+}
+
+async function assertOveragePriceUsable(stripe: Stripe, overagePriceId: string): Promise<void> {
+  const price = await stripe.prices.retrieve(overagePriceId);
+  let accountDefault: string | null | undefined;
+  if (price.tax_behavior === "unspecified") {
+    try {
+      accountDefault = (await stripe.tax.settings.retrieve()).defaults.tax_behavior ?? null;
+    } catch (err) {
+      console.warn("[stripe] no se pudo leer Tax settings para validar el Price de excedente (no concluyente):", err instanceof Error ? err.message : err);
+    }
+  }
+  const problem = overagePriceProblem(price, accountDefault);
+  if (problem) throw new Error(`Stripe Price ${overagePriceId} (SMS overage) is unusable: ${problem}`);
+}
+
+/**
  * Line items del Checkout. El Price de excedente de SMS es MENSUAL y Stripe
  * Checkout rechaza mezclar intervalos ("Checkout does not support multiple
  * prices with different billing intervals"), así que en un plan ANUAL el
@@ -115,6 +170,7 @@ export function checkoutLineItems(
  * Si el trial termina sin método de pago válido, la suscripción se cancela.
  */
 export async function createCheckoutSession(params: CreateCheckoutSessionParams): Promise<Stripe.Checkout.Session> {
+  assertStripeMutationAllowed("checkout.sessions.create");
   const stripe = getStripeClient();
   const priceId = getPriceId(params.plan, params.interval);
   if (!priceId) {
@@ -132,7 +188,10 @@ export async function createCheckoutSession(params: CreateCheckoutSessionParams)
   // El item de excedente de SMS es "metered" (sin quantity) — se factura solo
   // por lo que reporte reportSmsOverageUsage. Se agrega desde el arranque de
   // la suscripción para no tener que hacer un backfill después.
-  const lineItems = checkoutLineItems(priceId, params.interval, getSmsOverageItemPriceId());
+  const overagePriceId = getSmsOverageItemPriceId();
+  // Se valida SIEMPRE que exista (también en planes anuales, donde el ítem se agrega después del pago).
+  if (overagePriceId) await assertOveragePriceUsable(stripe, overagePriceId);
+  const lineItems = checkoutLineItems(priceId, params.interval, overagePriceId);
 
   const subscriptionData: Stripe.Checkout.SessionCreateParams.SubscriptionData = {
     metadata: { shopId: params.shopId },
@@ -315,8 +374,12 @@ export function getSmsOverageItemPriceId(): string | null {
   return process.env.STRIPE_SMS_OVERAGE_PRICE_ID?.trim() || null;
 }
 
+/**
+ * Configurado Y autorizado a mutar. Sin autorización (p. ej. Preview) el excedente queda "not_configured":
+ * no se incrementan los intentos de reporte ni se agota el reintento de un excedente real.
+ */
 export function isSmsOverageBillingConfigured(): boolean {
-  return Boolean(smsOverageMeterEventName() && process.env.STRIPE_SECRET_KEY);
+  return Boolean(smsOverageMeterEventName() && process.env.STRIPE_SECRET_KEY && stripeMutationsAllowed());
 }
 
 /** Stripe solo acepta timestamps de meter events de hasta 35 días atrás (y ~5 min a futuro). */
@@ -339,6 +402,8 @@ export async function reportSmsOverageUsage(params: {
 }): Promise<boolean> {
   const eventName = smsOverageMeterEventName();
   if (!eventName || params.segments <= 0) return false;
+  // Sin autorización de mutación no se reporta (ni se loguea como error): el cron reintentará cuando la haya.
+  if (!stripeMutationsAllowed()) return false;
 
   const age = params.occurredAt ? Date.now() - params.occurredAt.getTime() : 0;
   const timestamp =

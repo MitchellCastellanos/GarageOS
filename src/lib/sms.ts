@@ -1,6 +1,6 @@
 import type { CommMessageType } from "@prisma/client";
 import { recordAndSend, type RecordAndSendResult } from "@/lib/communications/outbox";
-import { getTwilioClientFor, TWILIO_STATUS_PATH, twilioWebhookUrl } from "@/lib/communications/twilio";
+import { getTwilioClientForWrite, TWILIO_STATUS_PATH, twilioWebhookUrl } from "@/lib/communications/twilio";
 import { resolveShopSmsSender } from "@/lib/communications/sms-numbers";
 import { isSuppressed } from "@/lib/communications/suppression";
 import { checkSmsUsageAlerts, planSmsOverage, settleSmsOverage } from "@/lib/communications/sms-usage";
@@ -91,7 +91,7 @@ export async function sendSms(params: SendSmsParams): Promise<RecordAndSendResul
     businessEntityId: params.businessEntityId,
     idempotencyKey: params.idempotencyKey,
     send: async () => {
-      const message = await getTwilioClientFor(sender.subaccountSid).messages.create({
+      const message = await getTwilioClientForWrite(sender.subaccountSid, "messages.create").messages.create({
         to: e164,
         from: sender.from,
         body: params.body,

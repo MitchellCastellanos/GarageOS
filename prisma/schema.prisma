@@ -145,6 +145,10 @@ model Subscription {
   currentPeriodEnd DateTime?
   cancelAtPeriodEnd Boolean           @default(false)
 
+  // Primera vez que GarageOS observó past_due en Stripe (reloj de la gracia de 48 h → RESTRICTED).
+  // Invariante: no nulo ⇔ status PAST_DUE. NO es updatedAt. Ver src/domain/subscription-state.ts.
+  pastDueSince DateTime?
+
   stripeCustomerId     String? @unique
   stripeSubscriptionId String? @unique
   stripePriceId        String?

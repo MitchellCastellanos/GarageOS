@@ -35,6 +35,9 @@ Other behavior:
 - Like the Prisma CLI elsewhere in this project, it prefers `DIRECT_URL` (a non-pooled connection, required by Neon for migrations) and falls back to `DATABASE_URL`.
 - Logs never contain connection strings or credentials.
 
+## Recent migrations
+- `20261004100000_subscription_past_due_since` — adds nullable `Subscription.pastDueSince` (48 h PAST_DUE grace clock). Additive; existing PAST_DUE rows are backfilled to the migration time (fresh 48 h, no retroactive lockout; see `docs/provider-isolation.md` §4). Not applied to Production yet — it ships with the next Production deploy.
+
 ## Production migration history (audited read-only, 2026-09-30)
 
 Production's `public._prisma_migrations` has 49 rows: 47 successful, 2 rolled back, 0 failed. Every one of the 46 current repository

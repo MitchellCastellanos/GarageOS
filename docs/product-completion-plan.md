@@ -34,7 +34,7 @@ Requirements:
 - Payment method is collected before the trial is activated/completed.
 - Confirmation must show **Today: $0** and **Due {date}: {amount} CAD + tax**.
 - Trial banners/countdown must use the selected plan and upcoming billing date/amount.
-- PAST_DUE may retain access during Stripe retry grace.
+- PAST_DUE retains access for a **48-hour** grace enforced by GarageOS (`Subscription.pastDueSince`, first observed Stripe `past_due`), then the shop is **RESTRICTED** — independent of Stripe ever reaching `unpaid` (see `docs/provider-isolation.md` §4).
 - Expired unpaid, UNPAID and CANCELED accounts become **RESTRICTED**, not free Core.
 - Restricted accounts can authenticate, view existing data, reach Billing, fix payment and reasonably export data, but cannot continue normal operational writes.
 - A missing Subscription row is an error/recovery state, not a free Core plan.
@@ -112,7 +112,7 @@ Implemented end-to-end. The onboarding wizard now has a **Plan & payment** step 
 **State model** (`src/domain/subscription-state.ts`, pure and unit-tested; `src/lib/subscription.ts` resolver):
 - DB `SubscriptionStatus` gained `AWAITING_PLAN`; `Subscription.plan` is nullable (null until chosen); `status` has no DB default.
 - Derived access state: `SETUP_REQUIRED | TRIALING | ACTIVE | PAST_DUE | RESTRICTED`. `EffectiveSubscription.plan` = plan granting entitlements *now* (null when no access); `subscribedPlan` = chosen/paid plan; `canWrite`, `nextCharge`, `trialEligible`, `hasStripeSubscription`, `subscriptionMissing`.
-- **No free tier**: expired trial, CANCELED, UNPAID, INCOMPLETE and a missing Subscription row → RESTRICTED (plan null), never Core. PAST_DUE keeps the plan during Stripe retries. A Stripe-backed trial gets a 48 h webhook-lag grace after `trialEndsAt` before restricting; a legacy no-card trial restricts at expiry.
+- **No free tier**: expired trial, CANCELED, UNPAID, INCOMPLETE and a missing Subscription row → RESTRICTED (plan null), never Core. PAST_DUE keeps the plan for 48 h from the first observed `past_due` (`pastDueSince`), then RESTRICTED. A Stripe-backed trial gets a 48 h webhook-lag grace after `trialEndsAt` before restricting; a legacy no-card trial restricts at expiry.
 - `can()` = entitled *now*; `canView()` = may *show* existing data (uses the subscribed plan; used for Inventory/Campaigns pages and nav locks). Never authorize a write with `canView`.
 
 **Signup**: email, Google and `/platform` createShop all create Shop (+ OWNER) + Subscription(`AWAITING_PLAN`) in **one transaction** (`createPendingSubscription`); `createDefaultSubscription`/"default Pro trial" is gone. Email signup keeps verification; Google keeps trusting Google's verified email. A failed transaction creates nothing (Google sign-in is refused).

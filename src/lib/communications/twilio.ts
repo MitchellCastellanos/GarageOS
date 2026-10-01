@@ -6,6 +6,7 @@
 import twilio from "twilio";
 import { db } from "@/lib/db";
 import { getAppUrl } from "@/config/app";
+import { assertProviderSideEffects } from "@/lib/provider-policy";
 
 export type TwilioClient = ReturnType<typeof twilio>;
 
@@ -55,6 +56,22 @@ export function getTwilioClientFor(subaccountSid?: string | null): TwilioClient 
   const { accountSid, authToken } = parentCredentials();
   if (!subaccountSid || subaccountSid === accountSid) return twilio(accountSid, authToken);
   return twilio(accountSid, authToken, { accountSid: subaccountSid });
+}
+
+/**
+ * Clientes para acciones que MUTAN o cuestan dinero en Twilio (enviar SMS, crear subcuentas, comprar /
+ * configurar / liberar números). Exigen PROVIDER_SIDE_EFFECTS=enabled en el momento de la llamada:
+ * las credenciales solas no bastan. `getTwilioClientFor`/`getTwilioParentClient` quedan solo para LECTURAS
+ * (consultar estado de un mensaje, resolver el token de una cuenta para validar la firma de un webhook).
+ */
+export function getTwilioClientForWrite(subaccountSid: string | null | undefined, action: string): TwilioClient {
+  assertProviderSideEffects("twilio", action);
+  return getTwilioClientFor(subaccountSid);
+}
+
+export function getTwilioParentClientForWrite(action: string): TwilioClient {
+  assertProviderSideEffects("twilio", action);
+  return getTwilioParentClient();
 }
 
 /**

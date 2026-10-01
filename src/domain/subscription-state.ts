@@ -42,11 +42,21 @@ export const TRIAL_DAYS = 14;
  */
 export const STRIPE_TRIAL_CONVERSION_GRACE_MS = 48 * 60 * 60 * 1000;
 
+/**
+ * Gracia de cobro fallido: GarageOS (no Stripe) restringe al taller cuando lleva
+ * PAST_DUE_GRACE_MS en PAST_DUE. El reloj es Subscription.pastDueSince — la
+ * primera vez que GarageOS OBSERVÓ past_due en Stripe — y no depende de que
+ * Stripe termine moviendo la suscripción a `unpaid`.
+ */
+export const PAST_DUE_GRACE_MS = 48 * 60 * 60 * 1000;
+
 export interface SubscriptionRowLike {
   plan: Plan | null;
   status: DbSubscriptionStatus;
   trialEndsAt: Date | null;
   stripeSubscriptionId: string | null;
+  /** Desde cuándo está PAST_DUE (null si no lo está). Invariante: no nulo ⇔ status PAST_DUE. */
+  pastDueSince?: Date | null;
 }
 
 export interface ResolvedAccess {
@@ -57,6 +67,10 @@ export interface ResolvedAccess {
   isTrialExpired: boolean;
   /** true si el taller puede hacer escrituras operativas. */
   canWrite: boolean;
+  /** PAST_DUE cuya gracia de 48 h ya venció (o sin reloj): restringido. */
+  isPastDueExpired: boolean;
+  /** Fin de la gracia mientras el taller está PAST_DUE dentro de ella; null en cualquier otro caso. */
+  pastDueGraceEndsAt: Date | null;
 }
 
 const RESTRICTED: ResolvedAccess = {
@@ -65,6 +79,8 @@ const RESTRICTED: ResolvedAccess = {
   isTrialing: false,
   isTrialExpired: false,
   canWrite: false,
+  isPastDueExpired: false,
+  pastDueGraceEndsAt: null,
 };
 
 export function canWriteInState(state: AccessState): boolean {
@@ -76,7 +92,7 @@ export function resolveAccess(row: SubscriptionRowLike | null, now: Date = new D
   if (!row) return RESTRICTED;
 
   if (row.status === "AWAITING_PLAN") {
-    return { accessState: "SETUP_REQUIRED", plan: null, isTrialing: false, isTrialExpired: false, canWrite: false };
+    return { ...RESTRICTED, accessState: "SETUP_REQUIRED" };
   }
 
   // Un plan null fuera de AWAITING_PLAN es una fila corrupta — restringir.
@@ -89,13 +105,19 @@ export function resolveAccess(row: SubscriptionRowLike | null, now: Date = new D
       if (ends == null || ends + graceMs < now.getTime()) {
         return { ...RESTRICTED, isTrialExpired: true };
       }
-      return { accessState: "TRIALING", plan: row.plan, isTrialing: true, isTrialExpired: false, canWrite: true };
+      return { ...RESTRICTED, accessState: "TRIALING", plan: row.plan, isTrialing: true, canWrite: true };
     }
     case "ACTIVE":
-      return { accessState: "ACTIVE", plan: row.plan, isTrialing: false, isTrialExpired: false, canWrite: true };
-    case "PAST_DUE":
-      // Gracia mientras Stripe reintenta; Stripe lo mueve a CANCELED/UNPAID al agotarse.
-      return { accessState: "PAST_DUE", plan: row.plan, isTrialing: false, isTrialExpired: false, canWrite: true };
+      return { ...RESTRICTED, accessState: "ACTIVE", plan: row.plan, canWrite: true };
+    case "PAST_DUE": {
+      // Gracia de PAST_DUE_GRACE_MS desde la primera vez que se observó past_due. Sin reloj
+      // (fila heredada/inconsistente) no hay gracia demostrable: falla cerrado.
+      const since = row.pastDueSince?.getTime();
+      if (since == null) return { ...RESTRICTED, isPastDueExpired: true };
+      const endsAt = since + PAST_DUE_GRACE_MS;
+      if (now.getTime() >= endsAt) return { ...RESTRICTED, isPastDueExpired: true };
+      return { ...RESTRICTED, accessState: "PAST_DUE", plan: row.plan, canWrite: true, pastDueGraceEndsAt: new Date(endsAt) };
+    }
     default:
       // CANCELED, UNPAID, INCOMPLETE
       return RESTRICTED;
@@ -188,6 +210,23 @@ export function mapStripeStatus(status: string): DbSubscriptionStatus {
     default:
       return "INCOMPLETE";
   }
+}
+
+/**
+ * Reloj de PAST_DUE tras aplicar un estado de Stripe. Invariante: pastDueSince != null ⇔ status PAST_DUE.
+ * - Entra a PAST_DUE (desde cualquier otro estado / fila nueva) → empieza el reloj en `observedAt`.
+ * - Ya estaba PAST_DUE con reloj → se CONSERVA (un past_due repetido o reentregado nunca lo reinicia).
+ * - PAST_DUE sin reloj (fila heredada) → empieza en `observedAt`.
+ * - Cualquier otro estado (recuperación o terminal) → se limpia; el acceso lo decide el estado.
+ */
+export function nextPastDueSince(
+  current: { status: DbSubscriptionStatus; pastDueSince: Date | null } | null,
+  incomingStatus: DbSubscriptionStatus,
+  observedAt: Date
+): Date | null {
+  if (incomingStatus !== "PAST_DUE") return null;
+  if (current?.status === "PAST_DUE" && current.pastDueSince) return current.pastDueSince;
+  return observedAt;
 }
 
 /** Estados de Stripe en los que la suscripción sigue viva (puede cobrar / dar servicio). */

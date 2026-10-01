@@ -12,6 +12,7 @@ import { reconcileStaleSmsStatuses } from "@/lib/communications/sms-status";
 import { createOperatingChecker } from "@/lib/subscription";
 import { isTwilioConfigured } from "@/lib/communications/twilio";
 import { deliverDueAutomatedReminders } from "@/lib/reminder-automation";
+import { providerSideEffectsEnabled } from "@/lib/provider-policy";
 
 // Cron Job — corre diariamente a las 8am (configurado en vercel.json)
 // Envía recordatorios de servicio con vencimiento en ≤7 días
@@ -24,12 +25,17 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Envíos salientes (recordatorios, citas, ciclo de vida de números SMS) solo con efectos externos
+  // autorizados. Si no: se omiten enteros — nada se marca como enviado ni como fallido, y se retoman
+  // solos cuando el entorno esté autorizado. La limpieza y las lecturas de conciliación siguen corriendo.
+  const outbound = providerSideEffectsEnabled();
+
   const sevenDaysFromNow = new Date();
   sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
 
   // Los recordatorios automáticos (con regla, Pro+) se envían aparte por deliverDueAutomatedReminders,
   // con su propia anticipación y canal; este envío básico es solo para los manuales.
-  const dueReminders = await db.serviceReminder.findMany({
+  const dueReminders = !outbound ? [] : await db.serviceReminder.findMany({
     where: {
       status: "PENDING",
       sentAt: null,
@@ -98,17 +104,21 @@ export async function GET(request: Request) {
     }
   }
 
-  results.automatedReminders = await deliverDueAutomatedReminders(new Date(), canOperate);
+  if (outbound) results.automatedReminders = await deliverDueAutomatedReminders(new Date(), canOperate);
   // Tire Storage pickup / seasonal-change reminders (14 and 3 days before the expected date).
-  results.tirePickupReminders = await deliverDueTirePickupReminders(new Date(), canOperate).catch((err) => {
-    console.error("[cron] recordatorios de entreposaje de pneus fallaron:", err);
-    return null;
-  });
+  results.tirePickupReminders = !outbound
+    ? null
+    : await deliverDueTirePickupReminders(new Date(), canOperate).catch((err) => {
+        console.error("[cron] recordatorios de entreposaje de pneus fallaron:", err);
+        return null;
+      });
 
-  const shopsWithAppointments = await db.shop.findMany({
-    where: { OR: [{ appointmentEmailsEnabled: true }, { appointmentSmsEnabled: true }] },
-    select: { id: true, appointmentReminderHours: true },
-  });
+  const shopsWithAppointments = !outbound
+    ? []
+    : await db.shop.findMany({
+        where: { OR: [{ appointmentEmailsEnabled: true }, { appointmentSmsEnabled: true }] },
+        select: { id: true, appointmentReminderHours: true },
+      });
 
   const now = new Date();
 
@@ -160,7 +170,7 @@ export async function GET(request: Request) {
 
   // Números SMS dedicados: talleres que dejaron de pagar conservan el número 30
   // días; después se libera (ver runSmsNumberLifecycle).
-  const smsNumbers = isTwilioConfigured()
+  const smsNumbers = outbound && isTwilioConfigured()
     ? await runSmsNumberLifecycle().catch((err) => {
         console.error("[cron] ciclo de vida de números SMS falló:", err);
         return null;
@@ -184,6 +194,7 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     ...results,
+    providerSideEffects: outbound ? "enabled" : "disabled",
     smsNumbers,
     smsOverageRetry,
     smsStatusReconcile,

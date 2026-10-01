@@ -1,5 +1,5 @@
 import { render } from "@react-email/render";
-import { Resend } from "resend";
+import { getResendClient } from "@/lib/providers/resend";
 import { ServiceReminderEmail } from "@/emails/ServiceReminderEmail";
 import { InvoiceEmail, type InvoiceEmailProps } from "@/emails/InvoiceEmail";
 import { QuoteEmail, type QuoteEmailProps } from "@/emails/QuoteEmail";
@@ -15,11 +15,7 @@ import { resolveActiveEmailRoute, resolveEffectiveShopContactEmail } from "@/lib
 import React from "react";
 
 function getResend() {
-  const key = process.env.RESEND_API_KEY;
-  if (!key || key === "re_placeholder") {
-    throw new Error("RESEND_API_KEY is not configured");
-  }
-  return new Resend(key);
+  return getResendClient("RESEND_API_KEY is not configured");
 }
 
 function toArray(value?: string | string[]): string[] {

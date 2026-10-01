@@ -19,8 +19,8 @@ import { db } from "@/lib/db";
 import { toE164 } from "@/lib/phone";
 import {
   getSharedNumberAccountSid,
-  getTwilioClientFor,
-  getTwilioParentClient,
+  getTwilioClientForWrite,
+  getTwilioParentClientForWrite,
   TWILIO_INBOUND_PATH,
   twilioWebhookUrl,
 } from "@/lib/communications/twilio";
@@ -33,6 +33,7 @@ import {
   SUBSCRIPTION_LAPSED_REASON,
 } from "@/domain/sms";
 import { getEffectiveSubscription } from "@/lib/subscription";
+import { assertProviderSideEffects, providerSideEffectsEnabled } from "@/lib/provider-policy";
 
 export class SmsNumberError extends Error {}
 
@@ -180,7 +181,7 @@ async function claimProvisioning(shopId: string, countryCode: string, areaCode: 
 
 async function ensureSubaccount(shopId: string, shopName: string): Promise<string> {
   const row = await db.shopSmsNumber.findUniqueOrThrow({ where: { shopId }, select: { subaccountSid: true } });
-  const parent = getTwilioParentClient();
+  const parent = getTwilioParentClientForWrite("subaccounts.create");
 
   if (row.subaccountSid) {
     // Se suspende al liberar el número; al volver a aprovisionar se reactiva.
@@ -208,6 +209,8 @@ export async function provisionShopSmsNumber(params: {
   countryCode?: string;
   areaCode?: string | null;
 }): Promise<ProvisionResult> {
+  // Antes de tocar la DB: sin autorización no se reclama ni se marca nada (ni se compra nada).
+  assertProviderSideEffects("twilio", "numbers.provision");
   const countryCode = (params.countryCode ?? "CA").toUpperCase();
   const areaCode = params.areaCode?.replace(/\D/g, "") || null;
   if (!/^[A-Z]{2}$/.test(countryCode)) throw new SmsNumberError("Invalid country code.");
@@ -222,7 +225,7 @@ export async function provisionShopSmsNumber(params: {
   let subaccountSid: string | null = null;
   try {
     subaccountSid = await ensureSubaccount(shop.id, shop.name);
-    const client = getTwilioClientFor(subaccountSid);
+    const client = getTwilioClientForWrite(subaccountSid, "numbers.provision");
 
     const available = await client.availablePhoneNumbers(countryCode).local.list({
       smsEnabled: true,
@@ -299,7 +302,7 @@ export async function provisionShopSmsNumber(params: {
     const message = err instanceof Error ? err.message : String(err);
     if (purchasedSid && subaccountSid) {
       // Comprado pero no registrado: liberarlo para que no quede cobrando sin dueño.
-      await getTwilioClientFor(subaccountSid)
+      await getTwilioClientForWrite(subaccountSid, "numbers.release")
         .incomingPhoneNumbers(purchasedSid)
         .remove()
         .catch((releaseErr) => console.error(`[sms-numbers] no se pudo liberar ${purchasedSid} tras el error:`, releaseErr));
@@ -329,6 +332,8 @@ export async function releaseShopSmsNumber(params: {
   reason: string;
   actorUserId?: string | null;
 }): Promise<void> {
+  // Antes del reclamo atómico: liberar sin poder llamar a Twilio dejaría el número "RELEASED" en la DB y cobrando en Twilio.
+  assertProviderSideEffects("twilio", "numbers.release");
   const row = await db.shopSmsNumber.findUnique({ where: { shopId: params.shopId } });
   if (!row) throw new SmsNumberError("This shop has no dedicated number.");
 
@@ -362,7 +367,7 @@ export async function releaseShopSmsNumber(params: {
 
   try {
     if (row.phoneNumberSid && row.subaccountSid) {
-      await getTwilioClientFor(row.subaccountSid)
+      await getTwilioClientForWrite(row.subaccountSid, "numbers.release")
         .incomingPhoneNumbers(row.phoneNumberSid)
         .remove()
         .catch((err) => {
@@ -380,7 +385,7 @@ export async function releaseShopSmsNumber(params: {
   }
 
   if (row.subaccountSid) {
-    await getTwilioParentClient()
+    await getTwilioParentClientForWrite("subaccounts.suspend")
       .api.v2010.accounts(row.subaccountSid)
       .update({ status: "suspended" })
       .catch((err) => console.error(`[sms-numbers] no se pudo suspender la subcuenta ${row.subaccountSid}:`, err));
@@ -460,6 +465,8 @@ export interface SmsLifecycleResult {
  */
 export async function runSmsNumberLifecycle(now: Date = new Date()): Promise<SmsLifecycleResult> {
   const result: SmsLifecycleResult = { scheduled: [], cancelled: [], released: [], errors: 0 };
+  // Liberar es una acción de Twilio: sin autorización no se programa ni se libera nada (no hay errores ni reintentos).
+  if (!providerSideEffectsEnabled()) return result;
   const numbers = await db.shopSmsNumber.findMany({
     where: { status: { in: [...LIVE_NUMBER_STATUSES] } },
     select: { shopId: true, status: true, releaseScheduledAt: true, releaseReason: true, phoneNumber: true },
@@ -472,7 +479,11 @@ export async function runSmsNumberLifecycle(now: Date = new Date()): Promise<Sms
         status: n.status,
         releaseScheduledAt: n.releaseScheduledAt,
         releaseReason: n.releaseReason,
-        inGoodStanding: isSubscriptionInGoodStanding({ status: sub.status, isTrialExpired: sub.isTrialExpired }),
+        inGoodStanding: isSubscriptionInGoodStanding({
+          status: sub.status,
+          isTrialExpired: sub.isTrialExpired,
+          isPastDueExpired: sub.isPastDueExpired,
+        }),
         now,
       });
 

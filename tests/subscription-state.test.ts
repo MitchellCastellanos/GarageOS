@@ -59,8 +59,8 @@ test("ACTIVE keeps the paid plan", () => {
   assert.deepEqual([a.accessState, a.plan, a.canWrite], ["ACTIVE", "COMPLETE", true]);
 });
 
-test("PAST_DUE keeps the selected plan and write access during Stripe's retry grace", () => {
-  const a = resolveAccess(row({ plan: "PRO", status: "PAST_DUE" }), NOW);
+test("PAST_DUE keeps the selected plan and write access during the 48 h GarageOS grace", () => {
+  const a = resolveAccess(row({ plan: "PRO", status: "PAST_DUE", pastDueSince: new Date(NOW.getTime() - 3_600_000) }), NOW);
   assert.deepEqual([a.accessState, a.plan, a.canWrite], ["PAST_DUE", "PRO", true]);
 });
 
