@@ -44,9 +44,8 @@ The new model has a unique Shop relation, status/expiry and actor/creation index
 | New security/domain/image tests | **17 added tests**: 16 Sales tests plus JWT lifecycle revalidation; all pass |
 | `npm run build` | **PASS** — optimized build, TypeScript and static-page generation; new Sales routes listed |
 | Build database/provider safety | Local disposable database; provider effects disabled; migration/backfill/bootstrap explicitly skipped by the existing development guard |
-| ESLint excluding pre-existing untracked script | **PASS** — `npx eslint . --ignore-pattern scripts/_tmp-step1-check.ts`, zero errors, 51 existing warnings |
-| Unrestricted lint | The existing untracked `scripts/_tmp-step1-check.ts` contains an `any` lint error; it was preserved and is not included in this change |
-| Repository diff | `git diff --check` passes; existing untracked script remains untouched |
+| `npm run lint` | **PASS** — zero errors, 51 existing warnings; the unrelated temporary script from the initial run is no longer present in the checkout |
+| Repository diff | `git diff --check` passes; working tree clean before this evidence refresh |
 | Browser QA | **PASS: 60 responsive/flow checks**, zero uncaught browser errors |
 
 One necessary baseline repair outside the feature: removed the unused `BUILD_ID` export from `src/app/api/auth/login/route.ts`. Next.js rejects that unsupported route-module export during build; no code referenced it. Login behavior is unchanged.
@@ -94,6 +93,10 @@ node scripts/qa-sales-demo-browser.mjs
 The infrastructure script binds local ports 55440/55441/55442 and app port 3100. It creates an in-memory database, seeds only local test identities, overrides app/database URLs and provider authorization, and uses fake storage. The QA-only image setting is enabled **only in development** with `GARAGEOS_LOCAL_QA=1`; Production retains its existing image optimizer/host allowlist. Shut down the infrastructure script after testing. The fixture is destroyed with the process; no Production credentials/database are used by QA. Restart it before rerunning browser QA to reset fixtures.
 
 ## Deferred behavior and remaining infrastructure
+
+### PR #70 completion audit
+
+On 2026-10-01, re-read the complete implementation authority and reviewed A–G against current remote `main` (`51b89ac`, unchanged). No genuine Wave 1 blocker or source correction was found. Re-ran `npm run check` (542 passing tests), unrestricted lint (zero errors), all 48 migrations and SQL constraint checks in a fresh disposable database, and the complete browser flow (60 passing checks, zero uncaught browser errors). Refreshed phone screenshots were visually inspected. The production build was re-run with provider effects disabled and database migration/backfill/bootstrap steps skipped. GitHub reported the PR mergeable, Vercel successful, and no review comments; no GitHub Actions workflow runs are configured for this commit. No Production environment, communications/provider configuration or provider validation was touched. Physical camera and Production storage checks remain the documented manual limitations, not claims of completed validation. Stop at Wave 1; H–O remain deferred.
 
 **SMS billing exclusion:** not implemented in Wave 1. Newly created demo Shops use the existing `communicationsSuspendedAt` flag, so operational outbox sending is unavailable pending Wave 2. No real SMS/email/provider calls were used to validate this implementation. The durable per-message exclusion, retry/reconciliation protection and normal-paid overage behavior remain Wave 2 work; a null Stripe customer alone is not claimed as the future exclusion strategy.
 
