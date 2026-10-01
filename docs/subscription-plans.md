@@ -292,7 +292,11 @@ The exact names can change during implementation, but the concepts should stay s
   plan that grants entitlements *now* (null when there is no access);
   `subscribedPlan` is what the customer chose/pays for. There is **no free
   tier**: expired trial, CANCELED, UNPAID, INCOMPLETE and a missing row are all
-  RESTRICTED. PAST_DUE keeps the plan while Stripe retries.
+  RESTRICTED. PAST_DUE keeps the plan and write access for **48 hours**
+  from the first time GarageOS observed `past_due` (`Subscription.pastDueSince`),
+  then the shop is RESTRICTED — GarageOS enforces this itself and does not wait
+  for Stripe to move the subscription to `unpaid`. Recovery (ACTIVE/TRIALING)
+  clears the clock; a later past_due starts a new 48 h. See `docs/provider-isolation.md` §4.
 - **Restricted mode:** `requireWriteAccess` / `getWritableShopId` /
   `assertShopWritable` (`src/lib/subscription.ts`, `src/lib/shop-context.ts`)
   block operational writes server-side and redirect owners to Billing.

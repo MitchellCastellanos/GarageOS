@@ -2,6 +2,7 @@
 // mocks, Stripe/Twilio simulados). No validan nada contra Twilio/Resend/Stripe
 // reales — eso es validación externa (ver docs/product-completion-plan.md §11).
 
+import "./helpers/fake-providers-authorized";
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 import crypto from "node:crypto";

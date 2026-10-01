@@ -36,6 +36,12 @@ export interface EffectiveSubscription {
   stripeSubscriptionId: string | null;
   isTrialing: boolean;
   isTrialExpired: boolean;
+  /** PAST_DUE con la gracia de 48 h vencida (el taller está RESTRINGIDO aunque Stripe siga en past_due). */
+  isPastDueExpired: boolean;
+  /** Desde cuándo está PAST_DUE (reloj de gracia), o null. */
+  pastDueSince: Date | null;
+  /** Fin de la gracia de 48 h mientras el taller está PAST_DUE dentro de ella. */
+  pastDueGraceEndsAt: Date | null;
   /** true si no hay fila de Subscription (bug/backfill) — estado de recuperación, no Core. */
   subscriptionMissing: boolean;
   /** Hay una suscripción de Stripe con método de pago (trial respaldado por tarjeta). */
@@ -61,6 +67,9 @@ function missingSubscription(): EffectiveSubscription {
     stripeSubscriptionId: null,
     isTrialing: false,
     isTrialExpired: false,
+    isPastDueExpired: false,
+    pastDueSince: null,
+    pastDueGraceEndsAt: null,
     subscriptionMissing: true,
     hasStripeSubscription: false,
     nextCharge: null,
@@ -91,11 +100,11 @@ export async function findSubscriptionRow(shopId: string) {
   return sibling?.subscription ?? null;
 }
 
-export async function getEffectiveSubscription(shopId: string): Promise<EffectiveSubscription> {
+export async function getEffectiveSubscription(shopId: string, now: Date = new Date()): Promise<EffectiveSubscription> {
   const row = await findSubscriptionRow(shopId);
   if (!row) return missingSubscription();
 
-  const access = resolveAccess(row);
+  const access = resolveAccess(row, now);
 
   return {
     plan: access.plan,
@@ -111,6 +120,9 @@ export async function getEffectiveSubscription(shopId: string): Promise<Effectiv
     stripeSubscriptionId: row.stripeSubscriptionId,
     isTrialing: access.isTrialing,
     isTrialExpired: access.isTrialExpired,
+    isPastDueExpired: access.isPastDueExpired,
+    pastDueSince: row.pastDueSince ?? null,
+    pastDueGraceEndsAt: access.pastDueGraceEndsAt,
     subscriptionMissing: false,
     hasStripeSubscription: row.stripeSubscriptionId != null,
     nextCharge: nextChargeFor(row, access),

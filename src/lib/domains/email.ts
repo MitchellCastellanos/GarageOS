@@ -3,7 +3,7 @@
 // y src/lib/email-config.ts — una vez VERIFIED, el taller puede usar direcciones
 // @sudominio.com en sus buzones de Configuración y Resend las entregará.
 
-import { Resend } from "resend";
+import { getResendClient } from "@/lib/providers/resend";
 import type { DnsRecordRow } from "@/lib/domains/types";
 
 export interface EmailDomainResult {
@@ -13,11 +13,7 @@ export interface EmailDomainResult {
 }
 
 function getResend() {
-  const key = process.env.RESEND_API_KEY;
-  if (!key || key === "re_placeholder") {
-    throw new Error("RESEND_API_KEY no está configurado");
-  }
-  return new Resend(key);
+  return getResendClient("RESEND_API_KEY no está configurado");
 }
 
 function toRecords(records: { record: string; name: string; type: string; value: string; status: string }[]): DnsRecordRow[] {

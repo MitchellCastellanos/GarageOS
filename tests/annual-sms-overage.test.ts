@@ -2,6 +2,7 @@
 // Overage de SMS mensual para planes ANUALES: el Checkout no admite intervalos mezclados, así que el
 // ítem se agrega después sobre la misma suscripción (modo flexible); la cancelación es de GarageOS
 // (`cancel_at: max_period_end`), nunca del portal; la morosidad usa los estados existentes.
+import "./helpers/fake-providers-authorized";
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 import type Stripe from "stripe";
@@ -280,7 +281,9 @@ test("delinquency of an annual subscription follows PAST_DUE → RESTRICTED (unp
     assert.equal(u.stripeSubscriptionId, "sub_A", "same subscription throughout — never replaced or canceled");
     assert.equal(u.plan, "PRO");
     assert.equal(u.currentPeriodEnd.getTime(), secs(365) * 1000, "paid annual period preserved");
-    walk.push(resolveAccess({ plan: u.plan, status: u.status, trialEndsAt: null, stripeSubscriptionId: "sub_A" }).accessState);
+    walk.push(
+      resolveAccess({ plan: u.plan, status: u.status, trialEndsAt: null, stripeSubscriptionId: "sub_A", pastDueSince: u.pastDueSince }).accessState
+    );
   }
   assert.deepEqual(walk, ["PAST_DUE", "RESTRICTED", "ACTIVE"]);
   assert.equal(mapStripeStatus("unpaid"), "UNPAID");

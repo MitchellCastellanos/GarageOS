@@ -1,7 +1,8 @@
 import "server-only";
 import crypto from "crypto";
 import { render } from "@react-email/render";
-import { Resend } from "resend";
+import type { Resend } from "resend";
+import { tryGetResendClient } from "@/lib/providers/resend";
 import React from "react";
 import { db } from "@/lib/db";
 import { APP_NAME, getAppUrl } from "@/config/app";
@@ -20,9 +21,7 @@ const VERIFY_SHOP_SUBJECT: Record<PlatformEmailLanguage, string> = {
 const TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 
 function getResend(): Resend | null {
-  const key = process.env.RESEND_API_KEY;
-  if (!key || key === "re_placeholder") return null;
-  return new Resend(key);
+  return tryGetResendClient();
 }
 
 function fromAddress(): string {
@@ -51,7 +50,7 @@ export async function sendVerificationEmail(params: { email: string; name: strin
 
   const resend = getResend();
   if (!resend) {
-    console.warn(`[email-verification] RESEND_API_KEY no configurada — correo de verificación omitido.`);
+    console.warn(`[email-verification] proveedor de correo no disponible (sin clave o efectos externos deshabilitados) — correo de verificación omitido.`);
     return;
   }
 
@@ -111,7 +110,7 @@ export async function sendShopEmailVerification(params: { shopId: string; email:
 
   const resend = getResend();
   if (!resend) {
-    console.warn(`[email-verification] RESEND_API_KEY no configurada — correo de verificación de taller omitido.`);
+    console.warn(`[email-verification] proveedor de correo no disponible (sin clave o efectos externos deshabilitados) — correo de verificación de taller omitido.`);
     return;
   }
 

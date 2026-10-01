@@ -172,11 +172,13 @@ export const SMS_NUMBER_RELEASE_GRACE_DAYS = 30;
 export interface SubscriptionStanding {
   status: string;
   isTrialExpired: boolean;
+  /** PAST_DUE con la gracia de 48 h vencida: ya no está "en gracia de cobro". */
+  isPastDueExpired?: boolean;
 }
 
 /** Un taller sigue pagando (o en gracia de cobro de Stripe) → conserva su número. */
 export function isSubscriptionInGoodStanding(sub: SubscriptionStanding): boolean {
-  if (sub.isTrialExpired) return false;
+  if (sub.isTrialExpired || sub.isPastDueExpired) return false;
   return sub.status === "ACTIVE" || sub.status === "TRIALING" || sub.status === "PAST_DUE";
 }
 

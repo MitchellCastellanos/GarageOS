@@ -4,6 +4,7 @@ import { isAuthorizedCronRequest } from "@/lib/cron-auth";
 import { db } from "@/lib/db";
 import { isSuppressed } from "@/lib/communications/suppression";
 import { sendCampaignEmail } from "@/lib/communications/campaigns";
+import { providerSideEffectsEnabled } from "@/lib/provider-policy";
 
 // Cron de envío de campañas — corre en lotes acotados en vez de mandar todo desde una
 // request web (doc §11.4/§20). Protegido con CRON_SECRET, igual que el cron de
@@ -23,6 +24,12 @@ const GLOBAL_RECIPIENT_LIMIT_PER_RUN = 150;
 export async function GET(request: Request) {
   if (!isAuthorizedCronRequest(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Sin autorización de efectos externos no se toca nada: las campañas no pasan a SENDING, no se
+  // registran fallos y no hay reintentos — se retoman solas cuando el entorno esté autorizado.
+  if (!providerSideEffectsEnabled()) {
+    return NextResponse.json({ skipped: true, reason: "provider_side_effects_disabled" });
   }
 
   const now = new Date();

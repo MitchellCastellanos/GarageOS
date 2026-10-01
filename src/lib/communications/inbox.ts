@@ -3,7 +3,7 @@
 // esto — la lógica de threading/envío vive en un solo lugar.
 
 import { render } from "@react-email/render";
-import { Resend } from "resend";
+import { getResendClient } from "@/lib/providers/resend";
 import React from "react";
 import { db } from "@/lib/db";
 import { recordAndSend } from "@/lib/communications/outbox";
@@ -15,11 +15,7 @@ import type { EmailAttachment } from "@/lib/email-attachments";
 import type { EmailRichTextDocument } from "@/lib/email-rich-text";
 
 function getResend() {
-  const key = process.env.RESEND_API_KEY;
-  if (!key || key === "re_placeholder") {
-    throw new Error("RESEND_API_KEY no está configurado");
-  }
-  return new Resend(key);
+  return getResendClient("RESEND_API_KEY no está configurado");
 }
 
 export interface SendInboxMessageParams {

@@ -1,3 +1,4 @@
+import "./helpers/fake-providers-authorized";
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 import { randomBytes } from "node:crypto";

@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- fixtures inspect loosely-typed Stripe params */
+import "./helpers/fake-providers-authorized";
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 import { registerHooks } from "node:module";
@@ -269,7 +270,7 @@ test("requireWriteAccess: restricted shops are blocked server-side; active/trial
   }
   shopFind.mock.mockImplementation(async () => shopWithSub(subRow({ status: "TRIALING", trialEndsAt: future(3) })));
   assert.equal((await requireWriteAccess("shop-A")).plan, "PRO");
-  shopFind.mock.mockImplementation(async () => shopWithSub(subRow({ status: "PAST_DUE" })));
+  shopFind.mock.mockImplementation(async () => shopWithSub(subRow({ status: "PAST_DUE", pastDueSince: new Date(Date.now() - 3_600_000) })));
   assert.equal((await requireWriteAccess("shop-A")).accessState, "PAST_DUE");
   // Trial vencido sin tarjeta (heredado) → bloqueado.
   shopFind.mock.mockImplementation(async () =>
@@ -517,7 +518,7 @@ test("webhook idempotency: the same event id is processed once; a replay is a no
   assert.equal(await processStripeEvent(event, fakeApi()), "processed");
   assert.equal(await processStripeEvent(event, fakeApi()), "duplicate");
   assert.equal(updateMany.mock.callCount(), 1);
-  assert.deepEqual((updateMany.mock.calls[0].arguments[0] as { data: unknown }).data, { status: "CANCELED", cancelAtPeriodEnd: false });
+  assert.deepEqual((updateMany.mock.calls[0].arguments[0] as { data: unknown }).data, { status: "CANCELED", cancelAtPeriodEnd: false, pastDueSince: null });
 });
 
 test("webhook: when the handler fails the idempotency marker is removed so Stripe's retry reprocesses it", async (t) => {

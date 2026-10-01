@@ -10,6 +10,7 @@ import { Prisma, type CommChannel, type CommDirection, type CommMessageType } fr
 import { resolveSenderIdentity } from "@/lib/communications/sender-identity";
 import { isSuppressed } from "@/lib/communications/suppression";
 import { getEffectiveSubscription } from "@/lib/subscription";
+import { assertProviderSideEffects } from "@/lib/provider-policy";
 
 export interface RecordAndSendParams {
   shopId: string;
@@ -147,6 +148,11 @@ function isAutomatedOutreach(params: RecordAndSendParams): boolean {
 }
 
 export async function recordAndSend(params: RecordAndSendParams): Promise<RecordAndSendResult> {
+  // Política de efectos externos: ANTES de reservar historial / cupos — así un entorno no autorizado
+  // no deja filas QUEUED/FAILED, no consume cupo SMS ni marca un envío como entregado.
+  if ((params.direction ?? "OUTBOUND") === "OUTBOUND") {
+    assertProviderSideEffects(params.provider === "twilio" ? "twilio" : "resend", "send");
+  }
   const shop = await db.shop.findUnique({
     where: { id: params.shopId },
     select: { communicationsSuspendedAt: true },

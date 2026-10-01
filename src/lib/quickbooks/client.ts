@@ -1,5 +1,6 @@
 // Cliente HTTP de QuickBooks Online (OAuth 2.0 + API v3). `fetch` es inyectable para pruebas.
 import { getAppUrl } from "@/config/app";
+import { providerSideEffectsEnabled } from "@/lib/provider-policy";
 import { QBO_MINOR_VERSION, QBO_SCOPE, classifyQboError, type QboErrorKind } from "@/domain/quickbooks";
 
 export type FetchLike = typeof fetch;
@@ -12,8 +13,13 @@ export interface QboConfig {
   apiBase: string;
 }
 
-/** null si Intuit no está configurado (las pantallas lo muestran como "falta configuración"). */
+/**
+ * null si Intuit no está configurado (las pantallas lo muestran como "falta configuración") O si el entorno
+ * no autoriza efectos externos (PROVIDER_SIDE_EFFECTS): QuickBooks queda inerte y falla cerrado — conectar,
+ * sincronizar y revocar escriben en la contabilidad del taller.
+ */
 export function getQboConfig(): QboConfig | null {
+  if (!providerSideEffectsEnabled()) return null;
   const clientId = process.env.QBO_CLIENT_ID?.trim();
   const clientSecret = process.env.QBO_CLIENT_SECRET?.trim();
   if (!clientId || !clientSecret) return null;
