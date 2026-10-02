@@ -1,0 +1,64 @@
+name: Production DB backup (off-platform)
+
+# Daily logical dump of the Production Neon DB -> age-encrypted -> private Cloudflare R2 bucket.
+# Read-only against the DB (dedicated SELECT-only role). Restores are NEVER automated here.
+# Runbook: docs/operations-runbook.md. Required repository secrets are listed there.
+on:
+  schedule:
+    - cron: "17 6 * * *"   # 06:17 UTC daily, before the 08:00 UTC app crons
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install postgresql-client-18 and age
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-18 age
+          echo "/usr/lib/postgresql/18/bin" >> "$GITHUB_PATH"
+
+      - name: Dump + validate + encrypt
+        env:
+          DIRECT_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+          BACKUP_AGE_RECIPIENT: ${{ secrets.BACKUP_AGE_RECIPIENT }}
+        run: |
+          : "${DIRECT_URL:?BACKUP_DATABASE_URL secret missing}"
+          : "${BACKUP_AGE_RECIPIENT:?BACKUP_AGE_RECIPIENT secret missing}"
+          ./scripts/backup-db.sh out/
+
+      - name: Upload to R2 and verify
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.BACKUP_R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          R2_ENDPOINT: ${{ secrets.BACKUP_R2_ENDPOINT }}
+          R2_BUCKET: ${{ secrets.BACKUP_R2_BUCKET }}
+        run: |
+          f="$(cat out/LATEST)"; key="daily/$(basename "$f")"
+          aws s3 cp "$f" "s3://$R2_BUCKET/$key" --endpoint-url "$R2_ENDPOINT" --only-show-errors
+          aws s3 cp "$f.sha256" "s3://$R2_BUCKET/$key.sha256" --endpoint-url "$R2_ENDPOINT" --only-show-errors
+          remote="$(aws s3api head-object --bucket "$R2_BUCKET" --key "$key" --endpoint-url "$R2_ENDPOINT" --query ContentLength --output text)"
+          local_size="$(stat -c %s "$f")"
+          [ "$remote" = "$local_size" ] || { echo "size mismatch: remote=$remote local=$local_size" >&2; exit 1; }
+          echo "uploaded daily/$(basename "$f") ($local_size bytes)"
+
+      - name: Heartbeat (optional dead-man switch)
+        if: success()
+        env:
+          HEALTHCHECK_URL: ${{ secrets.BACKUP_HEALTHCHECK_URL }}
+        run: |
+          [ -z "$HEALTHCHECK_URL" ] || curl -fsS -m 10 --retry 3 "$HEALTHCHECK_URL" >/dev/null
