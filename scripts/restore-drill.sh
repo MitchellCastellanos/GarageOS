@@ -16,6 +16,8 @@ if [[ "$src" == *.age ]]; then
   dump="$(mktemp)"; trap 'rm -f "$dump"' EXIT
   age -d -i "$AGE_IDENTITY_FILE" -o "$dump" "$src"
 fi
-pg_restore --no-owner --no-privileges --exit-on-error -d "$RESTORE_TARGET_URL" "$dump"
+# The archive includes the `public` schema (for public._prisma_migrations); every database already has one, so skip its CREATE.
+list="$(mktemp)"; pg_restore --list "$dump" | grep -vE '^[0-9]+; [0-9]+ [0-9]+ SCHEMA - public ' > "$list"
+pg_restore --no-owner --no-privileges --exit-on-error --use-list="$list" -d "$RESTORE_TARGET_URL" "$dump"; rm -f "$list"
 psql "$RESTORE_TARGET_URL" -Atc "select 'Shop',count(*) from garageos.\"Shop\" union all select 'Client',count(*) from garageos.\"Client\" union all select 'Invoice',count(*) from garageos.\"Invoice\" union all select 'migrations',count(*) from public._prisma_migrations"
 echo "restore OK into scratch target. Now run: DIRECT_URL=\$RESTORE_TARGET_URL npx prisma migrate status"
