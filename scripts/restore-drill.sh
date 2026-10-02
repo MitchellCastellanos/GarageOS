@@ -17,5 +17,5 @@ if [[ "$src" == *.age ]]; then
   age -d -i "$AGE_IDENTITY_FILE" -o "$dump" "$src"
 fi
 pg_restore --no-owner --no-privileges --exit-on-error -d "$RESTORE_TARGET_URL" "$dump"
-psql "$RESTORE_TARGET_URL" -Atc "select 'Shop',count(*) from garageos.\"Shop\" union all select 'Client',count(*) from garageos.\"Client\" union all select 'Invoice',count(*) from garageos.\"Invoice\" union all select 'migrations',count(*) from garageos._prisma_migrations"
+psql "$RESTORE_TARGET_URL" -Atc "select 'Shop',count(*) from garageos.\"Shop\" union all select 'Client',count(*) from garageos.\"Client\" union all select 'Invoice',count(*) from garageos.\"Invoice\" union all select 'migrations',count(*) from public._prisma_migrations"
 echo "restore OK into scratch target. Now run: DIRECT_URL=\$RESTORE_TARGET_URL npx prisma migrate status"

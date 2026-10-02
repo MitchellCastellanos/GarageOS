@@ -9,11 +9,11 @@ set -euo pipefail
 : "${DIRECT_URL:?set DIRECT_URL to the DIRECT (non-pooled) connection string}"
 out="${1:-.}"; mkdir -p "$out"
 f="$out/garageos-$(date -u +%Y-%m-%dT%H%M%SZ).dump"
-pg_dump --format=custom --no-owner --no-privileges --schema=garageos --file="$f" "$DIRECT_URL"
+pg_dump --format=custom --no-owner --no-privileges --schema=garageos --schema=public --file="$f" "$DIRECT_URL"
 # Fail loudly on an empty/corrupt dump: the archive must be listable and contain the core tables.
 toc="$(pg_restore --list "$f")"
-for t in Shop Client Invoice Subscription; do
-  grep -Eq "TABLE garageos $t " <<<"$toc" || { echo "backup invalid: table $t missing from archive" >&2; rm -f "$f"; exit 1; }
+for t in garageos.Shop garageos.Client garageos.Invoice garageos.Subscription public._prisma_migrations; do
+  grep -Eq "TABLE ${t%%.*} ${t#*.} " <<<"$toc" || { echo "backup invalid: table $t missing from archive" >&2; rm -f "$f"; exit 1; }
 done
 if [ -n "${BACKUP_AGE_RECIPIENT:-}" ]; then
   age -r "$BACKUP_AGE_RECIPIENT" -o "$f.age" "$f"
