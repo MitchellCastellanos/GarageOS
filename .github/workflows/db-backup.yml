@@ -7,6 +7,9 @@ on:
   schedule:
     - cron: "17 6 * * *"   # 06:17 UTC daily, before the 08:00 UTC app crons
   workflow_dispatch: {}
+  push: # TEMPORARY first-run trigger on the launch branch only; remove before merge
+    branches: ["launch-agent-2/commercial-launch"]
+    paths: [".github/workflows/db-backup.yml"]
 
 permissions:
   contents: read
