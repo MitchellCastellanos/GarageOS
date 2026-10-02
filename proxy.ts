@@ -14,12 +14,28 @@ function hostWithoutPort(host: string): string {
   return host.split(":")[0].toLowerCase();
 }
 
+// Cache en memoria del proceso (por instancia serverless tibia) de host -> slug.
+// Evita un roundtrip a la BD por cada visita a "/" en un dominio propio/subdominio
+// — el único camino cacheable, ya que el matcher del proxy es solo "/". TTL corto:
+// un dominio recién verificado o desconectado tarda como mucho esto en reflejarse.
+const HOST_SLUG_CACHE_TTL_MS = 60_000;
+const hostSlugCache = new Map<string, { slug: string | null; expiresAt: number }>();
+
 /**
  * Resuelve el slug del taller a partir del Host de la request: por
  * subdominio (`taller.garageos.com`) o por dominio propio verificado
  * (`citas.sutaller.com`, guardado en ShopDomain). Ver docs/domain-model.md.
  */
 async function resolveShopSlugFromHost(host: string): Promise<string | null> {
+  const cached = hostSlugCache.get(host);
+  if (cached && cached.expiresAt > Date.now()) return cached.slug;
+
+  const slug = await resolveShopSlugFromHostUncached(host);
+  hostSlugCache.set(host, { slug, expiresAt: Date.now() + HOST_SLUG_CACHE_TTL_MS });
+  return slug;
+}
+
+async function resolveShopSlugFromHostUncached(host: string): Promise<string | null> {
   const rootDomain = getRootDomain();
 
   if (rootDomain && host !== rootDomain && host.endsWith(`.${rootDomain}`)) {

@@ -97,6 +97,6 @@ Stripe docs: a Price needs `tax_behavior` (`exclusive`/`inclusive`) **or** the a
 The risk is **Live**: if the live account has no default and the live overage Price is `unspecified`, monthly Checkout, the annual attach step and metered invoices would fail under automatic tax. Mitigation in code: `createCheckoutSession` now validates the overage Price before opening Checkout (`overagePriceProblem`): active, CAD, metered, monthly, 5¢, and `unspecified` only when the account default is set (it reads `tax.settings`; if that read isn't permitted the check is inconclusive and does not block). For Live, create the overage Price with `tax_behavior=exclusive` or set the default — still pending (Stripe Live is last).
 
 ## 6. What is NOT done yet
-- Vercel env: no variable was changed. **`PROVIDER_SIDE_EFFECTS=enabled` must be added to Production as part of the env-isolation step, before deploying this code**, or Production will stop sending SMS/email/realtime/Telegram (fail closed by design).
-- Separate Preview/Production records for Stripe, NEXTAUTH, Pusher, Google, cron, Resend; removal of Twilio/Telegram/admin credentials from Preview.
-- Stripe TEST validation (Test Clock pass, card `4000 0000 0000 0341`) remains pending; Stripe Live remains **last**.
+
+**Update (2026-10-01, Launch Agent 1, read live via the Vercel API):** the two env-isolation items below are now **done**. `PROVIDER_SIDE_EFFECTS` is `enabled` in Production and `disabled` in Preview (plaintext values read directly). Stripe/NEXTAUTH/Pusher/Google/cron/Resend/Twilio/Telegram/admin credentials are now separate-or-absent per environment — see the re-verified table in `docs/compliance/subprocessors.md` → "Environment separation". Only the item below remains:
+- Stripe TEST validation (Test Clock pass, card `4000 0000 0000 0341`) remains pending; Stripe Live remains **last** (both explicitly out of this agent's scope).

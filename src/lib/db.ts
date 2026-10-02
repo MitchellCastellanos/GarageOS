@@ -5,7 +5,11 @@ import { Pool } from "pg";
 // Prisma v7 usa el motor WASM con driver adapter explícito.
 // Usamos pg.Pool para poder configurar SSL — requerido por Supabase en producción.
 function createPrismaClient() {
-  const connectionString = process.env.DATABASE_URL ?? "";
+  // DATABASE_URL_POOLED (cuando existe) apunta al pooler de Neon/Supabase (PgBouncer-style):
+  // cada invocación serverless abre su propio pg.Pool, así que sin un pooler aguas arriba
+  // se agotan las conexiones directas bajo concurrencia. DATABASE_URL sigue siendo el
+  // fallback (desarrollo local, o cualquier entorno sin variable *_POOLED).
+  const connectionString = process.env.DATABASE_URL_POOLED || process.env.DATABASE_URL || "";
   const isLocalHost = /localhost|127\.0\.0\.1/.test(connectionString);
 
   const pool = new Pool({
