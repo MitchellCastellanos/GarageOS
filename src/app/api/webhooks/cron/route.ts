@@ -147,9 +147,20 @@ export async function GET(request: Request) {
         continue;
       }
 
+      // Reclama la cita antes de avisar (guardado por reminderSentAt: null) para que
+      // una ejecución solapada del cron (reintento de Vercel, disparo manual) no
+      // vuelva a enviar el mismo recordatorio: recordAppointmentEvent genera un
+      // idempotencyKey nuevo por evento, así que la deduplicación del outbox no
+      // alcanza a cubrir dos corridas concurrentes sobre la misma cita.
+      const claim = await db.appointment.updateMany({
+        where: { id: appointment.id, reminderSentAt: null },
+        data: { reminderSentAt: now },
+      });
+      if (claim.count === 0) continue;
+
       try {
-        // Registra el recordatorio en el historial de la cita y marca
-        // reminderSentAt si salió por algún canal (ver recordAppointmentEvent).
+        // Registra el recordatorio en el historial de la cita y re-marca
+        // reminderSentAt (ver recordAppointmentEvent) si salió por algún canal.
         const { notice } = await recordAppointmentEvent({
           appointment,
           type: "REMINDER_SENT",
@@ -158,12 +169,19 @@ export async function GET(request: Request) {
         });
 
         if (!notice?.anySent) {
+          // No se pudo avisar: libera la reclamación para reintentar en la próxima corrida.
+          await db.appointment
+            .updateMany({ where: { id: appointment.id, reminderSentAt: now }, data: { reminderSentAt: null } })
+            .catch((err) => console.error(`[cron] no se pudo liberar recordatorio ${appointment.id}:`, err));
           results.appointmentReminders.errors++;
           continue;
         }
 
         results.appointmentReminders.sent++;
       } catch (err) {
+        await db.appointment
+          .updateMany({ where: { id: appointment.id, reminderSentAt: now }, data: { reminderSentAt: null } })
+          .catch(() => {});
         console.error(`Error enviando recordatorio de cita ${appointment.id}:`, err);
         results.appointmentReminders.errors++;
       }
