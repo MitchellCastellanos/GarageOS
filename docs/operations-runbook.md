@@ -20,6 +20,15 @@ Storage for files; Stripe, Twilio, Resend, QuickBooks Online as providers; Verce
 2. Independent **weekly** encrypted logical dump + storage copy, kept off-platform 4–8 weeks (retention is a recorded decision in `retention-destruction.md`): `DIRECT_URL=… ./scripts/backup-db.sh out/` and `npx tsx scripts/backup-storage.ts out/storage` (both read-only). Encrypt before uploading anywhere (`age`/`gpg`); never commit dumps.
 3. Take a fresh dump before any deploy that contains a migration.
 
+**Independent off-platform DB backup (Launch Agent 2 — workflow committed; ACTIVE only after operator setup below)**
+- Schedule: `.github/workflows/db-backup.yml`, daily 06:17 UTC (+ manual `workflow_dispatch`). Flow: `pg_dump` (custom format, PG18 client) of schema `garageos` → archive validated (`pg_restore --list`, core tables present) → encrypted with `age` to a public recipient key → uploaded to a **private Cloudflare R2 bucket** → size verified via `head-object`. The runner never holds the age private key, so it cannot decrypt.
+- Retention: R2 lifecycle rule deletes objects under `daily/` after 30 days. Neon PITR (currently 6 h, Free plan) is the first line; this dump is the second (survives Neon account loss).
+- Credentials (GitHub repo secrets, never in chat/commits): `BACKUP_DATABASE_URL` (direct, non-pooled URL of a dedicated **SELECT-only** Neon role `backup_ro`), `BACKUP_AGE_RECIPIENT` (age *public* key), `BACKUP_R2_ACCESS_KEY_ID`, `BACKUP_R2_SECRET_ACCESS_KEY` (token scoped to this one bucket, Object Read & Write), `BACKUP_R2_ENDPOINT`, `BACKUP_R2_BUCKET`, optional `BACKUP_HEALTHCHECK_URL`. The age **private** key lives only in the owner's password manager + one offline copy.
+- Failure detection: a failed run emails the repo owner (GitHub default); the optional healthchecks.io ping alerts if no success arrives (also covers GitHub disabling schedules after 60 days of repo inactivity — public repos).
+- RPO: ≤ 24 h for the off-platform copy (≤ 6 h via Neon PITR while the Neon project is healthy). RTO (realistic): Neon branch/PITR restore ≈ minutes; restore from R2 dump ≈ 30–60 min (download, decrypt, `pg_restore` into new Postgres, `prisma migrate status`, repoint Vercel env, redeploy). Owner: Mitchell (Privacy Officer / operator).
+- Restore drill from R2: `age -d` → `scripts/restore-drill.sh` into an **isolated scratch Neon branch/database only** (the script refuses non-empty targets and targets equal to the shell's DB URLs). Never restore over Production.
+- Not covered: Supabase Storage objects (`scripts/backup-storage.ts` is manual; separate decision).
+
 **Restore procedure**
 - DB: create an empty Postgres → `pg_restore --no-owner -d <new-url> garageos-YYYY-MM-DD.dump` → `npx prisma migrate status` (must report up to date) → point `DATABASE_URL`/`DIRECT_URL`/`DATABASE_URL_POOLED` at it in Vercel → redeploy. Provider restores (Supabase dashboard/PITR) take the project offline while running.
 - Storage: re-upload the copied files into the same bucket names and **same paths** (paths are the keys stored in the DB). Private buckets must be created private (`accounting`, `communications`); `public-assets` public.
