@@ -21,6 +21,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false   # the job never pushes; do not leave the repo token in .git/config
 
       - name: Install postgresql-client-18 and age
         run: |
@@ -35,6 +37,7 @@ jobs:
         env:
           DIRECT_URL: ${{ secrets.BACKUP_DATABASE_URL }}
           BACKUP_AGE_RECIPIENT: ${{ secrets.BACKUP_AGE_RECIPIENT }}
+          BACKUP_PLAINTEXT_DIR: /dev/shm/garageos-backup   # RAM-backed: the transient plaintext never hits disk
         run: |
           : "${DIRECT_URL:?BACKUP_DATABASE_URL secret missing}"
           : "${BACKUP_AGE_RECIPIENT:?BACKUP_AGE_RECIPIENT secret missing}"

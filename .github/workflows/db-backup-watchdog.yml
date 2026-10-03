@@ -1,0 +1,39 @@
+name: Production DB backup watchdog
+
+# Independent freshness check for the off-platform DB backup (docs/operations-runbook.md).
+# Needs no new credentials: it reuses the backup bucket secrets and only LISTS the bucket. If the newest
+# `daily/garageos-*.dump.age` object is missing or older than MAX_AGE_HOURS the job FAILS, and GitHub emails the
+# repo owner about the failed run. This catches "the backup job ran but nothing was uploaded", a revoked R2 token
+# or a broken schedule. It does NOT catch GitHub disabling ALL scheduled workflows after 60 days without repo
+# activity — that gap is closed only by the external dead-man's switch (BACKUP_HEALTHCHECK_URL, healthchecks.io).
+on:
+  schedule:
+    - cron: "47 18 * * *"   # after the backup (06:17 UTC, observed up to ~6 h late) should have finished
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  freshness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Newest backup must be younger than MAX_AGE_HOURS
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.BACKUP_R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          R2_ENDPOINT: ${{ secrets.BACKUP_R2_ENDPOINT }}
+          R2_BUCKET: ${{ secrets.BACKUP_R2_BUCKET }}
+          MAX_AGE_HOURS: "30"
+        run: |
+          : "${R2_ENDPOINT:?BACKUP_R2_ENDPOINT secret missing}" "${R2_BUCKET:?BACKUP_R2_BUCKET secret missing}"
+          line="$(aws s3api list-objects-v2 --bucket "$R2_BUCKET" --prefix daily/garageos- --endpoint-url "$R2_ENDPOINT" \
+            --query "sort_by(Contents[?ends_with(Key, '.dump.age')], &LastModified)[-1].[Key,LastModified,Size]" --output text)"
+          if [ -z "$line" ] || [ "$line" = "None" ]; then echo "::error::no backup object found under daily/"; exit 1; fi
+          key="$(echo "$line" | cut -f1)"; modified="$(echo "$line" | cut -f2)"; size="$(echo "$line" | cut -f3)"
+          age_h=$(( ( $(date -u +%s) - $(date -u -d "$modified" +%s) ) / 3600 ))
+          echo "newest: $key · ${size} bytes · ${age_h} h old (limit ${MAX_AGE_HOURS} h)"
+          [ "$size" -gt 10000 ] || { echo "::error::newest backup is suspiciously small ($size bytes)"; exit 1; }
+          [ "$age_h" -le "$MAX_AGE_HOURS" ] || { echo "::error::newest backup is ${age_h} h old"; exit 1; }

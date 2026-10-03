@@ -19,12 +19,28 @@ export interface PlatformMessagePayload {
   createdAt: string;
 }
 
+/**
+ * What actually crosses Pusher for a support message: an opaque SIGNAL (message id, sender role, timestamp) —
+ * never the text. Receivers refetch the conversation through an authenticated server action. Privacy minimization:
+ * free text typed into support chat can contain personal information (docs/compliance/privacy-impact-assessment.md).
+ */
+export interface PlatformMessageSignal {
+  id: string;
+  sender: PlatformMessagePayload["sender"];
+  createdAt: string;
+}
+
+export function toPlatformMessageSignal(message: PlatformMessagePayload): PlatformMessageSignal {
+  return { id: message.id, sender: message.sender, createdAt: message.createdAt };
+}
+
 /** Best-effort — el realtime nunca debe tumbar el flujo de mensajería; el fallback es refrescar la página. */
 export async function publishPlatformMessage(conversationId: string, message: PlatformMessagePayload): Promise<void> {
   const pusher = getPusherForPublish();
   if (!pusher) return;
   try {
-    await pusher.trigger(platformConversationChannel(conversationId), "message", message);
+    // The content is deliberately dropped here, at the single publish boundary, whatever the caller passes.
+    await pusher.trigger(platformConversationChannel(conversationId), "message", toPlatformMessageSignal(message));
   } catch (e) {
     console.error("[platform/pusher] publishPlatformMessage falló:", e);
   }
