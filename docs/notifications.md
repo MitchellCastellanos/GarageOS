@@ -203,6 +203,10 @@ Eventos: `STAFF_NEW_WEB_BOOKING`, `STAFF_CLIENT_CANCELLED_APPOINTMENT`,
   (`staff-notifications-{userId}` — nunca por taller, para que un compañero no vea
   las notificaciones de otro). Sin Pusher configurado, sigue funcionando por
   polling al abrir el menú.
+  **Privacidad (2026-10-02):** el evento de Pusher es solo una señal `{id, section, createdAt}` — sin
+  título, cuerpo ni enlace (llevan nombres de clientes, texto de SMS e ids de registros); la campana
+  vuelve a pedir la lista con `getMyStaffNotifications()` (acción autenticada). Ver
+  `src/lib/staff-notify-realtime.ts` y la EFVP (flujo 7).
 - **Preferencias**: Configuración → Notificaciones → "Alertas internas del equipo"
   (solo owners, mismo destinatario que las alertas). Un evento no puede quedar con
   los dos canales apagados (dejaría de existir para esa persona sin ningún rastro).

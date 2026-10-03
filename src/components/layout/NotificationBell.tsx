@@ -11,6 +11,7 @@ import {
   type StaffNotificationRow,
 } from "@/actions/staff-notifications";
 import { formatDate } from "@/lib/utils";
+import { coalescedRefresh } from "@/lib/realtime-refresh";
 import { PUSHER_CLIENT_AUTH, staffNotificationChannel } from "@/lib/platform/pusher-channels";
 import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
 import { NOTIFICATION_BELL_DICT } from "@/lib/admin-locale/notifications-bell";
@@ -42,9 +43,18 @@ export function NotificationBell({ userId, initialNotifications, initialUnreadCo
       const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, { cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!, ...PUSHER_CLIENT_AUTH });
       const channelName = staffNotificationChannel(userId);
       const channel = pusher.subscribe(channelName);
-      const handler = (notification: StaffNotificationRow) => {
-        setNotifications((prev) => (prev.some((n) => n.id === notification.id) ? prev : [notification, ...prev].slice(0, 30)));
-        setUnreadCount((c) => c + 1);
+      // The event is only a signal (id/section/time — no title, body or link): refetch the list through the
+      // session-checked server action, so customer names / message text never travel through Pusher.
+      const refresh = coalescedRefresh(
+        async () => {
+          const fresh = await getMyStaffNotifications();
+          setNotifications(fresh.notifications);
+          setUnreadCount(fresh.unreadCount);
+        },
+        (err) => console.error("[NotificationBell] refresh falló:", err)
+      );
+      const handler = () => {
+        void refresh();
       };
       channel.bind("notification", handler);
       unsub = () => {

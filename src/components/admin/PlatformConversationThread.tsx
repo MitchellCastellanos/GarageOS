@@ -4,7 +4,8 @@ import { PUSHER_CLIENT_AUTH, platformConversationChannel } from "@/lib/platform/
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { sendPlatformReply, closePlatformConversation } from "@/actions/platform-messages";
+import { sendPlatformReply, closePlatformConversation, getPlatformConversationMessages } from "@/actions/platform-messages";
+import { coalescedRefresh } from "@/lib/realtime-refresh";
 import { PLATFORM } from "@/lib/routes";
 import { ArrowLeft, Loader2, Send, X } from "lucide-react";
 
@@ -44,8 +45,13 @@ export function PlatformConversationThread({
       if (cancelled) return;
       const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, { cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!, ...PUSHER_CLIENT_AUTH });
       const channel = pusher.subscribe(platformConversationChannel(conversationId));
-      const handler = (message: PlatformMessageRow) => {
-        setMessages((prev) => (prev.some((m) => m.id === message.id) ? prev : [...prev, message]));
+      // The event is only a signal (id/sender/time — no text): refetch through the authenticated super-admin action.
+      const refresh = coalescedRefresh(
+        async () => setMessages(await getPlatformConversationMessages(conversationId)),
+        (err) => console.error("[PlatformConversationThread] refresh falló:", err)
+      );
+      const handler = () => {
+        void refresh();
       };
       channel.bind("message", handler);
       unsub = () => {
