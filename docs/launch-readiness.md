@@ -6,6 +6,7 @@ items marked *REQUIRED BEFORE FIRST CUSTOMER* below are done (all are configurat
 
 - Audit date: 2026-09-30 · Branch `claude/launch-hardening-final` (base `origin/main` = `2bfef2e`, unchanged during the audit).
 - Master plan: `docs/product-completion-plan.md` (Blocks 15/16). Runbook: `docs/operations-runbook.md`.
+- **2026-10-02 PRE-LIVE status:** engineering-ready to begin the Stripe LIVE cutover, conditional on operator inputs — see "Pre-LIVE closure (Launch Agent 3)" below, `docs/stripe-live-cutover.md` and `docs/stripe-live-dress-rehearsal.md`. The final GO/NO-GO is **not** issued yet (Stripe LIVE + Production dress rehearsal pending).
 
 ## Automated quality gates (final run)
 
@@ -126,6 +127,50 @@ Scope: Pusher/realtime, Google OAuth, cron/scheduled jobs, Neon/DB/backup-restor
   - `src/lib/db.ts` created its Prisma `pg.Pool` from `DATABASE_URL` only, ignoring the already-provisioned `DATABASE_URL_POOLED` Vercel variable (set in both Preview and Production but never read anywhere in the codebase) — under serverless concurrency, each cold invocation opening its own pool against a non-pooled Neon endpoint risks connection exhaustion. **Fixed**: `db.ts` now prefers `DATABASE_URL_POOLED`, falling back to `DATABASE_URL` (unchanged behavior for local dev, where only `DATABASE_URL` is set).
   - `proxy.ts` (custom-domain/subdomain → shop-slug resolution, runs on every request to `/` for a non-canonical host) did a Prisma lookup per request with no caching. **Fixed**: added a 60-second in-memory host→slug cache per warm serverless instance (scoped to the proxy's `/`-only matcher; a newly verified/removed domain takes effect within 60s).
   Runtime latency spot-checks against Production (`www.garage-os.ca`): homepage, `/pricing`, `/admin/login` all returned 200 with warm TTFB well under 400ms; a cold-start first hit on `/admin/login` was ~1.5s, normal for Vercel serverless. No pathological payload, broken caching, or unacceptable latency found on the paths checked. Dashboard/clients/appointments/invoices pages were reviewed for N+1 queries and oversized server→client payloads at the code level only (not load-tested): none found — list actions use single `findMany` calls with scoped `select`/`include`.
+
+## Pre-LIVE closure (Launch Agent 3, 2026-10-02)
+
+Scope: everything that can be finished **before** Stripe LIVE. Out of scope by design and **not done**: any Stripe LIVE read/write, Production Stripe env changes, the Production dress rehearsal, the final rollback/failure verification and the **final GO/NO-GO** (that decision is issued only by the final LIVE agent). Real external actions taken: none that mutate anything — read-only reads of GitHub (PR/secret names/run list), Stripe **TEST** (catalog, webhook endpoints, portal, tax settings), Supabase `storage.objects` counts, Vercel env keys (key/target/type only, nothing decrypted), and official web sources. PR #75 was verified **merged** (`487cfe6`) before starting; this branch is based on it.
+
+### Pre-LIVE evidence matrix
+
+| Item | Status | Evidence / where |
+|---|---|---|
+| PR #75 (backup/restore) merged; synced | **CLOSED** | `git log origin/main` → merge `487cfe6` |
+| Off-platform DB backup scheduled and restore-drilled | **CLOSED** | `db-backup` scheduled run green 2026-10-02; drill PASS (runbook "Restore drill log") |
+| Backup freshness monitoring (in-repo) | **CLOSED** in this PR, **verify after merge** | `.github/workflows/db-backup-watchdog.yml`; run it once after merge |
+| External dead-man's switch (`BACKUP_HEALTHCHECK_URL`) | **OPERATOR INPUT REQUIRED** | Not configured (`gh secret list` shows no such secret); steps in runbook "Backup health monitoring" |
+| Supabase Storage backup | **CLOSED as a decision**; activation **OPERATOR INPUT REQUIRED** before the first paying shop uses uploads | Current content: 5 test objects (8.2 MB) + 2 logos; not launch-blocking today; inert workflow + hardened `scripts/backup-storage.ts` prepared (runbook "Supabase Storage backup") |
+| Neon Free-plan limits (6 h PITR, branch protection off) documented with compensating controls | **CLOSED** (documentation); enabling branch protection / raising PITR = **OPERATOR INPUT REQUIRED** | runbook "Neon Free-plan limitations…" |
+| Incident / rollback / recovery playbooks (9 scenarios incl. bad deploy, bad migration, webhook failure, provider/DB outage, config error, restricted billing, restore/repoint) | **CLOSED** | runbook "Incident, rollback and recovery playbooks" |
+| Vercel bypass token in a Stripe **TEST** webhook URL | **OPERATOR INPUT REQUIRED** (rotation is a two-system change; not performed) | runbook "Security token follow-ups"; token not in repo, not recorded |
+| Invoice download token has no expiry/rate limit | **POST-LAUNCH FOLLOW-UP** | PIA §7 item 9; 192-bit random token |
+| Legal/compliance verification vs official sources | **CLOSED** (document) with open sub-items below | `docs/compliance/legal-verification-2026-10-02.md` (note: Légis Québec/CRTC primary pages were not reachable; flagged there) |
+| Data residency (Neon Ohio) | **CLOSED as classification: B** — documented cross-border-transfer/EFVP obligation, not a prohibition, not a demonstrated blocker | same document §3 |
+| Privacy impact assessment complete and signed off | **OPERATOR INPUT REQUIRED** (needs DPAs filed incl. Neon, residency/US-adequacy decision, counsel review) — **gates the first paying customer**, not the rehearsal | PIA status "Not complete" |
+| Legal identity block, NEQ, legal-notice address, GST/QST status | **OPERATOR INPUT REQUIRED** | placeholders only (`TODO-OPERATOR`); no numbers in repo |
+| Public contact mailbox | **OPERATOR INPUT REQUIRED** | `NEXT_PUBLIC_CONTACT_EMAIL` not set in Vercel → page shows fallback `hello@garageos.app` (ownership unconfirmed) |
+| Terms governing-law/entity clause; statutory retention periods; complaint-handling publication | **OPERATOR INPUT REQUIRED** (counsel) | legal-verification F4, L2 |
+| Tabletop incident exercise | **OPERATOR INPUT REQUIRED** | incident register still empty |
+| Stripe LIVE resource manifest, creation order, ID→env mapping, webhook/portal/dunning verification, rollback | **CLOSED** (plan) | `docs/stripe-live-cutover.md` |
+| Non-executed LIVE provisioning script (fail-closed, idempotent, account-pinned, no secrets) | **CLOSED** (prepared, not run; fail-closed paths exercised locally with no network) | `scripts/stripe-live-provision.mjs` |
+| Publishable key | **CLOSED** — not required (hosted Checkout/Portal, no Stripe.js) | `src/lib/stripe.ts` |
+| Production dress-rehearsal checklist | **CLOSED** (prepared) → execution **DRESS REHEARSAL REQUIRED** | `docs/stripe-live-dress-rehearsal.md` |
+| Stripe LIVE catalog, meter, webhook endpoint, portal, dunning setting, Tax registrations | **STRIPE LIVE REQUIRED** | cutover doc §3 |
+| Production `STRIPE_*` env update (9 variables) and redeploy; Production's current key is TEST or LIVE (unverified) | **STRIPE LIVE REQUIRED** | cutover doc §3 step 6 |
+| Delete/disable the TEST endpoint that targets `www.garage-os.ca` | **STRIPE LIVE REQUIRED** (at cutover) | cutover doc §3 step 8 |
+| Checkout LIVE ($0 today / future amount / tax), webhook 2xx, entitlements, duplicate-checkout, cancel/resume, no free-Core, demo→paid same Shop, demo SMS exclusion, normal SMS allowance, no duplicate messages | **DRESS REHEARSAL REQUIRED** | dress-rehearsal doc |
+| Final rollback/failure verification; GO/NO-GO | **DRESS REHEARSAL REQUIRED** (final agent) | — |
+| Stripe `preferred_locales` / French Stripe-hosted receipts; Guides/Blog in French; maintenance-reminder CASL basis; shared-number Twilio path / A2P; additional-location billing; storage deletion job; QuickBooks live validation | **POST-LAUNCH FOLLOW-UP** | cutover §7, legal-verification, existing accepted limitations |
+
+### Corrections to earlier text in this file (state as of 2026-10-02)
+- "REQUIRED BEFORE FIRST CUSTOMER" item 4 (backups) is now substantially closed: the dump runs daily off-platform and was restore-drilled; what remains open is the external heartbeat and (before real uploads) the storage backup.
+- Items 1–2 (Stripe Prices/TEST E2E) were completed for **TEST** by earlier agents; the LIVE equivalents are the cutover session's job.
+- PIA blockers 3 (storage privacy migration), 4 (Preview separation) and 5 (backups/first restore test) are done (see `storage-privacy.md`, "Environment separation" above, runbook). Blockers 1–2 (record the Neon facts; residency decision) are now answered in fact (Neon Free, us-east-2, 6 h PITR) and classified (B) — the **decision record and PIA sign-off remain with the operator**.
+
+### PRE-LIVE READINESS conclusion
+**Question: is GarageOS ready to begin the Stripe LIVE cutover session once the operator supplies the required business facts/access?**
+**Answer: YES — engineering-ready, conditional on operator inputs.** Evidence: (1) the billing code is fail-closed and fully inventoried — nine Stripe variables, no publishable key, Price/overage guards at every Checkout, LIVE mutations reachable only through `PROVIDER_SIDE_EFFECTS=enabled` (already set in Production); (2) the full TEST lifecycle (trial, overage attachment, duplicate protection, webhook idempotency, past_due→RESTRICTED→recovery, annual) is proven by earlier agents; (3) Twilio, Resend and Google OAuth are Production-validated for the paths the rehearsal relies on; (4) data is independently backed up and restore-proven, and monitoring/rollback/incident procedures are written; (5) the LIVE manifest, deterministic script, verification and rollback steps and the dress-rehearsal sequence are prepared and reviewed against code. **Conditions (not blockers to *starting*, but to the final GO):** operator supplies the LIVE account/access mechanism, entity facts and GST/QST status; the PIA/DPA/counsel items and `NEXT_PUBLIC_CONTACT_EMAIL` are closed before the first paying customer; the external backup heartbeat is created; Production's current Stripe key mode (TEST/LIVE) is read at cutover step 6 and any pre-existing Stripe ids in Production `Subscription` rows are reviewed (pre-flight DB check, cutover §3 step 2). This is a readiness statement only — **no GO/NO-GO is issued here.**
 
 ## OPTIONAL / POST-LAUNCH
 

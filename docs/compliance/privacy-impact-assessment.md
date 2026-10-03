@@ -109,6 +109,13 @@ Tenant authorization tests (129 cross-tenant attack cases per `docs/launch-readi
 **POST-LAUNCH HARDENING**
 11. Private (authenticated) Pusher channels. 12. Storage retention/deletion job per record class. 13. Re-run this PIA before enabling QuickBooks, any AI provider, new tracking, or new region/provider. 14. Consider Vercel runtime-log retention and log drain policy.
 
+## 7a. Status update 2026-10-02 (Launch Agent 3)
+- Blocker 1 facts now recorded: Neon **Free** plan, project region `aws-us-east-2`, Postgres 18, PITR window 6 h, Production branch protection off; independent daily encrypted off-platform backup exists and was restore-drilled (see `operations-runbook.md`). Neon DPA/sub-processors/console access list: still to be filed by the operator.
+- Blocker 2: classified against official sources as a **documented cross-border-transfer/EFVP obligation, not a prohibition** (`legal-verification-2026-10-02.md` §3). The residency *decision record* (stay in the USA with DPAs vs Canadian region) and the "adequate protection" conclusion remain with the Privacy Officer/counsel.
+- Blockers 3 (storage privacy migration, completed 2026-09-30), 4 (Preview separation, verified 2026-10-01) and 5 (backups + first restore test) are done.
+- Supabase Storage currently holds only test objects and two logos (read 2026-10-02); automated storage backup is prepared and becomes required before real uploads (runbook).
+- This assessment stays **"Not complete"** until the operator closes the DPA/legal items; it gates the first paying customer.
+
 ## Decisions
 Privacy Officer contact is public. Public privacy information is bilingual. French Terms are available in the same technological channel as English. Material new integrations, tracking, automated decisions or new categories of personal information trigger PIA review.
 
