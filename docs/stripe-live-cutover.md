@@ -37,13 +37,12 @@ Annual = 10 × monthly (1,990 / 2,990 / 4,490). Public copy keeps SMS allowances
 
 **Product tax code:** `txcd_10103001` on all four products (identical to the TEST catalog; Stripe's "SaaS — business use" code). *Business/accounting confirmation needed* that this is the intended taxability classification for Quebec before LIVE.
 
-**Billing Meter** (Billing → Meters; the MCP/TEST read could not list meters — the TEST meter was confirmed only through the TEST overage Price's `recurring.meter` link):
-- `event_name`: **`garageos_sms_overage`** → `STRIPE_SMS_OVERAGE_METER_EVENT_NAME` (any name works as long as env and meter match; this one is chosen by the script).
-- Aggregation: **sum** (code sends one event per message with `value` = overage segments).
-- Customer mapping: **by_id**, payload key **`stripe_customer_id`** (code: `payload.stripe_customer_id`).
-- Value: payload key **`value`**; code sends `String(segments)`.
-- Idempotency: code sets `identifier: sms-overage:<CommunicationMessage.id>`; timestamps ≤ 34 days old.
-- No other billing configuration is required. Demo-origin messages are never reported (`salesDemoOriginId` check inside `reportSmsOverageUsage`).
+**Billing Meter** — canonical contract, traced end to end (resolved 2026-10-02; an earlier draft of this file wrongly proposed `garageos_sms_overage`, an invention not derived from code or TEST):
+- **Event name: `sms_overage_segments`** → `STRIPE_SMS_OVERAGE_METER_EVENT_NAME`. Source of truth in the app: `smsOverageMeterEventName()` in `src/lib/stripe.ts` reads **only** that env var (trimmed). It is **not hardcoded and has no default**: if absent, `isSmsOverageBillingConfigured()` is false and `reportSmsOverageUsage()` returns false without calling Stripe — overage is then never billed (the daily cron keeps retrying pending reports for ≤30 days). The app sends whatever the env says, so the Stripe meter's `event_name` and the Vercel variable **must be identical**.
+- Evidence for the value: the working TEST meter `mtr_test_61VU3o…` (read-only, via its `billing.meter.created` event `evt_1UKfrG…`, 2026-09-29) has `event_name: "sms_overage_segments"`, display name "SMS overage segments", `default_aggregation.formula: sum`, `customer_mapping {type: by_id, event_payload_key: stripe_customer_id}`, `value_settings.event_payload_key: value`, `event_time_window: null`; the plaintext Preview (TEST) Vercel variable `STRIPE_SMS_OVERAGE_METER_EVENT_NAME` is `sms_overage_segments` (Production's is encrypted, mode/value not read). The test suites use other placeholders (`sms_overage`, `local_sms`) that are fixtures, not contracts. No earlier doc records a meter **event** emitted in TEST (launch-readiness: none in Production either) — the TEST E2E proved the metered item *attachment*; the emission path (`billing.meterEvents.create`) is exercised by the dress rehearsal's optional meter step.
+- Aggregation **sum**; customer mapping **by_id** on payload key **`stripe_customer_id`**; value payload key **`value`**, sent as `String(segments)`; **unit = SMS segments** (Twilio's actual `numSegments` minus the monthly allowance remainder — `computeOverageSegments`), not messages; price $0.05 CAD per segment.
+- Idempotency/timestamp: `identifier: sms-overage:<CommunicationMessage.id>`; message timestamp when ≤ 34 days old. Demo-origin messages are never reported.
+- No other billing configuration is required. There is **no justified migration** from the TEST name; do not rename a proven billing contract. `scripts/stripe-live-provision.mjs` uses the same value and, in `apply` mode, aborts before creating anything further if an existing LIVE product/meter/price disagrees with the manifest (verify/plan record the PROBLEM and exit non-zero).
 
 **Tax (Stripe Tax) — decision depends on business facts, do not assume:**
 - Checkout is created with `automatic_tax.enabled = true`, `billing_address_collection: required`, `tax_id_collection.enabled = true`, `customer_update {address,name: auto}`. Stripe Tax must be **active** with head office (CA / QC) and the default tax behavior `exclusive`; TEST currently shows exactly that.
@@ -91,7 +90,7 @@ Not available to the preparing session: no LIVE Stripe account is connected to t
 | `STRIPE_PRICE_PRO_MONTHLY` / `…_PRO_YEARLY` | `garageos_pro_*` |
 | `STRIPE_PRICE_COMPLETE_MONTHLY` / `…_COMPLETE_YEARLY` | `garageos_complete_*` |
 | `STRIPE_SMS_OVERAGE_PRICE_ID` | `garageos_sms_overage_monthly` |
-| `STRIPE_SMS_OVERAGE_METER_EVENT_NAME` | `garageos_sms_overage` |
+| `STRIPE_SMS_OVERAGE_METER_EVENT_NAME` | `sms_overage_segments` (must equal the LIVE meter's `event_name`; no app default) |
 
    Keep `PROVIDER_SIDE_EFFECTS=enabled`; keep `STRIPE_TEST_MUTATIONS` absent from Production; **do not touch Preview's Stripe variables** (Preview stays TEST). Capture the previous Production values (operator's secret store) before overwriting — they are the rollback.
 7. Redeploy Production; confirm the new deployment is `READY` and that nothing else changed.
@@ -125,6 +124,8 @@ Not available to the preparing session: no LIVE Stripe account is connected to t
 2. GST/HST and QST registration status and Stripe Tax registrations — decides whether LIVE Checkout charges tax. *TODO-OPERATOR; never commit numbers.*
 3. LIVE Stripe account id + the access mechanism in §2.
 4. Confirmation that product tax code `txcd_10103001` is the intended classification.
+
+Not a blocker to the cutover: the EFVP sign-off and the Neon/Pusher agreement confirmations (`docs/compliance/privacy-impact-assessment.md` §7) gate the first **non-operator personal information** in Production, not Stripe LIVE activation or the operator-only rehearsal.
 
 ## 7. Follow-ups discovered (non-blocking, not changed in this session)
 

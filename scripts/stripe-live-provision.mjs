@@ -34,8 +34,10 @@ const PLANS = [
 const OVERAGE = {
   productKey: "sms_overage",
   productName: "SMS overage",
-  meterEventName: "garageos_sms_overage", // -> STRIPE_SMS_OVERAGE_METER_EVENT_NAME
-  meterDisplayName: "GarageOS SMS overage segments",
+  // Canonical contract = the proven TEST meter (billing.meter.created evt_1UKfrG…, 2026-09-29) and the TEST/Preview
+  // value of STRIPE_SMS_OVERAGE_METER_EVENT_NAME. The app has NO default: it sends exactly the env value.
+  meterEventName: "sms_overage_segments", // -> STRIPE_SMS_OVERAGE_METER_EVENT_NAME
+  meterDisplayName: "SMS overage segments",
   lookupKey: "garageos_sms_overage_monthly",
   unitAmountDecimal: "5", // CAD cents per segment = $0.05
 };
@@ -263,15 +265,25 @@ async function verifyPortal() {
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
+// In apply mode never create anything on top of an existing resource that already disagrees with the manifest.
+function guardApply() {
+  if (MODE === "apply" && problems.length) {
+    for (const p of problems) console.error(`PROBLEM: ${p}`);
+    die("existing LIVE resources disagree with the manifest — aborting before creating anything else", 4);
+  }
+}
+
 async function main() {
   console.log(`GarageOS Stripe LIVE ${MODE.toUpperCase()}${MODE === "apply" ? " (WRITES ENABLED)" : " (read-only)"}`);
   await assertAccount();
 
   const overageProduct = await ensureProduct(OVERAGE.productKey, OVERAGE.productName, "SMS segments beyond the plan's monthly allowance — GarageOS");
   const meter = await ensureMeter();
+  guardApply();
   ids.STRIPE_SMS_OVERAGE_METER_EVENT_NAME = OVERAGE.meterEventName;
   for (const plan of PLANS) {
     const product = await ensureProduct(plan.key, plan.name, `${plan.name} plan`);
+    guardApply();
     await ensurePlanPrice(plan, product, "monthly");
     await ensurePlanPrice(plan, product, "yearly");
   }
