@@ -131,6 +131,6 @@ export function DemoAssetEditor({ demoId, kind, initialUrl, locale }: {
       }}>{copied ? t.copied : t.copy}</button>
       <p role="status" className="text-sm">{copied ? t.copied : ""}</p>
     </details>}
-    <p role="status" aria-live="polite" className="break-words text-sm text-slate-600">{pending ? t.saving : message}</p>
+    <p role="status" aria-live="polite" className="break-words text-sm text-slate-600">{pending ? t.saving : message || (file ? t.unsaved : "")}</p>
   </section>;
 }
