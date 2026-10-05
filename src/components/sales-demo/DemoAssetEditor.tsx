@@ -50,13 +50,15 @@ export function DemoAssetEditor({ demoId, kind, initialUrl, locale }: {
       setMessage(t.assetsHint); return;
     }
     setFile(selected);
+    // Autosave the original so it reaches onboarding even if the seller never presses upload; crop/rotate can still replace it.
+    save(selected, true);
   }
-  function save(image: File) {
+  function save(image: File, keepFile = false) {
     startTransition(async () => {
       try {
         const form = new FormData(); form.set("kind", kind); form.set("image", image);
         const result = await uploadSalesDemoAsset(demoId, form);
-        if (result.url) { setSavedUrl(result.url); setFile(null); setPrepared(null); setMessage(t.saved); }
+        if (result.url) { setSavedUrl(result.url); if (!keepFile) { setFile(null); setPrepared(null); } setMessage(t.saved); }
         else setMessage(result.error === "notConfigured" ? t.storageError : t.error);
       } catch { setMessage(t.error); }
     });
@@ -131,6 +133,6 @@ export function DemoAssetEditor({ demoId, kind, initialUrl, locale }: {
       }}>{copied ? t.copied : t.copy}</button>
       <p role="status" className="text-sm">{copied ? t.copied : ""}</p>
     </details>}
-    <p role="status" aria-live="polite" className="break-words text-sm text-slate-600">{pending ? t.saving : message || (file ? t.unsaved : "")}</p>
+    <p role="status" aria-live="polite" className="break-words text-sm text-slate-600">{pending ? t.saving : message || (prepared ? t.unsaved : "")}</p>
   </section>;
 }
