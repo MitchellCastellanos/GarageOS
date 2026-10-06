@@ -1,6 +1,6 @@
 # GarageOS — Production LIVE dress rehearsal (prepared 2026-10-02, NOT executed)
 
-Run **only after** `docs/stripe-live-cutover.md` is complete (LIVE catalog verified, nine Production Stripe variables updated, Production redeployed, TEST endpoint on the production URL removed). One human operator present at the keyboard and the phone/mailbox; one controlled action at a time; record evidence (no card data, no secrets, no real customer data) in `docs/launch-readiness.md`.
+Run **only after** `docs/stripe-live-cutover.md` is complete (LIVE catalog verified, ten Production Stripe variables updated, Production redeployed, TEST endpoint on the production URL removed). One human operator present at the keyboard and the phone/mailbox; one controlled action at a time; record evidence (no card data, no secrets, no real customer data) in `docs/launch-readiness.md`.
 
 ## Already proven — do NOT repeat
 Stripe **TEST** E2E (Checkout, 14-day trial/$0 today, monthly + metered overage attachment, duplicate-checkout protection, webhook lifecycle, cancel/resume, failed payment → `past_due`, ≥48 h → RESTRICTED, recovery, annual provider-level behavior); Twilio Production outbound/inbound/STOP/START (dedicated number); Resend Production QUOTE delivery; Google OAuth Production; Neon restore drill and the off-platform backup/restore drill. The rehearsal below only proves what differs in LIVE: the LIVE account, LIVE catalog, LIVE webhook, a real card, real tax.

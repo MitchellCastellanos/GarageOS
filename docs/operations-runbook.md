@@ -137,7 +137,7 @@ General rules: (1) one responsible operator (Mitchell) per incident; (2) stabili
 
 **6. Accidental Production configuration error (wrong/missing env var)**
 - Act: Vercel → Project → Settings → Environment Variables → restore the previous value from the operator's secret store (Vercel keeps no old values) → **redeploy** (env changes reach only new deployments; rolling back a deployment alone does not restore an env var).
-- Highest-risk variables: `PROVIDER_SIDE_EFFECTS` (must be `enabled` in Production, absent/`disabled` in Preview), `DATABASE_URL*` (Production Neon branch, never `preview`), `NEXTAUTH_SECRET` (changing it invalidates all sessions), `STRIPE_*` (all nine change together at the LIVE cutover; a mixed TEST/LIVE set fails closed at Checkout), `CRON_SECRET` (missing → cron routes 401), `INTEGRATIONS_ENCRYPTION_KEY` (not set in Production; do not set casually).
+- Highest-risk variables: `PROVIDER_SIDE_EFFECTS` (must be `enabled` in Production, absent/`disabled` in Preview), `DATABASE_URL*` (Production Neon branch, never `preview`), `NEXTAUTH_SECRET` (changing it invalidates all sessions), `STRIPE_*` (all ten change together at the LIVE cutover; a mixed TEST/LIVE set fails closed at Checkout), `CRON_SECRET` (missing → cron routes 401), `INTEGRATIONS_ENCRYPTION_KEY` (not set in Production; do not set casually).
 - Verify: the failing route; health pages; Vercel logs; for Stripe variables run `node scripts/stripe-live-provision.mjs verify` (read-only) once LIVE exists.
 
 **7. Restricted billing-state recovery (a paying shop is RESTRICTED / PAST_DUE)**

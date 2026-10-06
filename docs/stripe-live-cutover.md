@@ -17,7 +17,16 @@ Companion files: `scripts/stripe-live-provision.mjs` (non-executed, fail-closed 
 | `PROVIDER_SIDE_EFFECTS=enabled` | Yes for LIVE mutations — already `enabled` in Production. A LIVE key can be mutated **only** through this gate (`STRIPE_TEST_MUTATIONS` never applies to `sk_live_`) | `stripeMutationsAllowed()` |
 | `STRIPE_TEST_MUTATIONS` | Preview only; must stay absent/`disabled` in Production | same |
 
-Live Vercel facts read 2026-10-02 (key/target/type only, nothing decrypted): all nine Stripe variables exist for **Production** (values `encrypted`/`sensitive`) and Preview has its own set. **Whether Production's current values are TEST or LIVE has never been verified** — treat Production as TEST-configured until the cutover step 6 reads it. A mixed state (LIVE key + TEST prices or the reverse) is fail-closed: `prices.retrieve` fails and Checkout refuses to open.
+Live Vercel facts read 2026-10-02 (key/target/type only, nothing decrypted): all ten Stripe variables exist for **Production** (values `encrypted`/`sensitive`) and Preview has its own set. **Whether Production's current values are TEST or LIVE has never been verified** — treat Production as TEST-configured until the cutover step 6 reads it. A mixed state (LIVE key + TEST prices or the reverse) is fail-closed: `prices.retrieve` fails and Checkout refuses to open.
+
+**Read-only preflight, 2026-10-06 (no Stripe, Vercel or database mutation):**
+- **Variable count corrected:** the code needs **ten** Stripe variables (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, the six `STRIPE_PRICE_{PLAN}_{INTERVAL}` built by `getPriceId()`, `STRIPE_SMS_OVERAGE_PRICE_ID`, `STRIPE_SMS_OVERAGE_METER_EVENT_NAME`); earlier text said "nine". All ten exist for Production (encrypted/sensitive, last updated 2026-10-01).
+- **Production is TEST-configured and stale.** The one non-secret Production value read (`STRIPE_PRICE_CORE_MONTHLY`) is a Price of the TEST sandbox `acct_1UGgimQwef5QpewG`: `livemode=false`, **archived**, **CAD 149/month** (the pre-launch price set). Production Checkout therefore currently fails closed (price guard). The cutover replaces all ten; the "previous values" rollback set is TEST and is only useful to return Production to a non-selling state.
+- **Production DB:** 3 `Subscription` rows, **0** with any Stripe id → no TEST-id conflict with LIVE. 30 `StripeWebhookEvent` rows exist (TEST deliveries through the TEST endpoint below); idempotency is per `event.id`, LIVE ids never collide — leave unchanged.
+- **TEST webhooks:** `we_1UH29O…` → `https://www.garage-os.ca/api/stripe/webhook` (enabled, 4 events, account-default API version) — delete at cutover step 8; `we_1ULaRP…` → the Preview branch URL **with a query string (bypass token)**, API `2026-08-26.dahlia` — keep until the Preview bypass token is rotated (runbook "Security token follow-ups"): rotate token → update this endpoint URL in the same session → verify one Preview TEST delivery 2xx.
+- **TEST meter:** `sms_overage_segments`, sum, `by_id`/`stripe_customer_id`, value key `value` — matches the canonical contract.
+- **API version** for the LIVE endpoint: `2026-08-26.dahlia` re-verified from the installed `stripe@22.6.2` (`ApiVersion`).
+- **LIVE inventory NOT performed:** the Stripe connector was not authenticated in this session, and the machine's Stripe CLI is logged into a different business account (`Mimarca.me`), which was not used beyond identifying it. The LIVE account must be identified by the operator before any LIVE read.
 
 ## 1. LIVE resource manifest
 
@@ -80,7 +89,7 @@ Not available to the preparing session: no LIVE Stripe account is connected to t
 3. `node scripts/stripe-live-provision.mjs verify` (empty account: reports missing webhook/portal, no catalog problems) then `plan`, review the output.
 4. `apply --apply` with the explicit authorization string (script creates only missing products → meter → prices; prints the env-var/ID mapping; re-run `verify` — must report no PROBLEM lines).
 5. Dashboard-only steps, in this order: Stripe Tax registrations (if applicable) → **Customer Portal** (default config as above) → **Manage failed payments** setting → **Webhook endpoint** (copy the `whsec_…` secret).
-6. **Vercel Production env** (update all nine in one session, then redeploy once — env changes only reach NEW deployments):
+6. **Vercel Production env** (update all ten in one session, then redeploy once — env changes only reach NEW deployments):
 
 | Vercel Production variable | Value source |
 |---|---|
