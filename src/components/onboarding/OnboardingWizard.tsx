@@ -105,7 +105,7 @@ export function OnboardingWizard({
         <Step2Fiscal
           step={displayStep}
           totalSteps={totalSteps}
-          shop={shop}
+          shop={{ ...shop, logoUrl }}
           onNext={(newLogoUrl) => {
             setLogoUrl(newLogoUrl);
             goNext();
