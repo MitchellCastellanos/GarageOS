@@ -34,7 +34,7 @@ Sales explicitly enables real transactional communications for a live authorized
 Files are classified at write time. Public: shop logos and booking-page images only (public bucket, no customer data). Private: invoices, payment receipts, accounting documents, DVI/inspection photos and Inbox attachments (private buckets; tenant-scoped paths; access only via server-side download or short-lived signed URLs after shop/customer-token authorization; DB stores paths). Shared DVI reports serve photos through a token-checked redirect (60 s). Storage location: Supabase us-east-1 (USA) — a transfer outside Quebec that must be covered by the transfer assessment below.
 
 ## Status of this assessment (updated 2026-10-02, second continuation)
-**EFVP STATUS: COMPLETE — READY FOR PRIVACY OFFICER SIGN-OFF.** All research and documentation is finished. What remains is the Privacy Officer's review and approval, which cannot be done on the operator's behalf: the approval record at the end of §7 is **unsigned**. Nothing here is legal advice (internal working record prepared with engineering tooling; counsel review is recommended, not required by the Act).
+**EFVP STATUS: APPROVED by the Privacy Officer on 2026-10-06 (electronic approval, §7 approval record).** Approval was given by the Privacy Officer personally; the engineering agent only transcribed it. Remaining condition before the first non-operator personal information: PR #76 deployed to Production (see `docs/launch-readiness.md` for the deployment evidence). Nothing here is legal advice (internal working record prepared with engineering tooling; counsel review is recommended, not required by the Act).
 
 **Two different questions, kept apart:**
 1. *Is Ohio (or any non-Québec) hosting prohibited?* **No — conditionally permitted** (CAI guide §7.1): allowed if an EFVP demonstrates adequate protection and a written agreement reflects it; otherwise refused.
@@ -173,7 +173,7 @@ Tenant authorization tests (129 cross-tenant attack cases per `docs/launch-readi
 
 ## 7. Completion checklist, determination and approval (owner: Privacy Officer; updated 2026-10-02)
 
-**Scope of the gate (precise).** The statutory precondition (s. 17 per the CAI guide) applies **before personal information is communicated outside Québec** — i.e. before the first *non-operator* personal information enters Production: the first real shop's staff/end-customer data **and a Sales Demo prospect's contact details** (Neon is in Ohio). It is **not** tied to payment, to the Stripe LIVE cutover, or to the operator-only dress rehearsal (which uses only operator-owned identities). Until the approval record below is signed **and PR #76 is merged and deployed**, do not onboard a real shop or enter a real prospect's contact details.
+**Scope of the gate (precise).** The statutory precondition (s. 17 per the CAI guide) applies **before personal information is communicated outside Québec** — i.e. before the first *non-operator* personal information enters Production: the first real shop's staff/end-customer data **and a Sales Demo prospect's contact details** (Neon is in Ohio). It is **not** tied to payment, to the Stripe LIVE cutover, or to the operator-only dress rehearsal (which uses only operator-owned identities). The approval record below was signed electronically on 2026-10-06; until **PR #76 is merged and deployed**, do not onboard a real shop or enter a real prospect's contact details.
 
 ### Status of every item that was open
 
@@ -188,7 +188,7 @@ Tenant authorization tests (129 cross-tenant attack cases per `docs/launch-readi
 | GitHub DPA applicability to a personal account | **NOT ESTABLISHED, not a blocker** — covered by D3 (accepted residual) |
 | Dated copies of provider agreements | **Housekeeping, not a blocker** — optional step in the sign-off instructions |
 | Counsel review of US adequacy | **LEGAL REVIEW RECOMMENDED**, not required by the Act |
-| Privacy Officer approval | **OPERATOR SIGN-OFF ONLY** — D1–D3 below |
+| Privacy Officer approval | **APPROVED 2026-10-06** — D1–D4 recorded below |
 
 ### Operator decisions (D1–D4) — each takes a minute
 - **D1 — Adequate-protection determination.** Adopt (or amend) the determination below.
@@ -196,27 +196,27 @@ Tenant authorization tests (129 cross-tenant attack cases per `docs/launch-readi
 - **D3 — Accept the residual risks listed in the determination**, including the transient in-memory plaintext dump on a GitHub-hosted runner (alternative: stop the automated backup — not recommended).
 - **D4 — Counsel.** Record "requested" or "declined" (optional; the Act does not require it).
 
-### Determination (proposed — for the Privacy Officer to adopt, amend or reject)
+### Determination (adopted as written by the Privacy Officer, 2026-10-06 — D1)
 Having considered, for each flow in "EFVP report v2": the **sensitivity** of the information (no special categories; high only in aggregate for the database), the **purpose** (operating the requested shop-management service and its billing, messaging, storage and backup), the **protection measures including contractual** ones (incorporated provider data-processing terms with breach notice, deletion/return and sub-processor controls — register; encryption in transit/at rest; strict tenant isolation with adversarial tests; least-privilege roles; ciphertext-only backups; customer content removed from Pusher), and the **legal regime of the destination** (United States; no general federal privacy statute; sectoral/state law; lawful-access exposure — reviewer-level, counsel may confirm), the information **would receive adequate protection**, measured against the generally recognized principles listed by the CAI (accountability, identified purposes, limited collection, consent, privacy by design, limited use/retention, accuracy, security and incident response, transparency, individual rights, recourse). The written agreements are the providers' standard terms accepted by account creation or incorporated by reference; no negotiated Quebec-specific clauses exist and none mentions Law 25.
 
 **Accepted residual risks (to be accepted at D3):** (a) foreign lawful access to US-hosted records (database, hosting, storage, messaging) — medium–low; (b) provider breach — mitigated by incorporated notice/security terms; (c) transient plaintext dump in RAM on a GitHub-hosted runner for seconds during the nightly backup — medium–low; (d) staff IP addresses and pseudonymous ids reach Pusher (up to 14 days of IP logs) — low; (e) no Quebec-specific contractual clauses — mitigated technically; (f) invoice download links are non-expiring bearer tokens (post-launch fix).
 
-### Approval record — Privacy Officer (NOT SIGNED)
+### Approval record — Privacy Officer (APPROVED 2026-10-06, electronic)
 
 | Field | Value |
 |---|---|
-| Document / version | `docs/compliance/privacy-impact-assessment.md` — EFVP report v2, 2026-10-02, repository commit of PR #76 as merged: `____________` |
+| Document / version | `docs/compliance/privacy-impact-assessment.md` — EFVP report v2, 2026-10-02, content approved = PR #76 branch `launch-agent-3/pre-live-closure` at the commit that adds this record; the merge commit into `main` is recorded in `docs/launch-readiness.md` (kept out of this file to avoid a self-referential commit) |
 | Scope | GarageOS production processing of shop-staff, end-customer, prospect and billing personal information via the systems in "EFVP report v2" |
 | Foreign processing/storage locations | Neon/AWS us-east-2 (Ohio, USA); Vercel iad1 (USA); Supabase us-east-1 (USA); Stripe (USA); Twilio US1 (USA); Resend (USA); Pusher us2 (USA; opaque signals only); GitHub-hosted runner on Azure (USA, transient); Cloudflare R2 `ENAM` (North America; ciphertext only) |
 | Major safeguards | Incorporated provider DPAs; tenant isolation (129 cross-tenant attack tests); private channels with server authorization; customer content removed from Pusher; least-privilege backup role; age-encrypted off-platform backups with offline key; RAM-only plaintext backup step; incident procedure and register; privacy-request procedure |
 | Accepted residual risks | (a)–(f) above |
-| D1 determination | ☐ adopted as written ☐ adopted with amendments: ______ ☐ rejected — flows to refuse/change: ______ |
-| D2 residency | ☐ keep Ohio ☐ move to a Canadian region before real data |
-| D3 residual risks | ☐ accepted ☐ not accepted — action: ______ |
-| D4 counsel | ☐ requested ☐ declined |
-| Approved by (name / title) | ____________________ / Privacy Officer — Person responsible for the protection of personal information |
-| Date | ____________ |
-| Signature or equivalent approval record (e.g. dated email to the compliance folder) | ____________ |
+| D1 determination | ☑ **adopted as written** |
+| D2 residency | ☑ **keep Neon in AWS us-east-2 (Ohio) for launch** |
+| D3 residual risks | ☑ **accepted — (a)–(f)** |
+| D4 counsel | ☑ **declined for launch** (external legal review may occur later; not a launch condition) |
+| Approved by (name / title) | Mitchell Jeussef Castellanos Fuentes / Privacy Officer — Person responsible for the protection of personal information |
+| Date | 2026-10-06 |
+| Signature or equivalent approval record (e.g. dated email to the compliance folder) | Electronic approval: explicit written statement by the Privacy Officer to the engineering session on 2026-10-06 — "APPROVE EFVP D1–D4 … D1 — Adopt the adequate-protection determination as written. D2 — Keep Neon in AWS us-east-2 / Ohio for launch. D3 — Accept the documented residual risks (a)–(f). D4 — Counsel review declined for launch. You may record this as my electronic approval in the repository." Recorded in this commit; no handwritten signature exists or is represented. |
 | Re-review due | at the latest 2027-10-02, and on any new provider, region, data category or QuickBooks/AI activation |
 
 ## Decisions
