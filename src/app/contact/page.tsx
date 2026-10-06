@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 };
 
 // Configure the real support mailbox in Vercel (NEXT_PUBLIC_CONTACT_EMAIL) — see docs/launch-readiness.md.
-const CONTACT_EMAIL = process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() || "hello@garageos.app";
+const CONTACT_EMAIL = process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() || "mcastellanos@garage-os.ca";
 
 function Body({ lang }: { lang: "en" | "fr" }) {
   const fr = lang === "fr";

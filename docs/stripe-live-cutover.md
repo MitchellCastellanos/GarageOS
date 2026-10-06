@@ -129,10 +129,10 @@ Not available to the preparing session: no LIVE Stripe account is connected to t
 
 ## 6. Open items that block LIVE (operator input)
 
-1. Legal entity (registered legal name/form of GABAN Solutions), NEQ, legal-notice address — for Stripe account details, invoices and Terms. *TODO-OPERATOR; not recorded in source control.*
-2. GST/HST and QST registration status and Stripe Tax registrations — decides whether LIVE Checkout charges tax. *TODO-OPERATOR; never commit numbers.*
+1. **Answered 2026-10-06:** sole proprietor Mitchell Jeussef Castellanos Fuentes carrying on business as GABAN Solutions (not incorporated, no NEQ); legal-notice address in the Terms. The Stripe account's legal/business details must match this identity (operator checks in the Dashboard).
+2. **Answered 2026-10-06: registered for both GST/HST and QST.** At cutover add Canada `standard` (GST/HST) and Quebec `province_standard` (QST) in LIVE Tax > Locations; the operator enters registration numbers **only** in the Stripe Dashboard (account tax IDs shown on invoices/receipts), never in chat or Git.
 3. LIVE Stripe account id + the access mechanism in §2.
-4. Confirmation that product tax code `txcd_10103001` is the intended classification.
+4. **Re-verified 2026-10-06:** `txcd_10103001` = "Software as a service (SaaS) - business use" in Stripe's current list; appropriate for GarageOS plans and for the SMS overage billed as part of the same B2B service.
 
 Not a blocker to the cutover: the EFVP sign-off and the Neon/Pusher agreement confirmations (`docs/compliance/privacy-impact-assessment.md` §7) gate the first **non-operator personal information** in Production, not Stripe LIVE activation or the operator-only rehearsal.
 

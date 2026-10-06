@@ -65,8 +65,8 @@ Other US flows (Vercel iad1, Supabase us-east-1, Pusher us2, Twilio US1, Resend 
 4. Privacy Officer: run the tabletop incident exercise and log it in `incident-register.md`.
 
 ## 5. Operator facts still needed (placeholders — never commit sensitive identifiers)
-- Registered legal name and legal form of GABAN Solutions: `TODO-OPERATOR`
-- NEQ: `TODO-OPERATOR` (do not commit if the operator treats it as sensitive; the public legal page may carry it once decided)
-- Legal-notice mailing address: `TODO-OPERATOR`
-- GST/HST registration status/details: `TODO-OPERATOR` (status only in source control; **no numbers**)
-- QST registration status/details: `TODO-OPERATOR` (same)
+- Legal name and form: **answered 2026-10-06**: Mitchell Jeussef Castellanos Fuentes, sole proprietorship (entreprise individuelle) carrying on business as GABAN Solutions; not incorporated.
+- NEQ: **none** (operator, 2026-10-06).
+- Legal-notice mailing address: **answered 2026-10-06**; published once, in the Terms contact section.
+- GST/HST registration status: **registered** (operator, 2026-10-06; no numbers in source control).
+- QST registration status: **registered** (same).
