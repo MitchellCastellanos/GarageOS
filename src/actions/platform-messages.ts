@@ -32,6 +32,13 @@ export async function getPlatformConversation(id: string) {
   });
 }
 
+/** Mensajes de una conversación — refetch autenticado (solo super admin) tras una señal en tiempo real. */
+export async function getPlatformConversationMessages(id: string) {
+  await requireSuperAdmin();
+  const messages = await db.platformMessage.findMany({ where: { conversationId: id }, orderBy: { createdAt: "asc" } });
+  return messages.map((m) => ({ id: m.id, sender: m.sender, content: m.content, createdAt: m.createdAt.toISOString() }));
+}
+
 export async function sendPlatformReply(conversationId: string, content: string) {
   const session = await requireSuperAdmin();
   const trimmed = content.trim();

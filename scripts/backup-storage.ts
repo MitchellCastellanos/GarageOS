@@ -3,6 +3,7 @@
 // Requiere NEXT_PUBLIC_SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY. No modifica ni borra nada en Supabase.
 // Guardar el resultado CIFRADO fuera de la plataforma; contiene documentos de clientes.
 import { createClient } from "@supabase/supabase-js";
+import { createHash } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
@@ -14,14 +15,19 @@ const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!url || !key) throw new Error("Supabase env vars not set");
 const sb = createClient(url, key);
 
+const PAGE = 1000;
 async function listAll(bucket: string, prefix = ""): Promise<string[]> {
-  const { data, error } = await sb.storage.from(bucket).list(prefix, { limit: 1000 });
-  if (error) throw new Error(`${bucket}/${prefix}: ${error.message}`);
   const files: string[] = [];
-  for (const e of data ?? []) {
-    const p = prefix ? `${prefix}/${e.name}` : e.name;
-    if (e.id === null) files.push(...(await listAll(bucket, p)));
-    else files.push(p);
+  // Paginate: a single list() call returns at most PAGE entries, so a larger prefix would be silently truncated.
+  for (let offset = 0; ; offset += PAGE) {
+    const { data, error } = await sb.storage.from(bucket).list(prefix, { limit: PAGE, offset, sortBy: { column: "name", order: "asc" } });
+    if (error) throw new Error(`${bucket}/${prefix}: ${error.message}`);
+    for (const e of data ?? []) {
+      const p = prefix ? `${prefix}/${e.name}` : e.name;
+      if (e.id === null) files.push(...(await listAll(bucket, p)));
+      else files.push(p);
+    }
+    if ((data?.length ?? 0) < PAGE) break;
   }
   return files;
 }
@@ -29,6 +35,7 @@ async function listAll(bucket: string, prefix = ""): Promise<string[]> {
 async function main() {
   const { data: existing } = await sb.storage.listBuckets();
   let ok = 0, failed = 0;
+  const manifest: { bucket: string; path: string; bytes: number; sha256: string }[] = [];
   for (const bucket of BUCKETS) {
     if (!existing?.some((b) => b.name === bucket)) continue;
     for (const path of await listAll(bucket)) {
@@ -36,10 +43,14 @@ async function main() {
       if (error || !data) { failed++; console.error(`FAILED ${bucket}/${path}`); continue; }
       const dest = join(out, bucket, path);
       await mkdir(dirname(dest), { recursive: true });
-      await writeFile(dest, Buffer.from(await data.arrayBuffer()));
+      const bytes = Buffer.from(await data.arrayBuffer());
+      await writeFile(dest, bytes);
+      manifest.push({ bucket, path, bytes: bytes.length, sha256: createHash("sha256").update(bytes).digest("hex") });
       ok++;
     }
   }
+  // The manifest lets a restore drill verify object count and byte-identity (paths are the keys stored in the DB).
+  await writeFile(join(out, "manifest.json"), JSON.stringify({ createdAt: new Date().toISOString(), files: manifest }, null, 1));
   console.log(`storage backup: ${ok} files, ${failed} failed`);
   if (failed) process.exit(1);
 }

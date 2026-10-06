@@ -124,9 +124,10 @@ export function Sidebar({
       const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, { cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!, ...PUSHER_CLIENT_AUTH });
       const channelName = staffNotificationChannel(userId);
       const channel = pusher.subscribe(channelName);
-      const handler = (notification: { href?: string | null }) => {
-        if (notification.href?.startsWith(ADMIN.inbox)) setLiveInbox(true);
-        if (notification.href?.startsWith(ADMIN.appointments)) setLiveAppointments(true);
+      // Signal only (no href/title/body): `section` is a coarse, non-personal category computed server-side.
+      const handler = (signal: { section?: "inbox" | "appointments" | null }) => {
+        if (signal.section === "inbox") setLiveInbox(true);
+        if (signal.section === "appointments") setLiveAppointments(true);
       };
       channel.bind("notification", handler);
       unsub = () => {

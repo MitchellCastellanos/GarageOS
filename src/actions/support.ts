@@ -29,6 +29,17 @@ export async function getMyConversation() {
   });
 }
 
+/** Mensajes de la conversación del taller en sesión — refetch autenticado tras una señal en tiempo real. */
+export async function getMySupportMessages() {
+  const conversation = await getMyConversation();
+  return (conversation?.messages ?? []).map((m) => ({
+    id: m.id,
+    sender: m.sender,
+    content: m.content,
+    createdAt: m.createdAt.toISOString(),
+  }));
+}
+
 /** Se llama al abrir /admin/support — apaga el punto de "mensaje nuevo". */
 export async function markSupportConversationRead() {
   const session = await requireSession();

@@ -98,6 +98,9 @@ Flujo actual (sin bot todavía):
 4. Tiempo real opcional vía Pusher (`src/lib/platform/pusher.ts`,
    `NEXT_PUBLIC_PUSHER_KEY`) — sin esas variables, cada envío hace un append
    optimista local y el otro lado ve el mensaje al recargar/revalidar.
+   **Privacidad (2026-10-02):** el evento de Pusher es solo una señal (`id`, rol, hora) — nunca el
+   texto; ambos lados vuelven a pedir los mensajes con una acción autenticada
+   (`getMySupportMessages` / `getPlatformConversationMessages`). Ver la EFVP (flujo 7).
 
 **Chatbot (fase 2, pendiente)**: la conversación de diseño quedó en el chat
 del panel — se conecta igual que el bot de MSC (`@anthropic-ai/sdk`, tool

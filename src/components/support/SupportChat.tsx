@@ -2,7 +2,8 @@
 import { PUSHER_CLIENT_AUTH, platformConversationChannel } from "@/lib/platform/pusher-channels";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { sendSupportMessage } from "@/actions/support";
+import { sendSupportMessage, getMySupportMessages } from "@/actions/support";
+import { coalescedRefresh } from "@/lib/realtime-refresh";
 import { Loader2, Send } from "lucide-react";
 import { useAdminLocale } from "@/components/admin/AdminLocaleProvider";
 import { SUPPORT_DICT } from "@/lib/admin-locale/support";
@@ -37,8 +38,13 @@ export function SupportChat({ conversationId, initialMessages }: { conversationI
       if (cancelled) return;
       const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, { cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!, ...PUSHER_CLIENT_AUTH });
       const channel = pusher.subscribe(platformConversationChannel(conversationId));
-      const handler = (message: SupportMessageRow) => {
-        setMessages((prev) => (prev.some((m) => m.id === message.id) ? prev : [...prev, message]));
+      // The event is only a signal (id/sender/time — no text): refetch the conversation through the authenticated action.
+      const refresh = coalescedRefresh(
+        async () => setMessages(await getMySupportMessages()),
+        (err) => console.error("[SupportChat] refresh falló:", err)
+      );
+      const handler = () => {
+        void refresh();
       };
       channel.bind("message", handler);
       unsub = () => {
