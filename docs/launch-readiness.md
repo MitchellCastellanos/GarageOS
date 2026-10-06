@@ -246,3 +246,30 @@ Uptime/error monitoring (Vercel logs + an external pinger), log drain, private s
 ## Rollback / recovery pointers
 
 See `docs/operations-runbook.md`. Migrations run automatically in `npm run build` (`scripts/deploy-migrations.mjs`); every migration in this audit is additive except dropping the unused legacy `Shop.billingEmail` column. To roll back code, promote the previous Vercel deployment (schema is forward-compatible); to recover data, restore from the DB backup.
+
+## LIVE dress rehearsal (2026-10-06, Launch Agent 5)
+
+**Verdict: NO-GO — DO NOT ACCEPT REAL PAYING SHOP YET.** The core journey passed. One launch check was not evidenced (entitlements, below), and the TEST webhook cleanup is blocked by that same open point.
+
+- **Production deployment:** `dpl_7FUxL6ibhCcDPmXjN3LZ1oAQadYa`, READY, commit `f854c16` (= `main`, after PR #79).
+- **Stripe account:** LIVE `acct_1UGgiIJjM4QV1Wbi` (Garage OS). All calls used `livemode=true`.
+- **Production env (names/targets only, values not printed):** `PROVIDER_SIDE_EFFECTS=enabled`; `STRIPE_TEST_MUTATIONS` absent from Production. Preview stays TEST (`PROVIDER_SIDE_EFFECTS=disabled`, `STRIPE_TEST_MUTATIONS=disabled`). Production price/overage values are encrypted and were not re-read in this session; they were read back at cutover.
+- **LIVE inventory:** six plan Prices, overage Price, meter and webhook match the expected IDs. Webhook API version `2026-08-26.dahlia`, four events. Tax registrations (CA standard, QC) active.
+- **Rehearsal shop:** internal ID `cmux3ywt9000106ig2rfxcdgb`, named `GarageOS Internal Live Rehearsal`, operator-controlled account.
+- **Stripe objects:** Customer `cus_VORZ4r5OXaKWZR`; Subscription `sub_1UNeiTJjM4QV1WbidYHIhfjm`; Checkout Session `cs_live_b1EvI4jQzwAQuBdTFWhXICGoGniduSCY82qyyTrzUvLAbHAXDWWTDZg2dq`; trial invoice `in_1UNeiQJjM4QV1WbiAOYaTCc2`.
+- **Checkout:** plan Core, monthly. Shown on screen: Today CA$0.00; after trial CA$199.00 + CA$29.80 tax = CA$228.80/month; SMS overage metered at CA$0.05/unit, no usage. Trial 14 days (`trial_end − trial_start = 1 209 600 s`, Oct 6 → Oct 20, 2026).
+- **$0 today:** `amount_total = 0`, `payment_status = paid`; trial invoice `total = 0`; zero PaymentIntents on the account. No non-zero charge.
+- **Subscription items:** Core monthly licensed + SMS overage metered. No Pro or Complete price.
+- **Webhooks:** Stripe event deliveries for `checkout.session.completed` and `customer.subscription.created` show **200 OK** against `https://www.garage-os.ca/api/stripe/webhook` (Stripe Dashboard, operator screenshot). All events show `pending_webhooks: 0`. No signature error.
+- **Authoritative state:** GarageOS Billing page shows Core, Trialing, Monthly, 14 days left, first charge Oct 20, 2026 CA$199 + tax, for the same shop.
+- **Duplicate guard:** a second checkout attempt from GarageOS did not create a second subscription or customer; the subscription count stayed at one (operator-reported; Stripe read after the attempt confirmed one subscription).
+- **Customer Portal:** payment method, invoices and billing details available; cancellation, plan switch and pause not offered (operator-reported).
+- **Cancel / resume (application):** operator-reported PASS through GarageOS; the subscription returned to `trialing` with `cancel_at_period_end = false` and no second subscription or reset trial (confirmed by Stripe read before cleanup).
+- **Entitlements: NOT EVIDENCED.** Only the plan label was confirmed. No feature-by-feature check of Core versus Pro-gated features (for example inventory/campaigns) was performed on the live shop. This is the open launch-critical check.
+- **SMS / communications:** no SMS overage usage was created; no SMS was sent for this rehearsal.
+- **Same-day cleanup:** Stripe subscription `sub_1UNeiTJjM4QV1WbidYHIhfjm` cancelled immediately (DELETE, not period-end). Post-cleanup read: `status = canceled`, `ended_at` set, `cancel_at_period_end = false`, no subscriptions remain for the customer, and the only invoice is the $0 trial invoice (paid). No future charge can occur. Customer and shop retained as inert, clearly named internal evidence; no manual Production SQL run.
+- **TEST webhook cleanup: NOT DONE (blocked).** `we_1UH29OQwef5QpewGnjGuDNly` (sandbox account `acct_1UGgimQwef5QpewG`, "GarageOS billing sync") is still enabled and still targets `https://www.garage-os.ca/api/stripe/webhook`. Deletion waits for a conclusive PASS of this rehearsal.
+- **Preview bypass-token rotation: NOT DONE.** Post-rehearsal operator task. Note: the Preview TEST endpoint URL contains a `x-vercel-protection-bypass` token; it appeared in this session's output and must be rotated (ordered procedure: rotate → update Preview endpoint → verify one Preview delivery).
+- **Not tested and why:** entitlements (above); failed payment / past_due / restricted path (needs a test clock, TEST only); trial-end conversion (14-day wait, avoided by same-day cancel); Stripe-side upcoming invoice tax (shown at Checkout, not read via API).
+
+**To reach GO:** (1) confirm a Core shop cannot use a Pro-gated feature and that Core-included features work; (2) then delete the obsolete TEST endpoint; (3) rotate the Preview bypass token.
