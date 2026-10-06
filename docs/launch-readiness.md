@@ -208,6 +208,27 @@ Evidence gathered this session (no Stripe write, no Production Stripe env change
 | Neon branch protection / longer PITR; Preview bypass-token rotation (after cutover, in the documented order); invoice-token expiry; French Stripe receipts; French Guides/Blog; maintenance-reminder CASL basis; Twilio shared-number/A2P; additional-location billing; QuickBooks LIVE; tabletop incident exercise; counsel review (declined for launch, D4) | **POST-LAUNCH FOLLOW-UP** |
 | Any **TRUE PRE-LAUNCH BLOCKER** outside the classes above | **none found** |
 
+## Stripe LIVE cutover executed (2026-10-06, Launch Agent 4)
+
+Executed through the GarageOS-authorized Stripe connector (account `acct_1UGgiIJjM4QV1Wbi`, LIVE mode set explicitly on every call). No customer, Checkout Session, subscription, invoice, payment method, payment or charge was created. The dress rehearsal has NOT started.
+
+| Item | Evidence |
+|---|---|
+| LIVE account before writes | Empty: 0 products, prices, webhooks, customers, portal configs. Nothing to reuse or conflict with |
+| Tax registrations | Canada `standard` + Quebec `province_standard`, both `active` (API-verified); tax settings `active`, `tax_behavior` exclusive |
+| Products (tax code `txcd_10103001`) | Core `prod_VOPppXuVPj1M6A`, Pro `prod_VOPpwrjevOg9q6`, Complete `prod_VOPpR74LyXBYy9`, SMS overage `prod_VOPprRk8c1H2Yw` |
+| Plan Prices (CAD, tax-exclusive, licensed, no trial) | Core 199/1,990 `price_1UNd0IJjM4QV1WbiusbUdXvW` / `price_1UNd0IJjM4QV1WbiPHHDyZuQ`; Pro 299/2,990 `price_1UNd0JJjM4QV1WbiYLCjYoIC` / `price_1UNd0KJjM4QV1WbiYMFczmdf`; Complete 449/4,490 `price_1UNd0LJjM4QV1WbiNFNJZZkf` / `price_1UNd0MJjM4QV1WbiDqpJXXNy` |
+| SMS overage Price | `price_1UNe6MJjM4QV1WbiPuS1yKco`, CAD 0.05/segment (`unit_amount_decimal` 5), metered, monthly, tax-exclusive, on meter `mtr_61VX0qELcJFLlc9C641JjM4QV1WbiEVM` |
+| Meter | Created by the operator in the Dashboard. The connector exposes no Billing Meters API and Sigma is not subscribed, so the agent could not read it. The operator then **visually verified in the LIVE Dashboard**: event name `sms_overage_segments`, aggregation Sum, customer mapping `stripe_customer_id`, value key `value`, status Active (human-verified, not API-verified). Existence on LIVE is also proven by the Price creation |
+| Webhook | `we_1UNdCAJjM4QV1WbiUWnxwOj2` enabled, `https://www.garage-os.ca/api/stripe/webhook`, api `2026-08-26.dahlia`, the 4 expected events only |
+| Customer Portal | Default configuration `bpc_1UNd8KJjM4QV1WbiSKfJYbAp`: payment method, invoice history, customer update ON; cancel, plan switch, pause OFF |
+| Failed payments | Operator set "leave past due" (never cancel) |
+| Production env (names) | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (set by the operator directly in Vercel; never exposed to the agent); `STRIPE_PRICE_{CORE,PRO,COMPLETE}_{MONTHLY,YEARLY}` and `STRIPE_SMS_OVERAGE_PRICE_ID` set to the LIVE IDs above and read back; `STRIPE_SMS_OVERAGE_METER_EVENT_NAME` already `sms_overage_segments`. `STRIPE_TEST_MUTATIONS` exists only in Preview |
+| Deploy | Production redeployed from 6ff09a9: `dpl_6E2oJu1LvT25yzsrcYMDLZis9Few` READY, aliased to `www.garage-os.ca`; homepage 200; no runtime errors in the window after deploy |
+| Preview | Untouched (only Production-targeted variables edited); stays TEST |
+| Rollback | Webhook `we_1UNdC…` can be disabled; the pre-change non-secret Production values were saved off-repo. The previous `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` were replaced by the operator before capture and are not recoverable (they were obsolete TEST values that could not sell). Promoting an old deploy is not enough because env vars persist |
+| Remaining | The TEST endpoint pointing at Production stays until the LIVE rehearsal; Preview bypass-token rotation after; rehearsal needs a defined same-day cleanup plan (see `stripe-live-dress-rehearsal.md`) |
+
 ## OPTIONAL / POST-LAUNCH
 
 Uptime/error monitoring (Vercel logs + an external pinger), log drain, private storage bucket with signed URLs, security headers/CSP, sitemap/robots, French Guides/Blog, additional-location billing.
