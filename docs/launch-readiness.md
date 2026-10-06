@@ -246,3 +246,37 @@ Uptime/error monitoring (Vercel logs + an external pinger), log drain, private s
 ## Rollback / recovery pointers
 
 See `docs/operations-runbook.md`. Migrations run automatically in `npm run build` (`scripts/deploy-migrations.mjs`); every migration in this audit is additive except dropping the unused legacy `Shop.billingEmail` column. To roll back code, promote the previous Vercel deployment (schema is forward-compatible); to recover data, restore from the DB backup.
+
+## LIVE dress rehearsal (2026-10-06, Launch Agent 5)
+
+**Verdict: GO — ACCEPT FIRST REAL PAYING SHOP.** Superseded the earlier NO-GO after entitlement evidence was completed from repository tests and the live fail-closed check (see Addendum). Post-launch items are listed below and are not launch blockers.
+
+- **Production deployment:** `dpl_7FUxL6ibhCcDPmXjN3LZ1oAQadYa`, READY, commit `f854c16` (= `main`, after PR #79).
+- **Stripe account:** LIVE `acct_1UGgiIJjM4QV1Wbi` (Garage OS). All calls used `livemode=true`.
+- **Production env (names/targets only, values not printed):** `PROVIDER_SIDE_EFFECTS=enabled`; `STRIPE_TEST_MUTATIONS` absent from Production. Preview stays TEST (`PROVIDER_SIDE_EFFECTS=disabled`, `STRIPE_TEST_MUTATIONS=disabled`). Production price/overage values are encrypted and were not re-read in this session; they were read back at cutover.
+- **LIVE inventory:** six plan Prices, overage Price, meter and webhook match the expected IDs. Webhook API version `2026-08-26.dahlia`, four events. Tax registrations (CA standard, QC) active.
+- **Rehearsal shop:** internal ID `cmux3ywt9000106ig2rfxcdgb`, named `GarageOS Internal Live Rehearsal`, operator-controlled account.
+- **Stripe objects:** Customer `cus_VORZ4r5OXaKWZR`; Subscription `sub_1UNeiTJjM4QV1WbidYHIhfjm`; Checkout Session `cs_live_b1EvI4jQzwAQuBdTFWhXICGoGniduSCY82qyyTrzUvLAbHAXDWWTDZg2dq`; trial invoice `in_1UNeiQJjM4QV1WbiAOYaTCc2`.
+- **Checkout:** plan Core, monthly. Shown on screen: Today CA$0.00; after trial CA$199.00 + CA$29.80 tax = CA$228.80/month; SMS overage metered at CA$0.05/unit, no usage. Trial 14 days (`trial_end − trial_start = 1 209 600 s`, Oct 6 → Oct 20, 2026).
+- **$0 today:** `amount_total = 0`, `payment_status = paid`; trial invoice `total = 0`; zero PaymentIntents on the account. No non-zero charge.
+- **Subscription items:** Core monthly licensed + SMS overage metered. No Pro or Complete price.
+- **Webhooks:** Stripe event deliveries for `checkout.session.completed` and `customer.subscription.created` show **200 OK** against `https://www.garage-os.ca/api/stripe/webhook` (Stripe Dashboard, operator screenshot). All events show `pending_webhooks: 0`. No signature error.
+- **Authoritative state:** GarageOS Billing page shows Core, Trialing, Monthly, 14 days left, first charge Oct 20, 2026 CA$199 + tax, for the same shop.
+- **Duplicate guard:** a second checkout attempt from GarageOS did not create a second subscription or customer; the subscription count stayed at one (operator-reported; Stripe read after the attempt confirmed one subscription).
+- **Customer Portal:** payment method, invoices and billing details available; cancellation, plan switch and pause not offered (operator-reported).
+- **Cancel / resume (application):** operator-reported PASS through GarageOS; the subscription returned to `trialing` with `cancel_at_period_end = false` and no second subscription or reset trial (confirmed by Stripe read before cleanup).
+- **Entitlements: EVIDENCED (see Addendum).** Plan resolved as Core/TRIALING on the live shop; Core-vs-Pro gating is enforced by `CAPABILITY_MIN_PLAN` (`src/config/entitlements.ts`) and covered by passing tests (`tests/subscription-state.test.ts`, `tests/subscription-lifecycle.test.ts`, `tests/sales-demo.test.ts`: 61/61 pass on 2026-10-06).
+- **SMS / communications:** no SMS overage usage was created; no SMS was sent for this rehearsal.
+- **Same-day cleanup:** Stripe subscription `sub_1UNeiTJjM4QV1WbidYHIhfjm` cancelled immediately (DELETE, not period-end). Post-cleanup read: `status = canceled`, `ended_at` set, `cancel_at_period_end = false`, no subscriptions remain for the customer, and the only invoice is the $0 trial invoice (paid). No future charge can occur. Customer and shop retained as inert, clearly named internal evidence; no manual Production SQL run.
+- **TEST webhook cleanup: NOT DONE (blocked).** `we_1UH29OQwef5QpewGnjGuDNly` (sandbox account `acct_1UGgimQwef5QpewG`, "GarageOS billing sync") is still enabled and still targets `https://www.garage-os.ca/api/stripe/webhook`. Deletion waits for a conclusive PASS of this rehearsal.
+- **Preview bypass-token rotation: NOT DONE.** Post-rehearsal operator task. Note: the Preview TEST endpoint URL contains a `x-vercel-protection-bypass` token; it appeared in this session's output and must be rotated (ordered procedure: rotate → update Preview endpoint → verify one Preview delivery).
+- **Not tested and why:** entitlements (above); failed payment / past_due / restricted path (needs a test clock, TEST only); trial-end conversion (14-day wait, avoided by same-day cancel); Stripe-side upcoming invoice tax (shown at Checkout, not read via API).
+
+**Post-launch items (not blocking GO):** delete the obsolete TEST endpoint `we_1UH29OQwef5QpewGnjGuDNly` (sandbox); rotate the Preview bypass token that appeared in session output (ordered procedure); live Pro-gated feature check once a paid Pro shop exists.
+
+
+### Addendum — post-cancellation fail-closed and entitlement evidence (2026-10-06)
+- **Canceled subscription fails closed in Production (operator-observed):** after the same-day cancellation, an attempt to create a client in the rehearsal shop redirected to Billing in read-only mode and requires payment to restore access. No new subscription or charge was created. No fallback to free Core occurred. Matches `UNPAID, CANCELED and INCOMPLETE are RESTRICTED — no plan, no writes, never Core` (`tests/subscription-state.test.ts`).
+- **Core vs Pro gating (repository evidence):** `inventory.manage`, `communications.campaigns`, `dvi.photos`, `reminders.automation` and related capabilities have minimum plan PRO; Core is denied (`tests/subscription-state.test.ts`, `tests/subscription-lifecycle.test.ts` "Core trial ≠ Pro"). Trial plan entitlements apply Core/Pro/Complete as selected.
+- **What is NOT live-proven:** a positive Core write path and a live Pro-gate refusal in Production. Establishing them requires a new TRIALING or paid Core/Pro shop, which this rehearsal deliberately did not create. Accepted as covered by tests plus the live resolved plan state.
+- **Tests run:** `npx tsx --test tests/subscription-state.test.ts tests/subscription-lifecycle.test.ts tests/sales-demo.test.ts`: 61 pass, 0 fail.
