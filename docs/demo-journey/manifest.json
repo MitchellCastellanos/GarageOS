@@ -1,344 +1,571 @@
 {
-  "version": 1,
+  "version": 2,
   "dataset": "marketing-garage-laurent-v1",
   "shopSlug": "garage-laurent-demo",
   "generatedAt": "2026-10-07",
-  "status": "blocked: local Postgres (localhost:54329) accepts no connections (Windows error 487). No capture was produced.",
+  "status": "captured: 23 of 25 views in FR and EN from a development database seeded in the remote environment; 12 and 22 omitted (reasons per asset)",
+  "environment": "Remote Linux container: local PostgreSQL 16 (dev database, seeded with scripts/seed-marketing-garage-laurent.ts), `next dev --webpack` with provider side effects disabled, a local stand-in for Supabase Storage serving the SHA-256-verified source photos. No production/Preview database, no real Storage.",
   "messages": {
     "file": "public/demo/garage-laurent/messages.json",
     "status": "generated",
-    "source": "real formatters exported from src/lib/sms.ts + verified dataset plan (Camille 423.11 CAD, Alexandre 218.45 CAD); not read from the DB",
+    "source": "real formatters exported from src/lib/sms.ts + dataset plan (reference date 2026-10-07, matches the seeded appointment); not read from the DB",
     "sent": false
+  },
+  "invoicePdf": {
+    "fr": "public/demo/garage-laurent/fr/invoice-camille.pdf",
+    "en": "public/demo/garage-laurent/en/invoice-camille.pdf"
   },
   "assets": {
     "01-dashboard-desktop": {
-      "status": "blocked",
-      "captured": false,
+      "status": "captured",
       "locales": {
-        "fr": null,
-        "en": null
-      },
-      "routeTemplate": null,
-      "entityIds": null,
-      "viewport": null,
-      "dimensions": null,
-      "reason": "no database access"
+        "fr": {
+          "file": "public/demo/garage-laurent/fr/01-dashboard-desktop.webp",
+          "source": "docs/demo-journey/captures/fr/01-dashboard-desktop.png",
+          "dimensions": "2880x2000",
+          "routeTemplate": "/admin/dashboard",
+          "viewport": "1440x1000@2x",
+          "httpStatus": 200,
+          "capturedAt": "2026-10-07T13:01:37.248Z"
+        },
+        "en": {
+          "file": "public/demo/garage-laurent/en/01-dashboard-desktop.webp",
+          "source": "docs/demo-journey/captures/en/01-dashboard-desktop.png",
+          "dimensions": "2880x2000",
+          "routeTemplate": "/admin/dashboard",
+          "viewport": "1440x1000@2x",
+          "httpStatus": 200,
+          "capturedAt": "2026-10-07T12:58:53.481Z"
+        }
+      }
     },
     "02-agenda-desktop": {
-      "status": "blocked",
-      "captured": false,
+      "status": "captured",
       "locales": {
-        "fr": null,
-        "en": null
-      },
-      "routeTemplate": null,
-      "entityIds": null,
-      "viewport": null,
-      "dimensions": null,
-      "reason": "no database access"
+        "fr": {
+          "file": "public/demo/garage-laurent/fr/02-agenda-desktop.webp",
+          "source": "docs/demo-journey/captures/fr/02-agenda-desktop.png",
+          "dimensions": "2880x2000",
+          "routeTemplate": "/admin/appointments",
+          "viewport": "1440x1000@2x",
+          "httpStatus": 200,
+          "capturedAt": "2026-10-07T13:01:45.401Z"
+        },
+        "en": {
+          "file": "public/demo/garage-laurent/en/02-agenda-desktop.webp",
+          "source": "docs/demo-journey/captures/en/02-agenda-desktop.png",
+          "dimensions": "2880x2000",
+          "routeTemplate": "/admin/appointments",
+          "viewport": "1440x1000@2x",
+          "httpStatus": 200,
+          "capturedAt": "2026-10-07T12:59:02.097Z"
+        }
+      }
     },
     "03-booking-desktop": {
-      "status": "blocked",
-      "captured": false,
+      "status": "captured",
       "locales": {
-        "fr": null,
-        "en": null
-      },
-      "routeTemplate": null,
-      "entityIds": null,
-      "viewport": null,
-      "dimensions": null,
-      "reason": "no database access"
+        "fr": {
+          "file": "public/demo/garage-laurent/fr/03-booking-desktop.webp",
+          "source": "docs/demo-journey/captures/fr/03-booking-desktop.png",
+          "dimensions": "2880x2000",
+          "routeTemplate": "/book/garage-laurent-demo",
+          "viewport": "1440x1000@2x",
+          "httpStatus": 200,
+          "capturedAt": "2026-10-07T13:01:56.169Z"
+        },
+        "en": {
+          "file": "public/demo/garage-laurent/en/03-booking-desktop.webp",
+          "source": "docs/demo-journey/captures/en/03-booking-desktop.png",
+          "dimensions": "2880x2000",
+          "routeTemplate": "/book/garage-laurent-demo",
+          "viewport": "1440x1000@2x",
+          "httpStatus": 200,
+          "capturedAt": "2026-10-07T13:04:34.030Z"
+        }
+      }
     },
     "04-booking-mobile": {
-      "status": "blocked",
-      "captured": false,
+      "status": "captured",
       "locales": {
-        "fr": null,
-        "en": null
-      },
-      "routeTemplate": null,
-      "entityIds": null,
-      "viewport": null,
-      "dimensions": null,
-      "reason": "no database access"
+        "fr": {
+          "file": "public/demo/garage-laurent/fr/04-booking-mobile.webp",
+          "source": "docs/demo-journey/captures/fr/04-booking-mobile.png",
+          "dimensions": "780x1688",
+          "routeTemplate": "/book/garage-laurent-demo",
+          "viewport": "390x844@2x",
+          "httpStatus": 200,
+          "capturedAt": "2026-10-07T13:02:03.018Z"
+        },
+        "en": {
+          "file": "public/demo/garage-laurent/en/04-booking-mobile.webp",
+          "source": "docs/demo-journey/captures/en/04-booking-mobile.png",
+          "dimensions": "780x1688",
+          "routeTemplate": "/book/garage-laurent-demo",
+          "viewport": "390x844@2x",
+          "httpStatus": 200,
+          "capturedAt": "2026-10-07T13:04:40.090Z"
+        }
+      }
     },
     "05-booking-form-mobile": {
-      "status": "blocked",
-      "captured": false,
+      "status": "captured",
       "locales": {
-        "fr": null,
-        "en": null
-      },
-      "routeTemplate": null,
-      "entityIds": null,
-      "viewport": null,
-      "dimensions": null,
-      "reason": "no database access"
+        "fr": {
+          "file": "public/demo/garage-laurent/fr/05-booking-form-mobile.webp",
+          "source": "docs/demo-journey/captures/fr/05-booking-form-mobile.png",
+          "dimensions": "780x2480",
+          "routeTemplate": "/book/garage-laurent-demo",
+          "viewport": "390x1240@2x",
+          "httpStatus": 200,
+          "capturedAt": "2026-10-07T13:06:11.181Z"
+        },
+        "en": {
+          "file": "public/demo/garage-laurent/en/05-booking-form-mobile.webp",
+          "source": "docs/demo-journey/captures/en/05-booking-form-mobile.png",
+          "dimensions": "780x2480",
+          "routeTemplate": "/book/garage-laurent-demo",
+          "viewport": "390x1240@2x",
+          "httpStatus": 200,
+          "capturedAt": "2026-10-07T13:04:46.603Z"
+        }
+      }
     },
     "06-confirmation-email": {
-      "status": "blocked",
-      "captured": false,
+      "status": "captured",
       "locales": {
-        "fr": null,
-        "en": null
-      },
-      "routeTemplate": null,
-      "entityIds": null,
-      "viewport": null,
-      "dimensions": null,
-      "reason": "no database access"
+        "fr": {
+          "file": "public/demo/garage-laurent/fr/06-confirmation-email.webp",
+          "source": "docs/demo-journey/captures/fr/06-confirmation-email.png",
+          "dimensions": "1520x1800",
+          "renderer": "AppointmentEmail (src/emails)",
+          "entity": "mkt-gl-v1-appt-demo-civic-oil",
+          "capturedAt": "2026-10-07"
+        },
+        "en": {
+          "file": "public/demo/garage-laurent/en/06-confirmation-email.webp",
+          "source": "docs/demo-journey/captures/en/06-confirmation-email.png",
+          "dimensions": "1520x1800",
+          "renderer": "AppointmentEmail (src/emails)",
+          "entity": "mkt-gl-v1-appt-demo-civic-oil",
+          "capturedAt": "2026-10-07"
+        }
+      }
     },
     "07-client-vehicle-history-desktop": {
-      "status": "blocked",
-      "captured": false,
+      "status": "captured",
       "locales": {
-        "fr": null,
-        "en": null
-      },
-      "routeTemplate": null,
-      "entityIds": null,
-      "viewport": null,
-      "dimensions": null,
-      "reason": "no database access"
+        "fr": {
+          "file": "public/demo/garage-laurent/fr/07-client-vehicle-history-desktop.webp",
+          "source": "docs/demo-journey/captures/fr/07-client-vehicle-history-desktop.png",
+          "dimensions": "2880x2000",
+          "routeTemplate": "/admin/clients/<token>",
+          "viewport": "1440x1000@2x",
+          "httpStatus": 200,
+          "capturedAt": "2026-10-07T13:02:18.806Z"
+        },
+        "en": {
+          "file": "public/demo/garage-laurent/en/07-client-vehicle-history-desktop.webp",
+          "source": "docs/demo-journey/captures/en/07-client-vehicle-history-desktop.png",
+          "dimensions": "2880x2000",
+          "routeTemplate": "/admin/clients/<token>",
+          "viewport": "1440x1000@2x",
+          "httpStatus": 200,
+          "capturedAt": "2026-10-07T12:59:31.286Z"
+        }
+      }
     },
     "08-inspection-admin-desktop": {
-      "status": "blocked",
-      "captured": false,
+      "status": "captured",
       "locales": {
-        "fr": null,
-        "en": null
-      },
-      "routeTemplate": null,
-      "entityIds": null,
-      "viewport": null,
-      "dimensions": null,
-      "reason": "no database access"
+        "fr": {
+          "file": "public/demo/garage-laurent/fr/08-inspection-admin-desktop.webp",
+          "source": "docs/demo-journey/captures/fr/08-inspection-admin-desktop.png",
+          "dimensions": "2880x2000",
+          "routeTemplate": "/admin/inspections/<token>",
+          "viewport": "1440x1000@2x",
+          "httpStatus": 200,
+          "capturedAt": "2026-10-07T13:02:26.853Z"
+        },
+        "en": {
+          "file": "public/demo/garage-laurent/en/08-inspection-admin-desktop.webp",
+          "source": "docs/demo-journey/captures/en/08-inspection-admin-desktop.png",
+          "dimensions": "2880x2000",
+          "routeTemplate": "/admin/inspections/<token>",
+          "viewport": "1440x1000@2x",
+          "httpStatus": 200,
+          "capturedAt": "2026-10-07T12:59:39.741Z"
+        }
+      }
     },
     "09-inspection-report-mobile": {
-      "status": "blocked",
-      "captured": false,
+      "status": "captured",
       "locales": {
-        "fr": null,
-        "en": null
-      },
-      "routeTemplate": null,
-      "entityIds": null,
-      "viewport": null,
-      "dimensions": null,
-      "reason": "no database access"
+        "fr": {
+          "file": "public/demo/garage-laurent/fr/09-inspection-report-mobile.webp",
+          "source": "docs/demo-journey/captures/fr/09-inspection-report-mobile.png",
+          "dimensions": "780x1688",
+          "routeTemplate": "/inspection/<token:camilleInspectionReport>",
+          "viewport": "390x844@2x",
+          "httpStatus": 200,
+          "capturedAt": "2026-10-07T13:02:39.609Z"
+        },
+        "en": {
+          "file": "public/demo/garage-laurent/en/09-inspection-report-mobile.webp",
+          "source": "docs/demo-journey/captures/en/09-inspection-report-mobile.png",
+          "dimensions": "780x1688",
+          "routeTemplate": "/inspection/<token:camilleInspectionReport>",
+          "viewport": "390x844@2x",
+          "httpStatus": 200,
+          "capturedAt": "2026-10-07T13:04:59.500Z"
+        }
+      }
     },
     "10-estimate-editor-desktop": {
-      "status": "blocked",
-      "captured": false,
+      "status": "captured",
       "locales": {
-        "fr": null,
-        "en": null
-      },
-      "routeTemplate": null,
-      "entityIds": null,
-      "viewport": null,
-      "dimensions": null,
-      "reason": "no database access"
+        "fr": {
+          "file": "public/demo/garage-laurent/fr/10-estimate-editor-desktop.webp",
+          "source": "docs/demo-journey/captures/fr/10-estimate-editor-desktop.png",
+          "dimensions": "2880x2000",
+          "routeTemplate": "/admin/quotes/<token>",
+          "viewport": "1440x1000@2x",
+          "httpStatus": 200,
+          "capturedAt": "2026-10-07T13:02:50.514Z"
+        },
+        "en": {
+          "file": "public/demo/garage-laurent/en/10-estimate-editor-desktop.webp",
+          "source": "docs/demo-journey/captures/en/10-estimate-editor-desktop.png",
+          "dimensions": "2880x2000",
+          "routeTemplate": "/admin/quotes/<token>",
+          "viewport": "1440x1000@2x",
+          "httpStatus": 200,
+          "capturedAt": "2026-10-07T13:00:03.562Z"
+        }
+      }
     },
     "11-estimate-customer-mobile": {
-      "status": "blocked",
-      "captured": false,
+      "status": "captured",
       "locales": {
-        "fr": null,
-        "en": null
-      },
-      "routeTemplate": null,
-      "entityIds": null,
-      "viewport": null,
-      "dimensions": null,
-      "reason": "no database access"
+        "fr": {
+          "file": "public/demo/garage-laurent/fr/11-estimate-customer-mobile.webp",
+          "source": "docs/demo-journey/captures/fr/11-estimate-customer-mobile.png",
+          "dimensions": "780x2480",
+          "badge": {
+            "en": "Another sample visit",
+            "fr": "Un autre exemple de visite"
+          },
+          "routeTemplate": "/quote/<token:alexandreQuoteApproval>",
+          "viewport": "390x1240@2x",
+          "httpStatus": 200,
+          "capturedAt": "2026-10-07T13:02:57.993Z"
+        },
+        "en": {
+          "file": "public/demo/garage-laurent/en/11-estimate-customer-mobile.webp",
+          "source": "docs/demo-journey/captures/en/11-estimate-customer-mobile.png",
+          "dimensions": "780x2480",
+          "badge": {
+            "en": "Another sample visit",
+            "fr": "Un autre exemple de visite"
+          },
+          "routeTemplate": "/quote/<token:alexandreQuoteApproval>",
+          "viewport": "390x1240@2x",
+          "httpStatus": 200,
+          "capturedAt": "2026-10-07T13:05:12.647Z"
+        }
+      }
     },
     "12-approval-history-desktop": {
-      "status": "blocked",
-      "captured": false,
+      "status": "omitted",
       "locales": {
         "fr": null,
         "en": null
       },
-      "routeTemplate": null,
-      "entityIds": null,
-      "viewport": null,
-      "dimensions": null,
-      "reason": "no database access"
+      "reason": "The product has no admin surface listing approval decisions (QuoteApproval is only stored); nothing was invented."
     },
     "13-work-order-desktop": {
-      "status": "blocked",
-      "captured": false,
+      "status": "captured",
       "locales": {
-        "fr": null,
-        "en": null
-      },
-      "routeTemplate": null,
-      "entityIds": null,
-      "viewport": null,
-      "dimensions": null,
-      "reason": "no database access"
+        "fr": {
+          "file": "public/demo/garage-laurent/fr/13-work-order-desktop.webp",
+          "source": "docs/demo-journey/captures/fr/13-work-order-desktop.png",
+          "dimensions": "2880x2000",
+          "routeTemplate": "/admin/work-orders/<token>",
+          "viewport": "1440x1000@2x",
+          "httpStatus": 200,
+          "capturedAt": "2026-10-07T13:03:09.381Z"
+        },
+        "en": {
+          "file": "public/demo/garage-laurent/en/13-work-order-desktop.webp",
+          "source": "docs/demo-journey/captures/en/13-work-order-desktop.png",
+          "dimensions": "2880x2000",
+          "routeTemplate": "/admin/work-orders/<token>",
+          "viewport": "1440x1000@2x",
+          "httpStatus": 200,
+          "capturedAt": "2026-10-07T13:00:18.499Z"
+        }
+      }
     },
     "14-ready-email": {
-      "status": "blocked",
-      "captured": false,
+      "status": "captured",
       "locales": {
-        "fr": null,
-        "en": null
-      },
-      "routeTemplate": null,
-      "entityIds": null,
-      "viewport": null,
-      "dimensions": null,
-      "reason": "no database access"
+        "fr": {
+          "file": "public/demo/garage-laurent/fr/14-ready-email.webp",
+          "source": "docs/demo-journey/captures/fr/14-ready-email.png",
+          "dimensions": "1520x1800",
+          "badge": {
+            "en": "Another sample visit",
+            "fr": "Un autre exemple de visite"
+          },
+          "renderer": "WORK_ORDER_READY_COPY + PlainMessageEmail",
+          "entity": "mkt-gl-v1-wo-sophie",
+          "capturedAt": "2026-10-07"
+        },
+        "en": {
+          "file": "public/demo/garage-laurent/en/14-ready-email.webp",
+          "source": "docs/demo-journey/captures/en/14-ready-email.png",
+          "dimensions": "1520x1800",
+          "badge": {
+            "en": "Another sample visit",
+            "fr": "Un autre exemple de visite"
+          },
+          "renderer": "WORK_ORDER_READY_COPY + PlainMessageEmail",
+          "entity": "mkt-gl-v1-wo-sophie",
+          "capturedAt": "2026-10-07"
+        }
+      }
     },
     "15-invoice-pdf-page": {
-      "status": "blocked",
-      "captured": false,
+      "status": "captured",
       "locales": {
-        "fr": null,
-        "en": null
-      },
-      "routeTemplate": null,
-      "entityIds": null,
-      "viewport": null,
-      "dimensions": null,
-      "reason": "no database access"
+        "fr": {
+          "file": "public/demo/garage-laurent/fr/15-invoice-pdf-page.webp",
+          "source": "docs/demo-journey/captures/fr/15-invoice-pdf-page.png",
+          "dimensions": "1275x1650",
+          "renderer": "generateInvoicePdf (first page, pdftoppm 150dpi)",
+          "entity": "mkt-gl-v1-inv-camille",
+          "capturedAt": "2026-10-07"
+        },
+        "en": {
+          "file": "public/demo/garage-laurent/en/15-invoice-pdf-page.webp",
+          "source": "docs/demo-journey/captures/en/15-invoice-pdf-page.png",
+          "dimensions": "1275x1650",
+          "renderer": "generateInvoicePdf (first page, pdftoppm 150dpi)",
+          "entity": "mkt-gl-v1-inv-camille",
+          "capturedAt": "2026-10-07"
+        }
+      }
     },
     "16-invoice-email": {
-      "status": "blocked",
-      "captured": false,
+      "status": "captured",
       "locales": {
-        "fr": null,
-        "en": null
-      },
-      "routeTemplate": null,
-      "entityIds": null,
-      "viewport": null,
-      "dimensions": null,
-      "reason": "no database access"
+        "fr": {
+          "file": "public/demo/garage-laurent/fr/16-invoice-email.webp",
+          "source": "docs/demo-journey/captures/fr/16-invoice-email.png",
+          "dimensions": "1520x1984",
+          "renderer": "InvoiceEmail",
+          "entity": "mkt-gl-v1-inv-camille",
+          "capturedAt": "2026-10-07"
+        },
+        "en": {
+          "file": "public/demo/garage-laurent/en/16-invoice-email.webp",
+          "source": "docs/demo-journey/captures/en/16-invoice-email.png",
+          "dimensions": "1520x1984",
+          "renderer": "InvoiceEmail",
+          "entity": "mkt-gl-v1-inv-camille",
+          "capturedAt": "2026-10-07"
+        }
+      }
     },
     "17-payment-record-desktop": {
-      "status": "blocked",
-      "captured": false,
+      "status": "captured",
       "locales": {
-        "fr": null,
-        "en": null
-      },
-      "routeTemplate": null,
-      "entityIds": null,
-      "viewport": null,
-      "dimensions": null,
-      "reason": "no database access"
+        "fr": {
+          "file": "public/demo/garage-laurent/fr/17-payment-record-desktop.webp",
+          "source": "docs/demo-journey/captures/fr/17-payment-record-desktop.png",
+          "dimensions": "2880x2000",
+          "routeTemplate": "/admin/invoices/<token>",
+          "viewport": "1440x1000@2x",
+          "httpStatus": 200,
+          "capturedAt": "2026-10-07T13:03:17.982Z"
+        },
+        "en": {
+          "file": "public/demo/garage-laurent/en/17-payment-record-desktop.webp",
+          "source": "docs/demo-journey/captures/en/17-payment-record-desktop.png",
+          "dimensions": "2880x2000",
+          "routeTemplate": "/admin/invoices/<token>",
+          "viewport": "1440x1000@2x",
+          "httpStatus": 200,
+          "capturedAt": "2026-10-07T13:00:26.402Z"
+        }
+      }
     },
     "18-customer-portal-mobile": {
-      "status": "blocked",
-      "captured": false,
+      "status": "captured",
       "locales": {
-        "fr": null,
-        "en": null
-      },
-      "routeTemplate": null,
-      "entityIds": null,
-      "viewport": null,
-      "dimensions": null,
-      "reason": "no database access"
+        "fr": {
+          "file": "public/demo/garage-laurent/fr/18-customer-portal-mobile.webp",
+          "source": "docs/demo-journey/captures/fr/18-customer-portal-mobile.png",
+          "dimensions": "780x1688",
+          "routeTemplate": "/portal/<token:camillePortal>",
+          "viewport": "390x844@2x",
+          "httpStatus": 200,
+          "capturedAt": "2026-10-07T13:03:28.185Z"
+        },
+        "en": {
+          "file": "public/demo/garage-laurent/en/18-customer-portal-mobile.webp",
+          "source": "docs/demo-journey/captures/en/18-customer-portal-mobile.png",
+          "dimensions": "780x1688",
+          "routeTemplate": "/portal/<token:camillePortal>",
+          "viewport": "390x844@2x",
+          "httpStatus": 200,
+          "capturedAt": "2026-10-07T13:05:23.050Z"
+        }
+      }
     },
     "19-maintenance-reminder-email": {
-      "status": "blocked",
-      "captured": false,
+      "status": "captured",
       "locales": {
-        "fr": null,
-        "en": null
-      },
-      "routeTemplate": null,
-      "entityIds": null,
-      "viewport": null,
-      "dimensions": null,
-      "reason": "no database access"
+        "fr": {
+          "file": "public/demo/garage-laurent/fr/19-maintenance-reminder-email.webp",
+          "source": "docs/demo-journey/captures/fr/19-maintenance-reminder-email.png",
+          "dimensions": "1520x2002",
+          "renderer": "ServiceReminderEmail",
+          "entity": "mkt-gl-v1-rem-camille-oil",
+          "capturedAt": "2026-10-07"
+        },
+        "en": {
+          "file": "public/demo/garage-laurent/en/19-maintenance-reminder-email.webp",
+          "source": "docs/demo-journey/captures/en/19-maintenance-reminder-email.png",
+          "dimensions": "1520x1912",
+          "renderer": "ServiceReminderEmail",
+          "entity": "mkt-gl-v1-rem-camille-oil",
+          "capturedAt": "2026-10-07"
+        }
+      }
     },
     "20-campaign-email": {
-      "status": "blocked",
-      "captured": false,
+      "status": "captured",
       "locales": {
-        "fr": null,
-        "en": null
-      },
-      "routeTemplate": null,
-      "entityIds": null,
-      "viewport": null,
-      "dimensions": null,
-      "reason": "no database access"
+        "fr": {
+          "file": "public/demo/garage-laurent/fr/20-campaign-email.webp",
+          "source": "docs/demo-journey/captures/fr/20-campaign-email.png",
+          "dimensions": "1520x1800",
+          "renderer": "PlainMessageEmail (sendCampaignEmail layout)",
+          "entity": "mkt-gl-v1-campaign-winter",
+          "capturedAt": "2026-10-07"
+        },
+        "en": {
+          "file": "public/demo/garage-laurent/en/20-campaign-email.webp",
+          "source": null,
+          "dimensions": "1520x1800",
+          "reuseFrom": "fr",
+          "badge": {
+            "en": "Sample campaign written in French",
+            "fr": "Exemple de campagne"
+          }
+        }
+      }
     },
     "21-campaign-editor-desktop": {
-      "status": "blocked",
-      "captured": false,
+      "status": "captured",
       "locales": {
-        "fr": null,
-        "en": null
-      },
-      "routeTemplate": null,
-      "entityIds": null,
-      "viewport": null,
-      "dimensions": null,
-      "reason": "no database access"
+        "fr": {
+          "file": "public/demo/garage-laurent/fr/21-campaign-editor-desktop.webp",
+          "source": "docs/demo-journey/captures/fr/21-campaign-editor-desktop.png",
+          "dimensions": "2880x2000",
+          "routeTemplate": "/admin/campaigns/<token>",
+          "viewport": "1440x1000@2x",
+          "httpStatus": 200,
+          "capturedAt": "2026-10-07T13:03:36.663Z"
+        },
+        "en": {
+          "file": "public/demo/garage-laurent/en/21-campaign-editor-desktop.webp",
+          "source": "docs/demo-journey/captures/en/21-campaign-editor-desktop.png",
+          "dimensions": "2880x2000",
+          "routeTemplate": "/admin/campaigns/<token>",
+          "viewport": "1440x1000@2x",
+          "httpStatus": 200,
+          "capturedAt": "2026-10-07T13:00:43.772Z"
+        }
+      }
     },
     "22-sms-inbox-desktop": {
-      "status": "blocked",
-      "captured": false,
+      "status": "omitted",
       "locales": {
         "fr": null,
         "en": null
       },
-      "routeTemplate": null,
-      "entityIds": null,
-      "viewport": null,
-      "dimensions": null,
-      "reason": "no database access"
+      "reason": "The seeded shop has no conversations (empty inbox); no message records were invented."
     },
     "23-inventory-desktop": {
-      "status": "blocked",
-      "captured": false,
+      "status": "captured",
       "locales": {
-        "fr": null,
-        "en": null
-      },
-      "routeTemplate": null,
-      "entityIds": null,
-      "viewport": null,
-      "dimensions": null,
-      "reason": "no database access"
+        "fr": {
+          "file": "public/demo/garage-laurent/fr/23-inventory-desktop.webp",
+          "source": "docs/demo-journey/captures/fr/23-inventory-desktop.png",
+          "dimensions": "2880x2000",
+          "routeTemplate": "/admin/inventory",
+          "viewport": "1440x1000@2x",
+          "httpStatus": 200,
+          "capturedAt": "2026-10-07T13:03:48.507Z"
+        },
+        "en": {
+          "file": "public/demo/garage-laurent/en/23-inventory-desktop.webp",
+          "source": "docs/demo-journey/captures/en/23-inventory-desktop.png",
+          "dimensions": "2880x2000",
+          "routeTemplate": "/admin/inventory",
+          "viewport": "1440x1000@2x",
+          "httpStatus": 200,
+          "capturedAt": "2026-10-07T13:00:52.680Z"
+        }
+      }
     },
     "24-reports-desktop": {
-      "status": "blocked",
-      "captured": false,
+      "status": "captured",
       "locales": {
-        "fr": null,
-        "en": null
-      },
-      "routeTemplate": null,
-      "entityIds": null,
-      "viewport": null,
-      "dimensions": null,
-      "reason": "no database access"
+        "fr": {
+          "file": "public/demo/garage-laurent/fr/24-reports-desktop.webp",
+          "source": "docs/demo-journey/captures/fr/24-reports-desktop.png",
+          "dimensions": "2880x2000",
+          "routeTemplate": "/admin/reports",
+          "viewport": "1440x1000@2x",
+          "httpStatus": 200,
+          "capturedAt": "2026-10-07T13:03:58.891Z"
+        },
+        "en": {
+          "file": "public/demo/garage-laurent/en/24-reports-desktop.webp",
+          "source": "docs/demo-journey/captures/en/24-reports-desktop.png",
+          "dimensions": "2880x2000",
+          "routeTemplate": "/admin/reports",
+          "viewport": "1440x1000@2x",
+          "httpStatus": 200,
+          "capturedAt": "2026-10-07T13:01:01.194Z"
+        }
+      }
     },
     "25-tire-storage-desktop": {
-      "status": "blocked",
-      "captured": false,
+      "status": "captured",
       "locales": {
-        "fr": null,
-        "en": null
-      },
-      "routeTemplate": null,
-      "entityIds": null,
-      "viewport": null,
-      "dimensions": null,
-      "reason": "no database access"
+        "fr": {
+          "file": "public/demo/garage-laurent/fr/25-tire-storage-desktop.webp",
+          "source": "docs/demo-journey/captures/fr/25-tire-storage-desktop.png",
+          "dimensions": "2880x2000",
+          "routeTemplate": "/admin/tire-storage",
+          "viewport": "1440x1000@2x",
+          "httpStatus": 200,
+          "capturedAt": "2026-10-07T13:04:09.195Z"
+        },
+        "en": {
+          "file": "public/demo/garage-laurent/en/25-tire-storage-desktop.webp",
+          "source": "docs/demo-journey/captures/en/25-tire-storage-desktop.png",
+          "dimensions": "2880x2000",
+          "routeTemplate": "/admin/tire-storage",
+          "viewport": "1440x1000@2x",
+          "httpStatus": 200,
+          "capturedAt": "2026-10-07T13:01:09.522Z"
+        }
+      }
     }
-  },
-  "invoicePdf": {
-    "status": "blocked",
-    "reason": "requires generateInvoicePdf against INV-0006 (mkt-gl-v1-inv-camille) in the DB"
   }
 }

@@ -7,12 +7,12 @@
       "camilleCad": "423.11",
       "alexandreCad": "218.45"
     },
-    "refDate": "2026-10-06",
-    "demoDay": "2026-10-07"
+    "refDate": "2026-10-07",
+    "demoDay": "2026-10-08"
   },
   "en": {
     "confirmation": {
-      "text": "Garage Laurent: appointment confirmed — Vidange d’huile — Honda Civic, mercredi 7 octobre 2026 à 08 h 00. Confirm or cancel: garageos.com/demo#booking",
+      "text": "Garage Laurent: appointment confirmed — Vidange d’huile — Honda Civic, jeudi 8 octobre 2026 à 08 h 00. Confirm or cancel: garageos.com/demo#booking",
       "link": "garageos.com/demo#booking",
       "anchor": "booking"
     },
@@ -39,7 +39,7 @@
   },
   "fr": {
     "confirmation": {
-      "text": "Garage Laurent : rendez-vous confirmé — Vidange d’huile — Honda Civic, mercredi 7 octobre 2026 à 08 h 00. Confirmer ou annuler : garageos.com/demo#booking",
+      "text": "Garage Laurent : rendez-vous confirmé — Vidange d’huile — Honda Civic, jeudi 8 octobre 2026 à 08 h 00. Confirmer ou annuler : garageos.com/demo#booking",
       "link": "garageos.com/demo#booking",
       "anchor": "booking"
     },
