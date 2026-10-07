@@ -1,0 +1,169 @@
+# Garage Laurent — visual customer journey for /demo
+
+Status: implementation brief. Scope: capture real product assets and rebuild /demo as a self-guided visual sales walkthrough. Do not rebuild the homepage in this task.
+Owner request: visitors must understand the interface and the shop-branded customer experience without a salesperson giving the tour.
+
+## Existing code and integration
+
+Inspect AGENTS.md and current code before implementing.
+- src/app/demo/page.tsx
+- DemoContent in src/components/marketing/AcquisitionContent.tsx
+- DEMO_COPY and DEMO_STEPS in src/lib/marketing-flow.ts
+- MarketingLocaleProvider, MarketingPageShell, entitlements and existing route helpers.
+Current /demo is eight mostly textual cards. Replace this presentation with visual sections while preserving GetStartedContent and QuickStartContent. Extract a dedicated demo component if useful. Keep EN/FR and existing marketing design: GarageOS navy/blue outside the screenshots; Garage Laurent petroleum/copper inside its own branding.
+
+## Dataset and environment handoff
+
+Known identifiers reported by the previous LOCAL agent; verify rather than assuming:
+- Owner email: demo.garage.laurent@example.com. Password: obtain from the local seed environment/owner; never commit a password.
+- Slug: garage-laurent-demo.
+- Seed batch: marketing-garage-laurent-v1.
+- Shop ID reported: mkt-gl-v1-shop.
+- Main customer: Camille Tremblay, Honda Civic 2019, DEMO-01, 92,450 km.
+- Main inspection: mkt-gl-v1-insp-camille.
+- Main invoice reported: INV-0006; resolve by customer/work-order relations and manifest, not number alone.
+- Secondary scenarios: Alexandre Gagnon/RAV4 pending quote; Sophie Bouchard/Tucson ready for pickup.
+- Local app previously on localhost:3000. Windows starter reported at C:\\Users\\mitch\\gpg-local\\start-dev.cjs.
+- Dataset is in local PostgreSQL, NOT established as present in Preview/production.
+- Images are already in existing Supabase Storage, authorized by owner, in this shop's exclusive paths. Logo/exterior/interior public; DVI photos private.
+- Storage vars were read selectively from .env.production.local without replacing local DATABASE_URL.
+- PostgreSQL subsequently failed with "could not reserve shared memory", Windows error 487. This brief does not claim that issue is resolved.
+
+Do not spend this task redesigning PostgreSQL infrastructure. First check whether the existing app/data are accessible. If blocked, continue capture tooling, UI and manifest preparation independently. Report the precise blocker; never substitute production DB or silently create/reset a database. Use an existing accessible local/Preview demo or rerun the existing idempotent seed in an explicitly configured development database if available. Preserve uploaded images. Do not claim screenshots were produced if access is blocked.
+
+Keep communications suspended. Render email and SMS examples without external sends. No Twilio provisioning, Stripe charges or QBO connections.
+
+## Narrative and page order
+
+Hero: "See your shop in action." / "Voyez votre atelier en action."
+Description: explore Garage Laurent, a fictional Quebec shop, from booking to the next visit.
+Small visible label: fictional demonstration / démonstration fictive.
+Hero visual: real dashboard, large enough to inspect, with an agenda thumbnail.
+Primary CTA: Explore the visit (scroll to booking); secondary: Start free trial (existing route).
+Jump navigation: Booking, Inspection, Approval, Work, Invoice, Follow-up (localized).
+Use short sections, one benefit sentence plus at most three concise supporting points. Images carry the story.
+
+1. Booking (#booking)
+   Desktop booking as main image, mobile preview beside it. Expandable booking form and confirmation email.
+   Explain own logo/photos/colors and customer booking; show agenda directly below as the shop-side result.
+2. Inspect (#inspection)
+   Admin checklist plus customer-facing report with two illustrative photos.
+   Do not claim the generated images prove a specific measured defect.
+3. Estimate and approve (#approval)
+   Main Camille quote editor and customer quote view. SMS preview → arrow → branded quote with approve action visible.
+   Then approval history as expandable detail.
+   Use Camille's matching line items and 423.11 CAD across this sequence. If historical Camille quote cannot show a pending action, create a dedicated demo-only snapshot/scenario from those same lines and capture before/after without altering her finalized invoice. Clearly label staged example. Alternatively show Alexandre as a separate labeled example (218.45 CAD), never pretend it is Camille's document.
+4. Run the work (#work)
+   Work Order as main image; detail card for status/parts. Ready-for-pickup SMS and email beneath.
+   If using Sophie's ready scenario, label it as another sample visit.
+5. Invoice (#invoice) — key sales moment
+   Phone SMS preview on left: actual invoice SMS generated by the current formatter.
+   Highlight its link; rendered arrow points to Camille's REAL branded PDF on right.
+   Click link opens a static demo invoice PDF or accessible preview dialog, NOT a live tokenized customer endpoint.
+   Include "Votre facture, à l’image de votre atelier." / "Your invoice, with your shop's identity."
+   PDF must show logo, shop info, line items, TPS/TVQ, 423.11 CAD. Add expandable invoice email and payment-record screenshot.
+   GarageOS records externally collected payments; do not imply card processing.
+6. Follow-up (#follow-up)
+   Customer portal + vehicle history + reminder email. Show future maintenance attached to Camille's Civic.
+7. Retention and owner tools (#more)
+   Campaign email example as main retention asset, draft editor as secondary.
+   Compact expandable gallery: SMS inbox, inventory, reports, tire storage.
+   Keep these secondary so they do not overwhelm the main visit.
+8. Final CTA
+   Start free trial, Compare plans and Contact. Preserve current trial/pricing sources.
+
+Desktop: max width around existing max-w-6xl; images occupy most of each section, alternating text placement where appropriate.
+Mobile: stack source → arrow → destination vertically; use mobile captures for customer views. Never squeeze an entire desktop screenshot into unreadable tiny text without zoom.
+No autoplay carousel or mandatory video. Navigation and zoom work by keyboard.
+
+## Exact asset filenames
+
+Raw captures: docs/demo-journey/captures/{fr,en}/
+Web images: public/demo/garage-laurent/{fr,en}/ (same basename, .webp)
+Static PDFs: public/demo/garage-laurent/{fr,en}/invoice-camille.pdf
+Manifest: docs/demo-journey/manifest.json
+Capture/run instructions: docs/demo-journey/README.md
+Implementation evidence: docs/demo-journey/validation.md
+
+Each locale folder uses these exact PNG basenames. "desktop" viewport 1440x1000; "mobile" 390x844; device scale factor 2 where practical. Use element captures for emails/PDF pages to avoid excess blank space.
+
+| Filename | Required view | Placement |
+|---|---|---|
+| 01-dashboard-desktop.png | Actual populated shop dashboard | Hero |
+| 02-agenda-desktop.png | Nonempty day with mechanics and appointments | Hero secondary + booking result |
+| 03-booking-desktop.png | Logo, cover, services, interior | Booking main |
+| 04-booking-mobile.png | Actual responsive booking | Booking companion |
+| 05-booking-form-mobile.png | Service/date/client fields | Booking expandable |
+| 06-confirmation-email.png | Real branded appointment email renderer | Booking expandable |
+| 07-client-vehicle-history-desktop.png | Camille + Civic + linked visit history | Follow-up |
+| 08-inspection-admin-desktop.png | Checklist and two attached photos | Inspect shop-side |
+| 09-inspection-report-mobile.png | Real customer report | Inspect customer-side |
+| 10-estimate-editor-desktop.png | Quote lines and totals | Approval shop-side |
+| 11-estimate-customer-mobile.png | Same quote, actual public customer UI | SMS → quote composition |
+| 12-approval-history-desktop.png | Documented demo decision | Approval expandable |
+| 13-work-order-desktop.png | Linked lines/mechanic/status | Work main |
+| 14-ready-email.png | Actual ready email renderer | Work expandable |
+| 15-invoice-pdf-page.png | Actual rendered first invoice PDF page | SMS → invoice destination |
+| 16-invoice-email.png | Actual invoice email renderer | Invoice expandable |
+| 17-payment-record-desktop.png | Actual recorded payment | Invoice expandable |
+| 18-customer-portal-mobile.png | Camille portal overview | Follow-up main |
+| 19-maintenance-reminder-email.png | Actual future reminder email renderer | Follow-up companion |
+| 20-campaign-email.png | Current campaign template with demo text | Retention main |
+| 21-campaign-editor-desktop.png | Draft campaign editor | Retention expandable |
+| 22-sms-inbox-desktop.png | Compatible demo conversation if available | More gallery |
+| 23-inventory-desktop.png | Parts, stocks, actual movements | More gallery |
+| 24-reports-desktop.png | Actual demo report with populated date range | More gallery |
+| 25-tire-storage-desktop.png | Alexandre's set and location | More gallery |
+
+Capture BOTH FR and EN interface chrome where the product supports switching. French Quebec business content/names may remain French within English screenshots; explain in captions rather than fabricating translated records. Email/PDF variants must use the actual supported locale rendering without changing historical fiscal data. If a view lacks a locale variant, reuse the genuine asset explicitly through the manifest, rather than inventing a capture.
+
+Additional structured asset: public/demo/garage-laurent/messages.json.
+Store localized SMS strings from the actual product formatters for confirmation, quote, ready, invoice and maintenance. Include fictitious shop name and correct document totals. Replace real host/token links with safe static demo targets at presentation time. Do not publish bearer tokens.
+SMS UI: build phone frame/bubbles in React/CSS from these strings. SMS branding means shop name/number/text, not logo/colors inside the carrier message. Show a small "Example message" label. Capture actual supported inbox if present; if not, mark 22 unavailable and omit gallery item, never invent delivered message records.
+
+## Capture method and quality
+
+Use real app and renderer output, not ImageGen or hand-drawn substitute product screens.
+Authenticate through the existing test OWNER login.
+Discover current seed/asset scripts and manifest locally; GitHub may not yet contain the local work.
+Browser automation can run with existing available tooling; a temporary external Playwright runner is acceptable without adding a production dependency. Install only if environment permits.
+Wait for fonts, image loads, hydrated app and stable layout; hide cursor and avoid tooltips unless intentional.
+Do not rewrite the actual product UI to make screenshots prettier.
+Capture focused sections with context, avoid browser chrome, dev overlays, account menus, secrets and unrelated records.
+Record source route TEMPLATE (redact tokens), entity IDs, viewport, locale, date, status and dimensions in manifest.
+Use secure private URLs only during capture. Export rendered static images; no expiring signed URL dependencies on public /demo.
+Render PDF with actual generateInvoicePdf flow. Save standalone static demo PDF and image page; remove private access links/metadata if any. Audit all exported files for secrets.
+No fake "sent", "delivered" or provider IDs. Email previews use current templates locally, without transport.
+If notes conflict with generated illustrative photos, use neutral demo captions; don't change a completed customer's fiscal document for screenshot staging.
+
+Optimize WebP for readable text, retain original PNGs as reproducible sources. Aim around <=500 KB per web image where legibility permits; quality beats hard limits. Avoid committing duplicate throwaway captures.
+Images have explicit dimensions/aspect ratio. Lazy-load below fold; priority only on hero.
+All public assets contain exclusively fictitious sample data.
+
+## Implementation
+
+Create a typed shared demo asset catalog (suggested src/lib/demo-journey.ts) with section, locale, path, width, height, caption, alt, plan gate and optional secondary assets. Use actual entitlements/minimum plans for badges.
+Use existing Next Image and marketing locale patterns.
+Suggested reusable components: DemoJourneySection, DemoImageViewer, DemoMessageDocument. Keep abstractions small.
+Lightbox: keyboard accessible, Escape closes, focus returns, localized controls; support mobile pinch/scroll or full-resolution view.
+SMS links open static demo documents/views. They must not send messages, create records, accept real approvals or require login.
+Public /demo operates entirely from static assets and content, not live demo database queries.
+If assets are unavailable, document blockers and prepare integration; do not publish a polished-looking fake screenshot or broken image.
+Do not expose test owner credentials anywhere in public UI, public JSON or this documentation.
+Keep signup/contact routes authoritative. Local demo setup details belong in internal README only.
+Do not change homepage/Product/Features in this implementation; catalog should support later reuse.
+
+## Completion and checks
+
+1. Inventory existing dataset/images and identify accessible environment.
+2. Produce genuine captures, messages and static PDF; inspect each visually.
+3. Save files with exact names, catalog and provenance manifest.
+4. Build /demo sections and compositions.
+5. Validate FR/EN, 390px mobile, 768px tablet and 1440px desktop; no horizontal overflow.
+6. Verify zoom/navigation, links and safe static invoice download.
+7. Verify no token, secrets, production customer data or live mutation links in artifacts.
+8. Run repo-required checks and production build; fix introduced failures.
+9. Capture finished /demo evidence under docs/demo-journey/evidence/ named demo-fr-390.png, demo-en-390.png, demo-fr-1440.png, demo-en-1440.png (full-page permitted here).
+10. Deliver changed files, capture counts, missing assets/blockers and checks. Commit work on an implementation branch; open draft PR if available. No production deployment requested.
+
+Acceptance: a visitor can see the actual interface, reserve experience, inspection, approval, work, branded message-to-invoice connection and follow-up without a live tour. Same fictional shop branding throughout; secondary customer examples explicitly labeled.
