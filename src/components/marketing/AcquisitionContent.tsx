@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, CreditCard, LayoutDashboard, Palette, Users } from "lucide-react";
+import { ArrowRight, CreditCard, LayoutDashboard, Palette, Users } from "lucide-react";
 import { useMarketingLocale } from "@/components/marketing/MarketingLocaleProvider";
 import { PageHero } from "@/components/marketing/PageHero";
+import { DemoJourney } from "@/components/marketing/demo/DemoJourney";
 import { ADMIN } from "@/lib/routes";
 import {
-  DEMO_COPY, DEMO_STEPS, GET_STARTED_COPY, GET_STARTED_STEPS, QUICK_START_COPY, QUICK_START_STEPS,
+  GET_STARTED_COPY, GET_STARTED_STEPS, QUICK_START_COPY, QUICK_START_STEPS,
 } from "@/lib/marketing-flow";
 
 const STEP_ICONS = { users: Users, card: CreditCard, palette: Palette, dashboard: LayoutDashboard } as const;
@@ -60,40 +61,7 @@ export function GetStartedContent() {
 }
 
 export function DemoContent() {
-  const { locale } = useMarketingLocale();
-  const c = DEMO_COPY[locale];
-  return (
-    <>
-      <PageHero eyebrow={c.eyebrow} heading={c.heading} description={c.description} />
-      <section className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
-        <ol className="space-y-6">
-          {DEMO_STEPS.map((step, index) => (
-            <li key={step.title.en} className="rounded-2xl border border-slate-200 p-6 sm:p-8">
-              <div className="flex flex-wrap items-center gap-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-brand-blue">{c.stepOf(index + 1, DEMO_STEPS.length)}</p>
-                <span className="inline-flex items-center gap-1 rounded-full bg-brand-blue/10 px-2.5 py-1 text-[11px] font-semibold text-brand-blue">
-                  <CheckCircle2 className="w-3 h-3" />
-                  {step.chip[locale]}
-                </span>
-              </div>
-              <h2 className="mt-3 text-xl font-semibold text-slate-900">{step.title[locale]}</h2>
-              <p className="mt-3 font-medium text-slate-700">{step.example[locale]}</p>
-              <p className="mt-3 text-sm leading-7 text-slate-600">{step.body[locale]}</p>
-              <Link href={step.href} className="mt-5 inline-block text-sm font-semibold text-brand-blue">{step.label[locale]} →</Link>
-            </li>
-          ))}
-        </ol>
-        <div className="mt-10 rounded-2xl bg-slate-50 p-8">
-          <h2 className="text-xl font-semibold text-slate-900">{c.outroTitle}</h2>
-          <p className="mt-3 text-sm leading-relaxed text-slate-600">{c.outroBody}</p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Link href={ADMIN.signup} className="rounded-lg bg-brand-blue px-5 py-3 text-sm font-semibold text-white">{c.start}</Link>
-            <Link href="/contact" className="rounded-lg border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-700">{c.contact}</Link>
-          </div>
-        </div>
-      </section>
-    </>
-  );
+  return <DemoJourney />;
 }
 
 export function QuickStartContent() {
