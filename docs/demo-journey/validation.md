@@ -57,7 +57,46 @@ After the final assets were built, Postgres, the Storage stand-in and the captur
 - Secret sweep: owner password, DB password and all private tokens searched across `docs/`, `public/`, `scripts/` (text and binary): no hits. `capture-log.json` stores route templates only. PDF metadata: title/author (shop name) only.
 - Evidence: `docs/demo-journey/evidence/demo-{fr,en}-{390,1440}.png` (full page; sticky header repeats mid-page in full-page screenshots).
 
-## Not done / limits
+## Final status (PR #83 closed out)
 
-- Real Supabase Storage was not written; if the shop's cloud demo needs the images, the owner must run the attach script with the real Storage env (hashes match the manifest).
-- Production/Preview data not used; nothing deployed or merged.
+Definitive: 23 of 25 views captured in FR + EN, plus `invoice-camille.pdf`. **Omitted on purpose: 12 approval history** (no admin surface in the product lists approval decisions) **and 22 SMS inbox** (seeded shop has no conversations). Nothing invented. Final checks: `tsc` clean, `npm test` 597/597 (clean env), ESLint clean on touched files, `next build` OK, `/demo` QA FR/EN x 390/768/1440 with 0 overflow / 0 broken images / 0 console errors / 0 cross-origin requests, secret sweep clean. All final captures, assets, manifests and docs are committed and pushed to the PR head.
+
+## Pending for the next agent
+
+1. **Dashboard time zone.** The dashboard computes "today", "this month" and formats times with the server/process time zone (`new Date()` in `src/app/admin/(shop)/dashboard/page.tsx`), not the shop's. On a UTC host (e.g. Vercel) a Montreal 08:00 appointment prints as 12 h 00. The capture server ran with `TZ=America/Montreal` to avoid this. Product behaviour was not changed; fixing it (use the shop time zone, as Reports already does) is a separate product task.
+2. **Capture shop lives in a throwaway database.** The Garage Laurent shop used for the captures was created in a temporary PostgreSQL 16 inside the remote container (`garageos_marketing_local`). It is not in Preview/production, and it disappears with the container. Re-create it with the seed to recapture.
+3. **`/demo` is fully static.** It needs only `public/demo/garage-laurent/*` (WebP, PDFs, `manifest.json`, `messages.json`) and the catalog in `src/lib/demo-journey.ts`. No Supabase, no database, no capture server (verified by serving it with all of them stopped).
+4. **Real Storage not verified.** The six photos were attached against a local, dev-only stand-in for the Supabase Storage API. Real Supabase Storage was neither read nor written from this environment. If the cloud demo shop needs the images, run `npm run attach:marketing-garage-laurent-assets` with the real Storage env (hashes in `garage-laurent-assets-manifest.json` allow idempotent verification).
+5. Minor: INV-0009..0011 (dated earlier) are numbered after the draft INV-0008; cosmetic. Shop data is Quebec French, so EN screens show French records (stated on `/demo`).
+
+## Reproducing the captures without storing credentials
+
+Nothing below needs a secret in git; keep values in the shell session or files outside the repo.
+
+```bash
+# 1. Throwaway database (any local Postgres). Credentials exist only in this shell.
+export DATABASE_URL="postgresql://<user>:<generated>@localhost:5432/garageos_marketing_local"
+export DIRECT_URL="$DATABASE_URL"
+npm ci && npm run db:generate && npm run db:deploy
+export DEMO_OWNER_PASSWORD="$(openssl rand -hex 12)"      # not printed, not saved in the repo
+npm run seed:marketing-garage-laurent -- --dry-run
+npm run seed:marketing-garage-laurent -- --access-file=/tmp/gl-access.json   # outside the repo (0600)
+
+# 2. Storage: with real credentials export NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY and run
+#    `npm run attach:marketing-garage-laurent-assets` (check SHA-256 first). Without them, point the same
+#    variables at a local fake Storage server (dev only) and say so in this file.
+
+# 3. App with every provider disabled, in the shop's time zone
+export AUTH_SECRET=$(openssl rand -hex 16) AUTH_TRUST_HOST=true NEXTAUTH_URL=http://localhost:3100 \
+  NEXT_PUBLIC_APP_URL=http://localhost:3100 PROVIDER_SIDE_EFFECTS=disabled STRIPE_TEST_MUTATIONS=disabled GARAGEOS_LOCAL_QA=1
+TZ=America/Montreal npx next dev --webpack -p 3100
+
+# 4. Tooling (outside the repo): mkdir /tmp/gl-tools && cd /tmp/gl-tools && npm init -y && npm i playwright-core sharp
+export DEMO_TOOLS_DIR=/tmp/gl-tools CHROMIUM_PATH=<chromium binary> CHROMIUM_NO_SANDBOX=1 \
+  DEMO_BASE_URL=http://localhost:3100 DEMO_ACCESS_FILE=/tmp/gl-access.json
+node scripts/demo-journey/capture.mjs --locale=fr      # EN: see README (temporary EN locale/language, then restore)
+npx tsx scripts/demo-journey/render-documents.ts /tmp/gl-docs && node scripts/demo-journey/shoot-documents.mjs /tmp/gl-docs
+node scripts/demo-journey/prepare-assets.mjs && npx tsx scripts/demo-journey/build-messages.ts
+# 5. Stop everything, then verify /demo statically: next build && env -i PATH="$PATH" next start, then
+node scripts/demo-journey/qa-demo-page.mjs --shots=docs/demo-journey/evidence
+```
