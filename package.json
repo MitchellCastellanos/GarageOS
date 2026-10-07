@@ -21,7 +21,9 @@
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
     "check": "npm run db:validate && npm run db:generate && npm run typecheck && npm test",
-    "test:integration": "node scripts/run-integration.mjs"
+    "test:integration": "node scripts/run-integration.mjs",
+    "seed:marketing-garage-laurent": "tsx scripts/seed-marketing-garage-laurent.ts",
+    "attach:marketing-garage-laurent-assets": "tsx scripts/marketing/attach-garage-laurent-assets.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
