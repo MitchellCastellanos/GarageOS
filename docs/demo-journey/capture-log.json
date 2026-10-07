@@ -1,0 +1,173 @@
+[
+  {
+    "file": "01-dashboard-desktop.png",
+    "locale": "fr",
+    "routeTemplate": "/admin/dashboard",
+    "viewport": "1440x1000@2x",
+    "httpStatus": 200,
+    "capturedAt": "2026-10-07T12:51:53.098Z",
+    "note": null
+  },
+  {
+    "file": "02-agenda-desktop.png",
+    "locale": "fr",
+    "routeTemplate": "/admin/appointments",
+    "viewport": "1440x1000@2x",
+    "httpStatus": 200,
+    "capturedAt": "2026-10-07T12:52:09.176Z",
+    "note": null
+  },
+  {
+    "file": "03-booking-desktop.png",
+    "locale": "fr",
+    "routeTemplate": "/book/garage-laurent-demo",
+    "viewport": "1440x1000@2x",
+    "httpStatus": 200,
+    "capturedAt": "2026-10-07T12:52:15.228Z",
+    "note": null
+  },
+  {
+    "file": "04-booking-mobile.png",
+    "locale": "fr",
+    "routeTemplate": "/book/garage-laurent-demo",
+    "viewport": "390x844@2x",
+    "httpStatus": 200,
+    "capturedAt": "2026-10-07T12:52:20.119Z",
+    "note": null
+  },
+  {
+    "file": "05-booking-form-mobile.png",
+    "locale": "fr",
+    "routeTemplate": "/book/garage-laurent-demo",
+    "viewport": "390x844@2x",
+    "httpStatus": 200,
+    "capturedAt": "2026-10-07T12:52:25.462Z",
+    "note": "scroll to the booking form; adjust selector on first run"
+  },
+  {
+    "file": "07-client-vehicle-history-desktop.png",
+    "locale": "fr",
+    "routeTemplate": "/admin/clients/<token>",
+    "viewport": "1440x1000@2x",
+    "httpStatus": 200,
+    "capturedAt": "2026-10-07T12:52:40.309Z",
+    "note": null
+  },
+  {
+    "file": "08-inspection-admin-desktop.png",
+    "locale": "fr",
+    "routeTemplate": "/admin/inspections/<token>",
+    "viewport": "1440x1000@2x",
+    "httpStatus": 200,
+    "capturedAt": "2026-10-07T12:52:49.050Z",
+    "note": null
+  },
+  {
+    "file": "09-inspection-report-mobile.png",
+    "locale": "fr",
+    "routeTemplate": "/inspection/<token:camilleInspectionReport>",
+    "viewport": "390x844@2x",
+    "httpStatus": 200,
+    "capturedAt": "2026-10-07T12:52:58.832Z",
+    "note": null
+  },
+  {
+    "file": "10-estimate-editor-desktop.png",
+    "locale": "fr",
+    "routeTemplate": "/admin/quotes/<token>",
+    "viewport": "1440x1000@2x",
+    "httpStatus": 200,
+    "capturedAt": "2026-10-07T12:53:19.756Z",
+    "note": null
+  },
+  {
+    "file": "11-estimate-customer-mobile.png",
+    "locale": "fr",
+    "routeTemplate": "/quote/<token:alexandreQuoteApproval>",
+    "viewport": "390x844@2x",
+    "httpStatus": 200,
+    "capturedAt": "2026-10-07T12:53:31.780Z",
+    "note": "Alexandre's pending quote (218.45 CAD) unless a Camille staged snapshot exists; badge it in the manifest"
+  },
+  {
+    "file": "12-approval-history-desktop.png",
+    "locale": "fr",
+    "routeTemplate": "/admin/quotes/<token>",
+    "viewport": "1440x1000@2x",
+    "httpStatus": 200,
+    "capturedAt": "2026-10-07T12:53:37.246Z",
+    "note": "scroll to approval history"
+  },
+  {
+    "file": "13-work-order-desktop.png",
+    "locale": "fr",
+    "routeTemplate": "/admin/work-orders/<token>",
+    "viewport": "1440x1000@2x",
+    "httpStatus": 200,
+    "capturedAt": "2026-10-07T12:53:46.913Z",
+    "note": null
+  },
+  {
+    "file": "17-payment-record-desktop.png",
+    "locale": "fr",
+    "routeTemplate": "/admin/invoices/<token>",
+    "viewport": "1440x1000@2x",
+    "httpStatus": 200,
+    "capturedAt": "2026-10-07T12:54:00.149Z",
+    "note": null
+  },
+  {
+    "file": "18-customer-portal-mobile.png",
+    "locale": "fr",
+    "routeTemplate": "/portal/<token:camillePortal>",
+    "viewport": "390x844@2x",
+    "httpStatus": 200,
+    "capturedAt": "2026-10-07T12:54:09.983Z",
+    "note": null
+  },
+  {
+    "file": "21-campaign-editor-desktop.png",
+    "locale": "fr",
+    "routeTemplate": "/admin/campaigns/<token>",
+    "viewport": "1440x1000@2x",
+    "httpStatus": 200,
+    "capturedAt": "2026-10-07T12:54:18.661Z",
+    "note": null
+  },
+  {
+    "file": "22-sms-inbox-desktop.png",
+    "locale": "fr",
+    "routeTemplate": "/admin/inbox",
+    "viewport": "1440x1000@2x",
+    "httpStatus": 200,
+    "capturedAt": "2026-10-07T12:54:27.237Z",
+    "note": null
+  },
+  {
+    "file": "23-inventory-desktop.png",
+    "locale": "fr",
+    "routeTemplate": "/admin/inventory",
+    "viewport": "1440x1000@2x",
+    "httpStatus": 200,
+    "capturedAt": "2026-10-07T12:54:35.675Z",
+    "note": null
+  },
+  {
+    "file": "24-reports-desktop.png",
+    "locale": "fr",
+    "routeTemplate": "/admin/reports",
+    "viewport": "1440x1000@2x",
+    "httpStatus": 200,
+    "capturedAt": "2026-10-07T12:54:50.069Z",
+    "note": null
+  },
+  {
+    "file": "25-tire-storage-desktop.png",
+    "locale": "fr",
+    "routeTemplate": "/admin/tire-storage",
+    "viewport": "1440x1000@2x",
+    "httpStatus": 200,
+    "capturedAt": "2026-10-07T12:54:59.940Z",
+    "note": null
+  }
+]

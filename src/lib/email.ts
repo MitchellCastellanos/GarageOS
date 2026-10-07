@@ -306,7 +306,7 @@ export async function sendAppointmentEmail(data: AppointmentEmailSendData): Prom
   });
 }
 
-interface WorkOrderReadyEmailData {
+export interface WorkOrderReadyEmailData {
   shop: ShopEmailConfig;
   to: string;
   clientId?: string;
@@ -317,7 +317,7 @@ interface WorkOrderReadyEmailData {
   language?: string | null;
 }
 
-const WORK_ORDER_READY_COPY = {
+export const WORK_ORDER_READY_COPY = {
   EN: {
     subject: (orderNumber: string, shopName: string) => `Your vehicle is ready — ${orderNumber} · ${shopName}`,
     subtitle: "Your vehicle is ready",
