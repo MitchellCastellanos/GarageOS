@@ -1,0 +1,344 @@
+{
+  "version": 1,
+  "dataset": "marketing-garage-laurent-v1",
+  "shopSlug": "garage-laurent-demo",
+  "generatedAt": "2026-10-07",
+  "status": "blocked: local Postgres (localhost:54329) accepts no connections (Windows error 487). No capture was produced.",
+  "messages": {
+    "file": "public/demo/garage-laurent/messages.json",
+    "status": "generated",
+    "source": "real formatters exported from src/lib/sms.ts + verified dataset plan (Camille 423.11 CAD, Alexandre 218.45 CAD); not read from the DB",
+    "sent": false
+  },
+  "assets": {
+    "01-dashboard-desktop": {
+      "status": "blocked",
+      "captured": false,
+      "locales": {
+        "fr": null,
+        "en": null
+      },
+      "routeTemplate": null,
+      "entityIds": null,
+      "viewport": null,
+      "dimensions": null,
+      "reason": "no database access"
+    },
+    "02-agenda-desktop": {
+      "status": "blocked",
+      "captured": false,
+      "locales": {
+        "fr": null,
+        "en": null
+      },
+      "routeTemplate": null,
+      "entityIds": null,
+      "viewport": null,
+      "dimensions": null,
+      "reason": "no database access"
+    },
+    "03-booking-desktop": {
+      "status": "blocked",
+      "captured": false,
+      "locales": {
+        "fr": null,
+        "en": null
+      },
+      "routeTemplate": null,
+      "entityIds": null,
+      "viewport": null,
+      "dimensions": null,
+      "reason": "no database access"
+    },
+    "04-booking-mobile": {
+      "status": "blocked",
+      "captured": false,
+      "locales": {
+        "fr": null,
+        "en": null
+      },
+      "routeTemplate": null,
+      "entityIds": null,
+      "viewport": null,
+      "dimensions": null,
+      "reason": "no database access"
+    },
+    "05-booking-form-mobile": {
+      "status": "blocked",
+      "captured": false,
+      "locales": {
+        "fr": null,
+        "en": null
+      },
+      "routeTemplate": null,
+      "entityIds": null,
+      "viewport": null,
+      "dimensions": null,
+      "reason": "no database access"
+    },
+    "06-confirmation-email": {
+      "status": "blocked",
+      "captured": false,
+      "locales": {
+        "fr": null,
+        "en": null
+      },
+      "routeTemplate": null,
+      "entityIds": null,
+      "viewport": null,
+      "dimensions": null,
+      "reason": "no database access"
+    },
+    "07-client-vehicle-history-desktop": {
+      "status": "blocked",
+      "captured": false,
+      "locales": {
+        "fr": null,
+        "en": null
+      },
+      "routeTemplate": null,
+      "entityIds": null,
+      "viewport": null,
+      "dimensions": null,
+      "reason": "no database access"
+    },
+    "08-inspection-admin-desktop": {
+      "status": "blocked",
+      "captured": false,
+      "locales": {
+        "fr": null,
+        "en": null
+      },
+      "routeTemplate": null,
+      "entityIds": null,
+      "viewport": null,
+      "dimensions": null,
+      "reason": "no database access"
+    },
+    "09-inspection-report-mobile": {
+      "status": "blocked",
+      "captured": false,
+      "locales": {
+        "fr": null,
+        "en": null
+      },
+      "routeTemplate": null,
+      "entityIds": null,
+      "viewport": null,
+      "dimensions": null,
+      "reason": "no database access"
+    },
+    "10-estimate-editor-desktop": {
+      "status": "blocked",
+      "captured": false,
+      "locales": {
+        "fr": null,
+        "en": null
+      },
+      "routeTemplate": null,
+      "entityIds": null,
+      "viewport": null,
+      "dimensions": null,
+      "reason": "no database access"
+    },
+    "11-estimate-customer-mobile": {
+      "status": "blocked",
+      "captured": false,
+      "locales": {
+        "fr": null,
+        "en": null
+      },
+      "routeTemplate": null,
+      "entityIds": null,
+      "viewport": null,
+      "dimensions": null,
+      "reason": "no database access"
+    },
+    "12-approval-history-desktop": {
+      "status": "blocked",
+      "captured": false,
+      "locales": {
+        "fr": null,
+        "en": null
+      },
+      "routeTemplate": null,
+      "entityIds": null,
+      "viewport": null,
+      "dimensions": null,
+      "reason": "no database access"
+    },
+    "13-work-order-desktop": {
+      "status": "blocked",
+      "captured": false,
+      "locales": {
+        "fr": null,
+        "en": null
+      },
+      "routeTemplate": null,
+      "entityIds": null,
+      "viewport": null,
+      "dimensions": null,
+      "reason": "no database access"
+    },
+    "14-ready-email": {
+      "status": "blocked",
+      "captured": false,
+      "locales": {
+        "fr": null,
+        "en": null
+      },
+      "routeTemplate": null,
+      "entityIds": null,
+      "viewport": null,
+      "dimensions": null,
+      "reason": "no database access"
+    },
+    "15-invoice-pdf-page": {
+      "status": "blocked",
+      "captured": false,
+      "locales": {
+        "fr": null,
+        "en": null
+      },
+      "routeTemplate": null,
+      "entityIds": null,
+      "viewport": null,
+      "dimensions": null,
+      "reason": "no database access"
+    },
+    "16-invoice-email": {
+      "status": "blocked",
+      "captured": false,
+      "locales": {
+        "fr": null,
+        "en": null
+      },
+      "routeTemplate": null,
+      "entityIds": null,
+      "viewport": null,
+      "dimensions": null,
+      "reason": "no database access"
+    },
+    "17-payment-record-desktop": {
+      "status": "blocked",
+      "captured": false,
+      "locales": {
+        "fr": null,
+        "en": null
+      },
+      "routeTemplate": null,
+      "entityIds": null,
+      "viewport": null,
+      "dimensions": null,
+      "reason": "no database access"
+    },
+    "18-customer-portal-mobile": {
+      "status": "blocked",
+      "captured": false,
+      "locales": {
+        "fr": null,
+        "en": null
+      },
+      "routeTemplate": null,
+      "entityIds": null,
+      "viewport": null,
+      "dimensions": null,
+      "reason": "no database access"
+    },
+    "19-maintenance-reminder-email": {
+      "status": "blocked",
+      "captured": false,
+      "locales": {
+        "fr": null,
+        "en": null
+      },
+      "routeTemplate": null,
+      "entityIds": null,
+      "viewport": null,
+      "dimensions": null,
+      "reason": "no database access"
+    },
+    "20-campaign-email": {
+      "status": "blocked",
+      "captured": false,
+      "locales": {
+        "fr": null,
+        "en": null
+      },
+      "routeTemplate": null,
+      "entityIds": null,
+      "viewport": null,
+      "dimensions": null,
+      "reason": "no database access"
+    },
+    "21-campaign-editor-desktop": {
+      "status": "blocked",
+      "captured": false,
+      "locales": {
+        "fr": null,
+        "en": null
+      },
+      "routeTemplate": null,
+      "entityIds": null,
+      "viewport": null,
+      "dimensions": null,
+      "reason": "no database access"
+    },
+    "22-sms-inbox-desktop": {
+      "status": "blocked",
+      "captured": false,
+      "locales": {
+        "fr": null,
+        "en": null
+      },
+      "routeTemplate": null,
+      "entityIds": null,
+      "viewport": null,
+      "dimensions": null,
+      "reason": "no database access"
+    },
+    "23-inventory-desktop": {
+      "status": "blocked",
+      "captured": false,
+      "locales": {
+        "fr": null,
+        "en": null
+      },
+      "routeTemplate": null,
+      "entityIds": null,
+      "viewport": null,
+      "dimensions": null,
+      "reason": "no database access"
+    },
+    "24-reports-desktop": {
+      "status": "blocked",
+      "captured": false,
+      "locales": {
+        "fr": null,
+        "en": null
+      },
+      "routeTemplate": null,
+      "entityIds": null,
+      "viewport": null,
+      "dimensions": null,
+      "reason": "no database access"
+    },
+    "25-tire-storage-desktop": {
+      "status": "blocked",
+      "captured": false,
+      "locales": {
+        "fr": null,
+        "en": null
+      },
+      "routeTemplate": null,
+      "entityIds": null,
+      "viewport": null,
+      "dimensions": null,
+      "reason": "no database access"
+    }
+  },
+  "invoicePdf": {
+    "status": "blocked",
+    "reason": "requires generateInvoicePdf against INV-0006 (mkt-gl-v1-inv-camille) in the DB"
+  }
+}

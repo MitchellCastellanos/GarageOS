@@ -148,7 +148,7 @@ export interface AppointmentSmsData {
 
 type SmsCopyFn = (data: AppointmentSmsData) => string;
 
-const SMS_COPY: Record<SmsLanguage, Record<AppointmentSmsType, SmsCopyFn>> = {
+export const SMS_COPY: Record<SmsLanguage, Record<AppointmentSmsType, SmsCopyFn>> = {
   EN: {
     confirmation: (data) =>
       `${data.shopName}: appointment confirmed — ${data.title}, ${data.startsAtFormatted}.` +
@@ -214,7 +214,7 @@ export interface InvoiceSmsData {
   isResend?: boolean;
 }
 
-const INVOICE_SMS_COPY: Record<SmsLanguage, (data: InvoiceSmsData) => string> = {
+export const INVOICE_SMS_COPY: Record<SmsLanguage, (data: InvoiceSmsData) => string> = {
   EN: (data) =>
     `${data.shopName}: ${data.isResend ? "resend of " : ""}invoice ${data.invoiceNumber} — ${data.totalFormatted}. Download: ${data.downloadUrl}` +
     (data.bookingUrl ? ` Book online: ${data.bookingUrl}` : ""),
@@ -254,7 +254,7 @@ export interface QuoteSmsData {
   isResend?: boolean;
 }
 
-const QUOTE_SMS_COPY: Record<SmsLanguage, (data: QuoteSmsData) => string> = {
+export const QUOTE_SMS_COPY: Record<SmsLanguage, (data: QuoteSmsData) => string> = {
   EN: (data) =>
     `${data.shopName}: ${data.isResend ? "resend of " : ""}quote ${data.quoteNumber} — ${data.totalFormatted}. Review and respond: ${data.approvalUrl}`,
   FR: (data) =>
@@ -289,7 +289,7 @@ export interface WorkOrderReadySmsData {
   language?: SmsLanguage | string | null;
 }
 
-const WORK_ORDER_READY_SMS_COPY: Record<SmsLanguage, (data: WorkOrderReadySmsData) => string> = {
+export const WORK_ORDER_READY_SMS_COPY: Record<SmsLanguage, (data: WorkOrderReadySmsData) => string> = {
   EN: (data) =>
     `${data.shopName}: your ${data.vehicleDescription} is ready for pickup (order ${data.orderNumber}).`,
   FR: (data) =>
@@ -323,7 +323,7 @@ export interface ServiceReminderSmsData {
   language?: SmsLanguage | string | null;
 }
 
-const SERVICE_REMINDER_SMS_COPY: Record<SmsLanguage, (data: ServiceReminderSmsData) => string> = {
+export const SERVICE_REMINDER_SMS_COPY: Record<SmsLanguage, (data: ServiceReminderSmsData) => string> = {
   EN: (d) =>
     `${d.shopName}: time for your ${d.serviceType} on the ${d.vehicleDescription}${d.dueDate ? ` (due ${d.dueDate.toISOString().slice(0, 10)})` : ""}.${d.shopPhone ? ` Call ${d.shopPhone} to book.` : ""}`,
   FR: (d) =>

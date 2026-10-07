@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "basePath": "/demo/garage-laurent",
+  "note": "Written by scripts/demo-journey/prepare-assets.mjs. An asset absent from this file is not shown on /demo. Empty until the real captures exist (see docs/demo-journey/validation.md).",
+  "assets": { "fr": {}, "en": {} },
+  "invoicePdf": { "fr": false, "en": false }
+}

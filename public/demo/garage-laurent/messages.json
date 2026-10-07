@@ -1,0 +1,67 @@
+{
+  "_provenance": {
+    "generator": "scripts/demo-journey/build-messages.ts",
+    "source": "Real product formatters exported from src/lib/sms.ts; amounts from the verified marketing-garage-laurent-v1 dataset plan.",
+    "note": "Example messages only. Nothing was sent. Links are static demo targets, not bearer-token URLs. Amount/date formatting is the product's own (fr-CA) in both languages.",
+    "totals": {
+      "camilleCad": "423.11",
+      "alexandreCad": "218.45"
+    },
+    "refDate": "2026-10-06",
+    "demoDay": "2026-10-07"
+  },
+  "en": {
+    "confirmation": {
+      "text": "Garage Laurent: appointment confirmed — Vidange d’huile — Honda Civic, mercredi 7 octobre 2026 à 08 h 00. Confirm or cancel: garageos.com/demo#booking",
+      "link": "garageos.com/demo#booking",
+      "anchor": "booking"
+    },
+    "quote": {
+      "text": "Garage Laurent: quote COT-0001 — 423,11 $. Review and respond: garageos.com/demo#approval",
+      "link": "garageos.com/demo#approval",
+      "anchor": "approval"
+    },
+    "ready": {
+      "text": "Garage Laurent: your 2020 Hyundai Tucson is ready for pickup (order OT-0002).",
+      "link": null,
+      "anchor": "work"
+    },
+    "invoice": {
+      "text": "Garage Laurent: invoice INV-0006 — 423,11 $. Download: garageos.com/demo#invoice",
+      "link": "garageos.com/demo#invoice",
+      "anchor": "invoice"
+    },
+    "maintenance": {
+      "text": "Garage Laurent: time for your Vidange d’huile synthétique on the 2019 Honda Civic.",
+      "link": null,
+      "anchor": "follow-up"
+    }
+  },
+  "fr": {
+    "confirmation": {
+      "text": "Garage Laurent : rendez-vous confirmé — Vidange d’huile — Honda Civic, mercredi 7 octobre 2026 à 08 h 00. Confirmer ou annuler : garageos.com/demo#booking",
+      "link": "garageos.com/demo#booking",
+      "anchor": "booking"
+    },
+    "quote": {
+      "text": "Garage Laurent : soumission COT-0001 — 423,11 $. Consultez-la et répondez : garageos.com/demo#approval",
+      "link": "garageos.com/demo#approval",
+      "anchor": "approval"
+    },
+    "ready": {
+      "text": "Garage Laurent : votre 2020 Hyundai Tucson est prêt (ordre OT-0002).",
+      "link": null,
+      "anchor": "work"
+    },
+    "invoice": {
+      "text": "Garage Laurent : facture INV-0006 — 423,11 $. Télécharger : garageos.com/demo#invoice",
+      "link": "garageos.com/demo#invoice",
+      "anchor": "invoice"
+    },
+    "maintenance": {
+      "text": "Garage Laurent : c'est le temps de votre Vidange d’huile synthétique pour le 2019 Honda Civic.",
+      "link": null,
+      "anchor": "follow-up"
+    }
+  }
+}

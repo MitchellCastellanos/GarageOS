@@ -52,7 +52,7 @@ export const DEMO_COPY: Record<MarketingLocale, {
   outroTitle: string; outroBody: string; start: string; contact: string;
 }> = {
   en: {
-    meta: { title: "Demo", description: "Follow one customer visit from booking through inspection, approval, repair, payment and the next reminder." },
+    meta: { title: "Demo", description: "See your shop in action: follow Garage Laurent, a fictional Quebec shop, from booking through inspection, approval, work, invoice and the next visit." },
     eyebrow: "Product walkthrough", heading: "One vehicle. The whole workflow.",
     description: "Follow a customer visit from booking through inspection, approval, repair, payment and the next reminder. This walkthrough uses sample situations and doesn't create shop records.",
     stepOf: (i, n) => `Step ${i} of ${n}`,
@@ -60,7 +60,7 @@ export const DEMO_COPY: Record<MarketingLocale, {
     start: "Start free trial", contact: "Contact us",
   },
   fr: {
-    meta: { title: "Démo", description: "Suivez une visite client de la réservation à l'inspection, l'approbation, la réparation, le paiement et le prochain rappel." },
+    meta: { title: "Démo", description: "Voyez votre atelier en action : suivez Garage Laurent, un atelier québécois fictif, de la réservation à l'inspection, l'approbation, les travaux, la facture et la prochaine visite." },
     eyebrow: "Visite du produit", heading: "Un véhicule. Tout le flux de travail.",
     description: "Suivez une visite client de la réservation à l'inspection, l'approbation, la réparation, le paiement et le prochain rappel. Cette visite utilise des situations fictives et ne crée aucun dossier.",
     stepOf: (i, n) => `Étape ${i} de ${n}`,
