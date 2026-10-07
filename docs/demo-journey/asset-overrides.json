@@ -1,0 +1,11 @@
+{
+  "fr": {
+    "11-estimate-customer-mobile": { "badge": { "en": "Another sample visit", "fr": "Un autre exemple de visite" } },
+    "14-ready-email": { "badge": { "en": "Another sample visit", "fr": "Un autre exemple de visite" } }
+  },
+  "en": {
+    "11-estimate-customer-mobile": { "badge": { "en": "Another sample visit", "fr": "Un autre exemple de visite" } },
+    "14-ready-email": { "badge": { "en": "Another sample visit", "fr": "Un autre exemple de visite" } },
+    "20-campaign-email": { "reuseFrom": "fr", "badge": { "en": "Sample campaign written in French", "fr": "Exemple de campagne" } }
+  }
+}

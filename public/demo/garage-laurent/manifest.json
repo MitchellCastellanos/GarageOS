@@ -1,7 +1,220 @@
 {
   "version": 1,
   "basePath": "/demo/garage-laurent",
-  "note": "Written by scripts/demo-journey/prepare-assets.mjs. An asset absent from this file is not shown on /demo. Empty until the real captures exist (see docs/demo-journey/validation.md).",
-  "assets": { "fr": {}, "en": {} },
-  "invoicePdf": { "fr": false, "en": false }
+  "note": "Written by scripts/demo-journey/prepare-assets.mjs. An asset absent from this file is not shown on /demo.",
+  "assets": {
+    "fr": {
+      "01-dashboard-desktop": {
+        "width": 2880,
+        "height": 2000
+      },
+      "02-agenda-desktop": {
+        "width": 2880,
+        "height": 2000
+      },
+      "03-booking-desktop": {
+        "width": 2880,
+        "height": 2000
+      },
+      "04-booking-mobile": {
+        "width": 780,
+        "height": 1688
+      },
+      "05-booking-form-mobile": {
+        "width": 780,
+        "height": 2480
+      },
+      "06-confirmation-email": {
+        "width": 1520,
+        "height": 1800
+      },
+      "07-client-vehicle-history-desktop": {
+        "width": 2880,
+        "height": 2000
+      },
+      "08-inspection-admin-desktop": {
+        "width": 2880,
+        "height": 2000
+      },
+      "09-inspection-report-mobile": {
+        "width": 780,
+        "height": 1688
+      },
+      "10-estimate-editor-desktop": {
+        "width": 2880,
+        "height": 2000
+      },
+      "11-estimate-customer-mobile": {
+        "width": 780,
+        "height": 2480,
+        "badge": {
+          "en": "Another sample visit",
+          "fr": "Un autre exemple de visite"
+        }
+      },
+      "13-work-order-desktop": {
+        "width": 2880,
+        "height": 2000
+      },
+      "14-ready-email": {
+        "width": 1520,
+        "height": 1800,
+        "badge": {
+          "en": "Another sample visit",
+          "fr": "Un autre exemple de visite"
+        }
+      },
+      "15-invoice-pdf-page": {
+        "width": 1275,
+        "height": 1650
+      },
+      "16-invoice-email": {
+        "width": 1520,
+        "height": 1984
+      },
+      "17-payment-record-desktop": {
+        "width": 2880,
+        "height": 2000
+      },
+      "18-customer-portal-mobile": {
+        "width": 780,
+        "height": 1688
+      },
+      "19-maintenance-reminder-email": {
+        "width": 1520,
+        "height": 2002
+      },
+      "20-campaign-email": {
+        "width": 1520,
+        "height": 1800
+      },
+      "21-campaign-editor-desktop": {
+        "width": 2880,
+        "height": 2000
+      },
+      "23-inventory-desktop": {
+        "width": 2880,
+        "height": 2000
+      },
+      "24-reports-desktop": {
+        "width": 2880,
+        "height": 2000
+      },
+      "25-tire-storage-desktop": {
+        "width": 2880,
+        "height": 2000
+      }
+    },
+    "en": {
+      "01-dashboard-desktop": {
+        "width": 2880,
+        "height": 2000
+      },
+      "02-agenda-desktop": {
+        "width": 2880,
+        "height": 2000
+      },
+      "03-booking-desktop": {
+        "width": 2880,
+        "height": 2000
+      },
+      "04-booking-mobile": {
+        "width": 780,
+        "height": 1688
+      },
+      "05-booking-form-mobile": {
+        "width": 780,
+        "height": 2480
+      },
+      "06-confirmation-email": {
+        "width": 1520,
+        "height": 1800
+      },
+      "07-client-vehicle-history-desktop": {
+        "width": 2880,
+        "height": 2000
+      },
+      "08-inspection-admin-desktop": {
+        "width": 2880,
+        "height": 2000
+      },
+      "09-inspection-report-mobile": {
+        "width": 780,
+        "height": 1688
+      },
+      "10-estimate-editor-desktop": {
+        "width": 2880,
+        "height": 2000
+      },
+      "11-estimate-customer-mobile": {
+        "width": 780,
+        "height": 2480,
+        "badge": {
+          "en": "Another sample visit",
+          "fr": "Un autre exemple de visite"
+        }
+      },
+      "13-work-order-desktop": {
+        "width": 2880,
+        "height": 2000
+      },
+      "14-ready-email": {
+        "width": 1520,
+        "height": 1800,
+        "badge": {
+          "en": "Another sample visit",
+          "fr": "Un autre exemple de visite"
+        }
+      },
+      "15-invoice-pdf-page": {
+        "width": 1275,
+        "height": 1650
+      },
+      "16-invoice-email": {
+        "width": 1520,
+        "height": 1984
+      },
+      "17-payment-record-desktop": {
+        "width": 2880,
+        "height": 2000
+      },
+      "18-customer-portal-mobile": {
+        "width": 780,
+        "height": 1688
+      },
+      "19-maintenance-reminder-email": {
+        "width": 1520,
+        "height": 1912
+      },
+      "21-campaign-editor-desktop": {
+        "width": 2880,
+        "height": 2000
+      },
+      "23-inventory-desktop": {
+        "width": 2880,
+        "height": 2000
+      },
+      "24-reports-desktop": {
+        "width": 2880,
+        "height": 2000
+      },
+      "25-tire-storage-desktop": {
+        "width": 2880,
+        "height": 2000
+      },
+      "20-campaign-email": {
+        "width": 1520,
+        "height": 1800,
+        "reuseFrom": "fr",
+        "badge": {
+          "en": "Sample campaign written in French",
+          "fr": "Exemple de campagne"
+        }
+      }
+    }
+  },
+  "invoicePdf": {
+    "fr": true,
+    "en": true
+  }
 }

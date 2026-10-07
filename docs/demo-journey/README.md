@@ -46,3 +46,12 @@ export DEMO_TOOLS_DIR="$TEMP/gl-capture"   # Chromium is taken from %LOCALAPPDAT
 ## Rules
 
 Real product output only. Do not edit product UI for prettier screenshots, never alter Camille's finalized invoice, label staged or secondary examples, no fake delivery states.
+
+## Re-running remotely (no laptop)
+
+1. Local Postgres + `npm run db:deploy`, then `npm run seed:marketing-garage-laurent -- --access-file=<outside repo>` (see `remote-handoff.md`). Without real Storage credentials, attach the photos against a local Storage stand-in; note it in `validation.md`.
+2. Start the app (`next dev --webpack`, provider keys empty, `PROVIDER_SIDE_EFFECTS=disabled`).
+3. `capture.mjs --locale=fr`; for EN set the owner's `preferredLocale` to EN (and the customer/quote `language` of Camille/Alexandre) only during the run, then restore.
+4. `npx tsx scripts/demo-journey/render-documents.ts <tmpDir>` then `node scripts/demo-journey/shoot-documents.mjs <tmpDir>` (needs `pdftoppm`).
+5. `prepare-assets.mjs` (also copies the PDFs), `npx tsx scripts/demo-journey/build-messages.ts` (`DEMO_REF_DATE` defaults to the seed date), `qa-demo-page.mjs`.
+Views 12 (approval history) and 22 (SMS inbox) have no real source and stay omitted.

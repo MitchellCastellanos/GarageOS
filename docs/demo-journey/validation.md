@@ -1,53 +1,49 @@
 # /demo journey — implementation evidence
 
-Date: 2026-10-06. Branch: `launch-agent-6/demo-journey`.
+Date: 2026-10-07. Branch: `launch-agent-6/demo-journey-handoff` (PR #82; includes the seed/asset handoff).
 
 ## Verdict
 
-**Page, catalog, components, SMS compositions and tooling: done. Real captures: 0 of 25 produced (blocked).**
-`/demo` ships in an honest "assets pending" state: sections show copy and the real-formatter SMS examples; no screenshot is shown until a real one is listed in `public/demo/garage-laurent/manifest.json`. Nothing fake or broken is published.
+**Real captures: 23 of 25 views, FR + EN, plus the static invoice PDF. 2 views intentionally omitted (12, 22). /demo now shows them.**
+Nothing is a placeholder: every image in `public/demo/garage-laurent/` comes from the running product or its real renderers.
 
-## Blocker (precise)
+## How it was produced (remote environment, laptop not needed)
 
-- The local PostgreSQL (`C:\Users\mitch\gpg-local\data`, PID 35656, `localhost:54329`) is up and listening, but **every connection is dropped**.
-  `gpg-local/server.log` has 73 lines `could not reserve shared memory region … error code 487`; a direct `pg` connection returns `ECONNRESET`; the app login fails with Prisma `P1017 ConnectionClosed` (`/api/auth/login`).
-- Not touched, by instruction: no restart, no config change, no new database, no production/Preview DB. Likely fix for the owner (not done here): restart the postmaster (error 487 is a per-process address-space collision on Windows), then run `scripts/demo-journey/capture.mjs`.
-- The owner password was not in the environment; the proposed value from the seed doc was only tried against local login and never written anywhere.
-- `AGENTS.md` does not exist in this repo (searched root and `origin/main`); only `node_modules/recharts/AGENTS.md`. Nothing from it could be applied.
+- Local PostgreSQL 16 in the container (dev DB `garageos_marketing_local`), migrations applied, `seed:marketing-garage-laurent` run (dry-run first, then real; re-run is idempotent). No production/Preview database touched.
+- Images: no Supabase Storage credentials exist in this environment (`NEXT_PUBLIC_SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` not provided). The six photos were verified byte-identical by SHA-256 against `garage-laurent-assets-manifest.json`, then `attach:marketing-garage-laurent-assets` was run unchanged against a **local stand-in for the Storage API** (dev-only, outside the repo). Result: logo, cover, workshop and 2 DVI photos linked to the shop/inspection; second run reported "already attached". Real Supabase Storage was not written.
+- Owner password: generated per session, passed via `DEMO_OWNER_PASSWORD`, stored outside the repo, never printed. Access links (portal / report / quote) were written by the seed to a file outside the repo.
+- App: `next dev --webpack`, provider side effects disabled, all provider keys empty, communications suspended on the shop. No SMS/email sent, no charge, nothing sent to any provider.
+- Capture: `scripts/demo-journey/capture.mjs` (adjusted: settle waits, `#cita` scroll, taller phone viewport for the quote, per-locale handling). Documents: `render-documents.ts` (real email components + `generateInvoicePdf`, no transport) and `shoot-documents.mjs`.
 
-## Done
+## Captured / omitted
 
-| Item | State |
+| Group | State |
 | --- | --- |
-| `docs/demo-journey-implementation-plan.md` | Brought in from `origin/main` on a new branch off `origin/main`; pending local work left untouched and uncommitted |
-| `/demo` rebuilt: hero, jump nav, 7 sections, final CTA (trial / pricing / contact) | Done, FR + EN, static only |
-| Catalog `src/lib/demo-journey.ts` (25 assets, captions/alts FR+EN, plan badges from `entitlements`) | Done |
-| Lightbox (native modal dialog: Escape, focus trap/return, full-size/fit toggle, localized) | Done, verified |
-| SMS frame + SMS → arrow → document composition, stacks vertically on mobile | Done (destination renders once its asset exists) |
-| `messages.json` (confirmation, quote, ready, invoice, maintenance, FR + EN) | Generated from the real formatters (`src/lib/sms.ts`, 5 `*_COPY` maps now `export`ed, no behaviour change). Totals from the verified dataset plan (Camille 423.11, Alexandre 218.45 CAD); **not read from the DB**. Links are static `garageos.com/demo#…` targets, no tokens |
-| Capture/preparation tooling | `capture.mjs` **written, not run**; `prepare-assets.mjs` and `qa-demo-page.mjs` written; `build-messages.ts` run |
-| Homepage/Product/Features | Untouched |
+| 01–11, 13, 17, 18, 21, 23–25 (app screens) | Captured FR + EN |
+| 06, 14, 16, 19 (emails), 15 (invoice PDF first page), `invoice-camille.pdf` | Rendered from real renderers, FR + EN |
+| 20 campaign email | Rendered FR; EN reuses it with the badge "Sample campaign written in French" (the seeded campaign text is French only) |
+| 12 approval history | **Omitted**: the product has no admin surface that lists approval decisions. Not invented. |
+| 22 SMS inbox | **Omitted**: the seeded shop has no conversations. Not invented. |
 
-## Verification run
+Labels: 11 (quote on phone) is **Alexandre's pending quote, 218.45 CAD** and 14 (ready email) is **Sophie's visit**; both carry the badge "Another sample visit". Camille's finalized invoice/quote were not modified.
 
-- Layout QA (`qa-demo-page.mjs`), FR/EN × 390/768/1440: horizontal overflow 0, broken images 0, anchors land below the sticky header, lightbox opens, full-size toggle works, Escape closes, focus returns, invoice SMS link opens the viewer. Done once with throwaway placeholder images (rotulated "LAYOUT TEST", deleted, never committed) to exercise the image paths, and again in the final empty state.
-- Placeholder run also exercised `reuseFrom` and `badge` manifest fields.
-- `npx tsc --noEmit`: clean. `npm test`: 596/596. ESLint on new/changed files: clean. `npx next build`: OK (`/demo` static).
-- Secret sweep over new files: clean (no password, JWT, service key). No tokens in `messages.json`.
-- Evidence: `docs/demo-journey/evidence/demo-{fr,en}-{390,1440}.png` (full page, **empty-assets state**; they must be retaken after captures land). 768px was checked by script only.
+## Language handling (honest notes)
 
-## Not verified / still to do once the DB answers
+- Admin screens: the owner's `preferredLocale` was set to EN only while capturing EN, then restored to FR. Shop data (service names, notes, inspection comments) is Quebec French by design, even in EN screens; `/demo` says so.
+- Public pages: booking uses the page language switch; quote/portal/inspection follow the customer/document language, switched temporarily in the dev DB for the EN capture and restored. The EN invoice PDF/email are the same real renderers with the render language in memory only (no DB change to the fiscal document).
+- Hidden during capture only: the floating WhatsApp button and the dev indicator. No product UI was edited.
+- Seed dates are relative to 2026-10-07 (demo day 2026-10-08). The dashboard's "today" and monthly revenue therefore show 0; the agenda carries the visible bookings.
+- SMS compositions regenerated with reference date 2026-10-07 so they match the confirmation email (Thu 8 Oct).
 
-1. Run `capture.mjs` (25 views minus documents), render documents 06/14/15/16/19/20 and `invoice-camille.pdf` from the real renderers, `prepare-assets.mjs`, update both manifests, visually inspect each image.
-2. Decide Camille's approval composition: staged snapshot vs Alexandre (218.45 CAD) labelled as another sample; set badges through `asset-overrides.json`.
-3. 22 (SMS inbox) stays omitted unless a compatible conversation exists (seed doc: none).
-4. Re-run QA and retake evidence with real images (check 500 KB budget and text legibility).
+## Checks
 
-## Missing assets (all 25 + PDF)
+- `npx tsc --noEmit`: clean. `npm test` (clean env): 596/596. (Two `auth-claims` tests fail only if AUTH_* env vars of the capture session are exported; unrelated.) ESLint on touched demo/email files: clean.
+- `npx next build`: OK (`/demo` static).
+- `/demo` QA (`qa-demo-page.mjs`, production build), FR/EN × 390/768/1440: horizontal overflow 0, broken images 0 (26 images), anchors land below the sticky header, lightbox opens / full-size toggle / Escape / focus returns, invoice SMS link opens the viewer, zero console errors. Mobile, tablet and desktop were also inspected by eye.
+- Secret sweep: owner password, DB password and all private tokens searched across `docs/`, `public/`, `scripts/` (text and binary): no hits. `capture-log.json` stores route templates only. PDF metadata: title/author (shop name) only.
+- Evidence: `docs/demo-journey/evidence/demo-{fr,en}-{390,1440}.png` (full page; sticky header repeats mid-page in full-page screenshots).
 
-01–25 and `invoice-camille.pdf` (fr/en): blocked by the DB. Raw PNG folders are empty by design.
+## Not done / limits
 
-## Caveats
-
-- The product's SMS formatters format amounts/dates with `fr-CA` even in English messages; shown as-is.
-- `scripts/demo-journey/build-messages.ts` imports `scripts/marketing/garage-laurent-dataset.ts` (pure plan from the earlier seed work); that file is included in the commit because the generator needs it. The rest of the seed work (`seed-…ts`, tests, doc, `package.json`, `Garage Laurent/` images) is left uncommitted.
+- Real Supabase Storage was not written; if the shop's cloud demo needs the images, the owner must run the attach script with the real Storage env (hashes match the manifest).
+- Production/Preview data not used; nothing deployed or merged.

@@ -30,7 +30,7 @@ export function findChromium() {
 }
 
 export async function launch() {
-  return chromium.launch({ executablePath: findChromium(), headless: true });
+  return chromium.launch({ executablePath: findChromium(), headless: true, args: process.env.CHROMIUM_NO_SANDBOX ? ["--no-sandbox"] : [] });
 }
 
 export async function login(context) {
