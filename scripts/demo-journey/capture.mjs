@@ -24,7 +24,7 @@ const CAPTURES = [
   { file: "02-agenda-desktop", vp: D, auth: true, route: "/admin/appointments" },
   { file: "03-booking-desktop", vp: D, route: "/book/garage-laurent-demo" },
   { file: "04-booking-mobile", vp: M, route: "/book/garage-laurent-demo" },
-  { file: "05-booking-form-mobile", vp: M, route: "/book/garage-laurent-demo", scrollTo: "#cita", note: "scrolled to the booking form section (#cita)" },
+  { file: "05-booking-form-mobile", vp: MT, route: "/book/garage-laurent-demo", scrollTo: "#cita", note: "scrolled to the booking form section (#cita)" },
   { file: "07-client-vehicle-history-desktop", vp: D, auth: true, route: `/admin/clients/${ID("client-camille")}` },
   { file: "08-inspection-admin-desktop", vp: D, auth: true, route: `/admin/inspections/${ID("insp-camille")}` },
   { file: "09-inspection-report-mobile", vp: M, route: "/inspection/<token:camilleInspectionReport>", token: "camilleInspectionReport" },
@@ -58,6 +58,8 @@ for (const locale of locales) {
       route = new URL(link).pathname;
     }
     const ctx = c.auth ? adminCtx : await browser.newContext({ viewport: c.vp, deviceScaleFactor: 2, locale: locale === "fr" ? "fr-CA" : "en-CA" });
+    // Booking page language lives in localStorage; quote/portal/inspection follow the customer's/document's language field.
+    if (!c.auth) await ctx.addInitScript((l) => { localStorage.setItem("site-locale", l); }, locale);
     const page = await ctx.newPage();
     await page.setViewportSize(c.vp);
     // Interface language: the app stores the locale in a cookie/setting; the public pages take ?lang= where supported.
