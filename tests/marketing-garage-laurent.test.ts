@@ -52,11 +52,13 @@ test("la agenda tiene 5 citas el día de demostración, 3 futuras, 2 completadas
 
 test("las citas históricas caen dentro de las últimas ocho semanas y en días laborales", () => {
   for (const h of D.HISTORICAL_INVOICES) {
-    const date = D.prevBusinessDay(D.addDays(REF, -h.calendarDaysAgo));
+    const date = D.historicalInvoiceDay(h, REF);
+    if (h.thisMonth) assert.equal(date.slice(0, 7), REF.slice(0, 7), `${h.key} no cae en el mes de referencia`);
     assert.ok(D.isBusinessDay(date), `${h.key} no cae en día laboral`);
     assert.ok(h.calendarDaysAgo <= 56, `${h.key} fuera de 8 semanas`);
   }
-  assert.equal(D.HISTORICAL_INVOICES.length, 6);
+  assert.equal(D.HISTORICAL_INVOICES.length, 9);
+  assert.equal(D.HISTORICAL_INVOICES.filter((h) => h.thisMonth).length, 3);
 });
 
 test("el recordatorio de vidange de Camille usa la regla real: 100 450 km y 6 meses", () => {
@@ -90,4 +92,18 @@ test("las piezas con consumo y la de stock bajo están definidas", () => {
   assert.deepEqual(low, ["GL-ESSUIE-001"]);
   const consumed = D.CAMILLE_LINES.filter((l) => l.partKey).map((l) => l.partKey);
   assert.deepEqual(consumed, ["huile", "filtre", "plaquettes"]);
+});
+
+test("hay citas hoy y las facturas del mes nunca salen del mes de referencia, ni a inicio de mes", () => {
+  const today = D.resolveAppointments(REF).filter((a) => a.day.kind === "today");
+  assert.equal(today.length, 3);
+  for (const a of today) assert.equal(a.date, REF);
+  assert.deepEqual(D.agendaProblems(D.resolveAppointments(REF)), []);
+  for (const ref of ["2026-11-02", "2026-12-01", "2026-10-30"]) {
+    for (const h of D.HISTORICAL_INVOICES.filter((x) => x.thisMonth)) {
+      const day = D.historicalInvoiceDay(h, ref);
+      assert.equal(day.slice(0, 7), ref.slice(0, 7));
+      assert.ok(D.isBusinessDay(day));
+    }
+  }
 });

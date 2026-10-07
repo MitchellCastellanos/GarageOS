@@ -177,6 +177,7 @@ export type PartKey = (typeof PARTS)[number]["key"];
 
 export type DayRef =
   | { kind: "demo" }
+  | { kind: "today" }
   | { kind: "afterDemo"; businessDays: number }
   | { kind: "pastBusiness"; calendarDaysAgo: number };
 
@@ -198,6 +199,10 @@ export const APPOINTMENTS: AppointmentSpec[] = [
   { key: "demo-cx5-inspection", title: "Inspection préventive — Mazda CX-5", client: "isabelle", mechanic: "mathieu", day: { kind: "demo" }, time: "13:00", source: "INTERNAL", status: "CONFIRMED" },
   { key: "demo-golf-diagnostic", title: "Diagnostic moteur — Volkswagen Golf", client: "nicolas", mechanic: "olivier", day: { kind: "demo" }, time: "08:00", source: "INTERNAL", status: "CONFIRMED" },
   { key: "demo-rav4-tires", title: "Changement de pneus — Toyota RAV4", client: "alexandre", mechanic: "olivier", day: { kind: "demo" }, time: "10:00", source: "PUBLIC_WEB", status: "SCHEDULED" },
+  // Hoy (fecha de referencia): la actividad que muestra el «Horaire du jour» del tablero.
+  { key: "today-forester-oil", title: "Vidange d’huile — Subaru Forester", client: "francois", mechanic: "olivier", day: { kind: "today" }, time: "08:00", source: "INTERNAL", status: "CONFIRMED" },
+  { key: "today-sportage-alignment", title: "Alignement des roues — Kia Sportage", client: "julie", mechanic: "mathieu", day: { kind: "today" }, time: "10:00", source: "PUBLIC_WEB", status: "CONFIRMED" },
+  { key: "today-cx5-tires", title: "Rotation des pneus — Mazda CX-5", client: "isabelle", mechanic: "olivier", day: { kind: "today" }, time: "13:00", source: "PUBLIC_WEB", status: "SCHEDULED" },
   // Tres citas futuras en días laborales posteriores.
   { key: "future-sportage-tires", title: "Changement de pneus — Kia Sportage", client: "julie", mechanic: "mathieu", day: { kind: "afterDemo", businessDays: 2 }, time: "10:00", source: "PUBLIC_WEB", status: "SCHEDULED" },
   { key: "future-forester-oil", title: "Vidange d’huile — Subaru Forester", client: "francois", mechanic: "olivier", day: { kind: "afterDemo", businessDays: 3 }, time: "09:00", source: "INTERNAL", status: "SCHEDULED" },
@@ -220,6 +225,8 @@ export function resolveDay(ref: DayRef, refDate: string, demoDay: string): strin
   switch (ref.kind) {
     case "demo":
       return demoDay;
+    case "today":
+      return isBusinessDay(refDate) ? refDate : prevBusinessDay(refDate);
     case "afterDemo":
       return addBusinessDays(demoDay, ref.businessDays);
     case "pastBusiness":
@@ -290,9 +297,11 @@ export const NICOLAS_LINES: LineSpec[] = [
 ];
 
 export interface HistoricalInvoice {
-  key: "francois-1" | "francois-2" | "isabelle-1" | "julie-1" | "nicolas-1" | "alexandre-1";
+  key: "francois-1" | "francois-2" | "isabelle-1" | "julie-1" | "nicolas-1" | "alexandre-1" | "julie-2" | "nicolas-2" | "marcandre-1";
   client: ClientKey;
   calendarDaysAgo: number;
+  /** Cobrada dentro del mes de la fecha de referencia (nunca antes de su primer día laboral): alimenta «Revenus ce mois-ci». */
+  thisMonth?: boolean;
   lines: LineSpec[];
   method: "CARD" | "CASH";
 }
@@ -324,6 +333,36 @@ export const HISTORICAL_INVOICES: HistoricalInvoice[] = [
     { description: "Alignement des roues", itemType: "LABOUR", quantity: "1", unitPrice: "85.00" },
   ] },
 ];
+
+HISTORICAL_INVOICES.push(
+  { key: "julie-2", client: "julie", calendarDaysAgo: 5, thisMonth: true, method: "CARD", lines: [
+    { description: "Alignement des roues", itemType: "LABOUR", quantity: "1", unitPrice: "85.00" },
+    { description: "Rotation des pneus", itemType: "LABOUR", quantity: "1", unitPrice: "40.00" },
+  ] },
+  { key: "nicolas-2", client: "nicolas", calendarDaysAgo: 4, thisMonth: true, method: "CARD", lines: [
+    { description: "Inspection des freins", itemType: "LABOUR", quantity: "1", unitPrice: "60.00" },
+    { description: "Nettoyage et lubrification des freins", itemType: "LABOUR", quantity: "1", unitPrice: "65.00" },
+  ] },
+  { key: "marcandre-1", client: "marcandre", calendarDaysAgo: 1, thisMonth: true, method: "CASH", lines: [
+    { description: "Changement de pneus sur jantes", itemType: "LABOUR", quantity: "1", unitPrice: "60.00" },
+    { description: "Équilibrage des roues", itemType: "LABOUR", quantity: "1", unitPrice: "40.00" },
+  ] },
+);
+
+/** Primer día laboral del mes de `ymd`. */
+export function firstBusinessDayOfMonth(ymd: string): string {
+  let d = `${ymd.slice(0, 8)}01`;
+  while (!isBusinessDay(d)) d = addDays(d, 1);
+  return d;
+}
+
+/** Día (YYYY-MM-DD, zona del taller) en que se emite y cobra una factura histórica. */
+export function historicalInvoiceDay(spec: Pick<HistoricalInvoice, "calendarDaysAgo" | "thisMonth">, refDate: string): string {
+  const day = prevBusinessDay(addDays(refDate, -spec.calendarDaysAgo));
+  if (!spec.thisMonth) return day;
+  const first = firstBusinessDayOfMonth(refDate);
+  return day < first ? first : day;
+}
 
 /** Cifras del brief que el plan debe reproducir exactamente. */
 export const BRIEF_TOTALS = {

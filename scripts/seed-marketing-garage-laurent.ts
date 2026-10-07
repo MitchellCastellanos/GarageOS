@@ -400,7 +400,7 @@ async function seedCatalogAndClients(ctx: Ctx): Promise<void> {
 async function seedHistoricalInvoice(ctx: Ctx, spec: D.HistoricalInvoice): Promise<void> {
   const { tx } = ctx;
   const client = D.CLIENTS.find((c) => c.key === spec.client)!;
-  const issuedAt = D.at(D.prevBusinessDay(D.addDays(ctx.refDate, -spec.calendarDaysAgo)), "13:30");
+  const issuedAt = D.at(D.historicalInvoiceDay(spec, ctx.refDate), "13:30");
   const invoiceId = id(`inv-${spec.key}`);
   if (await present(() => tx.invoice.count({ where: { id: invoiceId } }))) {
     tally("Invoice", false);
