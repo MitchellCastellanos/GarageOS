@@ -28,6 +28,11 @@ function partsInTimeZone(date: Date, timeZone: string) {
   };
 }
 
+/** La búsqueda compara solo hasta el minuto: normaliza el instante al inicio de ese minuto (sin segundos/ms). */
+function startOfMinute(ms: number): Date {
+  return new Date(ms - (((ms % 60_000) + 60_000) % 60_000));
+}
+
 /** Convierte fecha/hora local del taller a Date UTC (independiente del TZ del servidor). */
 export function parseShopDateTime(
   dateStr: string,
@@ -54,7 +59,7 @@ export function parseShopDateTime(
               ? p.hour - hour
               : p.minute - minute;
 
-    if (cmp === 0) return new Date(mid);
+    if (cmp === 0) return startOfMinute(mid);
     if (cmp < 0) lo = mid + 1;
     else hi = mid - 1;
   }
@@ -63,7 +68,7 @@ export function parseShopDateTime(
   // of March in Quebec). `lo` is now the first instant whose local time is AFTER the requested one — i.e. the
   // first valid moment following the gap — which is what a calendar shows. Never throw for a real calendar date.
   const realDate = new Date(Date.UTC(year, month - 1, day)).getUTCDate() === day && hour >= 0 && hour < 24 && minute >= 0 && minute < 60;
-  if (realDate) return new Date(lo);
+  if (realDate) return startOfMinute(lo);
   throw new Error(`Fecha/hora inválida en ${timeZone}: ${dateStr} ${timeStr}`);
 }
 

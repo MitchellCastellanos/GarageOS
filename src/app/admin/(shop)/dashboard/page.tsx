@@ -38,6 +38,8 @@ import type { AdminLocale } from "@/lib/admin-locale";
 import { DASHBOARD_DICT, monthShort } from "@/lib/admin-locale/dashboard";
 import { LAYOUT_DICT } from "@/lib/admin-locale/layout";
 import { getEffectivePermissions } from "@/lib/access";
+import { getDashboardRanges, shopMonthOf } from "@/lib/dashboard-ranges";
+import { DEFAULT_TIMEZONE } from "@/config/app";
 
 const PIE_STATUSES = ["PENDING", "PAID", "OVERDUE", "CANCELLED"] as const;
 
@@ -55,15 +57,13 @@ export default async function DashboardPage() {
   // Ingresos/reportes solo con permiso financiero (Block 8); el resto del tablero es operativo.
   const canFinance = (await getEffectivePermissions(session!)).has("financial.view");
 
-  const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
-  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-
-  // 6 meses atrás (primer día)
-  const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+  // "Hoy", "este mes" y las horas se calculan en la zona horaria del taller, no en la del servidor.
+  const shop = await db.shop.findUnique({ where: { id: shopId }, select: { timezone: true } });
+  const timeZone = shop?.timezone ?? DEFAULT_TIMEZONE;
+  const { startOfMonth, startOfLastMonth, startOfDay, endOfDay, sixMonthsAgo, months } = getDashboardRanges(
+    new Date(),
+    timeZone,
+  );
 
   const [
     clientCount,
@@ -106,7 +106,7 @@ export default async function DashboardPage() {
       where: {
         shopId,
         status: "PAID",
-        paidAt: { gte: startOfLastMonth, lte: endOfLastMonth },
+        paidAt: { gte: startOfLastMonth, lt: startOfMonth },
       },
       select: { total: true, status: true },
     }),
@@ -146,7 +146,7 @@ export default async function DashboardPage() {
   // Ingresos netos de reembolsos (Block 9): un reembolso resta en el mes en que se pagó.
   const [refundsThisMonth, refundsLastMonth] = await Promise.all([
     db.invoiceRefund.aggregate({ where: { shopId, refundedAt: { gte: startOfMonth } }, _sum: { amount: true } }),
-    db.invoiceRefund.aggregate({ where: { shopId, refundedAt: { gte: startOfLastMonth, lte: endOfLastMonth } }, _sum: { amount: true } }),
+    db.invoiceRefund.aggregate({ where: { shopId, refundedAt: { gte: startOfLastMonth, lt: startOfMonth } }, _sum: { amount: true } }),
   ]);
   const thisMonthRevenue =
     paidInvoicesThisMonth.reduce((sum, inv) => sum + getInvoiceRecordedRevenue(inv), 0) -
@@ -158,15 +158,12 @@ export default async function DashboardPage() {
   // ── Procesar datos para charts (serializar: sin Decimal ni Date) ──
 
   // Revenue por mes (últimos 6 meses)
-  const revenueByMonth = Array.from({ length: 6 }, (_, i) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
-    return { year: d.getFullYear(), month: d.getMonth(), label: monthShort(d.getMonth(), locale) };
-  }).map(({ year, month, label }) => {
+  const revenueByMonth = months.map((month) => ({
+    month,
+    label: monthShort(Number(month.slice(5, 7)) - 1, locale),
+  })).map(({ month, label }) => {
     const revenue = paidInvoicesLast6Months
-      .filter((inv) => {
-        const paid = inv.paidAt!;
-        return paid.getFullYear() === year && paid.getMonth() === month;
-      })
+      .filter((inv) => shopMonthOf(inv.paidAt!, timeZone) === month)
       .reduce((sum, inv) => sum + getInvoiceRecordedRevenue(inv), 0);
     return { month: label, revenue: Math.round(revenue * 100) / 100 };
   });
@@ -307,7 +304,7 @@ export default async function DashboardPage() {
               <div className="space-y-2">
                 {todayAppointments.map((appointment) => (
                   <Link key={appointment.id} href={`${ADMIN.appointments}/${appointment.id}`} className="flex items-center gap-3 rounded-xl bg-slate-800/80 px-3 py-2.5 transition hover:bg-slate-700">
-                    <span className="w-12 text-xs font-semibold text-blue-300">{appointment.startsAt.toLocaleTimeString(t.intlLocale, { hour: "numeric", minute: "2-digit" })}</span>
+                    <span className="w-12 text-xs font-semibold text-blue-300">{appointment.startsAt.toLocaleTimeString(t.intlLocale, { hour: "numeric", minute: "2-digit", timeZone })}</span>
                     <span className="min-w-0 flex-1 truncate text-sm text-slate-100">{formatClientName(appointment.client)}</span>
                     <ChevronRight className="h-4 w-4 shrink-0 text-slate-500" />
                   </Link>
