@@ -61,13 +61,46 @@ After the final assets were built, Postgres, the Storage stand-in and the captur
 
 Definitive: 23 of 25 views captured in FR + EN, plus `invoice-camille.pdf`. **Omitted on purpose: 12 approval history** (no admin surface in the product lists approval decisions) **and 22 SMS inbox** (seeded shop has no conversations). Nothing invented. Final checks: `tsc` clean, `npm test` 597/597 (clean env), ESLint clean on touched files, `next build` OK, `/demo` QA FR/EN x 390/768/1440 with 0 overflow / 0 broken images / 0 console errors / 0 cross-origin requests, secret sweep clean. All final captures, assets, manifests and docs are committed and pushed to the PR head.
 
+## Follow-up: dashboard time zone + real Storage read check (branch `claude/garage-laurent-dashboard-tz-tuut3j`)
+
+Date: 2026-10-07. Based on the PR #83 head; PR opened against that branch.
+
+### 1. Dashboard time zone: resolved
+- `src/app/admin/(shop)/dashboard/page.tsx` now reads `Shop.timezone` (fallback `DEFAULT_TIMEZONE`) and gets every window from `getDashboardRanges()` (`src/lib/dashboard-ranges.ts`): today, this month, last month, 6-month chart, all converted to UTC instants with the existing `parseShopDateTime`. No `TZ` setting on the server is needed.
+- Monthly chart buckets use the shop month (`shopMonthOf`), not `getMonth()` of the process. Appointment times are rendered with `timeZone: shop.timezone`.
+- Last-month queries are now `[startOfLastMonth, startOfMonth)` (`lt`) instead of `lte 23:59:59`, so a payment in the last second of the month is no longer lost.
+- Latent bug found and fixed in `parseShopDateTime` (`src/lib/shop-timezone.ts`): it returned an arbitrary second inside the requested minute (e.g. `15:00:56.249Z` for a `00:00` boundary). It now returns the start of the minute. This benefits every caller (reports, booking, appointments).
+- Tests (`tests/dashboard-ranges.test.ts`, 8): day flip at 23:30 local, month flip, payment at the month edge, DST fall back (25 h day), DST spring forward (23 h day), 6-month window across DST and year change, a zone east of UTC (Asia/Tokyo), and identical results/hours under process `TZ` = UTC, America/Montreal, Asia/Tokyo, Pacific/Kiritimati.
+- No recapture: the captured values (3 appointments, 8 h/10 h/13 h, 402,42 $) were taken with `TZ=America/Montreal` and are what the corrected code shows on any host. The `TZ=America/Montreal` prefix in the reproduction steps below is no longer required.
+
+### 2. `/demo` re-check: unchanged and working
+`next build` OK (`/demo` stays `○` static; `src/lib/demo-journey.ts` and `public/demo/garage-laurent/*` untouched). Served with `next start` under `env -i` (no DB/Supabase variables): `/demo` 200 while a DB page (`/book/garage-laurent-demo`) returned 500. `qa-demo-page.mjs` FR/EN x 390/768/1440: overflow 0, broken images 0 (26 images), FR/EN h1 and captions, SMS-to-invoice link opens the viewer, invoice PDF `200 application/pdf`, lightbox OK, 0 console errors, 0 cross-origin, 0 responses >= 400.
+
+### 3. Real Supabase Storage: read-only check (project `Garage OS`, `saccjhinmeaoqoeuhljd`)
+The connector exposes project/SQL/migration/branch/edge-function/log tools, but **no environment variables and no Storage object API**. The only read path used was `execute_sql` with `SELECT` on `storage.buckets`, `storage.objects` and `pg_policies`. No business table was read; nothing was written, uploaded or changed.
+
+| Item | Result |
+| --- | --- |
+| Bucket `public-assets` | public, 5 MiB limit, mime png/jpeg/webp/svg |
+| Bucket `accounting` (private DVI photos) | `public = false` |
+| Logo `public-assets/logos/mkt-gl-v1-shop/logo.png` | exists, 562 977 B, image/png (= manifest bytes) |
+| Booking images `public-assets/booking-page/mkt-gl-v1-shop/{cover,shop}-*.webp` | both exist, 251 436 B and 249 074 B, image/webp (converted, so no SHA-256 comparison possible) |
+| DVI photos `accounting/mkt-gl-v1-shop/inspections/mkt-gl-v1-insp-camille/*.png` | both exist, 2 500 483 B and 2 575 208 B, image/png (= manifest bytes) |
+| Access config | RLS enabled on `storage.objects` with **0 policies**: no anon/authenticated access through the Storage API; only the service role reads the private bucket; the public bucket serves by public URL |
+
+Not verified: (a) HTTP fetch of the public URLs and of a private URL (anon must be refused): the sandbox proxy returned 403 on the Supabase host and was not bypassed; (b) byte-level SHA-256 of the stored objects (ETag is MD5; sizes match); (c) that `Shop.logoUrl` / `bookingCoverImageUrl` / `InspectionPhoto.storagePath` rows point to these objects, which lives in the business database and is not reachable from this connector. The winter-campaign image is still pending (the campaign editor is text only); no support was added.
+
+### 4. Navigable demo shop: requirement, not done (no production shop created)
+A browsable Garage Laurent admin needs a **dedicated development PostgreSQL** (local, or a non-production branch) with `DATABASE_URL`/`DIRECT_URL`, `DEMO_OWNER_PASSWORD`, `AUTH_SECRET`, then `seed:marketing-garage-laurent` and, for images, `NEXT_PUBLIC_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` of the matching Storage. The Supabase connector provides none of these. Storage objects for `mkt-gl-v1-shop` already exist (section 3), so the attach script would find them by hash. `/demo` does not depend on any of this.
+
 ## Pending for the next agent
 
-1. **Dashboard time zone.** The dashboard computes "today", "this month" and formats times with the server/process time zone (`new Date()` in `src/app/admin/(shop)/dashboard/page.tsx`), not the shop's. On a UTC host (e.g. Vercel) a Montreal 08:00 appointment prints as 12 h 00. The capture server ran with `TZ=America/Montreal` to avoid this. Product behaviour was not changed; fixing it (use the shop time zone, as Reports already does) is a separate product task.
-2. **Capture shop lives in a throwaway database.** The Garage Laurent shop used for the captures was created in a temporary PostgreSQL 16 inside the remote container (`garageos_marketing_local`). It is not in Preview/production, and it disappears with the container. Re-create it with the seed to recapture.
-3. **`/demo` is fully static.** It needs only `public/demo/garage-laurent/*` (WebP, PDFs, `manifest.json`, `messages.json`) and the catalog in `src/lib/demo-journey.ts`. No Supabase, no database, no capture server (verified by serving it with all of them stopped).
-4. **Real Storage not verified.** The six photos were attached against a local, dev-only stand-in for the Supabase Storage API. Real Supabase Storage was neither read nor written from this environment. If the cloud demo shop needs the images, run `npm run attach:marketing-garage-laurent-assets` with the real Storage env (hashes in `garage-laurent-assets-manifest.json` allow idempotent verification).
-5. Minor: INV-0009..0011 (dated earlier) are numbered after the draft INV-0008; cosmetic. Shop data is Quebec French, so EN screens show French records (stated on `/demo`).
+1. ~~Dashboard time zone~~ resolved above.
+2. **Capture shop lives in a throwaway database** (container-local PostgreSQL, gone with the container). Re-create with the seed to recapture, or provision the dev database from section 4.
+3. **`/demo` is fully static** (assets + catalog only; no Supabase, database or capture server).
+4. **Storage**: objects verified to exist (section 3). Still to do by someone with the keys: HTTP access test (public 200, private refused) and DB-row linkage.
+5. **Winter campaign image**: pending until the campaign editor supports images.
+6. Minor: INV-0009..0011 (dated earlier) are numbered after the draft INV-0008; cosmetic. EN screens show French shop records (stated on `/demo`).
 
 ## Reproducing the captures without storing credentials
 
@@ -86,10 +119,10 @@ npm run seed:marketing-garage-laurent -- --access-file=/tmp/gl-access.json   # o
 #    `npm run attach:marketing-garage-laurent-assets` (check SHA-256 first). Without them, point the same
 #    variables at a local fake Storage server (dev only) and say so in this file.
 
-# 3. App with every provider disabled, in the shop's time zone
+# 3. App with every provider disabled (dashboard uses Shop.timezone; no TZ needed)
 export AUTH_SECRET=$(openssl rand -hex 16) AUTH_TRUST_HOST=true NEXTAUTH_URL=http://localhost:3100 \
   NEXT_PUBLIC_APP_URL=http://localhost:3100 PROVIDER_SIDE_EFFECTS=disabled STRIPE_TEST_MUTATIONS=disabled GARAGEOS_LOCAL_QA=1
-TZ=America/Montreal npx next dev --webpack -p 3100
+npx next dev --webpack -p 3100
 
 # 4. Tooling (outside the repo): mkdir /tmp/gl-tools && cd /tmp/gl-tools && npm init -y && npm i playwright-core sharp
 export DEMO_TOOLS_DIR=/tmp/gl-tools CHROMIUM_PATH=<chromium binary> CHROMIUM_NO_SANDBOX=1 \
