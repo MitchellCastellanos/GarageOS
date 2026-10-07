@@ -3,8 +3,8 @@
   "dataset": "marketing-garage-laurent-v1",
   "shopSlug": "garage-laurent-demo",
   "generatedAt": "2026-10-07",
-  "status": "captured: 23 of 25 views in FR and EN from a development database seeded in the remote environment; 12 and 22 omitted (reasons per asset)",
-  "environment": "Remote Linux container: local PostgreSQL 16 (dev database, seeded with scripts/seed-marketing-garage-laurent.ts), `next dev --webpack` with provider side effects disabled, a local stand-in for Supabase Storage serving the SHA-256-verified source photos. No production/Preview database, no real Storage.",
+  "status": "captured: 23 of 25 views in FR and EN from a development database seeded in the remote environment; 12 and 22 omitted (reasons per asset); dashboard/agenda/reports recaptured after seeding today's appointments and this-month paid invoices",
+  "environment": "Remote Linux container: local PostgreSQL 16 (dev database, seeded with scripts/seed-marketing-garage-laurent.ts), `next dev --webpack` with provider side effects disabled, a local stand-in for Supabase Storage serving the SHA-256-verified source photos. No production/Preview database, no real Storage. Dashboard captured with TZ=America/Montreal.",
   "messages": {
     "file": "public/demo/garage-laurent/messages.json",
     "status": "generated",
@@ -26,7 +26,7 @@
           "routeTemplate": "/admin/dashboard",
           "viewport": "1440x1000@2x",
           "httpStatus": 200,
-          "capturedAt": "2026-10-07T13:01:37.248Z"
+          "capturedAt": "2026-10-07T13:54:15.231Z"
         },
         "en": {
           "file": "public/demo/garage-laurent/en/01-dashboard-desktop.webp",
@@ -35,7 +35,7 @@
           "routeTemplate": "/admin/dashboard",
           "viewport": "1440x1000@2x",
           "httpStatus": 200,
-          "capturedAt": "2026-10-07T12:58:53.481Z"
+          "capturedAt": "2026-10-07T13:55:22.486Z"
         }
       }
     },
@@ -49,7 +49,7 @@
           "routeTemplate": "/admin/appointments",
           "viewport": "1440x1000@2x",
           "httpStatus": 200,
-          "capturedAt": "2026-10-07T13:01:45.401Z"
+          "capturedAt": "2026-10-07T13:52:29.901Z"
         },
         "en": {
           "file": "public/demo/garage-laurent/en/02-agenda-desktop.webp",
@@ -58,7 +58,7 @@
           "routeTemplate": "/admin/appointments",
           "viewport": "1440x1000@2x",
           "httpStatus": 200,
-          "capturedAt": "2026-10-07T12:59:02.097Z"
+          "capturedAt": "2026-10-07T13:52:53.597Z"
         }
       }
     },
@@ -531,7 +531,7 @@
           "routeTemplate": "/admin/reports",
           "viewport": "1440x1000@2x",
           "httpStatus": 200,
-          "capturedAt": "2026-10-07T13:03:58.891Z"
+          "capturedAt": "2026-10-07T13:52:38.012Z"
         },
         "en": {
           "file": "public/demo/garage-laurent/en/24-reports-desktop.webp",
@@ -540,7 +540,7 @@
           "routeTemplate": "/admin/reports",
           "viewport": "1440x1000@2x",
           "httpStatus": 200,
-          "capturedAt": "2026-10-07T13:01:01.194Z"
+          "capturedAt": "2026-10-07T13:52:58.787Z"
         }
       }
     },

@@ -252,15 +252,6 @@
     "note": "scrolled to the booking form section (#cita)"
   },
   {
-    "file": "01-dashboard-desktop.png",
-    "locale": "fr",
-    "routeTemplate": "/admin/dashboard",
-    "viewport": "1440x1000@2x",
-    "httpStatus": 200,
-    "capturedAt": "2026-10-07T13:52:21.244Z",
-    "note": null
-  },
-  {
     "file": "02-agenda-desktop.png",
     "locale": "fr",
     "routeTemplate": "/admin/appointments",
@@ -279,15 +270,6 @@
     "note": null
   },
   {
-    "file": "01-dashboard-desktop.png",
-    "locale": "en",
-    "routeTemplate": "/admin/dashboard",
-    "viewport": "1440x1000@2x",
-    "httpStatus": 200,
-    "capturedAt": "2026-10-07T13:52:48.196Z",
-    "note": null
-  },
-  {
     "file": "02-agenda-desktop.png",
     "locale": "en",
     "routeTemplate": "/admin/appointments",
@@ -303,6 +285,24 @@
     "viewport": "1440x1000@2x",
     "httpStatus": 200,
     "capturedAt": "2026-10-07T13:52:58.787Z",
+    "note": null
+  },
+  {
+    "file": "01-dashboard-desktop.png",
+    "locale": "fr",
+    "routeTemplate": "/admin/dashboard",
+    "viewport": "1440x1000@2x",
+    "httpStatus": 200,
+    "capturedAt": "2026-10-07T13:54:15.231Z",
+    "note": null
+  },
+  {
+    "file": "01-dashboard-desktop.png",
+    "locale": "en",
+    "routeTemplate": "/admin/dashboard",
+    "viewport": "1440x1000@2x",
+    "httpStatus": 200,
+    "capturedAt": "2026-10-07T13:55:22.486Z",
     "note": null
   }
 ]

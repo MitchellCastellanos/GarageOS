@@ -135,6 +135,7 @@ horas almacenadas son correctas en UTC (08:00 EDT = 12:00Z). El seed no necesita
 | Clientes | `Client` | `mkt-gl-v1-client-{camille,alexandre,sophie,nicolas,isabelle,francois,julie,marcandre}` |
 | Vehículos | `Vehicle` | `mkt-gl-v1-vehicle-{clave}` · placas `DEMO-01`…`DEMO-08` |
 | Citas del día demo (miércoles 7-oct-2026 con ref. 6-oct) | `Appointment` | `mkt-gl-v1-appt-demo-*` (5) |
+| Citas de hoy (fecha de referencia; alimentan el «Horaire du jour» del tablero) | `Appointment` | `mkt-gl-v1-appt-today-*` (3) |
 | Citas futuras | `Appointment` | `mkt-gl-v1-appt-future-*` (3) |
 | Citas pasadas | `Appointment` | `mkt-gl-v1-appt-past-civic-oil` (completada), `…-past-forester-oil` (completada), `…-past-sentra-brakes` (cancelada) |
 | **Historia Camille** | `Quote` / `Inspection` / `WorkOrder` / `Invoice` | estimado `mkt-gl-v1-quote-camille` = COT-0001 · aprobación `mkt-gl-v1-approval-camille` · inspección `mkt-gl-v1-insp-camille` · OT `mkt-gl-v1-wo-camille` = OT-0001 · factura `mkt-gl-v1-inv-camille` = INV-0006 (pagada CARD) |
@@ -156,3 +157,5 @@ Decisiones de diseño a revisar:
 - Estimado de Camille y de Alexandre en `DRAFT`: nunca se marcó como enviado; la aprobación de Camille se registra con
   `channel = demo_seed_fictitious` y sin IP ni navegador. Factura de Camille creada por conversión (sin evento `INVOICE_ISSUED`, como en el flujo real).
 - Las citas de Alexandre y Julie se marcan `PUBLIC_WEB` (fuente WEB) y no tienen enlace de gestión (`manageToken` nulo).
+
+> Actualización: el dataset ahora incluye 3 citas de hoy (`today-*`) y 3 facturas cobradas dentro del mes de la referencia (`julie-2`, `nicolas-2`, `marcandre-1`, bandera `thisMonth`), para que el tablero muestre actividad real. Las filas existentes no se modifican; reejecutar el seed solo crea las nuevas. El tablero usa la zona horaria del proceso del servidor: ejecútalo con `TZ=America/Montreal` para ver las horas locales del taller.
