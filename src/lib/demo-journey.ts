@@ -128,6 +128,11 @@ export function demoMessage(key: DemoMessageKey, locale: MarketingLocale): DemoM
 
 // ── Copy del recorrido ──────────────────────────────────────────────────────────────────────
 
+/** Réplica de la página de reservas de Garage Laurent (ruta propia de /demo, sin BD). El QR de /demo apunta aquí. */
+export const DEMO_BOOKING_PATH = "/demo/booking";
+export const DEMO_BOOKING_URL = `https://www.garage-os.ca${DEMO_BOOKING_PATH}`;
+export const DEMO_LOGO_SRC = "/demo/garage-laurent/logo.png";
+
 export interface DemoSectionCopy { id: Exclude<DemoSectionId, "hero">; nav: Localized; title: Localized; benefit: Localized; points: Localized[] }
 
 export const DEMO_SECTIONS: DemoSectionCopy[] = [
@@ -160,6 +165,7 @@ export interface DemoUiCopy {
   sampleVisit: string; openPdf: string; openPreview: string; showMore: string; reusedNote: string; plan: (p: string) => string;
   langNote: string; phoneLabel: string; arrowLabel: string; finalTitle: string; finalBody: string; compare: string; contact: string;
   galleryTitle: string; paymentNote: string; shopSide: string; customerSide: string; step: string;
+  qrTitle: string; qrBody: string; qrOpen: string; qrAlt: string;
 }
 
 export const DEMO_UI: Record<MarketingLocale, DemoUiCopy> = {
@@ -173,6 +179,7 @@ export const DEMO_UI: Record<MarketingLocale, DemoUiCopy> = {
     phoneLabel: "Text message example", arrowLabel: "leads to", finalTitle: "See it in your own shop", finalBody: "Start a free trial, compare plans, or tell us what you would like to review.",
     compare: "Compare plans", contact: "Contact us", galleryTitle: "Owner tools", paymentNote: "GarageOS records payments your shop collected (card terminal, cash, e-Transfer or cheque).",
     shopSide: "What the shop sees", customerSide: "What the customer receives", step: "Step",
+    qrTitle: "Scan it: try the booking page", qrBody: "Every shop gets its own QR code with its logo in the centre, ready to print for the counter or the window. Point your phone camera at it to open Garage Laurent's booking page and try it: pick a service, a date and a time. Nothing is sent or saved.", qrOpen: "Open the booking page", qrAlt: "QR code to the Garage Laurent booking page",
   },
   fr: {
     heroTitle: "Voyez votre atelier en action.", heroBody: "Explorez Garage Laurent, un atelier québécois fictif, de la réservation à la prochaine visite.",
@@ -183,5 +190,6 @@ export const DEMO_UI: Record<MarketingLocale, DemoUiCopy> = {
     langNote: "", phoneLabel: "Exemple de message texte", arrowLabel: "mène à", finalTitle: "Voyez-le dans votre propre atelier", finalBody: "Démarrez un essai gratuit, comparez les forfaits ou dites-nous ce que vous aimeriez examiner.",
     compare: "Comparer les forfaits", contact: "Nous joindre", galleryTitle: "Outils du propriétaire", paymentNote: "GarageOS consigne les paiements encaissés par votre atelier (terminal, comptant, virement ou chèque).",
     shopSide: "Ce que voit l'atelier", customerSide: "Ce que reçoit le client", step: "Étape",
+    qrTitle: "Scannez-le : essayez la page de réservation", qrBody: "Chaque atelier a son propre code QR avec son logo au centre, prêt à imprimer pour le comptoir ou la vitrine. Pointez l'appareil photo de votre téléphone pour ouvrir la page de réservation de Garage Laurent et l'essayer : choisissez un service, une date et une heure. Rien n'est envoyé ni enregistré.", qrOpen: "Ouvrir la page de réservation", qrAlt: "Code QR vers la page de réservation de Garage Laurent",
   },
 };

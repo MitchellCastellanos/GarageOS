@@ -2,7 +2,9 @@
 
 import { useState, useTransition } from "react";
 import { Loader2, CheckCircle2, Mail } from "lucide-react";
+import { useBookingDemo } from "@/components/booking/BookingDemoContext";
 import { useSiteLocale } from "@/components/booking/LocaleProvider";
+import { DEMO_BOOKING_COPY } from "@/lib/demo-booking-copy";
 
 interface ContactSectionProps {
   slug: string;
@@ -45,15 +47,21 @@ const STRINGS = {
   },
 } as const;
 
+const contactInputClass = "w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm";
+const demoDisabledClass = "bg-slate-50 text-slate-400 cursor-not-allowed";
+
 export function ContactSection({ slug, shopName }: ContactSectionProps) {
   const { locale } = useSiteLocale();
   const t = STRINGS[locale];
+  const demo = useBookingDemo();
   const [pending, startTransition] = useTransition();
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    // Demostración: nunca se envía nada.
+    if (demo) return;
     const formData = new FormData(e.currentTarget);
     const payload = {
       name: formData.get("name"),
@@ -103,35 +111,45 @@ export function ContactSection({ slug, shopName }: ContactSectionProps) {
           name="name"
           required
           placeholder={t.name}
-          className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm"
+          className={demo ? `${contactInputClass} ${demoDisabledClass}` : contactInputClass}
+          disabled={Boolean(demo)}
         />
         <input
           name="email"
           type="email"
           placeholder={t.email}
-          className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm"
+          className={demo ? `${contactInputClass} ${demoDisabledClass}` : contactInputClass}
+          disabled={Boolean(demo)}
         />
         <input
           name="phone"
           placeholder={t.phone}
-          className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm"
+          className={demo ? `${contactInputClass} ${demoDisabledClass}` : contactInputClass}
+          disabled={Boolean(demo)}
         />
         <textarea
           name="message"
           required
           rows={4}
           placeholder={t.message}
-          className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm"
+          className={demo ? `${contactInputClass} ${demoDisabledClass}` : contactInputClass}
+          disabled={Boolean(demo)}
         />
         {error && <p className="text-sm text-red-600">{error}</p>}
-        <button
-          type="submit"
-          disabled={pending}
-          className="w-full flex items-center justify-center gap-2 bg-brand-red hover:bg-brand-red-dark disabled:opacity-50 text-white font-medium px-5 py-2.5 rounded-lg text-sm transition-colors"
-        >
-          {pending && <Loader2 className="w-4 h-4 animate-spin" />}
-          {t.submit}
-        </button>
+        {demo ? (
+          <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-center text-sm text-slate-600">
+            {DEMO_BOOKING_COPY[locale].formNote}
+          </p>
+        ) : (
+          <button
+            type="submit"
+            disabled={pending}
+            className="w-full flex items-center justify-center gap-2 bg-brand-red hover:bg-brand-red-dark disabled:opacity-50 text-white font-medium px-5 py-2.5 rounded-lg text-sm transition-colors"
+          >
+            {pending && <Loader2 className="w-4 h-4 animate-spin" />}
+            {t.submit}
+          </button>
+        )}
       </form>
     </section>
   );

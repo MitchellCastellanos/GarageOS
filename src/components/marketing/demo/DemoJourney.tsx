@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowRight, ChevronDown } from "lucide-react";
 import { useMarketingLocale } from "@/components/marketing/MarketingLocaleProvider";
 import { DemoFigure, DemoViewerProvider } from "@/components/marketing/demo/DemoViewer";
+import { DemoBookingQr } from "@/components/marketing/demo/DemoBookingQr";
 import { DemoPhoneSms, DemoSmsToDocument } from "@/components/marketing/demo/DemoMessage";
 import {
   DEMO_SECTIONS, DEMO_UI, resolveDemoAsset, type DemoAssetKey, type DemoSectionCopy,
@@ -138,6 +139,7 @@ function JourneyBody() {
               <DemoFigure assetKey="06-confirmation-email" sizes="(min-width: 640px) 40vw, 100vw" />
             </Expandable>
             <DemoPhoneSms messageKey="confirmation" />
+            <DemoBookingQr />
           </div>
         )}
       />
