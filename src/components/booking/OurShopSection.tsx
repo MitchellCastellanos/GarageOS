@@ -5,6 +5,7 @@ import { Clock, MapPin, Phone, Wrench } from "lucide-react";
 import { useSiteLocale } from "@/components/booking/LocaleProvider";
 import { SectionHeading, ShopPhoto, accentText, useHoursLines } from "@/components/booking/page/shared";
 import type { OpenHoursGroup } from "@/lib/booking-page";
+import { PhoneLink } from "@/components/booking/PhoneLink";
 
 interface OurShopSectionProps {
   shopName: string;
@@ -93,9 +94,9 @@ export function ShopContactList({
       {phone && (
         <li className={itemClass}>
           <Phone className={iconClass} />
-          <a href={`tel:${phone}`} className={`${linkHover} transition-colors`}>
+          <PhoneLink phone={phone} className={`${linkHover} transition-colors`}>
             {phone}
-          </a>
+          </PhoneLink>
         </li>
       )}
       <li className={itemClass}>

@@ -6,7 +6,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 /**
  * Dispara un beacon de pageview de primera parte al montar y en cada cambio
  * de ruta. Sin cookies, sin almacenamiento del lado del cliente, sin script
- * de terceros. Se omite por completo en /admin y /platform.
+ * de terceros. Se omite por completo en /admin, /platform y /demo/booking.
  */
 export default function AnalyticsBeacon() {
   const pathname = usePathname();
@@ -14,7 +14,8 @@ export default function AnalyticsBeacon() {
   const lastSent = useRef<string | null>(null);
 
   useEffect(() => {
-    if (pathname.startsWith("/admin") || pathname.startsWith("/platform") || pathname.startsWith("/activate-demo/")) return;
+    // /demo/booking es una réplica local sin escrituras: tampoco registra visitas (IP/user-agent).
+    if (pathname.startsWith("/admin") || pathname.startsWith("/platform") || pathname.startsWith("/activate-demo/") || pathname.startsWith("/demo/booking")) return;
     if (lastSent.current === pathname) return;
     lastSent.current = pathname;
 

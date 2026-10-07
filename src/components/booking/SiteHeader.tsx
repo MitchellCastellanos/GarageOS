@@ -5,6 +5,7 @@ import { Menu, Phone, X } from "lucide-react";
 import { useSiteLocale } from "@/components/booking/LocaleProvider";
 import { LanguageSwitcher } from "@/components/booking/LanguageSwitcher";
 import { ShopLogo, accentText, scrollToAnchor } from "@/components/booking/page/shared";
+import { PhoneLink } from "@/components/booking/PhoneLink";
 
 interface SiteHeaderProps {
   shopName: string;
@@ -98,8 +99,8 @@ export function SiteHeader({ shopName, logoUrl, phone, tone = "dark", background
           <div className="hidden @3xl:flex items-center gap-4">
             <LanguageSwitcher variant={dark ? "header" : "onLight"} />
             {phone && !compact && (
-              <a
-                href={`tel:${phone}`}
+              <PhoneLink
+                phone={phone}
                 className={[
                   "flex items-center gap-2 text-sm font-medium transition-colors",
                   dark ? "text-white/90 hover:text-white" : "text-slate-700 hover:text-slate-900",
@@ -107,7 +108,7 @@ export function SiteHeader({ shopName, logoUrl, phone, tone = "dark", background
               >
                 <Phone className={`w-4 h-4 ${accentText(tone)}`} />
                 {phone}
-              </a>
+              </PhoneLink>
             )}
             <button
               onClick={() => goTo("#cita")}
@@ -150,13 +151,13 @@ export function SiteHeader({ shopName, logoUrl, phone, tone = "dark", background
             </button>
           ))}
           {phone && (
-            <a
-              href={`tel:${phone}`}
+            <PhoneLink
+              phone={phone}
               className={["flex items-center gap-2 font-medium py-2", dark ? "text-white/90" : "text-slate-800"].join(" ")}
             >
               <Phone className={`w-4 h-4 ${accentText(tone)}`} />
               {phone}
-            </a>
+            </PhoneLink>
           )}
           <LanguageSwitcher variant={dark ? "mobile" : "mobileLight"} />
           <button

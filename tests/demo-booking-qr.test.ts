@@ -2,13 +2,11 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { bookingPublicPath } from "../src/config/app";
-import { DEMO_BOOKING_URL, DEMO_LOGO_SRC, DEMO_SHOP_SLUG, DEMO_UI } from "../src/lib/demo-journey";
-import { SHOP_SLUG } from "../scripts/marketing/garage-laurent-dataset";
+import { DEMO_BOOKING_PATH, DEMO_BOOKING_URL, DEMO_LOGO_SRC, DEMO_UI } from "../src/lib/demo-journey";
 
-test("demo QR points at the seeded Garage Laurent booking page on the public domain", () => {
-  assert.equal(DEMO_SHOP_SLUG, SHOP_SLUG);
-  assert.equal(DEMO_BOOKING_URL, `https://www.garage-os.ca${bookingPublicPath(SHOP_SLUG)}`);
+test("demo QR points at the demo booking route on the public domain (no production tenant needed)", () => {
+  assert.equal(DEMO_BOOKING_PATH, "/demo/booking");
+  assert.equal(DEMO_BOOKING_URL, "https://www.garage-os.ca/demo/booking");
 });
 
 test("demo QR logo is a local static PNG (keeps /demo free of Supabase/DB)", () => {

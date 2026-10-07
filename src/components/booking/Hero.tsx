@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { ChevronRight, MapPin, Phone } from "lucide-react";
 import { useSiteLocale } from "@/components/booking/LocaleProvider";
 import { Eyebrow, ShopNameTitle, ShopPhoto, scrollToAnchor } from "@/components/booking/page/shared";
+import { PhoneLink } from "@/components/booking/PhoneLink";
 
 interface HeroProps {
   shopName: string;
@@ -83,10 +84,10 @@ export function Hero({ shopName, address, phone, surface, coverImageUrl }: HeroP
               </span>
             )}
             {phone && (
-              <a href={`tel:${phone}`} className="inline-flex items-center gap-2 text-sm text-white/80 hover:text-white transition-colors">
+              <PhoneLink phone={phone} className="inline-flex items-center gap-2 text-sm text-white/80 hover:text-white transition-colors">
                 <Phone className="w-4 h-4 text-[var(--bp-accent-on-dark)]" />
                 {phone}
-              </a>
+              </PhoneLink>
             )}
           </div>
         </motion.div>

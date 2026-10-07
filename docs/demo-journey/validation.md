@@ -93,6 +93,18 @@ Not verified: (a) HTTP fetch of the public URLs and of a private URL (anon must 
 ### 4. Navigable demo shop: requirement, not done (no production shop created)
 A browsable Garage Laurent admin needs a **dedicated development PostgreSQL** (local, or a non-production branch) with `DATABASE_URL`/`DIRECT_URL`, `DEMO_OWNER_PASSWORD`, `AUTH_SECRET`, then `seed:marketing-garage-laurent` and, for images, `NEXT_PUBLIC_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` of the matching Storage. The Supabase connector provides none of these. Storage objects for `mkt-gl-v1-shop` already exist (section 3), so the attach script would find them by hash. `/demo` does not depend on any of this.
 
+## Booking replica at `/demo/booking` (PR #85)
+
+The QR on `/demo` (booking step) now opens `https://www.garage-os.ca/demo/booking`, a **local replica of the Garage Laurent booking site**. No tenant is created in production and nothing depends on a database, Supabase or the capture server.
+
+- **Same renderer**: `BookingPageRenderer` (the one behind `/book/[slug]`), MODERN template, MODERN typography, brand `#15363D`, the seed's 6 services (order, FR/EN/ES labels, icons, 4 featured), hours (Mon-Fri 8-17, Sat 9-13), address and phone. Data: `src/lib/demo-booking-shop.ts`; `tests/demo-booking.test.ts` fails if it drifts from the seed.
+- **Same images**: `public/demo/garage-laurent/booking/{logo.png,cover.webp,shop.webp}`. Logo = the original PNG (SHA-256 equals `garage-laurent-assets-manifest.json`); cover/shop are produced with the attach script's pipeline (WebP q84, product max widths) and are **byte-for-byte the same size as the real Storage objects** (251 436 B and 249 074 B).
+- **Demo mode** (`BookingDemoContext`, absent on every real route, so real behaviour is unchanged): availability comes from `src/lib/demo-booking-availability.ts` (shop hours, 60 min grid, service duration, 24 h lead time, 30-day window, all in America/Montreal; deterministic fictitious busy slots, never an empty open day); personal fields (booking and contact forms) are empty and disabled with the FR/EN/ES note; no submit button; `tel:`, WhatsApp, "Powered by GarageOS" and "Staff" links are informational. A slim notice states the shop is fictional and links back to `/demo#booking`.
+- **No writes**: the page-view beacon (`POST /api/track`, stores IP and user agent) skips `/demo/booking`; the page makes 0 non-GET requests and 0 `/api/` calls (verified in Chromium). `/demo` keeps its existing beacon.
+- **Visual fidelity**: with the notice and the WhatsApp button hidden, the replica matches the existing real-page captures **pixel for pixel (0.00 % differing pixels)**: `03-booking-desktop` FR/EN (2880x2000) and `04-booking-mobile` FR/EN (780x1688). `05-booking-form-mobile` differs only where intended (disabled contact fields and the note instead of "Envoyer").
+- **Journey checked** (FR 1440, EN 390, FR 768): service, date, time, vehicle, customer form (5 fields disabled and empty, 0 submit buttons), then changing service resets date/time, and date/time can be changed again; no horizontal overflow; 0 console errors; 0 cross-origin requests; no `tel:`/`mailto:`/maps/`wa.me`/external links. QR (with logo) decodes to the route; the button carries the language (`?lang=`).
+- Evidence: `docs/demo-journey/evidence/booking-replica-{cover,form}-*.png`.
+
 ## Pending for the next agent
 
 1. ~~Dashboard time zone~~ resolved above.

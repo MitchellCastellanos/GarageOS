@@ -21,6 +21,7 @@ import {
   useServiceLabel,
   type TemplateProps,
 } from "@/components/booking/page/shared";
+import { PhoneLink } from "@/components/booking/PhoneLink";
 
 const BOLD_TITLE = "bp-heading uppercase text-4xl @2xl:text-5xl leading-none text-slate-950";
 
@@ -95,10 +96,10 @@ export function BoldTemplate({ page, mode, surface, renderBooking }: TemplatePro
                 </span>
               )}
               {shop.phone && (
-                <a href={`tel:${shop.phone}`} className="inline-flex items-center gap-2 hover:text-white">
+                <PhoneLink phone={shop.phone} className="inline-flex items-center gap-2 hover:text-white">
                   <Phone className="w-4 h-4 text-[var(--bp-accent-on-dark)]" />
                   {shop.phone}
-                </a>
+                </PhoneLink>
               )}
             </div>
           </motion.div>

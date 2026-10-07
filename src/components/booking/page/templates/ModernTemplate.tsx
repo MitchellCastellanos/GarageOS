@@ -21,6 +21,7 @@ import {
   useServiceLabel,
   type TemplateProps,
 } from "@/components/booking/page/shared";
+import { PhoneLink } from "@/components/booking/PhoneLink";
 
 /** Panel de reemplazo cuando no hay foto: superficie del color del taller con textura, nunca un hueco vacío. */
 function BrandPanel({ surface }: { surface: string }) {
@@ -86,10 +87,10 @@ export function ModernTemplate({ page, mode, surface, renderBooking }: TemplateP
                 </span>
               )}
               {shop.phone && (
-                <a href={`tel:${shop.phone}`} className="inline-flex items-center gap-2 hover:text-slate-950">
+                <PhoneLink phone={shop.phone} className="inline-flex items-center gap-2 hover:text-slate-950">
                   <Phone className="w-4 h-4 text-brand-red" />
                   {shop.phone}
-                </a>
+                </PhoneLink>
               )}
             </div>
           </motion.div>

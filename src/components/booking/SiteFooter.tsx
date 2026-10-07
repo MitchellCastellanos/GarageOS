@@ -1,5 +1,9 @@
+"use client";
+
 import Link from "next/link";
+import { useBookingDemo } from "@/components/booking/BookingDemoContext";
 import { ShopLogo } from "@/components/booking/page/shared";
+import { PhoneLink } from "@/components/booking/PhoneLink";
 
 interface SiteFooterProps {
   shopName: string;
@@ -13,6 +17,7 @@ interface SiteFooterProps {
 
 export function SiteFooter({ shopName, logoUrl, address, phone, tone = "dark", backgroundColor }: SiteFooterProps) {
   const dark = tone === "dark";
+  const demo = useBookingDemo();
 
   return (
     <footer
@@ -29,15 +34,15 @@ export function SiteFooter({ shopName, logoUrl, address, phone, tone = "dark", b
         </div>
 
         {phone && (
-          <a
-            href={`tel:${phone}`}
+          <PhoneLink
+            phone={phone}
             className={[
               "text-sm font-medium transition-colors",
               dark ? "text-slate-300 hover:text-white" : "text-slate-700 hover:text-slate-950",
             ].join(" ")}
           >
             {phone}
-          </a>
+          </PhoneLink>
         )}
 
         <p className={["text-xs", dark ? "text-slate-600" : "text-slate-500"].join(" ")}>
@@ -51,27 +56,35 @@ export function SiteFooter({ shopName, logoUrl, address, phone, tone = "dark", b
           dark ? "border-white/10 bg-black/30" : "border-slate-200 bg-white",
         ].join(" ")}
       >
-        <a
-          href="https://garageos.com"
-          target="_blank"
-          rel="noopener noreferrer"
-          className={[
-            "text-[11px] font-medium transition-colors",
-            dark ? "text-slate-400 hover:text-slate-200" : "text-slate-500 hover:text-slate-800",
-          ].join(" ")}
-        >
-          Powered by GarageOS
-        </a>
+        {demo ? (
+          <span className={["text-[11px] font-medium", dark ? "text-slate-400" : "text-slate-500"].join(" ")}>Powered by GarageOS</span>
+        ) : (
+          <a
+            href="https://garageos.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={[
+              "text-[11px] font-medium transition-colors",
+              dark ? "text-slate-400 hover:text-slate-200" : "text-slate-500 hover:text-slate-800",
+            ].join(" ")}
+          >
+            Powered by GarageOS
+          </a>
+        )}
         <span className={dark ? "text-slate-700" : "text-slate-300"}>·</span>
-        <Link
-          href="/admin/login"
-          className={[
-            "text-[11px] transition-colors",
-            dark ? "text-slate-700 hover:text-slate-500" : "text-slate-400 hover:text-slate-600",
-          ].join(" ")}
-        >
-          Staff
-        </Link>
+        {demo ? (
+          <span className={["text-[11px]", dark ? "text-slate-700" : "text-slate-400"].join(" ")}>Staff</span>
+        ) : (
+          <Link
+            href="/admin/login"
+            className={[
+              "text-[11px] transition-colors",
+              dark ? "text-slate-700 hover:text-slate-500" : "text-slate-400 hover:text-slate-600",
+            ].join(" ")}
+          >
+            Staff
+          </Link>
+        )}
       </div>
     </footer>
   );

@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Loader2, CheckCircle2 } from "lucide-react";
 import { useSiteLocale } from "@/components/booking/LocaleProvider";
+import { useBookingDemo } from "@/components/booking/BookingDemoContext";
+import { DEMO_BOOKING_COPY } from "@/lib/demo-booking-copy";
 import type { SiteLocale } from "@/lib/site-locale";
 import { OTHER_VALUE, VEHICLE_MAKES, VEHICLE_MODELS, VEHICLE_YEARS } from "@/lib/vehicle-catalog";
 import { resolveServiceDuration } from "@/lib/service-catalog";
@@ -49,6 +51,7 @@ function serviceLabel(service: ServiceOption, locale: SiteLocale): string {
 
 export function PublicBookingForm({ slug, shop, services }: PublicBookingFormProps) {
   const { locale, t } = useSiteLocale();
+  const demo = useBookingDemo();
   const serviceDurations = Object.fromEntries(services.map((s) => [s.id, s.durationMinutes]));
   const otherLabel =
     t.form.serviceOptions.find((o) => o.value === OTHER_VALUE)?.label ?? t.form.otherOption;
@@ -150,8 +153,11 @@ export function PublicBookingForm({ slug, shop, services }: PublicBookingFormPro
     setSelectedDate("");
     setSelectedTime("");
     setLoadingDates(true);
-    fetch(`/api/book/${slug}/slots?service=${encodeURIComponent(serviceValue)}`)
-      .then((r) => r.json())
+    // Demostración: la disponibilidad sale de datos locales (sin red).
+    (demo
+      ? demo.loadDates(serviceValue)
+      : fetch(`/api/book/${slug}/slots?service=${encodeURIComponent(serviceValue)}`).then((r) => r.json())
+    )
       .then((data) => {
         if (data.code === "BOOKING_DISABLED") {
           setBookingPaused(true);
@@ -170,8 +176,10 @@ export function PublicBookingForm({ slug, shop, services }: PublicBookingFormPro
   function loadSlotsFor(dateStr: string) {
     setLoadingSlots(true);
     const params = new URLSearchParams({ date: dateStr, service: serviceValue });
-    fetch(`/api/book/${slug}/slots?${params}`)
-      .then((r) => r.json())
+    (demo
+      ? demo.loadSlots(dateStr, serviceValue).then((slots) => ({ slots, code: undefined }))
+      : fetch(`/api/book/${slug}/slots?${params}`).then((r) => r.json())
+    )
       .then((data) => {
         if (data.code === "BOOKING_DISABLED") setBookingPaused(true);
         setSlots(data.slots ?? []);
@@ -190,6 +198,8 @@ export function PublicBookingForm({ slug, shop, services }: PublicBookingFormPro
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    // Demostración: el formulario termina aquí, no hay envío ni reserva.
+    if (demo) return;
     setError(null);
     const form = e.currentTarget;
     const formData = new FormData(form);
@@ -471,19 +481,24 @@ export function PublicBookingForm({ slug, shop, services }: PublicBookingFormPro
       {hasVehicle && (
         <div ref={infoStepRef} className="border-t border-slate-100 pt-5 space-y-4 scroll-mt-24">
           <h3 className={stepHeadingClass}>5. {t.form.stepYourInfo}</h3>
+          {demo && (
+            <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+              {DEMO_BOOKING_COPY[locale].formNote}
+            </p>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 {t.form.fullName}
               </label>
-              <input name="fullName" required className={inputClass} />
+              <input name="fullName" required disabled={Boolean(demo)} className={demoField(inputClass, demo)} />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 {t.form.phone}
               </label>
-              <input name="phone" type="tel" required className={inputClass} />
+              <input name="phone" type="tel" required disabled={Boolean(demo)} className={demoField(inputClass, demo)} />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
@@ -492,7 +507,8 @@ export function PublicBookingForm({ slug, shop, services }: PublicBookingFormPro
               <input
                 name="email"
                 type="email"
-                className={inputClass}
+                disabled={Boolean(demo)}
+                className={demoField(inputClass, demo)}
                 onChange={(e) => {
                   const has = e.target.value.trim().length > 0;
                   setHasEmail(has);
@@ -530,7 +546,7 @@ export function PublicBookingForm({ slug, shop, services }: PublicBookingFormPro
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 {t.form.licensePlate}
               </label>
-              <input name="licensePlate" className={inputClass} />
+              <input name="licensePlate" disabled={Boolean(demo)} className={demoField(inputClass, demo)} />
             </div>
           </div>
 
@@ -538,7 +554,7 @@ export function PublicBookingForm({ slug, shop, services }: PublicBookingFormPro
             <label className="block text-sm font-medium text-slate-700 mb-1">
               {t.form.notesOptional}
             </label>
-            <textarea name="notes" rows={2} className={inputClass} />
+            <textarea name="notes" rows={2} disabled={Boolean(demo)} className={demoField(inputClass, demo)} />
           </div>
 
           {error && (
@@ -547,14 +563,16 @@ export function PublicBookingForm({ slug, shop, services }: PublicBookingFormPro
             </div>
           )}
 
-          <button
-            type="submit"
-            disabled={pending || !selectedDate || !selectedTime}
-            className="w-full flex items-center justify-center gap-2 bg-brand-red hover:bg-brand-red-dark disabled:opacity-50 text-white font-medium py-3 rounded-xl transition-colors"
-          >
-            {pending && <Loader2 className="w-4 h-4 animate-spin" />}
-            {t.form.confirmAppointment(durationMinutes)}
-          </button>
+          {!demo && (
+            <button
+              type="submit"
+              disabled={pending || !selectedDate || !selectedTime}
+              className="w-full flex items-center justify-center gap-2 bg-brand-red hover:bg-brand-red-dark disabled:opacity-50 text-white font-medium py-3 rounded-xl transition-colors"
+            >
+              {pending && <Loader2 className="w-4 h-4 animate-spin" />}
+              {t.form.confirmAppointment(durationMinutes)}
+            </button>
+          )}
         </div>
       )}
     </form>
@@ -573,5 +591,12 @@ function formatDateLabel(isoDate: string, intlLocale: string): string {
 
 const inputClass =
   "w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-red focus:border-transparent";
+
+const demoDisabledClass = "bg-slate-50 text-slate-400 cursor-not-allowed";
+
+/** Mismo className que siempre; en la demostración suma el estilo de campo deshabilitado. */
+function demoField(base: string, demo: unknown): string {
+  return demo ? `${base} ${demoDisabledClass}` : base;
+}
 
 const stepHeadingClass = "font-display font-bold uppercase text-sm tracking-wide text-slate-900 mb-2";
