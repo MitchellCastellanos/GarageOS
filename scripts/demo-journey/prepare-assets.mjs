@@ -32,6 +32,7 @@ for (const locale of ["fr", "en"]) {
       if (base) manifest.assets[locale][key] = { width: base.width, height: base.height, ...o };
     }
   }
+  if (fs.existsSync(path.join(src, "invoice-camille.pdf"))) fs.copyFileSync(path.join(src, "invoice-camille.pdf"), path.join(dst, "invoice-camille.pdf"));
   manifest.invoicePdf[locale] = fs.existsSync(path.join(dst, "invoice-camille.pdf"));
 }
 fs.writeFileSync(path.join(pub, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");

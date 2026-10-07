@@ -1,0 +1,67 @@
+{
+  "_comment": "Portable manifest of the raw Garage Laurent marketing images committed at Garage Laurent/. No secrets, no storage URLs, no tokens. SHA-256 lets any machine verify whether a given Supabase Storage object already matches a local file (see scripts/marketing/attach-garage-laurent-assets.ts, which hashes before uploading) without re-uploading or depending on this machine's paths.",
+  "generatedAt": "2026-10-07T00:00:00.000Z",
+  "sourceDir": "Garage Laurent/ (repo root, relative — resolved at runtime by scripts/marketing/attach-garage-laurent-assets.ts via import.meta.url, not an absolute path)",
+  "assets": [
+    {
+      "file": "Garage Laurent Mechanical Logo.png",
+      "role": "logo",
+      "sha256": "c4d6b041322038d3e016c5a9f5666f5ea77b16e1c98eb1a1204874938cb68806",
+      "bytes": 562977,
+      "width": 2172,
+      "height": 724,
+      "destination": "Shop.logoUrl (public bucket, logos/{shopId}/logo.png)",
+      "notes": "Must have a transparent background; attach script aborts otherwise."
+    },
+    {
+      "file": "Garage Laurent Exterior.png",
+      "role": "exterior",
+      "sha256": "ccdca3db869fc270090fb48b24f4a87553639f1eef77391268be34a3d62a1752",
+      "bytes": 2510578,
+      "width": 1672,
+      "height": 941,
+      "destination": "Shop.bookingCoverImageUrl (converted to WebP, resized to BOOKING_IMAGE_MAX_WIDTH.cover)"
+    },
+    {
+      "file": "Garage Laurent Workshop.png",
+      "role": "workshop",
+      "sha256": "094564969bebc5336e844c4e8d846b65bcdd576c06e28a944b8aec04c184359a",
+      "bytes": 2473895,
+      "width": 1448,
+      "height": 1086,
+      "destination": "Shop.bookingShopImageUrl (converted to WebP, resized to BOOKING_IMAGE_MAX_WIDTH.shop)"
+    },
+    {
+      "file": "Worn Tire in a Busy Garage.png",
+      "role": "tires",
+      "sha256": "617ed59edc709222ee9f1cd26cdda36ca444057a9889d9504b042bf7d37b72c3",
+      "bytes": 2500483,
+      "width": 1448,
+      "height": 1086,
+      "destination": "InspectionPhoto on Camille's inspection item mkt-gl-v1-ii-camille-tires (private storage)"
+    },
+    {
+      "file": "Close-Up Brake Rotor and Caliper Inspection.png",
+      "role": "brakes",
+      "sha256": "95a65376f2b9b28878556ddc8d27d6e474644c321ab7a7c7fe08dd65519566c4",
+      "bytes": 2575208,
+      "width": 1448,
+      "height": 1086,
+      "destination": "InspectionPhoto on Camille's inspection item mkt-gl-v1-ii-camille-brakes (private storage)"
+    },
+    {
+      "file": "Autumn Garage Tire Service Bay.png",
+      "role": "campaign",
+      "sha256": "7d7993526a5ea2ac08c155979fa197011dc8ba41e23e87e8bd187ef08c83528d",
+      "bytes": 2598563,
+      "width": 1536,
+      "height": 1024,
+      "destination": "Not uploaded by the attach script yet — held as a pending asset for the winter Campaign (mkt-gl-v1-campaign-winter). Flagged in attach-garage-laurent-assets.ts log output."
+    }
+  ],
+  "howToVerifyOnAnotherMachine": [
+    "sha256sum 'Garage Laurent'/*.png   # or: Get-FileHash in PowerShell",
+    "Compare against the sha256 fields above. A match means the file is byte-identical to what this manifest describes, regardless of path or machine.",
+    "scripts/marketing/attach-garage-laurent-assets.ts independently re-hashes and compares against whatever is already in Storage/DB before uploading — it will not re-upload or duplicate if content already matches."
+  ]
+}

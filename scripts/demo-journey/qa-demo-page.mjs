@@ -15,6 +15,9 @@ for (const locale of ["fr", "en"]) {
     await ctx.addInitScript((l) => localStorage.setItem("marketing-locale", l), locale);
     const page = await ctx.newPage();
     const errors = [];
+    const foreign = new Set(); const bad = [];
+    page.on("request", (r) => { const u = new URL(r.url()); if (u.origin !== new URL(BASE).origin && !u.protocol.startsWith("data")) foreign.add(u.host); });
+    page.on("response", (r) => { if (r.status() >= 400) bad.push(`${r.status()} ${new URL(r.url()).pathname}`); });
     page.on("pageerror", (e) => errors.push(String(e)));
     page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
     await page.goto(`${BASE}/demo`, { waitUntil: "networkidle" });
@@ -51,7 +54,9 @@ for (const locale of ["fr", "en"]) {
     const smsLink = page.locator("#invoice button", { hasText: "garageos.com" }).first();
     let smsOpen = "n/a";
     if (await smsLink.count()) { await smsLink.click(); await page.waitForTimeout(200); smsOpen = (await page.locator("dialog[open]").count()) === 1 ? "opens-viewer" : "FAILED"; await page.keyboard.press("Escape"); }
-    results.push({ locale, w, overflow, broken, imgs, lang, h1, invoiceTop, lightbox, smsOpen, errors: errors.length });
+    // Static self-sufficiency: no cross-origin request, no 4xx/5xx, invoice PDF served as a file.
+    const pdfRes = await ctx.request.get(`${BASE}/demo/garage-laurent/${locale}/invoice-camille.pdf`);
+    results.push({ locale, w, overflow, broken, imgs, lang, h1, invoiceTop, lightbox, smsOpen, errors: errors.length, foreign: [...foreign].join(",") || "none", bad: bad.length, pdf: `${pdfRes.status()} ${pdfRes.headers()["content-type"]}` });
     if (errors.length) console.log(locale, w, errors.slice(0, 3));
     if (shotsDir && (w === 390 || w === 1440)) await page.screenshot({ path: path.join(shotsDir, `demo-${locale}-${w}.png`), fullPage: true });
     await ctx.close();

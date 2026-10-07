@@ -22,7 +22,7 @@ const camille = totalsFor(CAMILLE_LINES);
 const alexandre = totalsFor(ALEXANDRE_LINES);
 if (camille.total !== "423.11" || alexandre.total !== "218.45") throw new Error("Dataset totals drifted from the brief");
 
-const refDate = process.env.DEMO_REF_DATE ?? "2026-10-06";
+const refDate = process.env.DEMO_REF_DATE ?? "2026-10-07";
 const demoDay = demoDayAfter(refDate);
 const startsAt = parseShopDateTime(demoDay, "08:00", SHOP_TZ);
 
