@@ -80,10 +80,11 @@ for (const c of COMPOSITIONS) console.log(`INFO  ${c.id} -> output/${c.id}.mp4 (
 for (const c of COMPOSITIONS) {
   const f = `${root}/output/${c.id}.mp4`;
   if (!existsSync(f)) { console.log(`SKIP  ${c.id}.mp4 not rendered`); continue; }
-  const j = JSON.parse(execFileSync("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=codec_name,width,height,r_frame_rate,nb_frames,pix_fmt:format=duration", "-of", "json", f]).toString());
+  const j = JSON.parse(execFileSync("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=codec_name,width,height,r_frame_rate,nb_frames,pix_fmt,color_range,color_space:format=duration", "-of", "json", f]).toString());
   const s = j.streams[0];
   ok(s.width === 1920 && s.height === 1080, `${c.id}.mp4 ${s.width}x${s.height}`);
   ok(s.codec_name === "h264" && s.r_frame_rate === "30/1", `${c.id}.mp4 codec ${s.codec_name} @ ${s.r_frame_rate}`);
+  ok(s.pix_fmt === "yuv420p" && s.color_range === "tv" && s.color_space === "bt709", `${c.id}.mp4 broadly compatible pixel format (${s.pix_fmt}, ${s.color_range}, ${s.color_space})`);
   ok(Math.abs(parseFloat(j.format.duration) - c.frames / FPS) < 0.1, `${c.id}.mp4 duration ${j.format.duration}s (expected ${c.frames / FPS}s)`);
 }
 for (const l of LOCALES as Locale[]) {
