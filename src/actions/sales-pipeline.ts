@@ -10,6 +10,7 @@ import { requireCrmActor } from "@/lib/sales-crm/access";
 import { writeCrmAudit } from "@/lib/sales-crm/audit";
 import { CrmError, applyDoNotContact, recomputeOpportunityScores, requireScopedProspect, resolveAssignee, touchProspect } from "@/lib/sales-crm/prospects";
 import { crmAction, mapUniqueViolation } from "@/lib/sales-crm/result";
+import { assertAcquisition } from "@/lib/sales-crm/territory";
 
 function refresh(prospectId: string) {
   revalidatePath(PLATFORM.salesPipeline);
@@ -136,6 +137,11 @@ export async function assignProspect(prospectId: string, staffId: string | null,
     const p = await requireScopedProspect(actor, prospectId);
     const target = await resolveAssignee(actor, staffId || null);
     if (p.assignedStaffId === target) return {};
+    // Initial acquisition (no current owner) respects sales mode + territory; an explicit transfer of an owned prospect does not.
+    if (target && !p.assignedStaffId) {
+      const loc = await db.crmProspect.findUniqueOrThrow({ where: { id: prospectId }, select: { province: true, city: true, postalCode: true } });
+      await assertAcquisition(target, loc, { id: prospectId, assignedStaffId: null });
+    }
     await db.$transaction(async (tx) => {
       await tx.crmProspect.update({ where: { id: prospectId }, data: { assignedStaffId: target } });
       await tx.crmOpportunity.updateMany({ where: { prospectId, stage: { in: ["NEW", "CONTACTED", "ENGAGED", "QUALIFIED", "DEMO_SCHEDULED", "DEMO_COMPLETED", "DECISION"] } }, data: { assignedStaffId: target } });

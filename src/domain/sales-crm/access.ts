@@ -24,15 +24,23 @@ export const SALES_CAPABILITIES = [
   // Agent 2 (sales communications & scheduling): enrolling own prospects in approved sequences; own calendar/availability/booking.
   "enroll_sequences",
   "manage_calendar",
+  // Sales modes: FIELD agents only (REMOTE agents never receive these). Route planning itself is built by Agent 2 of the national expansion.
+  "plan_field_routes",
+  "log_field_visits",
 ] as const;
 export type SalesCapability = (typeof SALES_CAPABILITIES)[number];
 
 const REP: SalesCapability[] = ["read_assigned_prospects", "manage_prospects", "import_prospects", "prepare_demo", "send_sales_email", "enroll_sequences", "manage_calendar"];
 const MANAGER: SalesCapability[] = [...REP, "read_team_prospects", "reassign_prospects", "view_team_reporting"];
+const FIELD_ONLY: SalesCapability[] = ["plan_field_routes", "log_field_visits"];
 
-export function capabilitiesFor(kind: PlatformSalesKind): ReadonlySet<SalesCapability> {
+export type SalesModeValue = "FIELD" | "REMOTE";
+
+/** Administrative kind decides the base set; the sales MODE adds field-only privileges. Default mode is REMOTE (least privilege). */
+export function capabilitiesFor(kind: PlatformSalesKind, mode: SalesModeValue = "REMOTE"): ReadonlySet<SalesCapability> {
   if (kind === "SUPER_ADMIN") return new Set(SALES_CAPABILITIES);
-  return new Set(kind === "SALES_MANAGER" ? MANAGER : REP);
+  const base = kind === "SALES_MANAGER" ? MANAGER : REP;
+  return new Set(mode === "FIELD" ? [...base, ...FIELD_ONLY] : base);
 }
 
 export interface PlatformSalesActor {
@@ -49,6 +57,10 @@ export interface PlatformSalesActor {
   /** User ids whose SalesDemo records the actor may use (self + reports). Ignored when `all`. */
   scopeUserIds: readonly string[];
   all: boolean;
+  /** Working mode of the actor's staff profile (null for a Super Admin without one). Independent of `kind`. */
+  salesMode?: SalesModeValue | null;
+  /** Territory keys the actor covers (empty = every territory their mode permits). */
+  coverageTerritoryKeys?: readonly string[];
 }
 
 export function can(actor: PlatformSalesActor, capability: SalesCapability): boolean {

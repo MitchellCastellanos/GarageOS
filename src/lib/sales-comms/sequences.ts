@@ -14,7 +14,7 @@ import { randomToken, signUnsubscribeToken } from "@/domain/sales-comms/tokens";
 import { getCommsSettings, unsubscribeSecret } from "@/lib/sales-comms/settings";
 import { evaluatePolicy } from "@/lib/sales-comms/policy";
 import { activeSuppressions } from "@/lib/sales-comms/suppression";
-import { baseVars, renderResolved, resolveTemplate, toTemplateLanguage } from "@/lib/sales-comms/templates";
+import { baseVars, renderResolved, resolveTemplate, toTemplateLanguage, withVideoVars } from "@/lib/sales-comms/templates";
 import { buildContent, unsubscribeUrlFor } from "@/lib/sales-comms/content";
 import { createThread, threadingFor } from "@/lib/sales-comms/threads";
 import { bookingUrl, ensureProspectLink } from "@/lib/sales-comms/booking-links";
@@ -103,7 +103,7 @@ export async function enroll(actor: PlatformSalesActor, args: { sequenceId: stri
   const lang = resolveEffectiveLanguage({ override: args.languageOverride ?? null, contact: contact.preferredLanguage, prospect: prospectLang });
   if (lang.needsHumanDecision) throw new CrmError("LANGUAGE_REQUIRED");
   // Same gate as a manual send: sending enabled, active identity/domain, no suppression/DNC, documented CASL basis.
-  const { decision } = await evaluatePolicy({ identityId: identity.id, category: "COMMERCIAL", recipients: [contact.emailNormalized], prospectId: prospect.id, contactId: contact.id, languageResolved: true });
+  const { decision } = await evaluatePolicy({ identityId: identity.id, category: "COMMERCIAL", recipients: [contact.emailNormalized], prospectId: prospect.id, contactId: contact.id, languageResolved: true, automated: true });
   if (!decision.allowed && decision.code !== "DAILY_LIMIT") throw new CrmError(decision.code);
 
   const settings = await getCommsSettings();
@@ -219,7 +219,7 @@ export async function processDueEnrollments(opts: { now?: Date; limit?: number }
     const tl = toTemplateLanguage(lang.language);
     if (!tl) { await pauseWithReason(e.id, "LANGUAGE_REQUIRED"); out.paused++; continue; }
 
-    const { decision } = await evaluatePolicy({ identityId: identity.id, category: "COMMERCIAL", recipients: [email!], prospectId: e.prospectId, contactId: e.contactId, languageResolved: true }, now);
+    const { decision } = await evaluatePolicy({ identityId: identity.id, category: "COMMERCIAL", recipients: [email!], prospectId: e.prospectId, contactId: e.contactId, languageResolved: true, automated: true }, now);
     if (!decision.allowed) {
       if (decision.code === "DAILY_LIMIT" || decision.code === "SENDING_DISABLED") {
         const next = nextSendInstant(new Date(now.getTime() + (decision.code === "DAILY_LIMIT" ? 24 : 1) * 3_600_000), e.staff.timezone, win);
@@ -232,7 +232,7 @@ export async function processDueEnrollments(opts: { now?: Date; limit?: number }
     const tpl = await resolveTemplate(step.templateKey as never, tl);
     let link: string | null = null;
     if (e.staff.bookingEnabled) link = bookingUrl((await ensureProspectLink({ staffId: e.staffId, prospectId: e.prospectId, contactId: e.contactId, opportunityId: e.opportunityId, language: tl, actorUserId: e.enrolledByUserId })).token, tl);
-    const rendered = await renderResolved(tpl, baseVars({ language: tl, contactName: e.contact.name, prospectName: e.prospect.name, sellerName: identity.fromName, sellerTitle: identity.jobTitle, bookingUrl: link }));
+    const rendered = await renderResolved(tpl, await withVideoVars(baseVars({ language: tl, contactName: e.contact.name, prospectName: e.prospect.name, sellerName: identity.fromName, sellerTitle: identity.jobTitle, bookingUrl: link }), tl));
     if (rendered.missing.length) { await pauseWithReason(e.id, `TEMPLATE_INCOMPLETE:${rendered.missing.join(",")}`); out.paused++; continue; }
 
     const messageId = randomToken(12);

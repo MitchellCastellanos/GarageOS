@@ -105,7 +105,7 @@ export async function dispatchMessage(id: string, now = new Date()): Promise<Dis
   const recipients = [...msg.toAddresses, ...msg.ccAddresses, ...msg.bccAddresses];
   const { decision } = await evaluatePolicy({
     identityId: msg.identityId, category: msg.category, recipients, prospectId: msg.prospectId, contactId: msg.contactId,
-    languageResolved: msg.category !== "COMMERCIAL" || (msg.language !== null && msg.language !== "UNKNOWN"), excludeMessageId: msg.id,
+    languageResolved: msg.category !== "COMMERCIAL" || (msg.language !== null && msg.language !== "UNKNOWN"), excludeMessageId: msg.id, automated: !!msg.sequenceEnrollmentId,
   }, now);
   // The message itself is already counted in today's total: only a *different* message may trip the cap.
   const policyCode = decision.allowed ? null : decision.code;

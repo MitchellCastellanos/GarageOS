@@ -17,6 +17,10 @@ import { OpportunityDetailsForm, ScoreOverrideForm, StartOpportunityButton } fro
 import { AssignControl, ProspectActions } from "@/components/sales-crm/ProspectActions";
 import { ScoreBreakdown } from "@/components/sales-crm/ScoreBreakdown";
 import type { CrmCopy } from "@/lib/admin-locale/sales-crm";
+import { FieldVisitForm } from "@/components/sales-crm/FieldVisitForm";
+import { identityCopy } from "@/lib/admin-locale/sales-identity";
+import { loadEngagement, territoryOfLocation } from "@/lib/sales-crm/territory";
+import { requiredMode } from "@/domain/sales-crm/territory";
 import { ProspectCommsPanel } from "@/components/sales-comms/ProspectCommsPanel";
 
 type Activity = { id: string; type: string; outcome: string | null; subject: string | null; body: string | null; metadata: unknown; occurredAt: Date; author: { name: string }; contact: { name: string } | null };
@@ -45,6 +49,9 @@ export default async function ProspectDetailPage({ params }: { params: Promise<{
   const describe = (x: { descriptionEn: string | null; descriptionFr: string | null }) => (locale === "fr" ? x.descriptionFr : x.descriptionEn);
   const now = new Date();
   const owner = p.assignedStaff;
+  const ic = identityCopy(locale);
+  const [territory, engagement] = await Promise.all([territoryOfLocation(p), loadEngagement(p.id)]);
+  const heldBy = requiredMode(territory, engagement, now);
 
   return (
     <div className="mx-auto max-w-6xl space-y-5">
@@ -55,6 +62,13 @@ export default async function ProspectDetailPage({ params }: { params: Promise<{
       <PageHeader title={p.name} subtitle={[p.city, p.province].filter(Boolean).join(", ") || undefined} actions={
         can(actor, "prepare_demo") && !p.doNotContact && p.status === "ACTIVE" && open
           ? <Link className={btnPrimary} href={`${PLATFORM.salesNew}?opportunity=${open.id}`}>{d.prepareDemo}</Link> : undefined} />
+
+      {territory && (
+        <section className="flex flex-wrap items-center gap-2 text-sm" aria-label={ic.territories.title}>
+          <Badge tone={heldBy === "FIELD" ? "bg-violet-100 text-violet-800" : "bg-sky-100 text-sky-800"}>{ic.territoryBadge[heldBy]}</Badge>
+          <span className="text-slate-600">{locale === "fr" ? territory.nameFr : territory.nameEn}</span>
+        </section>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
@@ -94,6 +108,7 @@ export default async function ProspectDetailPage({ params }: { params: Promise<{
 
           <section className={cardCls} aria-labelledby="timeline-h">
             <h2 id="timeline-h" className="mb-3 font-semibold text-slate-900">{d.timeline}</h2>
+            {canEdit && can(actor, "log_field_visits") && <details className="mb-5 border-b border-slate-100 pb-5"><summary className="min-h-11 cursor-pointer text-sm font-medium text-blue-700">{ic.visit.log}</summary><div className="mt-2"><FieldVisitForm locale={locale} prospectId={p.id} /></div></details>}
             {canEdit && <div className="mb-5 border-b border-slate-100 pb-5"><ActivityComposer locale={locale} prospectId={p.id} contacts={p.contacts.map((c) => ({ id: c.id, name: c.name }))} /></div>}
             {p.activities.length === 0 ? <p className="text-sm text-slate-500">{t.states.emptyTimeline}</p> : (
               <ol className="space-y-4">

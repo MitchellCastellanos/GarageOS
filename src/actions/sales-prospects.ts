@@ -12,6 +12,7 @@ import {
 import { crmAction, mapUniqueViolation } from "@/lib/sales-crm/result";
 import { contactInputSchema, prospectInputSchema } from "@/domain/sales-crm/validation";
 import { normalizeEmail } from "@/domain/sales-crm/normalize";
+import { assertAcquisition } from "@/lib/sales-crm/territory";
 
 
 function refresh(prospectId?: string) {
@@ -29,6 +30,8 @@ export async function createProspect(form: FormData) {
     const requested = input.assignedStaffId ?? actor.staffId;
     const assignedStaffId = await resolveAssignee(actor, requested);
     if (assignedStaffId === null && !actor.all && actor.kind !== "SALES_MANAGER") throw new CrmError("ASSIGNMENT_FORBIDDEN");
+    // Sales mode + territory: initial acquisition in a field-held territory needs a FIELD owner.
+    if (assignedStaffId) await assertAcquisition(assignedStaffId, { province: input.province, city: input.city, postalCode: input.postalCode });
     if (raw.allowDuplicate !== "on") {
       const dupes = await findDuplicateProspects(actor, input);
       if (dupes.length) throw new CrmError(dupes.some((d) => d.accessible) ? "DUPLICATE" : "DUPLICATE_RESTRICTED");

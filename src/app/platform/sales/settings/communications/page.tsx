@@ -9,6 +9,7 @@ import { getCommsSettings } from "@/lib/sales-comms/settings";
 import { getAllIdentitySetups } from "@/lib/sales-comms/setup";
 import { TEMPLATE_KEYS, builtinTemplate, type TemplateLanguage } from "@/domain/sales-comms/templates";
 import { signatureLogoUrl } from "@/lib/sales-comms/content";
+import { TestRecipientPanel } from "@/components/sales-comms/TestRecipientPanel";
 import { CommsSettingsForm, IdentityForm, IdentityStatusActions, LiftButton, SuppressionForm, TemplateEditor } from "@/components/sales-comms/CommsAdmin";
 
 const ago = (ms: number) => new Date(Date.now() - ms); // module-level helper: pages must not call impure functions inline
@@ -49,6 +50,7 @@ export default async function CommsSettingsPage() {
       <PageHeader title={m.title} subtitle={m.subtitle} actions={<><Link className={btnSecondary} href={PLATFORM.salesOutreach}>{m.tabs.sequences}</Link><Link className={btnSecondary} href={PLATFORM.salesInbox}>{t.nav.inbox}</Link></>} />
       <nav className="flex flex-wrap gap-2 text-sm" aria-label={m.title}>{["setup", "templates", "suppression", "activity"].map((k) => <a key={k} className="rounded-full bg-slate-100 px-3 py-2 text-slate-700 hover:bg-slate-200" href={`#${k}`}>{m.tabs[k]}</a>)}</nav>
 
+      <TestRecipientPanel locale={locale} />
       <section id="setup" className={`${cardCls} space-y-5`} aria-labelledby="setup-h">
         <h2 id="setup-h" className="font-semibold text-slate-900">{m.settingsTitle}</h2>
         <CommsSettingsForm locale={locale} s={{ sendingEnabled: settings.sendingEnabled, approvedDomains: settings.approvedDomains, inboundDomain: settings.inboundDomain, legalName: settings.legalName, mailingAddress: settings.mailingAddress, contactEmail: settings.contactEmail, contactPhone: settings.contactPhone, websiteUrl: settings.websiteUrl, defaultDailyLimit: settings.defaultDailyLimit, sendWindowStartHour: settings.sendWindowStartHour, sendWindowEndHour: settings.sendWindowEndHour, minNoticeMinutes: settings.minNoticeMinutes, maxAdvanceDays: settings.maxAdvanceDays }} />

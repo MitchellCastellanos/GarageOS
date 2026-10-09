@@ -1,4 +1,5 @@
 import type { AdminLocale } from "@/lib/admin-locale";
+import { identityError } from "@/lib/admin-locale/sales-identity";
 
 const en = {
   nav: {
@@ -38,7 +39,7 @@ const en = {
   levels: { LOW: "Low", MEDIUM: "Medium", HIGH: "High" } as Record<string, string>,
   severities: { NONE: "No need", LOW: "Low", MEDIUM: "Medium", HIGH: "High" } as Record<string, string>,
   bases: { CONFIRMED: "Confirmed", INFERRED: "Inferred" } as Record<string, string>,
-  activityTypes: { NOTE: "Note", CALL: "Call", MEETING: "Meeting", EMAIL_LOGGED: "Email (logged)", STAGE_CHANGE: "Stage change", ASSIGNMENT: "Assignment", DEMO: "Demo", SYSTEM: "System", EMAIL_SENT: "Email sent", EMAIL_RECEIVED: "Email received", SEQUENCE: "Outreach sequence" } as Record<string, string>,
+  activityTypes: { NOTE: "Note", CALL: "Call", MEETING: "Meeting", EMAIL_LOGGED: "Email (logged)", STAGE_CHANGE: "Stage change", ASSIGNMENT: "Assignment", DEMO: "Demo", SYSTEM: "System", FIELD_VISIT: "Field visit", EMAIL_SENT: "Email sent", EMAIL_RECEIVED: "Email received", SEQUENCE: "Outreach sequence" } as Record<string, string>,
   outcomes: { CONNECTED: "Connected", VOICEMAIL: "Voicemail", NO_ANSWER: "No answer", WRONG_NUMBER: "Wrong number", INTERESTED: "Interested", NOT_INTERESTED: "Not interested", FOLLOW_UP_NEEDED: "Follow-up needed" } as Record<string, string>,
   taskTypes: { FOLLOW_UP: "Follow-up", CALL: "Call", EMAIL: "Email", DEMO_PREP: "Demo prep", OTHER: "Other" } as Record<string, string>,
   taskViews: { open: "Open", overdue: "Overdue", today: "Due today", upcoming: "Upcoming", done: "Done" } as Record<string, string>,
@@ -207,7 +208,7 @@ const fr: Dict = {
   levels: { LOW: "Faible", MEDIUM: "Moyen", HIGH: "Élevé" },
   severities: { NONE: "Aucun besoin", LOW: "Faible", MEDIUM: "Moyenne", HIGH: "Élevée" },
   bases: { CONFIRMED: "Confirmé", INFERRED: "Déduit" },
-  activityTypes: { NOTE: "Note", CALL: "Appel", MEETING: "Rencontre", EMAIL_LOGGED: "Courriel (consigné)", STAGE_CHANGE: "Changement d’étape", ASSIGNMENT: "Assignation", DEMO: "Démo", SYSTEM: "Système", EMAIL_SENT: "Courriel envoyé", EMAIL_RECEIVED: "Courriel reçu", SEQUENCE: "Séquence de prospection" },
+  activityTypes: { NOTE: "Note", CALL: "Appel", MEETING: "Rencontre", EMAIL_LOGGED: "Courriel (consigné)", STAGE_CHANGE: "Changement d’étape", ASSIGNMENT: "Assignation", DEMO: "Démo", SYSTEM: "Système", FIELD_VISIT: "Visite terrain", EMAIL_SENT: "Courriel envoyé", EMAIL_RECEIVED: "Courriel reçu", SEQUENCE: "Séquence de prospection" },
   outcomes: { CONNECTED: "Joint", VOICEMAIL: "Boîte vocale", NO_ANSWER: "Sans réponse", WRONG_NUMBER: "Mauvais numéro", INTERESTED: "Intéressé", NOT_INTERESTED: "Pas intéressé", FOLLOW_UP_NEEDED: "Suivi requis" },
   taskTypes: { FOLLOW_UP: "Suivi", CALL: "Appel", EMAIL: "Courriel", DEMO_PREP: "Préparation de démo", OTHER: "Autre" },
   taskViews: { open: "Ouvertes", overdue: "En retard", today: "Échéance aujourd’hui", upcoming: "À venir", done: "Terminées" },
@@ -338,4 +339,6 @@ const fr: Dict = {
 
 export type CrmCopy = Dict;
 export function crmCopy(locale: AdminLocale | "en" | "fr"): CrmCopy { return locale === "fr" ? fr : en; }
-export function crmError(t: CrmCopy, code: string | undefined): string { return t.errors[code ?? ""] ?? t.errors.unexpected; }
+export function crmError(t: CrmCopy, code: string | undefined): string {
+  return t.errors[code ?? ""] ?? identityError(t === fr ? "fr" : "en", code) ?? t.errors.unexpected;
+}

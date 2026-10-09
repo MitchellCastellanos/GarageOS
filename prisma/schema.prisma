@@ -2196,6 +2196,24 @@ model RateLimitBucket {
 // Sales CRM foundation (Agent 1). Platform-level; never tenant data. Prospects are NOT Shops.
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
+enum SalesMode {
+  FIELD
+  REMOTE
+
+  @@schema("garageos")
+}
+
+enum TerritoryAcquisition {
+  /// Initial acquisition is reserved for FIELD agents (e.g. Greater Montréal).
+  FIELD_EXCLUSIVE
+  /// FIELD agents have a priority window; untouched prospects are then released to REMOTE.
+  FIELD_PRIORITY
+  /// Initial acquisition is REMOTE by default.
+  REMOTE_DEFAULT
+
+  @@schema("garageos")
+}
+
 enum PlatformSalesRole {
   SALES_REP
   SALES_MANAGER
@@ -2339,6 +2357,8 @@ enum CrmActivityType {
   EMAIL_SENT
   EMAIL_RECEIVED
   SEQUENCE
+  /// Documented in-person visit (field agents). Unlocks follow-up email in field-exclusive territories.
+  FIELD_VISIT
 
   @@schema("garageos")
 }
@@ -2400,6 +2420,17 @@ model PlatformSalesStaff {
   /// Sales UI language (EN | FR only; validated in the application).
   uiLocale              InvoiceLanguage      @default(EN)
   timezone              String               @default("America/Toronto")
+  /// Working mode. Independent of `role` (administrative), coverage and prospect ownership.
+  salesMode             SalesMode            @default(REMOTE)
+  /// CrmTerritory.key values this agent covers. Empty = every territory their mode permits.
+  coverageTerritoryKeys String[]             @default([])
+  // ── Corporate identity: `User.email` is the corporate login (@garage-os.ca once assigned); the personal recovery
+  // address below is private, never used in prospect-facing mail, and must be verified before it can recover an account.
+  recoveryEmail            String?
+  recoveryEmailVerifiedAt  DateTime?
+  pendingRecoveryEmail     String?
+  pendingRecoveryTokenHash String?             @unique
+  pendingRecoveryExpiresAt DateTime?
   // ── Profile contract for Agent 2 (messaging/calendar). Stored here, consumed there; nothing sends or books in Agent 1.
   displayName           String?
   signatureText         String?
@@ -3298,5 +3329,60 @@ model CrmSellerCalendar {
   joinUrl      String?
   updatedAt    DateTime           @updatedAt
 
+  @@schema("garageos")
+}
+
+
+/// Sales territory. The most specific active territory (lowest sortOrder) whose rules match a prospect's location wins.
+model CrmTerritory {
+  id                 String               @id @default(cuid())
+  key                String               @unique
+  nameEn             String
+  nameFr             String
+  acquisition        TerritoryAcquisition @default(REMOTE_DEFAULT)
+  countryCode        String               @default("CA")
+  /// Province codes (e.g. "QC"). Empty = any province.
+  provinces          String[]             @default([])
+  /// Normalised city names (lower case, no accents). A city OR postal-prefix match qualifies a location.
+  cities             String[]             @default([])
+  /// Canadian postal-code prefixes (FSA or first letter), upper case, no spaces.
+  postalPrefixes     String[]             @default([])
+  /// FIELD_PRIORITY only: days from `priorityStartedAt` during which FIELD agents hold initial acquisition.
+  priorityDays       Int?
+  priorityStartedAt  DateTime?
+  active             Boolean              @default(true)
+  sortOrder          Int                  @default(100)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  @@index([active, sortOrder])
+  @@schema("garageos")
+}
+
+enum PublishStatus {
+  DRAFT
+  PUBLISHED
+
+  @@schema("garageos")
+}
+
+/// Reusable marketing video (website + outreach). One row per (key, language); unpublished rows are never shown or sent.
+model PlatformVideo {
+  id             String        @id @default(cuid())
+  key            String
+  language       CrmLanguage
+  title          String
+  description    String?
+  url            String
+  thumbnailUrl   String?
+  status         PublishStatus @default(DRAFT)
+  allowWebsite   Boolean       @default(true)
+  allowOutreach  Boolean       @default(true)
+  publishedAt    DateTime?
+  updatedByUserId String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@unique([key, language])
   @@schema("garageos")
 }

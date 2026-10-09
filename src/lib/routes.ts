@@ -49,6 +49,9 @@ export const PLATFORM = {
   salesCalendar: "/platform/sales/calendar",
   salesAvailability: "/platform/sales/calendar/availability",
   salesComms: "/platform/sales/settings/communications",
+  salesAccount: "/platform/sales/account",
+  salesTerritories: "/platform/sales/settings/territories",
+  salesVideos: "/platform/sales/settings/videos",
   home: "/platform",
   shop: (id: string) => `/platform/shops/${id}`,
   analytics: "/platform/analytics",
@@ -58,6 +61,9 @@ export const PLATFORM = {
 
 /** Public (unauthenticated) landing for a sales-staff invitation; the secret travels in the URL fragment. */
 export const salesInvitePath = (staffId: string) => `/sales-invite/${staffId}`;
+
+export const salesRecoverPath = "/sales-recover";
+export const salesRecoveryEmailPath = (staffId: string) => `/sales-recovery-email/${staffId}`;
 
 export function adminPath(path: string): string {
   const segment = path.startsWith("/") ? path : `/${path}`;

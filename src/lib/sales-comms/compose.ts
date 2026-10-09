@@ -8,7 +8,7 @@ import { writeCrmAudit } from "@/lib/sales-crm/audit";
 import { HeaderInjectionError, cleanSubject, generateMessageId, emailDomain, isValidEmail, normalizeEmail, replySubject, parseRecipientList } from "@/domain/sales-comms/email";
 import { randomToken, signUnsubscribeToken } from "@/domain/sales-comms/tokens";
 import { isTemplateKey, categoryOfTemplate, type TemplateKey, type TemplateLanguage } from "@/domain/sales-comms/templates";
-import { baseVars, renderResolved, resolveTemplate, toTemplateLanguage } from "@/lib/sales-comms/templates";
+import { baseVars, renderResolved, resolveTemplate, toTemplateLanguage, withVideoVars } from "@/lib/sales-comms/templates";
 import { buildContent, unsubscribeUrlFor, type BuiltContent } from "@/lib/sales-comms/content";
 import { evaluatePolicy } from "@/lib/sales-comms/policy";
 import { getCommsSettings, unsubscribeSecret } from "@/lib/sales-comms/settings";
@@ -80,7 +80,7 @@ export async function applyTemplate(actor: PlatformSalesActor, args: { templateK
     const l = await ensureProspectLink({ staffId: identity.staffId, prospectId: prospect.id, contactId: contact?.id ?? null, opportunityId: args.templateKey ? null : null, language: tl, actorUserId: actor.userId });
     link = bookingUrl(l.token, tl);
   }
-  const vars = baseVars({ language: tl, contactName: contact?.name ?? null, prospectName: full.name, sellerName: identity.fromName, sellerTitle: identity.jobTitle, bookingUrl: link });
+  const vars = await withVideoVars(baseVars({ language: tl, contactName: contact?.name ?? null, prospectName: full.name, sellerName: identity.fromName, sellerTitle: identity.jobTitle, bookingUrl: link }), tl);
   const r = await renderResolved(tpl, vars);
   return { ok: true as const, subject: r.subject, body: r.body, language: tl, languageSource: lang.source, templateVersion: tpl.version, templateKey: args.templateKey, missing: r.missing };
 }

@@ -8,6 +8,9 @@ import { loadCrmPage } from "@/lib/sales-crm/page";
 import { PLATFORM } from "@/lib/routes";
 import { Badge, PageHeader, PermissionDenied, cardCls, formatDate } from "@/components/sales-crm/ui";
 import { StaffForm } from "@/components/sales-crm/StaffForm";
+import { StaffIdentityPanel } from "@/components/sales-crm/StaffIdentityPanel";
+import { identityCopy } from "@/lib/admin-locale/sales-identity";
+import { isCorporateEmail } from "@/domain/sales-crm/identity";
 import { StaffActions } from "@/components/sales-crm/StaffActions";
 import { getAppUrl } from "@/config/app";
 import { signatureLogoUrl } from "@/lib/sales-comms/content";
@@ -21,11 +24,13 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ st
   if (!s) notFound();
   const manage = can(actor, "manage_team");
   const m = t.team;
+  const ic = identityCopy(locale);
   const { staff } = s;
   const [managers, others] = manage ? await Promise.all([
     db.platformSalesStaff.findMany({ where: { role: "SALES_MANAGER", status: { not: "INACTIVE" }, id: { not: staffId } }, select: { id: true, user: { select: { name: true } } } }),
     db.platformSalesStaff.findMany({ where: { status: "ACTIVE", id: { not: staffId } }, select: { id: true, user: { select: { name: true } } }, orderBy: { user: { name: "asc" } } }),
   ]) : [[], []];
+  const terr = manage ? await db.crmTerritory.findMany({ where: { active: true }, orderBy: { sortOrder: "asc" }, select: { key: true, nameEn: true, nameFr: true } }) : [];
   const [sigIdentity, sigLink, sigSettings] = manage ? await Promise.all([
     db.crmSenderIdentity.findUnique({ where: { staffId }, select: { fromEmail: true } }),
     db.crmBookingLink.findFirst({ where: { staffId, kind: "GENERAL", active: true }, select: { token: true } }),
@@ -47,6 +52,7 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ st
         <div className="flex flex-wrap gap-2">{BOARD_STAGES.map((st) => <Badge key={st}>{t.stages[st]}: {s.stageCounts[st] ?? 0}</Badge>)}<Badge tone="bg-emerald-100 text-emerald-800">{t.stages.WON}: {s.stageCounts.WON ?? 0}</Badge><Badge tone="bg-rose-100 text-rose-800">{t.stages.LOST}: {s.stageCounts.LOST ?? 0}</Badge></div>
         <div className="mt-4 grid gap-1 text-sm text-slate-600 sm:grid-cols-2">
           <p>{m.manager}: {staff.manager?.user.name ?? m.noManager}</p>
+          <p>{ic.account.mode}: {ic.account.modes[staff.salesMode]}</p>
           <p>{m.territoriesLabel}: {staff.territories.join(", ") || t.common.none}</p>
           {staff.role === "SALES_MANAGER" && <p>{m.reports}: {staff.reports.map((r) => r.user.name).join(", ") || m.noReports}</p>}
           {staff.deactivatedAt && <p>{t.staffStatus.INACTIVE}: {formatDate(staff.deactivatedAt, locale)}{staff.deactivationReason ? ` — ${staff.deactivationReason}` : ""}</p>}
@@ -56,8 +62,12 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ st
       {manage && (<>
         <section className={cardCls} aria-labelledby="prof-h">
           <h2 id="prof-h" className="mb-3 font-semibold text-slate-900">{t.common.edit}</h2>
-          <StaffForm locale={locale} staffId={staff.id} signature={{ senderEmail: sigIdentity?.fromEmail ?? null, websiteUrl: sigSettings?.websiteUrl ?? "https://www.garage-os.ca", bookingEnabled: staff.bookingEnabled, bookingUrl: sigLink ? `${getAppUrl()}/sales/book/${sigLink.token}` : null, logoUrl: signatureLogoUrl() }} managers={managers.map((x) => ({ id: x.id, name: x.user.name }))}
-            values={{ name: staff.user.name, email: staff.user.email, role: staff.role, title: staff.title, phone: staff.phone, managerId: staff.managerId, territories: staff.territories, uiLocale: staff.uiLocale, timezone: staff.timezone, displayName: staff.displayName, defaultMeetingMinutes: staff.defaultMeetingMinutes, meetingBufferMinutes: staff.meetingBufferMinutes }} />
+          <StaffForm locale={locale} territories={terr.map((x) => ({ key: x.key, label: locale === "fr" ? x.nameFr : x.nameEn }))} staffId={staff.id} signature={{ senderEmail: sigIdentity?.fromEmail ?? null, websiteUrl: sigSettings?.websiteUrl ?? "https://www.garage-os.ca", bookingEnabled: staff.bookingEnabled, bookingUrl: sigLink ? `${getAppUrl()}/sales/book/${sigLink.token}` : null, logoUrl: signatureLogoUrl() }} managers={managers.map((x) => ({ id: x.id, name: x.user.name }))}
+            values={{ name: staff.user.name, email: staff.user.email, role: staff.role, title: staff.title, phone: staff.phone, managerId: staff.managerId, territories: staff.territories, uiLocale: staff.uiLocale, timezone: staff.timezone, displayName: staff.displayName, defaultMeetingMinutes: staff.defaultMeetingMinutes, meetingBufferMinutes: staff.meetingBufferMinutes, salesMode: staff.salesMode, coverage: staff.coverageTerritoryKeys }} />
+        </section>
+        <section className={cardCls} aria-labelledby="id-h">
+          <h2 id="id-h" className="mb-3 font-semibold text-slate-900">{ic.account.title}</h2>
+          <StaffIdentityPanel locale={locale} staffId={staff.id} login={staff.user.email} corporate={isCorporateEmail(staff.user.email)} recoveryEmail={staff.recoveryEmail} verified={!!staff.recoveryEmailVerifiedAt} pendingEmail={staff.pendingRecoveryEmail} />
         </section>
         <section className={cardCls} aria-labelledby="act-h">
           <h2 id="act-h" className="mb-3 font-semibold text-slate-900">{t.common.actions}</h2>

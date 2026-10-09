@@ -1,9 +1,10 @@
 // Copy for Sales Communications & Scheduling (inbox, composer, outreach, calendar, settings and the PUBLIC booking pages).
 // Typed so that French can never silently miss a key: `fr` must satisfy the shape of `en`.
 import type { AdminLocale } from "@/lib/admin-locale";
+import { identityError } from "@/lib/admin-locale/sales-identity";
 
 const en = {
-  templateNames: { INTRODUCTION: "Initial introduction", FOLLOW_UP_1: "First follow-up", DEMO_INVITATION: "Demo invitation", POST_DEMO_FOLLOW_UP: "Post-demo follow-up", PRICING_FOLLOW_UP: "Pricing follow-up", CLOSING_FOLLOW_UP: "Closing follow-up", MEETING_CONFIRMATION: "Meeting confirmation", MEETING_REMINDER: "Meeting reminder", MEETING_RESCHEDULED: "Meeting rescheduled", MEETING_CANCELLED: "Meeting cancelled" } as Record<string, string>,
+  templateNames: { INTRODUCTION: "Initial introduction", FOLLOW_UP_1: "First follow-up", DEMO_INVITATION: "Demo invitation", POST_DEMO_FOLLOW_UP: "Post-demo follow-up", PRICING_FOLLOW_UP: "Pricing follow-up", CLOSING_FOLLOW_UP: "Closing follow-up", MEETING_CONFIRMATION: "Meeting confirmation", MEETING_REMINDER: "Meeting reminder", MEETING_RESCHEDULED: "Meeting rescheduled", MEETING_CANCELLED: "Meeting cancelled", VIDEO_INTRODUCTION: "Video introduction", FIELD_VISIT_FOLLOW_UP: "Follow-up after an in-person visit" } as Record<string, string>,
   sig: {
     previewTitle: "Email Signature Preview", auto: "Generated automatically from the profile above and used on every email this person sends. Nothing to type or format.",
     missingTitle: "The signature cannot be generated yet", missingBody: "Complete these required fields:", missing: { name: "Display name", email: "Sender email address" } as Record<string, string>,
@@ -132,7 +133,7 @@ const en = {
 export type CommsCopy = typeof en;
 
 const fr: CommsCopy = {
-  templateNames: { INTRODUCTION: "Introduction initiale", FOLLOW_UP_1: "Premier suivi", DEMO_INVITATION: "Invitation à une démo", POST_DEMO_FOLLOW_UP: "Suivi après la démo", PRICING_FOLLOW_UP: "Suivi de la tarification", CLOSING_FOLLOW_UP: "Suivi de clôture", MEETING_CONFIRMATION: "Confirmation de rencontre", MEETING_REMINDER: "Rappel de rencontre", MEETING_RESCHEDULED: "Rencontre reportée", MEETING_CANCELLED: "Rencontre annulée" } as Record<string, string>,
+  templateNames: { INTRODUCTION: "Introduction initiale", FOLLOW_UP_1: "Premier suivi", DEMO_INVITATION: "Invitation à une démo", POST_DEMO_FOLLOW_UP: "Suivi après la démo", PRICING_FOLLOW_UP: "Suivi de la tarification", CLOSING_FOLLOW_UP: "Suivi de clôture", MEETING_CONFIRMATION: "Confirmation de rencontre", MEETING_REMINDER: "Rappel de rencontre", MEETING_RESCHEDULED: "Rencontre reportée", MEETING_CANCELLED: "Rencontre annulée", VIDEO_INTRODUCTION: "Introduction avec vidéo", FIELD_VISIT_FOLLOW_UP: "Suivi après une visite en personne" } as Record<string, string>,
   sig: {
     previewTitle: "Aperçu de la signature courriel", auto: "Générée automatiquement à partir du profil ci-dessus et utilisée dans chaque courriel envoyé par cette personne. Rien à écrire ni à mettre en forme.",
     missingTitle: "La signature ne peut pas encore être générée", missingBody: "Complétez ces champs obligatoires :", missing: { name: "Nom affiché", email: "Adresse courriel de l'expéditeur" } as Record<string, string>,
@@ -259,5 +260,7 @@ const fr: CommsCopy = {
 };
 
 export function commsCopy(locale: AdminLocale | "en" | "fr"): CommsCopy { return locale === "fr" ? fr : en; }
-export function commsError(t: CommsCopy, code: string | undefined): string { return t.errors[code ?? ""] ?? t.errors.unexpected; }
+export function commsError(t: CommsCopy, code: string | undefined): string {
+  return t.errors[code ?? ""] ?? identityError(t === fr ? "fr" : "en", code) ?? t.errors.unexpected;
+}
 export { en as commsEn, fr as commsFr };

@@ -45,7 +45,7 @@ if (!enabled) {
 
   async function invite(name: string, role: "SALES_REP" | "SALES_MANAGER", extra: Record<string, string> = {}) {
     as(ids.root);
-    const r: any = await staffActions.createSalesStaff(fd({ name, email: `${name.toLowerCase()}-${run}@sales.test`, role, uiLocale: "FR", ...extra }));
+    const r: any = await staffActions.createSalesStaff(fd({ name, email: `${name.toLowerCase()}-${run}@garage-os.ca`, recoveryEmail: `${name.toLowerCase()}-${run}@personal.test`, role, uiLocale: "FR", salesMode: "FIELD", ...extra }));
     assert.equal(r.ok, true, JSON.stringify(r));
     assert.equal(r.delivery, "unavailable", "no email provider in tests → honest manual link");
     const staff = await db.platformSalesStaff.findUniqueOrThrow({ where: { id: r.staffId }, include: { user: true } });
@@ -60,7 +60,7 @@ if (!enabled) {
     const root = await db.user.create({ data: { name: "Root", email: `root-${run}@sales.test`, role: "SUPER_ADMIN" } });
     ids.root = root.id;
     as(root.id);
-    const r: any = await staffActions.createSalesStaff(fd({ name: "Probe", email: `probe-${run}@sales.test`, role: "SALES_REP" }));
+    const r: any = await staffActions.createSalesStaff(fd({ name: "Probe", email: `probe-${run}@garage-os.ca`, recoveryEmail: `probe-${run}@personal.test`, role: "SALES_REP" }));
     assert.equal(r.ok, true);
     const row = await db.platformSalesStaff.findUniqueOrThrow({ where: { id: r.staffId }, include: { user: true } });
     assert.equal(row.status, "INVITED");
@@ -74,7 +74,7 @@ if (!enabled) {
     assert.equal(after.status, "ACTIVE"); assert.ok(after.user.passwordHash && after.user.emailVerified);
     assert.equal(await db.crmAuditEvent.count({ where: { staffId: row.id, action: { in: ["STAFF_CREATED", "STAFF_INVITE_ACCEPTED"] } } }), 2);
     // duplicate email (case-insensitive) is refused
-    const dup: any = await staffActions.createSalesStaff(fd({ name: "Dup", email: `PROBE-${run}@sales.test`, role: "SALES_REP" }));
+    const dup: any = await staffActions.createSalesStaff(fd({ name: "Dup", email: `PROBE-${run}@garage-os.ca`, recoveryEmail: `dup-${run}@personal.test`, role: "SALES_REP" }));
     assert.deepEqual([dup.ok, dup.error], [false, "EMAIL_IN_USE"]);
 
     const mgr = await invite("Mgr", "SALES_MANAGER");
@@ -84,7 +84,7 @@ if (!enabled) {
     assert.equal((await db.platformSalesStaff.findUniqueOrThrow({ where: { id: staffIds.Rep2 } })).managerId, mgr.id);
     // an expired link is refused
     as(ids.root);
-    const r2: any = await staffActions.createSalesStaff(fd({ name: "Late", email: `late-${run}@sales.test`, role: "SALES_REP" }));
+    const r2: any = await staffActions.createSalesStaff(fd({ name: "Late", email: `late-${run}@garage-os.ca`, recoveryEmail: `late-${run}@personal.test`, role: "SALES_REP" }));
     await db.platformSalesStaff.update({ where: { id: r2.staffId }, data: { inviteExpiresAt: new Date(Date.now() - 1000) } });
     assert.deepEqual(await staffActions.acceptSalesInvite(r2.staffId, token(r2.manualInviteUrl), "correct horse battery"), { ok: false, error: "INVALID_LINK" });
   });

@@ -19,13 +19,14 @@ export * from "@/domain/sales-crm/access";
 export async function resolvePlatformSalesActor(userId: string): Promise<PlatformSalesActor | null> {
   const user = await db.user.findUnique({ where: { id: userId }, select: { id: true, name: true, role: true, shopId: true, preferredLocale: true } });
   if (!user) return null;
-  const staff = await db.platformSalesStaff.findUnique({ where: { userId }, select: { id: true, role: true, status: true, uiLocale: true } });
+  const staff = await db.platformSalesStaff.findUnique({ where: { userId }, select: { id: true, role: true, status: true, uiLocale: true, salesMode: true, coverageTerritoryKeys: true } });
 
   if (user.role === "SUPER_ADMIN") {
     return {
       userId: user.id, name: user.name, kind: "SUPER_ADMIN", staffId: staff?.status === "ACTIVE" ? staff.id : null,
       capabilities: capabilitiesFor("SUPER_ADMIN"), uiLocale: user.preferredLocale === "FR" ? "fr" : "en",
       scopeStaffIds: [], scopeUserIds: [], all: true,
+      salesMode: staff?.status === "ACTIVE" ? staff.salesMode : null, coverageTerritoryKeys: staff?.status === "ACTIVE" ? staff.coverageTerritoryKeys : [],
     };
   }
   if (!staff || staff.status !== "ACTIVE" || user.shopId) return null;
@@ -38,8 +39,9 @@ export async function resolvePlatformSalesActor(userId: string): Promise<Platfor
     scopeUserIds = [user.id, ...reports.map((r) => r.userId)];
   }
   return {
-    userId: user.id, name: user.name, kind, staffId: staff.id, capabilities: capabilitiesFor(kind),
+    userId: user.id, name: user.name, kind, staffId: staff.id, capabilities: capabilitiesFor(kind, staff.salesMode),
     uiLocale: staff.uiLocale === "FR" ? "fr" : "en", scopeStaffIds, scopeUserIds, all: false,
+    salesMode: staff.salesMode, coverageTerritoryKeys: staff.coverageTerritoryKeys,
   };
 }
 

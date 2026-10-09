@@ -17,6 +17,8 @@ import { CrmError, prospectColumns, resolveAssignee } from "@/lib/sales-crm/pros
 import { crmAction } from "@/lib/sales-crm/result";
 import { scoreBreakdownJson } from "@/lib/sales-crm/scoring";
 import { normalizeEmail } from "@/domain/sales-crm/normalize";
+import { evaluateAcquisition, NO_ENGAGEMENT, resolveTerritory } from "@/domain/sales-crm/territory";
+import { loadTerritoryRules, staffAcquirerFacts } from "@/lib/sales-crm/territory";
 
 const PREVIEW_TTL_MS = 24 * 3600_000;
 const CHUNK = 400;
@@ -123,7 +125,22 @@ export async function confirmProspectImport(batchId: string) {
       const candidates = batch.rows as unknown as ImportCandidate[];
       // The world may have changed since the preview: re-check duplicates right before writing.
       const existing = await loadExisting(candidates);
-      const { accepted, issues: late } = splitByExisting(candidates, existing, () => false);
+      const { accepted: acceptedAll, issues: late } = splitByExisting(candidates, existing, () => false);
+      // Sales mode + territory: a row whose territory the chosen owner may not acquire is imported UNASSIGNED when the actor
+      // may hold an unassigned pool (manager / Super Admin), otherwise it is skipped. Nothing is silently handed to the wrong mode.
+      const rules = await loadTerritoryRules();
+      const canPool = actor.all || actor.kind === "SALES_MANAGER";
+      const ownerFacts = assignedStaffId ? await staffAcquirerFacts(assignedStaffId) : null;
+      const ownerFor = new Map<number, string | null>();
+      let territorySkipped = 0;
+      const accepted = acceptedAll.filter((c) => {
+        if (!assignedStaffId || !ownerFacts) { ownerFor.set(c.rowNumber, assignedStaffId); return true; }
+        const ok = evaluateAcquisition({ ...ownerFacts, isSuperAdmin: false }, resolveTerritory(rules, c.prospect), NO_ENGAGEMENT, new Date()).allowed;
+        if (ok) { ownerFor.set(c.rowNumber, assignedStaffId); return true; }
+        if (canPool) { ownerFor.set(c.rowNumber, null); return true; }
+        territorySkipped++;
+        return false;
+      });
       const definitions = await db.crmNeedDefinition.findMany({ where: { active: true }, select: { weight: true } });
       const weights = definitions.map((d) => d.weight);
       const now = new Date();
@@ -143,11 +160,11 @@ export async function confirmProspectImport(batchId: string) {
             });
             const intent = computeIntentScore({ stage, urgency: null, meaningfulTouches30d: 0, linkedDemoCount: 0, daysSinceLastActivity: 0 });
             prospects.push({
-              id: prospectId, ...prospectColumns({ ...p, tags: p.tags, notes: p.notes }), assignedStaffId, createdByUserId: actor.userId,
+              id: prospectId, ...prospectColumns({ ...p, tags: p.tags, notes: p.notes }), assignedStaffId: ownerFor.get(c.rowNumber) ?? null, createdByUserId: actor.userId,
               importBatchId: batchId, doNotContact: c.doNotContact, doNotContactAt: c.doNotContact ? now : null, lastActivityAt: now,
             });
             opps.push({
-              id: oppId, prospectId, assignedStaffId, stage, stageChangedAt: now, createdByUserId: actor.userId,
+              id: oppId, prospectId, assignedStaffId: ownerFor.get(c.rowNumber) ?? null, stage, stageChangedAt: now, createdByUserId: actor.userId,
               closedAt: c.doNotContact ? now : null, fitScore: fit.score, fitBreakdown: scoreBreakdownJson(fit), intentScore: intent.score,
               intentBreakdown: scoreBreakdownJson(intent), scoreComputedAt: now,
             });
@@ -169,15 +186,15 @@ export async function confirmProspectImport(batchId: string) {
         await tx.crmImportBatch.update({
           where: { id: batchId },
           data: {
-            status: "COMPLETED", completedAt: now, createdCount: accepted.length, skippedCount: batch.skippedCount + late.length,
+            status: "COMPLETED", completedAt: now, createdCount: accepted.length, skippedCount: batch.skippedCount + late.length + territorySkipped,
             rows: Prisma.DbNull,
           },
         });
-        await writeCrmAudit({ actorUserId: actor.userId, action: "IMPORT_COMPLETED", entityType: "CrmImportBatch", entityId: batchId, metadata: { created: accepted.length, skipped: batch.skippedCount + late.length, assignedStaffId } }, tx);
+        await writeCrmAudit({ actorUserId: actor.userId, action: "IMPORT_COMPLETED", entityType: "CrmImportBatch", entityId: batchId, metadata: { created: accepted.length, skipped: batch.skippedCount + late.length + territorySkipped, assignedStaffId } }, tx);
       }, { timeout: 120_000, maxWait: 10_000 });
       revalidatePath(PLATFORM.salesProspects);
       revalidatePath(PLATFORM.sales);
-      return { created: accepted.length, skipped: batch.skippedCount + late.length, alreadyCompleted: false };
+      return { created: accepted.length, skipped: batch.skippedCount + late.length + territorySkipped, alreadyCompleted: false };
     } catch (err) {
       await db.crmImportBatch.updateMany({ where: { id: batchId, status: "IMPORTING" }, data: { status: "FAILED", rows: Prisma.DbNull } });
       console.error("[sales-import] import failed and was rolled back");

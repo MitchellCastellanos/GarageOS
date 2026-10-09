@@ -6,16 +6,18 @@ import type { CrmLanguage } from "@prisma/client";
 export const TEMPLATE_KEYS = [
   "INTRODUCTION", "FOLLOW_UP_1", "DEMO_INVITATION", "POST_DEMO_FOLLOW_UP", "PRICING_FOLLOW_UP", "CLOSING_FOLLOW_UP",
   "MEETING_CONFIRMATION", "MEETING_REMINDER", "MEETING_RESCHEDULED", "MEETING_CANCELLED",
+  "VIDEO_INTRODUCTION", "FIELD_VISIT_FOLLOW_UP",
 ] as const;
 export type TemplateKey = (typeof TEMPLATE_KEYS)[number];
 export type TemplateLanguage = Exclude<CrmLanguage, "UNKNOWN">;
 
-export const COMMERCIAL_TEMPLATE_KEYS: readonly TemplateKey[] = ["INTRODUCTION", "FOLLOW_UP_1", "DEMO_INVITATION", "POST_DEMO_FOLLOW_UP", "PRICING_FOLLOW_UP", "CLOSING_FOLLOW_UP"];
+export const COMMERCIAL_TEMPLATE_KEYS: readonly TemplateKey[] = ["INTRODUCTION", "FOLLOW_UP_1", "DEMO_INVITATION", "POST_DEMO_FOLLOW_UP", "PRICING_FOLLOW_UP", "CLOSING_FOLLOW_UP", "VIDEO_INTRODUCTION", "FIELD_VISIT_FOLLOW_UP"];
 export const MEETING_TEMPLATE_KEYS: readonly TemplateKey[] = ["MEETING_CONFIRMATION", "MEETING_REMINDER", "MEETING_RESCHEDULED", "MEETING_CANCELLED"];
 
 export const KNOWN_VARIABLES = [
   "greeting", "prospect.name", "seller.name", "seller.title", "booking.link",
   "meeting.when", "meeting.duration", "meeting.type", "meeting.location", "meeting.manageLink", "meeting.attendee",
+  "video.link", "video.title", "video.cta",
 ] as const;
 export type TemplateVariable = (typeof KNOWN_VARIABLES)[number];
 export type TemplateVars = Partial<Record<TemplateVariable, string>>;
@@ -53,6 +55,8 @@ I wanted to follow up on my earlier note. In short, GarageOS helps independent s
 
 If you'd like to see it with your own workflow in mind, here is my calendar: {{booking.link}}
 
+{{video.cta}}
+
 Either way, thank you for your time.`, ["booking.link"]),
   T("FOLLOW_UP_1", "FR", "Suivi — GarageOS pour {{prospect.name}}",
 `{{greeting}}
@@ -60,6 +64,8 @@ Either way, thank you for your time.`, ["booking.link"]),
 Je me permets de faire un suivi à mon message précédent. En bref, GarageOS aide les garages indépendants à prendre des rendez-vous en ligne, à suivre chaque véhicule dans l'atelier et à envoyer devis, factures et rappels aux clients sans tout ressaisir.
 
 Si vous souhaitez le voir en fonction de votre façon de travailler, voici mon calendrier : {{booking.link}}
+
+{{video.cta}}
 
 Merci de votre temps, quoi qu'il en soit.`, ["booking.link"]),
 
@@ -130,6 +136,44 @@ Je vous ai écrit à quelques reprises et je ne veux pas encombrer votre boîte 
 Si l'amélioration de la planification et des suivis aux clients n'est pas une priorité en ce moment, aucun problème. Si elle le devient, vous pouvez me répondre ici ou réserver un moment : {{booking.link}}
 
 Je souhaite à {{prospect.name}} une excellente saison.`, ["booking.link"]),
+
+  T("VIDEO_INTRODUCTION", "EN", "A short look at GarageOS for {{prospect.name}}",
+`{{greeting}}
+
+I'm {{seller.name}} from GarageOS. We make shop-management software for independent auto repair shops — appointments, work orders, inspections, invoices and customer reminders in one place.
+
+Rather than a long email, here is a short video showing how it works in a real shop: {{video.link}}
+
+If it looks useful for {{prospect.name}}, you can pick a time to talk here: {{booking.link}}
+
+If this isn't relevant, just let me know and I won't write again.`, ["video.link", "booking.link"]),
+  T("VIDEO_INTRODUCTION", "FR", "Un coup d'œil rapide à GarageOS pour {{prospect.name}}",
+`{{greeting}}
+
+Je m'appelle {{seller.name}} et je travaille chez GarageOS. Nous offrons un logiciel de gestion pour les garages indépendants : rendez-vous, bons de travail, inspections, factures et rappels aux clients au même endroit.
+
+Plutôt qu'un long courriel, voici une courte vidéo qui montre le fonctionnement dans un vrai garage : {{video.link}}
+
+Si cela semble utile pour {{prospect.name}}, vous pouvez choisir un moment pour en discuter ici : {{booking.link}}
+
+Si ce n'est pas pertinent, dites-le-moi simplement et je ne vous écrirai plus.`, ["video.link", "booking.link"]),
+
+  T("FIELD_VISIT_FOLLOW_UP", "EN", "Following up on my visit to {{prospect.name}}",
+`{{greeting}}
+
+Thank you for the time you gave me when I stopped by {{prospect.name}}. As discussed, I'm following up in writing.
+
+GarageOS helps independent shops handle online appointments, work orders, inspections and customer reminders without re-typing anything. If you'd like to see it with your own shop in mind, here is a time that may suit you: {{booking.link}}
+
+You can also simply reply to this email with any question.`, ["booking.link"]),
+  T("FIELD_VISIT_FOLLOW_UP", "FR", "Suite à ma visite chez {{prospect.name}}",
+`{{greeting}}
+
+Merci du temps que vous m'avez accordé lors de mon passage chez {{prospect.name}}. Comme convenu, je vous écris pour faire un suivi.
+
+GarageOS aide les garages indépendants à gérer les rendez-vous en ligne, les bons de travail, les inspections et les rappels aux clients sans tout ressaisir. Si vous souhaitez le voir en pensant à votre garage, voici un moment qui pourrait vous convenir : {{booking.link}}
+
+Vous pouvez aussi simplement répondre à ce courriel pour toute question.`, ["booking.link"]),
 
   T("MEETING_CONFIRMATION", "EN", "Confirmed: your GarageOS demo on {{meeting.when}}",
 `{{greeting}}
@@ -224,6 +268,9 @@ export function categoryOfTemplate(key: TemplateKey): "COMMERCIAL" | "TRANSACTIO
   return (MEETING_TEMPLATE_KEYS as readonly string[]).includes(key) ? "TRANSACTIONAL" : "COMMERCIAL";
 }
 
+/** Optional variables vanish silently when empty (e.g. no real meeting link, no PUBLISHED video). Every other variable blocks the send. */
+const OPTIONAL_VARIABLES = new Set(["meeting.location", "video.cta"]);
+
 const VAR_RE = /\{\{\s*([a-zA-Z.]+)\s*\}\}/g;
 
 export function extractVariables(text: string): string[] {
@@ -245,7 +292,7 @@ export function renderTemplate(subject: string, body: string, vars: TemplateVars
   const missing = new Set<string>();
   const fill = (s: string, oneLine: boolean) => s.replace(VAR_RE, (_m, name: string) => {
     const v = (vars as Record<string, string | undefined>)[name];
-    if (!v || !v.trim()) { if (name !== "meeting.location" && name !== "booking.link") missing.add(name); else if (name === "booking.link") missing.add(name); return ""; }
+    if (!v || !v.trim()) { if (!OPTIONAL_VARIABLES.has(name)) missing.add(name); return ""; }
     return oneLine ? v.replace(/[\u0000-\u001f\u007f]+/g, " ").trim() : v;
   });
   const out = { subject: fill(subject, true), body: fill(body, false), missing: [...missing] };

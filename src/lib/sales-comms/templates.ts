@@ -1,6 +1,7 @@
 import "server-only";
 import type { CrmLanguage } from "@prisma/client";
 import { db } from "@/lib/db";
+import { videoVars } from "@/lib/platform-video";
 import { builtinTemplate, categoryOfTemplate, greetingFor, renderTemplate, type TemplateKey, type TemplateLanguage, type TemplateVars } from "@/domain/sales-comms/templates";
 
 export interface ResolvedTemplate { key: TemplateKey; language: TemplateLanguage; version: number; subject: string; body: string; category: "COMMERCIAL" | "TRANSACTIONAL"; source: "approved" | "builtin" }
@@ -31,6 +32,11 @@ export function baseVars(args: { language: TemplateLanguage; contactName: string
     "seller.title": args.sellerTitle ?? undefined,
     "booking.link": args.bookingUrl ?? undefined,
   };
+}
+
+/** Adds the PUBLISHED outreach video variables for the message language (nothing when unpublished — never a placeholder). */
+export async function withVideoVars(vars: TemplateVars, language: TemplateLanguage): Promise<TemplateVars> {
+  return { ...vars, ...(await videoVars(language)) };
 }
 
 export async function renderResolved(t: ResolvedTemplate, vars: TemplateVars) {

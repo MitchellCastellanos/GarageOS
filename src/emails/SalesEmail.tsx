@@ -14,11 +14,13 @@ export interface SalesEmailProps {
   footerLines: string[];
   unsubscribe?: { url: string; label: string } | null;
   bookingCta?: { url: string; label: string } | null;
+  /** Published outreach video present in the body: a linked thumbnail (email clients do not play embedded video). */
+  video?: { url: string; title: string; thumbnailUrl: string; label: string } | null;
 }
 
 const BRAND_BLUE = "#1769ff";
 
-export function SalesEmail({ lang, preview, bodyHtml, signatureHtml, footerLines, unsubscribe, bookingCta }: SalesEmailProps) {
+export function SalesEmail({ lang, preview, bodyHtml, signatureHtml, footerLines, unsubscribe, bookingCta, video }: SalesEmailProps) {
   return (
     <Html lang={lang}>
       <Head />
@@ -30,6 +32,14 @@ export function SalesEmail({ lang, preview, bodyHtml, signatureHtml, footerLines
           </Section>
           <Section style={s.content}>
             <div style={s.bodyText} dangerouslySetInnerHTML={{ __html: bodyHtml }} />
+            {video && (
+              <Section style={{ margin: "4px 0 20px 0" }}>
+                <Link href={video.url} style={{ textDecoration: "none" }}>
+                  <Img src={video.thumbnailUrl} alt={video.title} width="480" style={{ display: "block", width: "100%", maxWidth: "480px", height: "auto", borderRadius: "8px", border: "1px solid #e2e8f0" }} />
+                </Link>
+                <Link href={video.url} style={s.cta}>{video.label}</Link>
+              </Section>
+            )}
             {bookingCta && (
               <Section style={{ margin: "8px 0 20px 0" }}>
                 <Link href={bookingCta.url} style={s.cta}>{bookingCta.label}</Link>

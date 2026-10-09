@@ -1,10 +1,54 @@
 # GarageOS Sales CRM — Master Implementation Plan
 
-**Status:** Approved product scope; engineering implementation pending.  
-**Repository:** `MitchellCastellanos/GarageOS`, `main`.  
-**Audience:** Claude implementation agents, maintainers, platform administrator.  
-**Execution:** Up to THREE large implementation agents. Do not start production changes before verifying the latest deployment/main state.  
-**Rule:** Re-audit current code at agent start; this document describes the inspected baseline, not a substitute for code review.
+**Status (reconciled October 10, 2026):** Foundation, communications/scheduling and automatic signatures are **built and merged**; corporate sales identity, sales modes, national territories and the video capability are delivered by *Expansion Agent 1* (this document's §A). Academy / adaptive demo / Stripe-confirmed conversion / reporting (original "Agent 3") and the national-expansion features in §C ("Expansion Agent 2") are **not started**.
+**Repository:** `MitchellCastellanos/GarageOS`, `main`.
+**Rule:** re-audit the code at the start of every agent run. This document describes the audited state; detailed specifications live in the handoff documents and are not duplicated here.
+
+> Naming: the original three-agent contract (§10) used "Agent 1/2/3" for CRM foundation / communications / academy-demo-reporting. The national sales expansion uses **Expansion Agent 1** (identity, modes, territories, email launch, video — done) and **Expansion Agent 2** (GABAN/Airtable, discovery, routing — §C).
+
+## A. Current system (verified against code, `main` + the Expansion Agent 1 PR)
+
+| Area | Status | Where / evidence |
+|---|---|---|
+| CRM foundation: staff authz, prospects, contacts, needs, scoring, pipeline, tasks, CSV import, audit | **Merged** (PR #87) | `docs/sales-crm-agent-1-handoff.md`; `src/domain/sales-crm/*`, `src/lib/sales-crm/*`, `src/actions/sales-*` |
+| Sales communications: sender identities, inbox, composer, outbox/dispatcher, templates, sequences, suppression/CASL, calendar, public booking, meeting emails | **Merged** (PR #88) | `docs/sales-crm-agent-2-handoff.md`; `src/lib/sales-comms/*`, `src/domain/sales-comms/*` |
+| Automatic branded signature (single renderer, one boundary `buildContent()`) | **Merged** (PR #90) | `docs/sales-email-signatures.md` |
+| Bilingual video production workspace (Remotion; renders, thumbnails) | **Merged** (PR #89) | `video/` — production assets only, not wired to the app until a URL is published (§A.4) |
+| **Corporate identity** (login `@garage-os.ca`, private verified recovery email, invitation, password recovery, safe recovery change, auto sender identity) | **Delivered (Expansion 1)** | §A.1 |
+| **Sales modes FIELD/REMOTE + national territories + server-side enforcement** | **Delivered (Expansion 1)** | §A.2 |
+| **Email launch readiness** (audit, runbook, live-test procedure) | **Delivered; live provider verification pending owner action** | `docs/sales-email-launch-readiness.md` |
+| Outreach templates EN/FR (incl. video-ready and post-visit) | **Delivered (Expansion 1)** | §A.3 |
+| **Video capability** (stable keys, EN/FR, publish gate, outreach/website placement) | **Delivered (Expansion 1)** | §A.4 |
+| Academy/playbooks, adaptive demo assistant, Stripe-confirmed `WON`, team performance reporting | **Not started** | original §7–§8 below |
+| GABAN/Airtable integration, national lead discovery, dedupe/provenance, field route planner, visit history & routing, campaign eligibility | **Not started — Expansion Agent 2** | §C |
+
+Corrections to the original baseline (§1 below, now historical): there **are** dedicated CRM models (`PlatformSalesStaff`, `Crm*`), `/platform` admits active sales staff (non-sales pages still `requireSuperAdmin()`), `/platform/sales` is the CRM dashboard (demos moved to `/platform/sales/demos`), and sales email is a separate platform-sales messaging stack (`CrmEmail*`) that never touches tenant `CommunicationThread`/`PlatformConversation`.
+
+### A.1 Corporate sales identity
+- **Login = corporate address** assigned by the Super Admin at creation (`User.email`, validated by `checkCorporateEmail`, domain constant `CORPORATE_EMAIL_DOMAIN` in `src/domain/sales-crm/identity.ts`). Existing tenant/Super Admin accounts are untouched.
+- **Private recovery email**: `PlatformSalesStaff.recoveryEmail` + `recoveryEmailVerifiedAt` (+ `pendingRecovery*` for verify-before-switch). Never used by the signature, sender identity or any prospect-facing field (tested). Must differ from the login and cannot be a `garage-os.ca` address.
+- **Invitation** (`createSalesStaff`): single-use 256-bit token (hash at rest, 7 days, URL fragment) emailed to the **recovery** address — not the corporate mailbox, which may not exist yet. Redeeming an *emailed* link marks the recovery address verified; a manually handed-over link does not (honest state).
+- **Password recovery**: public `/sales-recover` (linked from the login "Forgot password"). Generic answer always; link only to a *verified* recovery address; rate-limited by IP and address; single-use; replaces older links. Super Admin "resend access link" follows the same verified-address rule once active.
+- **Recovery-email change**: self-service at `/platform/sales/account` (current password required) or Super Admin; the NEW mailbox must confirm (`/sales-recovery-email/[staffId]#token=`, 24 h, single use); on confirm the old address is notified and any outstanding reset link is revoked.
+- **Sender identity**: `ensureSenderIdentity` creates/re-points the `CrmSenderIdentity` (DRAFT) from the corporate address and profile; `tryActivateIdentity` activates it only when the provider reports the domain verified and the domain is approved (never overrides a deliberate disable). Signature stays the single generated renderer.
+- **Legacy migration**: migration `20261010090000_*` backfills `recoveryEmail` from non-corporate logins (verified iff the account's email was verified); Super Admin runs "Assign corporate email" (`assignCorporateEmail`) — the old login becomes the recovery email, the sender identity moves and must re-prove the reply path.
+- Audit: `STAFF_CORPORATE_EMAIL_ASSIGNED`, `STAFF_PASSWORD_RESET_REQUESTED`, `STAFF_RECOVERY_EMAIL_REQUESTED/CONFIRMED`, `STAFF_MODE_CHANGED` (CrmAuditEvent) + `SALES_STAFF_CORPORATE_EMAIL_ASSIGNED` (PlatformAuditLog).
+
+### A.2 Sales modes, coverage and territories
+Four independent concepts: **administrative role** (`SALES_REP`/`SALES_MANAGER`), **sales mode** (`PlatformSalesStaff.salesMode` FIELD|REMOTE, default REMOTE), **coverage** (`coverageTerritoryKeys`, empty = all the mode allows) and **prospect ownership** (`assignedStaffId`).
+- Capabilities: `plan_field_routes`, `log_field_visits` exist only for FIELD (and Super Admin). REMOTE agents get none (`capabilitiesFor(kind, mode)`; the actor exposes `salesMode`, `coverageTerritoryKeys`).
+- `CrmTerritory` (admin UI `/platform/sales/settings/territories`): `acquisition` = `FIELD_EXCLUSIVE | FIELD_PRIORITY | REMOTE_DEFAULT`, provinces / normalised cities / postal prefixes, `priorityDays` + `priorityStartedAt`, `sortOrder` (lowest matching wins), `active`. Seeded: **`greater-montreal`** (Montréal, Laval, Rive-Sud cities; postal `H`, `J4`, `J3V`, `J3Y`, `J5R`, `J5C`; FIELD-exclusive) and **`canada`** (catch-all, REMOTE default). Resolution is computed from the prospect's province/city/postal code at decision time (pure `resolveTerritory`); no stored territory id.
+- Rules (pure, `src/domain/sales-crm/territory.ts`): `requiredMode()` — FIELD_EXCLUSIVE ⇒ FIELD; FIELD_PRIORITY ⇒ FIELD during the window, afterwards REMOTE only for *untouched* prospects (an unconfigured window never releases); REMOTE_DEFAULT ⇒ REMOTE. `evaluateAcquisition()` — FIELD ⊇ REMOTE work; existing owner + engagement keeps ownership; Super Admin unrestricted; explicit transfers by managers/Super Admin are not blocked.
+- **Server enforcement**: `createProspect`, `assignProspect` (initial acquisition of an unowned prospect), CSV import confirm (blocked rows import *unassigned* for managers/Super Admin, are *skipped* for reps), outreach **enrollment** and **dispatch** (`evaluatePolicy({ automated })` → `evaluateColdEmail`): automated cold first contact is blocked in a field-held territory until a documented `FIELD_VISIT` activity, a reply, or an active opportunity; a REMOTE agent cannot make manual first contact either. After a documented visit, follow-up (template `FIELD_VISIT_FOLLOW_UP`) is allowed. CASL basis/suppression/DNC checks run first and are unchanged.
+- `CrmActivityType.FIELD_VISIT` + `logFieldVisit(prospectId, note)` (capability `log_field_visits`) is the documented-visit record; Expansion Agent 2's route planner must write through it (or the same shape).
+
+### A.3 Outreach library (EN/FR, built-in version 0; Super Admin may approve DB versions)
+Progression: `INTRODUCTION` → `FOLLOW_UP_1` (value; includes optional `{{video.cta}}`) → `DEMO_INVITATION` → `CLOSING_FOLLOW_UP`; plus `POST_DEMO_FOLLOW_UP`, `PRICING_FOLLOW_UP`, **`VIDEO_INTRODUCTION`** (needs a published video; blocks otherwise) and **`FIELD_VISIT_FOLLOW_UP`**. Default sequence "Default 4-touch outreach" (Day 1/4/9/16 business days) is never auto-activated; nothing is enrolled automatically; imports never enroll. Tests assert EN/FR parity, known variables only, sender identification in first contact and no hype/fake-urgency vocabulary.
+
+### A.4 Video capability
+`PlatformVideo` (unique `(key, language)`; title, description, https `url`, optional https `thumbnailUrl`, `status` DRAFT|PUBLISHED, `allowWebsite`, `allowOutreach`). Pure rules in `src/domain/platform-video.ts` (`safeHttpsUrl`, `pickVideo`, `videoCtaText`); server `getPublishedVideo`/`videoVars`. Default outreach key **`product-overview`**. Admin UI `/platform/sales/settings/videos` (Super Admin). Publishing requires a real https URL (placeholder/`example.com`/private hosts rejected; DB check `status='DRAFT' OR url ~ '^https://'`). Emails: template vars `video.link|title|cta`; `video.cta` is optional (vanishes when unpublished), `video.link` is required (send blocked). When a published video with a thumbnail is linked in the body, `buildContent()` adds a linked thumbnail + CTA block (no embedded playback). Never crosses languages. The website can read `getPublishedVideo(key, lang, "website")` — no public page consumes it yet (owner supplies URLs later; nothing blocks launch).
+
+---
 
 ## 0. Executive mandate
 
@@ -20,7 +64,7 @@ Core principles:
 - FR/EN end-to-end, including all emails, calendar pages, demo playbooks and public booking; responsive at 390px/tablet/desktop.
 - No fake integrations or success states; unavailable provider capability must be surfaced honestly and gated.
 
-## 1. Repository baseline verified October 8, 2026
+## 1. Repository baseline verified October 8, 2026 (HISTORICAL — superseded by §A)
 
 Existing:
 - `src/app/platform/layout.tsx` invokes `requireSuperAdmin()` and renders `PlatformChrome`; it currently blocks all non-SUPER_ADMIN users.
@@ -137,7 +181,7 @@ Team roster: active/inactive staff, assigned leads, pipeline, replies, meetings,
 - TypeScript, lint, Prisma validate, targeted tests and full tests; build only in safe environment; manual test matrix and deployment evidence. Never claim tests ran unless logs show it.
 - Logs/metrics do not leak tokens, credentials, full email content, attachments or sensitive personal data.
 
-## 10. Three-agent execution contract
+## 10. Three-agent execution contract (HISTORICAL: Agents 1–2 merged; Agent 3 pending)
 
 **Agent 1: CRM Foundation, staff permissions, prospects and pipeline**. Own platform auth/layout/nav, staff lifecycle, prospect/contact/opportunity/needs/activities/tasks, scoring, CSV import, team roster scaffolding, audit and migrations. Deliver usable secure CRM without fake messaging. Define stable IDs/interfaces for other agents. Include a handoff document with migrations, actual models, routes, permission helpers and tests.
 
@@ -186,3 +230,26 @@ Super Admin can create a sales rep and approved sender identity; rep signs in wi
 - `src/components/admin/AdminSidebar.tsx`
 - `src/lib/routes.ts`
 - `prisma/schema.prisma`
+
+## C. Expansion Agent 2 — contracts and starting point
+
+**Start from updated `main`** (this PR merged). Re-audit, then implement; do not re-plan. Files you will touch that other work also touches: `prisma/schema.prisma`, `src/lib/routes.ts`, `AdminSidebar.tsx` (`navFor`), `src/domain/sales-crm/access.ts` (capability matrix), `src/lib/admin-locale/*` (parity-typed EN/FR — add keys to both).
+
+**Ready for you (already built):** `PlatformSalesStaff.salesMode/coverageTerritoryKeys`; `CrmTerritory` + pure resolver/rules; `FIELD_VISIT` activity + `logFieldVisit`; capabilities `plan_field_routes`, `log_field_visits` (FIELD only); `evaluateAcquisition`, `requiredMode`, `evaluateColdEmail`; territory-aware import/assign/enroll/dispatch; `PlatformVideo`; template `FIELD_VISIT_FOLLOW_UP`; `CrmProspect.source`, `sourceDetail`, `importBatchId`, dedupe helpers (`findDuplicateProspects`, `findExistingMatch`) and the safe CSV pipeline.
+
+**1. GABAN / Airtable integration.** The Airtable account exposes one base, **"Lead Radar"** (`appUsnp3vSKlJZ6oS`); its schema could not be read during this work (Airtable API monthly limit returned 429), so *verify the real table/field names first*. Contract: read-only pull (server-side job or Super Admin "Sync now"), token in env (`AIRTABLE_API_KEY`, `AIRTABLE_BASE_ID` — names only), never exposed to the client; map each Airtable record to a `CrmProspect` candidate through the existing import validators (`parseProspectCsv`-equivalent normalisation, formula neutralisation, phone/website/postal validation); idempotent on the Airtable record id; no write-back except an optional "synced" marker, and never any automatic enrollment or send. Add `CrmLeadSource` provenance rows (below). Rate-limit and back off on 429.
+
+**2. National lead discovery.** Only lawful, documented sources (partner lists, public directories with terms that allow it, Airtable). Every candidate carries province/city/postal code so `resolveTerritory` can classify it. Human review queue before anything becomes an owned prospect; never fabricate fields.
+
+**3. Deduplication and provenance.** New table `CrmLeadProvenance` (prospectId, source enum + sourceRecordId unique per source, fetchedAt, sourceUrl?, licence/basis note, rawHash). Dedupe order: provenance key → website domain → phone digits → normalised name+city (existing helpers). Merge never overwrites human-edited fields; do-not-contact and suppressions are sticky across sources (existing behaviour must hold).
+
+**4. Territory-based acquisition.** Use `evaluateAcquisition` for any auto-assignment; unclaimed Greater Montréal leads go to a FIELD pool (unassigned, visible to managers/Super Admin); remote territories to REMOTE agents by coverage. Add a scheduled release job for `FIELD_PRIORITY` territories (no migration needed: `requiredMode` already releases untouched prospects after the window; the job only has to *surface* the newly releasable pool). Never move an owned prospect with an active opportunity except by explicit transfer.
+
+**5. Field Route Planner (FIELD only; capability `plan_field_routes`).** Inputs: agent's FIELD-held prospects in covered territories, not DNC, not archived, geocoded address. Needs geocoding (provider choice and spend need owner approval — do not enable paid geocoding silently; store lat/lng on the prospect or a side table). Output: ordered stops with time windows, mobile-first, printable/shareable list; routes persisted (`CrmFieldRoute`, `CrmFieldRouteStop`) with status and per-stop outcome. REMOTE agents get no UI and the server actions must check the capability.
+
+**6. Visit history & routing.** Each completed stop writes `CrmActivity{type: FIELD_VISIT}` (use `logFieldVisit`'s shape: note required, author = real user) so follow-up email unlocks automatically; skipped/not-home outcomes are recorded without unlocking follow-up. Revisit suggestions use last visit date.
+
+**7. Campaign eligibility.** One pure function `campaignEligibility(prospect, contact, now)` combining: DNC/suppression, documented CASL basis, language resolved, territory rule (`evaluateColdEmail` with `automated: true`), opportunity open, daily limits. Expose it as a list view ("eligible now / blocked by reason") for Super Admin and managers; enrolment remains an explicit human action — **no bulk activation**.
+
+**Open items for the owner (do not block Agent 2):** final video URLs; whether to pay for geocoding; Airtable plan limit; the DNS/provider steps in `docs/sales-email-launch-readiness.md`.
+
