@@ -50,7 +50,7 @@ export async function createSalesStaff(form: FormData) {
       const s = await tx.platformSalesStaff.create({
         data: {
           userId: user.id, role: input.role, status: "INVITED", managerId, title: input.title, phone: input.phone, territories: input.territories,
-          uiLocale: input.uiLocale, timezone: input.timezone, displayName: input.displayName, signatureText: input.signatureText,
+          uiLocale: input.uiLocale, timezone: input.timezone, displayName: input.displayName,
           defaultMeetingMinutes: input.defaultMeetingMinutes, meetingBufferMinutes: input.meetingBufferMinutes,
           inviteTokenHash: invite.hash, inviteExpiresAt: invite.expiresAt, createdByUserId: actor.userId,
         },
@@ -87,7 +87,7 @@ export async function updateSalesStaff(staffId: string, form: FormData) {
         where: { id: staffId },
         data: {
           role: input.role, managerId, title: input.title, phone: input.phone, territories: input.territories, uiLocale: input.uiLocale, timezone: input.timezone,
-          displayName: input.displayName, signatureText: input.signatureText, defaultMeetingMinutes: input.defaultMeetingMinutes, meetingBufferMinutes: input.meetingBufferMinutes,
+          displayName: input.displayName, defaultMeetingMinutes: input.defaultMeetingMinutes, meetingBufferMinutes: input.meetingBufferMinutes,
         },
       });
       await tx.user.update({ where: { id: current.userId }, data: { name: input.name, preferredLocale: input.uiLocale } });

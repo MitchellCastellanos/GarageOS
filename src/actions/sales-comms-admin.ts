@@ -45,7 +45,7 @@ export async function saveCommsSettings(form: FormData) {
 const identitySchema = z.object({
   staffId: z.string().min(5).max(40), fromName: z.string().trim().min(2).max(100).refine((v) => !/[\u0000-\u001f<>"]/.test(v)),
   fromEmail: z.string().trim().toLowerCase().pipe(z.email().max(200)), replyToEmail: z.string().trim().toLowerCase().optional().transform((v) => v || null).pipe(z.email().nullable()),
-  jobTitle: optText(120), phone: optText(40), signatureText: z.string().max(1200).optional().transform((v) => v?.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").trim() || null),
+  jobTitle: optText(120), phone: optText(40),
   defaultLanguage: z.enum(["EN", "FR"]), dailyLimit: z.string().optional().transform((v) => (v ? Number(v) : null)).pipe(z.number().int().min(0).max(500).nullable()),
 });
 
@@ -62,7 +62,7 @@ export async function saveSenderIdentity(form: FormData) {
     const clash = await db.crmSenderIdentity.findFirst({ where: { fromEmail: v.fromEmail, NOT: { staffId: v.staffId } }, select: { id: true } });
     if (clash) throw new CrmError("EMAIL_IN_USE");
     const existing = await db.crmSenderIdentity.findUnique({ where: { staffId: v.staffId } });
-    const data = { fromName: v.fromName, fromEmail: v.fromEmail, replyToEmail: v.replyToEmail, jobTitle: v.jobTitle, phone: v.phone, signatureText: v.signatureText, defaultLanguage: v.defaultLanguage, dailyLimit: v.dailyLimit, updatedByUserId: actor.userId };
+    const data = { fromName: v.fromName, fromEmail: v.fromEmail, replyToEmail: v.replyToEmail, jobTitle: v.jobTitle, phone: v.phone, defaultLanguage: v.defaultLanguage, dailyLimit: v.dailyLimit, updatedByUserId: actor.userId };
     // Changing the address invalidates the proven reply path: it must be re-proven with a real round trip.
     const row = existing
       ? await db.crmSenderIdentity.update({ where: { id: existing.id }, data: { ...data, ...(existing.fromEmail !== v.fromEmail || existing.replyToEmail !== v.replyToEmail ? { inboundVerifiedAt: null } : {}) } })

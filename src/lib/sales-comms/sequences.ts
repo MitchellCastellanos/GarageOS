@@ -238,7 +238,7 @@ export async function processDueEnrollments(opts: { now?: Date; limit?: number }
     const messageId = randomToken(12);
     const content = await buildContent({
       subject: rendered.subject, bodyText: rendered.body, language: tl, commercial: true, unsubscribeUrl: unsubscribeUrlFor(signUnsubscribeToken(unsubscribeSecret(), messageId)),
-      identity: { fromName: identity.fromName, fromEmail: identity.fromEmail, jobTitle: identity.jobTitle, phone: identity.phone, signatureText: identity.signatureText }, settings,
+      identity: { staffId: identity.staffId, fromName: identity.fromName, fromEmail: identity.fromEmail, jobTitle: identity.jobTitle, phone: identity.phone }, settings,
     });
     const last = step.stepIndex === e.sequence.steps[e.sequence.steps.length - 1].stepIndex;
     const nextStep = e.sequence.steps.find((s) => s.stepIndex === step.stepIndex + 1);

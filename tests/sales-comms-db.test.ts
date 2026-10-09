@@ -999,5 +999,84 @@ if (!enabled) {
     assert.equal((await contracts.getPostDemoFollowUp(aliceActor, cancelled.id))?.reason, "NOT_COMPLETED");
   });
 
+  test("SIGNATURE: one automatic branded signature on new emails, replies, scheduled sends and sequence steps — never duplicated, footer intact, snapshot policy honoured", async () => {
+    const countOf = (h: string, needle: string) => h.split(needle).length - 1;
+    const logo = "https://app.example.test/brand/logo-monochrome-dark.png";
+    const check = (body: any, name: string) => {
+      assert.equal(countOf(body.html, logo), 1, "logo once");
+      assert.equal(countOf(body.html, `<img `), 2, "header brand mark (white) + signature logo");
+      assert.equal(countOf(body.text, `\n--\n${name}\n`), 1, `text signature once: ${JSON.stringify(body.text)}`);
+      assert.equal(countOf(body.text, `${A}@sales.test.ca`), 1, "sender address appears once in the text (signature only)");
+      assert.ok(body.html.includes("Sales Representative | ") && !body.html.includes("Sales Representative — GarageOS"));
+    };
+    // Identity data drives the signature; the staff profile fills gaps (nothing entered twice).
+    await db.crmSenderIdentity.update({ where: { staffId: staff.Alice }, data: { jobTitle: null, phone: null } });
+    await db.platformSalesStaff.update({ where: { id: staff.Alice }, data: { title: "Sales Representative", phone: "514-555-0199" } });
+
+    // New email whose draft ALREADY contains a hand-typed signature → exactly one signature, footer once.
+    const { p, c, email } = await makeProspect("Sig", staff.Alice);
+    const typed = `Bonjour,\n\nMon message.\n\n--\nAlice Tremblay\nAlice Tremblay\n${A}@sales.test.ca`;
+    const r1 = await send("Alice", { prospectId: p.id, contactId: c.id, to: email, languageOverride: "EN", subject: "Sig test", bodyText: typed });
+    assert.equal(r1.ok, true, JSON.stringify(r1));
+    let body = sends[sends.length - 1].body;
+    check(body, "Alice Tremblay");
+    assert.ok(body.text.includes("514-555-0199") && body.html.includes("tel:5145550199"), "phone comes from the staff profile");
+    assert.equal(countOf(body.text, "Unsubscribe:"), 1); assert.equal(countOf(body.html, "unsubscribe"), 2 /* link + href */ + 0 || 2);
+    assert.equal(countOf(body.text, "Montréal QC"), 1, "legal footer once");
+
+    // Profile change → next email picks it up automatically.
+    await db.platformSalesStaff.update({ where: { id: staff.Alice }, data: { phone: "438-555-0123" } });
+    const r2 = await send("Alice", { prospectId: p.id, contactId: c.id, to: email, languageOverride: "EN", subject: "Sig test 2", bodyText: "Second." });
+    assert.equal(r2.ok, true); body = sends[sends.length - 1].body;
+    assert.ok(body.text.includes("438-555-0123") && !body.text.includes("514-555-0199"));
+
+    // Scheduled: the signature is snapshotted when the seller presses Schedule (what they previewed); later edits do not rewrite it.
+    const day = new Date(Date.now() + 3 * 86_400_000).toISOString().slice(0, 10);
+    const sch: any = await send("Alice", { prospectId: p.id, contactId: c.id, to: email, languageOverride: "EN", subject: "Sched sig", bodyText: "Later.", scheduleDate: day, scheduleTime: "10:00" });
+    assert.equal(sch.status, "SCHEDULED");
+    await db.platformSalesStaff.update({ where: { id: staff.Alice }, data: { phone: "600-555-0000" } });
+    await dispatcher.dispatchDue({ now: new Date(Date.now() + 4 * 86_400_000) });
+    const mine = sends.find((x) => x.idem === sch.messageId);
+    assert.ok(mine, "the scheduled message was sent by the worker");
+    body = mine!.body;
+    assert.ok(body.text.includes("438-555-0123") && !body.text.includes("600-555-0000"), "snapshot at schedule time");
+    check(body, "Alice Tremblay");
+
+    // Reply (inbound exists) keeps the conversation and gets the same single signature, no marketing footer.
+    const reply = await send("Alice", { threadId: ids.laurentThread, prospectId: ids.laurentProspect, contactId: ids.laurentContact, to: ids.laurentEmail, subject: "Bonjour Laurent", bodyText: `D'accord.\n\n--\n${A}@sales.test.ca`, languageOverride: "FR" });
+    assert.equal(reply.ok, true, JSON.stringify(reply));
+    body = sends[sends.length - 1].body;
+    assert.equal(countOf(body.html, logo), 1); assert.equal(countOf(body.text, `${A}@sales.test.ca`), 1);
+    assert.ok(body.html.includes("Représentant") === false && body.html.includes("Sales Representative | ") , "title is the stored/profile title");
+    assert.equal(body.headers["List-Unsubscribe"], undefined);
+    assert.ok(body.headers["In-Reply-To"], "threading preserved");
+
+    // Sequence step: generated at step time with the CURRENT profile; signature once; compliance footer once.
+    const seq = await seqSetup();
+    const s2 = await makeProspect("SigSeq", staff.Alice, { lang: "FR" });
+    as(ids.Alice);
+    const e: any = await seqActions.enrollProspect(fd({ sequenceId: seq, prospectId: s2.p.id, contactId: s2.c.id }));
+    assert.equal(e.ok, true);
+    await db.platformSalesStaff.update({ where: { id: staff.Alice }, data: { phone: "581-555-0111" } });
+    await seqLib.processDueEnrollments({ now: new Date(Date.now() + 24 * 3_600_000) });
+    await dispatcher.dispatchDue({ now: new Date(Date.now() + 24 * 3_600_000) });
+    const step = await db.crmEmailMessage.findFirstOrThrow({ where: { sequenceEnrollmentId: e.enrollmentId, sequenceStepIndex: 0 } });
+    assert.equal(step.status, "SENT");
+    check({ html: step.bodyHtml!, text: step.bodyText! }, "Alice Tremblay");
+    assert.ok(step.bodyText!.includes("581-555-0111") && step.bodyText!.includes("Réserver une démo"), "French signature labels, live profile");
+    assert.equal(countOf(step.bodyText!, "Se désabonner:"), 1);
+    // Super Admin edits of sender fields are the only way to change the signature; a seller cannot.
+    as(ids.Alice);
+    await assert.rejects(() => admin.saveSenderIdentity(fd({ staffId: staff.Alice, fromName: "X", fromEmail: `${A}@sales.test.ca`, defaultLanguage: "EN" })), /SALES_FORBIDDEN/);
+    // Legacy free-text column is neither read nor overwritten.
+    await db.crmSenderIdentity.update({ where: { staffId: staff.Alice }, data: { signatureText: "LEGACY SIG" } });
+    as(ids.root);
+    await admin.saveSenderIdentity(fd({ staffId: staff.Alice, fromName: "Alice Tremblay", fromEmail: `${A}@sales.test.ca`, defaultLanguage: "EN" }));
+    assert.equal((await db.crmSenderIdentity.findUniqueOrThrow({ where: { staffId: staff.Alice } })).signatureText, "LEGACY SIG", "backward compatible, never destroyed");
+    as(ids.Alice);
+    await send("Alice", { prospectId: p.id, contactId: c.id, to: email, languageOverride: "EN", subject: "Legacy", bodyText: "x" });
+    assert.equal(sends[sends.length - 1].body.text.includes("LEGACY SIG"), false);
+  });
+
   test("teardown: restore global fetch", () => { globalThis.fetch = realFetch; });
 }

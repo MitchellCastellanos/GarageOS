@@ -188,7 +188,7 @@ export async function prepareSend(actor: PlatformSalesActor, messageId: string, 
   const subjectOut = category === "REPLY" ? replySubject(msg.subject) : msg.subject;
   const content = await buildContent({
     subject: subjectOut, bodyText: msg.bodyText, language: chosen, commercial: category === "COMMERCIAL", unsubscribeUrl: unsub,
-    identity: { fromName: identity.fromName, fromEmail: identity.fromEmail, jobTitle: identity.jobTitle, phone: identity.phone, signatureText: identity.signatureText },
+    identity: { staffId: identity.staffId, fromName: identity.fromName, fromEmail: identity.fromEmail, jobTitle: identity.jobTitle, phone: identity.phone },
     settings,
   });
   const warnings: string[] = [];
