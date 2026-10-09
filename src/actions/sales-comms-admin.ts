@@ -13,7 +13,6 @@ import { TEMPLATE_KEYS, categoryOfTemplate, unknownVariables } from "@/domain/sa
 import { getIdentitySetup } from "@/lib/sales-comms/setup";
 import { liftSuppression, suppressEmail } from "@/lib/sales-comms/suppression";
 import { getCommsSettings } from "@/lib/sales-comms/settings";
-import { isValidTimezone } from "@/domain/sales-comms/meetings";
 
 const refresh = () => { revalidatePath(PLATFORM.salesComms); };
 const optText = (max: number) => z.string().trim().max(max).optional().transform((v) => v || null);

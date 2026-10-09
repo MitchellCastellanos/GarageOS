@@ -43,12 +43,17 @@ export async function saveEmailDraft(form: FormData) {
   });
 }
 
+export interface PreviewResult {
+  messageId: string; threadId: string; blocked: string | null; blockedDetail: string | null; html: string | null; text: string | null; subject: string | null;
+  warnings: string[]; language: string | null; category: string | null;
+}
+
 export async function previewEmail(form: FormData) {
   const actor = await requireCrmActor("send_sales_email");
-  return crmAction(async () => {
+  return crmAction(async (): Promise<PreviewResult> => {
     const saved = await saveDraft(actor, composeSchema.parse(Object.fromEntries(form)));
     const p = await prepareSend(actor, saved.messageId, true);
-    if (!p.ok) return { messageId: saved.messageId, threadId: saved.threadId, blocked: p.error, html: null, text: null, subject: null, warnings: [] as string[], language: null, category: null };
+    if (!p.ok) return { messageId: saved.messageId, threadId: saved.threadId, blocked: p.error, blockedDetail: null, html: null, text: null, subject: null, warnings: [], language: null, category: null };
     return {
       messageId: saved.messageId, threadId: saved.threadId, blocked: p.decision.allowed ? null : p.decision.code, blockedDetail: p.decision.allowed ? null : p.decision.detail ?? null,
       html: p.content.html, text: p.content.text, subject: p.content.subject, warnings: p.warnings, language: p.language, category: p.category,
@@ -215,8 +220,8 @@ export async function attachFile(messageId: string, form: FormData) {
     const check = validateAttachment({ filename: file.name, mimeType: file.type, bytes });
     if (!check.ok) throw new CrmError(`ATTACHMENT_${check.code}`);
     const { storagePath } = await uploadSalesEmailAttachment(draft.id, check.filename, Buffer.from(bytes), check.mimeType);
-    await db.crmEmailAttachment.create({ data: { messageId: draft.id, filename: check.filename, mimeType: check.mimeType, sizeBytes: bytes.length, storageKey: storagePath, sha256: createHash("sha256").update(bytes).digest("hex") } });
-    return {};
+    const row = await db.crmEmailAttachment.create({ data: { messageId: draft.id, filename: check.filename, mimeType: check.mimeType, sizeBytes: bytes.length, storageKey: storagePath, sha256: createHash("sha256").update(bytes).digest("hex") } });
+    return { attachmentId: row.id, filename: row.filename, sizeBytes: row.sizeBytes };
   });
 }
 

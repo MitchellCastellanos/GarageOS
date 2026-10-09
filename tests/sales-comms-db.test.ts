@@ -36,7 +36,6 @@ if (!enabled) {
   const dispatcher = await import("../src/lib/sales-comms/dispatcher");
   const inboundLib = await import("../src/lib/sales-comms/inbound");
   const unsub = await import("../src/lib/sales-comms/unsubscribe");
-  const links = await import("../src/lib/sales-comms/booking-links");
   const threads = await import("../src/lib/sales-comms/threads");
   const access = await import("../src/lib/sales-crm/access");
   const webhook = await import("../src/app/api/webhooks/resend/route");

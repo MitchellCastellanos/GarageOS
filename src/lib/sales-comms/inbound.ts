@@ -126,7 +126,7 @@ export async function processInboundEmail(emailId: string, preloaded?: ReceivedE
   await db.crmEmailThread.update({
     where: { id: threadId },
     data: {
-      lastInboundAt: now, lastMessageAt: now, status: thread.status === "SPAM" ? "SPAM" : "OPEN", prospectId: linkProspect, contactId: linkContact,
+      lastInboundAt: now, lastMessageAt: now, ...(automated ? {} : { ownerSeenAt: null }), status: thread.status === "SPAM" ? "SPAM" : "OPEN", prospectId: linkProspect, contactId: linkContact,
       counterpartyEmail: thread.counterpartyEmail ?? from.email, ...(automated ? {} : { needsReply: true }),
     },
   });
