@@ -9,6 +9,7 @@ import { createPendingSubscription } from "@/lib/subscription";
 
 import { ADMIN } from "@/lib/routes";
 import { isDemoAvailable } from "@/domain/sales-demo";
+import { salesStaffStatus } from "@/lib/sales-crm/staff-status";
 
 export const authConfig: NextAuthConfig = {
   session: { strategy: "jwt" },
@@ -81,6 +82,12 @@ export const authConfig: NextAuthConfig = {
       // destruye la sesión (la cookie se limpia). Falla cerrado.
       if (!dbUser) return null;
 
+      // Platform sales staff (no shop, not Super Admin) lose their session the moment the staff account is
+      // not ACTIVE: deactivation revokes access on the very next request, JWTs notwithstanding.
+      const staffStatus = !dbUser.shopId && dbUser.role !== "SUPER_ADMIN" ? await salesStaffStatus(dbUser.id) : null;
+      if (staffStatus && staffStatus !== "ACTIVE") return null;
+      const staffActive = staffStatus === "ACTIVE";
+
       token.userId = dbUser.id;
       token.shopId = dbUser.shopId ?? undefined;
       token.role = dbUser.role;
@@ -90,7 +97,7 @@ export const authConfig: NextAuthConfig = {
       // admin (token.userId/shopId/role arriba siguen siendo los suyos). Solo un SUPER_ADMIN
       // vigente en la DB puede iniciar una impersonación.
       if (trigger === "update" && session && "impersonation" in session) {
-        if (session.impersonation && dbUser.role === "SUPER_ADMIN") {
+        if (session.impersonation && (dbUser.role === "SUPER_ADMIN" || staffActive)) {
           token.impersonation = session.impersonation;
         } else {
           delete token.impersonation;
@@ -99,7 +106,7 @@ export const authConfig: NextAuthConfig = {
 
       // Una impersonación solo vale si el usuario REAL sigue siendo SUPER_ADMIN en la DB (un claim
       // `impersonation` de un token viejo/foráneo no otorga acceso a ningún taller).
-      if (token.impersonation && dbUser.role !== "SUPER_ADMIN") {
+      if (token.impersonation && dbUser.role !== "SUPER_ADMIN" && !staffActive) {
         delete token.impersonation;
       }
 
@@ -207,6 +214,12 @@ export const authConfig: NextAuthConfig = {
           // bloquea — ver src/app/api/auth/login/route.ts para el mensaje
           // amigable que precede a este bloqueo real.
           if (user.role === "OWNER" && !user.emailVerified) return null;
+
+          // Platform sales staff (no shop) can only sign in while their staff account is ACTIVE.
+          if (!user.shopId && user.role !== "SUPER_ADMIN") {
+            const staffStatus = await salesStaffStatus(user.id);
+            if (staffStatus && staffStatus !== "ACTIVE") return null;
+          }
 
           await resetRateLimit(emailRule);
 

@@ -13,6 +13,8 @@ import { ADMIN, PLATFORM } from "@/lib/routes";
 import { normalizeDemoAsset, demoAssetKindSchema } from "@/lib/sales-demo-assets";
 import { isStorageConfigured, uploadShopLogoToStorage, uploadBookingPageImageToStorage } from "@/lib/storage";
 import { bookingImageStorageFolder } from "@/lib/booking-page";
+import { assignedScopeWhere } from "@/domain/sales-crm/access";
+import { writeCrmAudit } from "@/lib/sales-crm/audit";
 
 export async function createProspectDemo(form: FormData) {
   const { actor, session } = await requireSalesActor();
@@ -20,6 +22,12 @@ export async function createProspectDemo(form: FormData) {
   const parsed = prospectSchema.safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: "invalid" as const };
   const p = parsed.data;
+  // Optional CRM link: the opportunity must be inside the seller's scope. Validated BEFORE any Shop is created.
+  const rawOpportunity = form.get("opportunityId");
+  const opportunity = typeof rawOpportunity === "string" && rawOpportunity
+    ? await db.crmOpportunity.findFirst({ where: { id: rawOpportunity, prospect: assignedScopeWhere(actor.platform) }, select: { id: true, prospectId: true } })
+    : null;
+  if (typeof rawOpportunity === "string" && rawOpportunity && !opportunity) return { error: "invalid" as const };
   const demo = await db.$transaction(async (tx) => {
     const shop = await tx.shop.create({ data: {
       name: p.name, address: p.address || null, phone: p.phone || null,
@@ -28,12 +36,18 @@ export async function createProspectDemo(form: FormData) {
       communicationsSuspendedAt: new Date(),
     } });
     await createPendingSubscription(tx, shop.id);
-    return tx.salesDemo.create({ data: {
-      shopId: shop.id, createdByUserId: actor.id,
+    const created = await tx.salesDemo.create({ data: {
+      shopId: shop.id, createdByUserId: actor.id, crmOpportunityId: opportunity?.id ?? null,
       contactName: p.contactName || null, contactEmail: p.contactEmail.toLowerCase() || null,
       contactPhone: p.contactPhone || null, preferredLanguage: p.preferredLanguage,
       expiresAt: new Date(Date.now() + DEMO_DURATION_MS),
     }, include: { shop: true } });
+    if (opportunity) {
+      // Commercial stage is NOT touched: SalesDemo.status stays technical, the pipeline stage stays a human decision.
+      await tx.crmActivity.create({ data: { prospectId: opportunity.prospectId, opportunityId: opportunity.id, type: "DEMO", authorUserId: actor.id, metadata: { event: "DEMO_PREPARED", demoId: created.id } } });
+      await writeCrmAudit({ actorUserId: actor.id, action: "DEMO_LINKED", entityType: "SalesDemo", entityId: created.id, prospectId: opportunity.prospectId, metadata: { opportunityId: opportunity.id } }, tx);
+    }
+    return created;
   });
   // Existing helper only provisions local DB sender defaults; no provider calls.
   await provisionDefaultSenderIdentities(demo.shop).catch(() => {});

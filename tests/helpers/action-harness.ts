@@ -20,3 +20,13 @@ registerHooks({
 
 export { setSession } from "./stub-auth";
 export { RedirectError, NotFoundError } from "./stub-next";
+
+// Platform sales staff lookups default to "no staff row" so legacy tests that only mock `user` keep exercising the
+// Super Admin / tenant paths. Tests of the sales-staff paths override these with patchDb.
+import { db } from "../../src/lib/db";
+// (Skipped when a test deliberately runs against a scratch database: GARAGEOS_CRM_TEST_DB_URL.)
+if (!process.env.GARAGEOS_CRM_TEST_DB_URL) {
+  const staffDelegate = (db as unknown as Record<string, Record<string, unknown>>).platformSalesStaff;
+  staffDelegate.findUnique = async () => null;
+  staffDelegate.findMany = async () => [];
+}

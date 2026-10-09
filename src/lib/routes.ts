@@ -31,12 +31,26 @@ export const PLATFORM = {
   sales: "/platform/sales",
   salesNew: "/platform/sales/new",
   salesDemo: (id: string) => `/platform/sales/${id}`,
+  salesDemos: "/platform/sales/demos",
+  salesProspects: "/platform/sales/prospects",
+  salesProspectNew: "/platform/sales/prospects/new",
+  salesProspectImport: "/platform/sales/prospects/import",
+  salesProspect: (id: string) => `/platform/sales/prospects/${id}`,
+  salesPipeline: "/platform/sales/pipeline",
+  salesTasks: "/platform/sales/tasks",
+  salesTeam: "/platform/sales/team",
+  salesTeamNew: "/platform/sales/team/new",
+  salesTeamMember: (id: string) => `/platform/sales/team/${id}`,
+  salesNeeds: "/platform/sales/settings/needs",
   home: "/platform",
   shop: (id: string) => `/platform/shops/${id}`,
   analytics: "/platform/analytics",
   messages: "/platform/messages",
   message: (id: string) => `/platform/messages/${id}`,
 } as const;
+
+/** Public (unauthenticated) landing for a sales-staff invitation; the secret travels in the URL fragment. */
+export const salesInvitePath = (staffId: string) => `/sales-invite/${staffId}`;
 
 export function adminPath(path: string): string {
   const segment = path.startsWith("/") ? path : `/${path}`;

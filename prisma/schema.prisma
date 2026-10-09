@@ -274,6 +274,9 @@ model User {
   shopAccess   UserShopAccess[]
   staffNotifications           StaffNotification[]
   notificationPreferences      UserNotificationPreference[]
+  // Platform-level Sales Workspace membership (NOT a tenant Role). See docs/sales-crm-agent-1-handoff.md.
+  platformSalesStaff           PlatformSalesStaff?
+  crmActivities                CrmActivity[]
 
   @@schema("garageos")
 }
@@ -319,9 +322,13 @@ model SalesDemo {
   checkoutSessionId String? @unique
   communicationsEnabled Boolean @default(false)
   scenarioBatchId String? @unique
+  // Commercial opportunity this technical demo belongs to (set only by the CRM; SalesDemo.status stays technical).
+  crmOpportunityId String?
+  crmOpportunity CrmOpportunity? @relation(fields: [crmOpportunityId], references: [id], onDelete: SetNull)
 
   @@index([status, expiresAt])
   @@index([createdByUserId, createdAt])
+  @@index([crmOpportunityId])
   @@schema("garageos")
 }
 
@@ -2182,5 +2189,526 @@ model RateLimitBucket {
   expiresAt DateTime
 
   @@index([expiresAt])
+  @@schema("garageos")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// Sales CRM foundation (Agent 1). Platform-level; never tenant data. Prospects are NOT Shops.
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+
+enum PlatformSalesRole {
+  SALES_REP
+  SALES_MANAGER
+
+  @@schema("garageos")
+}
+
+enum PlatformStaffStatus {
+  INVITED
+  ACTIVE
+  INACTIVE
+
+  @@schema("garageos")
+}
+
+enum CrmLanguage {
+  FR
+  EN
+  UNKNOWN
+
+  @@schema("garageos")
+}
+
+enum CrmProspectStatus {
+  ACTIVE
+  ARCHIVED
+
+  @@schema("garageos")
+}
+
+enum CrmIndustry {
+  GENERAL_REPAIR
+  TIRE_SHOP
+  BODY_SHOP
+  TRANSMISSION
+  DIAGNOSTIC
+  SPECIALTY
+  FLEET
+  OTHER
+
+  @@schema("garageos")
+}
+
+enum CrmShopSize {
+  SOLO
+  SMALL
+  MEDIUM
+  LARGE
+
+  @@schema("garageos")
+}
+
+enum CrmLeadSource {
+  REFERRAL
+  WEBSITE
+  COLD_OUTBOUND
+  EVENT
+  DIRECTORY
+  PARTNER
+  IMPORT
+  OTHER
+
+  @@schema("garageos")
+}
+
+enum CrmPipelineStage {
+  NEW
+  CONTACTED
+  ENGAGED
+  QUALIFIED
+  DEMO_SCHEDULED
+  DEMO_COMPLETED
+  DECISION
+  WON
+  LOST
+  UNQUALIFIED
+  DO_NOT_CONTACT
+
+  @@schema("garageos")
+}
+
+enum CrmLossReason {
+  PRICE
+  COMPETITOR
+  NO_RESPONSE
+  NOT_READY
+  MISSING_FEATURES
+  CLOSED_BUSINESS
+  OTHER
+
+  @@schema("garageos")
+}
+
+enum CrmLevel {
+  LOW
+  MEDIUM
+  HIGH
+
+  @@schema("garageos")
+}
+
+enum CrmNeedSeverity {
+  NONE
+  LOW
+  MEDIUM
+  HIGH
+
+  @@schema("garageos")
+}
+
+enum CrmEvidenceBasis {
+  CONFIRMED
+  INFERRED
+
+  @@schema("garageos")
+}
+
+enum CrmNeedCategory {
+  BOOKING
+  INVOICING
+  WORK_ORDERS
+  INSPECTIONS
+  COMMUNICATIONS
+  RETENTION
+  INVENTORY
+  REPORTING
+  MULTI_LOCATION
+
+  @@schema("garageos")
+}
+
+enum CrmActivityType {
+  NOTE
+  CALL
+  MEETING
+  EMAIL_LOGGED
+  STAGE_CHANGE
+  ASSIGNMENT
+  DEMO
+  SYSTEM
+
+  @@schema("garageos")
+}
+
+enum CrmActivityOutcome {
+  CONNECTED
+  VOICEMAIL
+  NO_ANSWER
+  WRONG_NUMBER
+  INTERESTED
+  NOT_INTERESTED
+  FOLLOW_UP_NEEDED
+
+  @@schema("garageos")
+}
+
+enum CrmTaskType {
+  FOLLOW_UP
+  CALL
+  EMAIL
+  DEMO_PREP
+  OTHER
+
+  @@schema("garageos")
+}
+
+enum CrmTaskStatus {
+  OPEN
+  DONE
+  CANCELLED
+
+  @@schema("garageos")
+}
+
+enum CrmImportStatus {
+  PREVIEWED
+  IMPORTING
+  COMPLETED
+  FAILED
+  CANCELLED
+
+  @@schema("garageos")
+}
+
+/// Platform staff profile (Sales Rep / Sales Manager) linked 1:1 to a User. The User keeps a harmless tenant role
+/// (VIEWER, no shop); all sales authority comes from this row. Rows are never deleted: deactivation keeps attribution.
+model PlatformSalesStaff {
+  id                    String               @id @default(cuid())
+  userId                String               @unique
+  user                  User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
+  role                  PlatformSalesRole    @default(SALES_REP)
+  status                PlatformStaffStatus  @default(INVITED)
+  managerId             String?
+  manager               PlatformSalesStaff?  @relation("StaffManager", fields: [managerId], references: [id], onDelete: SetNull)
+  reports               PlatformSalesStaff[] @relation("StaffManager")
+  title                 String?
+  phone                 String?
+  territories           String[]             @default([])
+  /// Sales UI language (EN | FR only; validated in the application).
+  uiLocale              InvoiceLanguage      @default(EN)
+  timezone              String               @default("America/Toronto")
+  // ── Profile contract for Agent 2 (messaging/calendar). Stored here, consumed there; nothing sends or books in Agent 1.
+  displayName           String?
+  signatureText         String?
+  bookingSlug           String?              @unique
+  bookingEnabled        Boolean              @default(false)
+  defaultMeetingMinutes Int                  @default(30)
+  meetingBufferMinutes  Int                  @default(10)
+  /// Weekly availability template: { "mon": [["09:00","17:00"]], ... } interpreted in `timezone`.
+  availability          Json                 @default("{}")
+  // ── Invitation (hash only; the raw token is shown/emailed once)
+  inviteTokenHash       String?              @unique
+  inviteExpiresAt       DateTime?
+  inviteSentAt          DateTime?
+  activatedAt           DateTime?
+  createdByUserId       String?
+  deactivatedAt         DateTime?
+  deactivatedByUserId   String?
+  deactivationReason    String?
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+
+  prospects     CrmProspect[]
+  opportunities CrmOpportunity[]
+  tasks         CrmTask[]
+
+  @@index([status, role])
+  @@index([managerId])
+  @@schema("garageos")
+}
+
+model CrmImportBatch {
+  id              String          @id @default(cuid())
+  createdByUserId String
+  assignedStaffId String?
+  filename        String
+  fileHash        String
+  status          CrmImportStatus @default(PREVIEWED)
+  /// Sanitized, validated rows awaiting confirmation. Cleared (null) once the batch leaves PREVIEWED.
+  rows            Json?
+  summary         Json            @default("{}")
+  /// Row-level errors/skips: only row number, field and reason code (never cell values).
+  errors          Json            @default("[]")
+  createdCount    Int             @default(0)
+  skippedCount    Int             @default(0)
+  errorCount      Int             @default(0)
+  defaultSource   CrmLeadSource   @default(IMPORT)
+  createdAt       DateTime        @default(now())
+  completedAt     DateTime?
+
+  prospects CrmProspect[]
+
+  @@index([createdByUserId, createdAt])
+  @@index([fileHash])
+  @@schema("garageos")
+}
+
+/// A business being sold to. Deliberately NOT a Shop; a technical Shop only exists once a SalesDemo is prepared.
+model CrmProspect {
+  id                String              @id @default(cuid())
+  name              String
+  nameNormalized    String
+  website           String?
+  websiteDomain     String?
+  address           String?
+  city              String?
+  province          String?
+  postalCode        String?
+  phone             String?
+  phoneDigits       String?
+  email             String?
+  industry          CrmIndustry?
+  shopSize          CrmShopSize?
+  locationCount     Int                 @default(1)
+  currentSoftware   String?
+  source            CrmLeadSource       @default(OTHER)
+  sourceDetail      String?
+  /// Business-level language. UNKNOWN is a real state that needs a human decision.
+  preferredLanguage CrmLanguage         @default(UNKNOWN)
+  status            CrmProspectStatus   @default(ACTIVE)
+  assignedStaffId   String?
+  assignedStaff     PlatformSalesStaff? @relation(fields: [assignedStaffId], references: [id], onDelete: SetNull)
+  tags              String[]            @default([])
+  notes             String?
+  /// Persistent opt-out: survives archive, re-import and reassignment.
+  doNotContact      Boolean             @default(false)
+  doNotContactAt    DateTime?
+  importBatchId     String?
+  importBatch       CrmImportBatch?     @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+  mergedIntoId      String?
+  createdByUserId   String
+  archivedAt        DateTime?
+  lastActivityAt    DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  contacts      CrmContact[]
+  opportunities CrmOpportunity[]
+  needs         CrmProspectNeed[]
+  activities    CrmActivity[]
+  tasks         CrmTask[]
+
+  @@index([assignedStaffId, status])
+  @@index([status, createdAt])
+  @@index([nameNormalized])
+  @@index([websiteDomain])
+  @@index([phoneDigits])
+  @@index([city])
+  @@schema("garageos")
+}
+
+model CrmContact {
+  id                String       @id @default(cuid())
+  prospectId        String
+  prospect          CrmProspect  @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  name              String
+  title             String?
+  email             String?
+  emailNormalized   String?
+  phone             String?
+  isPrimary         Boolean      @default(false)
+  isDecisionMaker   Boolean      @default(false)
+  /// Contact-specific override. null = inherit the prospect language (UNKNOWN is never stored here).
+  preferredLanguage CrmLanguage?
+  doNotContact      Boolean      @default(false)
+  notes             String?
+  archivedAt        DateTime?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  activities CrmActivity[]
+
+  @@index([prospectId, archivedAt])
+  @@index([emailNormalized])
+  @@schema("garageos")
+}
+
+/// One commercial opportunity per sales attempt. At most ONE open (non-terminal) opportunity per prospect
+/// (partial unique index CrmOpportunity_one_open_per_prospect, created in the migration).
+model CrmOpportunity {
+  id                   String              @id @default(cuid())
+  prospectId           String
+  prospect             CrmProspect         @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  assignedStaffId      String?
+  assignedStaff        PlatformSalesStaff? @relation(fields: [assignedStaffId], references: [id], onDelete: SetNull)
+  stage                CrmPipelineStage    @default(NEW)
+  stageChangedAt       DateTime            @default(now())
+  urgency              CrmLevel?
+  estimatedPlan        Plan?
+  /// CAD cents of normalized monthly recurring revenue (never annual contract totals).
+  estimatedMrrCents    Int?
+  expectedCloseDate    DateTime?
+  lossReason           CrmLossReason?
+  closeNote            String?
+  closedAt             DateTime?
+  /// Set by Agent 3's Stripe-confirmed conversion only; Agent 1 never writes WON.
+  wonAt                DateTime?
+  convertedShopId      String?
+  // Explainable scoring (computed, stored with its breakdown) and human overrides
+  fitScore             Int?
+  fitBreakdown         Json                @default("{}")
+  intentScore          Int?
+  intentBreakdown      Json                @default("{}")
+  scoreComputedAt      DateTime?
+  fitScoreOverride     Int?
+  fitOverrideReason    String?
+  intentScoreOverride  Int?
+  intentOverrideReason String?
+  overriddenByUserId   String?
+  overriddenAt         DateTime?
+  createdByUserId      String
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  stageEvents CrmStageEvent[]
+  activities  CrmActivity[]
+  tasks       CrmTask[]
+  demos       SalesDemo[]
+
+  @@index([assignedStaffId, stage])
+  @@index([stage, stageChangedAt])
+  @@index([prospectId, stage])
+  @@schema("garageos")
+}
+
+model CrmStageEvent {
+  id            String            @id @default(cuid())
+  opportunityId String
+  opportunity   CrmOpportunity    @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  fromStage     CrmPipelineStage?
+  toStage       CrmPipelineStage
+  actorUserId   String
+  note          String?
+  createdAt     DateTime          @default(now())
+
+  @@index([opportunityId, createdAt])
+  @@index([toStage, createdAt])
+  @@schema("garageos")
+}
+
+/// Configurable needs taxonomy. Built-in rows are seeded by the migration; Super Admin can retune/extend them.
+model CrmNeedDefinition {
+  id               String          @id @default(cuid())
+  key              String          @unique
+  category         CrmNeedCategory
+  labelEn          String
+  labelFr          String
+  descriptionEn    String?
+  descriptionFr    String?
+  /// Stable feature key Agent 3 maps to demo/playbook steps (e.g. "booking", "work-orders", "dvi").
+  suggestedFeature String
+  /// Fit-score weight (1-30) and demo ordering are derived from it.
+  weight           Int             @default(10)
+  active           Boolean         @default(true)
+  builtIn          Boolean         @default(false)
+  sortOrder        Int             @default(100)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  prospectNeeds CrmProspectNeed[]
+
+  @@index([active, sortOrder])
+  @@schema("garageos")
+}
+
+model CrmProspectNeed {
+  id               String            @id @default(cuid())
+  prospectId       String
+  prospect         CrmProspect       @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  definitionId     String
+  definition       CrmNeedDefinition @relation(fields: [definitionId], references: [id], onDelete: Restrict)
+  severity         CrmNeedSeverity   @default(MEDIUM)
+  priority         CrmLevel          @default(MEDIUM)
+  basis            CrmEvidenceBasis  @default(INFERRED)
+  evidence         String?
+  notes            String?
+  assessedByUserId String
+  assessedAt       DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@unique([prospectId, definitionId])
+  @@index([definitionId])
+  @@schema("garageos")
+}
+
+/// Immutable (append-only) timeline entries. Authorship is the real User and survives staff deactivation.
+model CrmActivity {
+  id            String              @id @default(cuid())
+  prospectId    String
+  prospect      CrmProspect         @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  opportunityId String?
+  opportunity   CrmOpportunity?     @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  contactId     String?
+  contact       CrmContact?         @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  type          CrmActivityType
+  outcome       CrmActivityOutcome?
+  subject       String?
+  body          String?
+  metadata      Json                @default("{}")
+  occurredAt    DateTime            @default(now())
+  authorUserId  String
+  author        User                @relation(fields: [authorUserId], references: [id], onDelete: Restrict)
+  createdAt     DateTime            @default(now())
+
+  @@index([prospectId, occurredAt])
+  @@index([opportunityId, occurredAt])
+  @@index([authorUserId, occurredAt])
+  @@schema("garageos")
+}
+
+model CrmTask {
+  id                String              @id @default(cuid())
+  prospectId        String
+  prospect          CrmProspect         @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  opportunityId     String?
+  opportunity       CrmOpportunity?     @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  assignedStaffId   String?
+  assignedStaff     PlatformSalesStaff? @relation(fields: [assignedStaffId], references: [id], onDelete: SetNull)
+  type              CrmTaskType         @default(FOLLOW_UP)
+  title             String
+  notes             String?
+  priority          CrmLevel            @default(MEDIUM)
+  status            CrmTaskStatus       @default(OPEN)
+  dueAt             DateTime
+  completedAt       DateTime?
+  completedByUserId String?
+  createdByUserId   String
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@index([assignedStaffId, status, dueAt])
+  @@index([status, dueAt])
+  @@index([prospectId, status])
+  @@schema("garageos")
+}
+
+/// Append-only audit trail for CRM + staff administration. Metadata never holds secrets or message bodies.
+model CrmAuditEvent {
+  id          String   @id @default(cuid())
+  actorUserId String
+  action      String
+  entityType  String
+  entityId    String?
+  prospectId  String?
+  staffId     String?
+  before      Json?
+  after       Json?
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([prospectId, createdAt])
+  @@index([staffId, createdAt])
+  @@index([actorUserId, createdAt])
   @@schema("garageos")
 }

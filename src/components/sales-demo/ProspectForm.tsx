@@ -6,7 +6,7 @@ import { salesDemoCopy } from "@/lib/admin-locale/sales-demo";
 import type { AdminLocale } from "@/lib/admin-locale";
 import { PLATFORM } from "@/lib/routes";
 
-export function ProspectForm({ locale }: { locale: AdminLocale }) {
+export function ProspectForm({ locale, defaults = {}, opportunityId }: { locale: AdminLocale; defaults?: Partial<Record<"name" | "address" | "phone" | "email" | "contactName" | "contactEmail" | "contactPhone" | "preferredLanguage", string>>; opportunityId?: string }) {
   const t = salesDemoCopy(locale);
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -29,13 +29,14 @@ export function ProspectForm({ locale }: { locale: AdminLocale }) {
     {fields.map(([name, label, type, max, autocomplete]) => <label key={name} className="grid min-w-0 gap-2 text-sm font-medium">
       <span>{label}{name === "name" ? " *" : ""}</span>
       <input className="min-h-11 w-full min-w-0 rounded-lg border border-slate-300 px-3 text-base" name={name} type={type}
-        required={name === "name"} maxLength={max} autoComplete={autocomplete} disabled={pending} />
+        required={name === "name"} maxLength={max} autoComplete={autocomplete} defaultValue={defaults[name] ?? ""} disabled={pending} />
     </label>)}
     <label className="grid gap-2 text-sm font-medium">{t.language}
-      <select name="preferredLanguage" defaultValue={locale === "fr" ? "FR" : "EN"} className="min-h-11 rounded-lg border px-3 text-base" disabled={pending}>
+      <select name="preferredLanguage" defaultValue={defaults.preferredLanguage ?? (locale === "fr" ? "FR" : "EN")} className="min-h-11 rounded-lg border px-3 text-base" disabled={pending}>
         <option value="FR">Français</option><option value="EN">English</option>
       </select>
     </label>
+    {opportunityId && <input type="hidden" name="opportunityId" value={opportunityId} />}
     {error && <p role="alert" className="text-red-700 sm:col-span-2">{t.error}</p>}
     <button disabled={pending} className="min-h-11 rounded-lg bg-blue-600 px-4 py-3 font-medium text-white disabled:opacity-50 sm:col-span-2">
       {pending ? t.preparing : t.create}

@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { Menu } from "lucide-react";
 import { Toaster } from "sonner";
-import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { AdminSidebar, type PlatformNavContext } from "@/components/admin/AdminSidebar";
+import { crmCopy } from "@/lib/admin-locale/sales-crm";
 import { PlatformNotificationBell, type PlatformPendingCounts } from "@/components/admin/PlatformNotificationBell";
 import { getPlatformPendingCount } from "@/actions/platform";
 import { PLATFORM_MESSAGES_CHANNEL, PUSHER_CLIENT_AUTH } from "@/lib/platform/pusher-channels";
@@ -11,8 +12,10 @@ import { PLATFORM_MESSAGES_CHANNEL, PUSHER_CLIENT_AUTH } from "@/lib/platform/pu
 export function PlatformChrome({
   userName,
   pendingCounts,
+  nav,
   children,
 }: {
+  nav: PlatformNavContext;
   userName?: string | null;
   pendingCounts: PlatformPendingCounts;
   children: React.ReactNode;
@@ -30,8 +33,10 @@ export function PlatformChrome({
     }
   }
 
+  const isSuperAdmin = nav.kind === "SUPER_ADMIN";
   useEffect(() => {
-    if (!process.env.NEXT_PUBLIC_PUSHER_KEY) return;
+    // Support-conversation realtime is a Super Admin channel; sales staff never subscribe (and are not authorized to).
+    if (!isSuperAdmin || !process.env.NEXT_PUBLIC_PUSHER_KEY) return;
     let unsub: (() => void) | undefined;
     let cancelled = false;
 
@@ -54,21 +59,23 @@ export function PlatformChrome({
       cancelled = true;
       unsub?.();
     };
-  }, []);
+  }, [isSuperAdmin]);
 
+  const t = crmCopy(nav.locale).nav;
   return (
     <div className="flex min-h-screen bg-slate-50">
       <AdminSidebar
         mobileOpen={mobileNavOpen}
         onMobileClose={() => setMobileNavOpen(false)}
-        hasWaitingMessages={counts.waitingMessages > 0}
+        hasWaitingMessages={isSuperAdmin && counts.waitingMessages > 0}
+        nav={nav}
       />
       <div className="flex-1 flex flex-col min-w-0">
         <header className="no-print h-14 flex-shrink-0 bg-white border-b border-slate-200 flex items-center gap-3 px-4 sm:px-6">
           <button
             type="button"
             onClick={() => setMobileNavOpen(true)}
-            aria-label="Abrir menú"
+            aria-label={t.openMenu}
             aria-expanded={mobileNavOpen}
             aria-controls="platform-mobile-nav"
             className="md:hidden flex-shrink-0 p-2 -ml-2 text-slate-500 hover:text-slate-900 rounded-lg hover:bg-slate-100"
@@ -76,12 +83,12 @@ export function PlatformChrome({
             <Menu className="w-5 h-5" />
           </button>
           <p className="text-sm text-slate-600 min-w-0 truncate flex-1">
-            Sesión: <span className="font-medium text-slate-900">{userName}</span>
+            {t.session}: <span className="font-medium text-slate-900">{userName}</span>
             <span className="hidden sm:inline ml-2 text-xs text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full whitespace-nowrap">
-              Super admin
+              {t.roles[nav.kind]}
             </span>
           </p>
-          <PlatformNotificationBell counts={counts} onOpen={refresh} />
+          {isSuperAdmin && <PlatformNotificationBell counts={counts} onOpen={refresh} />}
         </header>
         <main className="flex-1 p-4 sm:p-6 overflow-auto min-w-0">{children}</main>
       </div>
