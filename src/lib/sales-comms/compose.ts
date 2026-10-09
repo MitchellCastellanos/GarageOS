@@ -172,8 +172,14 @@ export async function prepareSend(actor: PlatformSalesActor, messageId: string, 
   const lang = effectiveLanguage({ override, contact: contact?.preferredLanguage, prospect: prospectLang });
 
   // Reply = the thread already has a human message from the counterparty; anything else is a solicitation.
-  const hasInbound = await db.crmEmailMessage.count({ where: { threadId: msg.threadId, direction: "INBOUND", isAutomated: false } });
-  const category = hasInbound > 0 ? ("REPLY" as const) : ("COMMERCIAL" as const);
+  const history = await db.crmEmailMessage.findMany({ where: { threadId: msg.threadId, status: { notIn: ["DRAFT", "CANCELLED"] } }, select: { direction: true, isAutomated: true, fromAddress: true, toAddresses: true, ccAddresses: true } });
+  const hasInbound = history.some((h) => h.direction === "INBOUND" && !h.isAutomated);
+  // A reply may only go to people already IN the conversation. Adding a new address turns it back into a solicitation,
+  // which needs its own documented basis (otherwise Cc would be a back door around CASL).
+  const participants = new Set(history.flatMap((h) => [h.fromAddress, ...h.toAddresses, ...h.ccAddresses]).map(normalizeEmail));
+  participants.delete(normalizeEmail(identity.fromEmail));
+  const toExisting = [...msg.toAddresses, ...msg.ccAddresses, ...msg.bccAddresses].every((a) => participants.has(normalizeEmail(a)));
+  const category = hasInbound && toExisting ? ("REPLY" as const) : ("COMMERCIAL" as const);
   // Language is only *required* for solicitations; a reply may be written in whatever the human chose.
   const chosen: "EN" | "FR" = lang.language === "FR" || lang.language === "EN" ? lang.language : (msg.language === "FR" ? "FR" : msg.language === "EN" ? "EN" : identity.defaultLanguage === "FR" ? "FR" : "EN");
   const { decision } = await evaluatePolicy({ identityId: identity.id, category, recipients, prospectId: msg.prospectId, contactId: msg.contactId, languageResolved: category !== "COMMERCIAL" || lang.language !== "UNKNOWN", excludeMessageId: msg.id });

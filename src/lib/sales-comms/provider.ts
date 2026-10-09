@@ -80,6 +80,7 @@ export async function fetchReceivedAttachment(emailId: string, attachmentId: str
   const client = getResendClient();
   const { data, error } = await client.emails.receiving.attachments.get({ emailId, id: attachmentId });
   if (error || !data) throw new Error(`fetch attachment failed: ${error?.message ?? "empty"}`);
+  if (new URL(data.download_url).protocol !== "https:") throw new Error("attachment download refused: not https");
   const res = await fetch(data.download_url);
   if (!res.ok) throw new Error(`attachment download failed (${res.status})`);
   return Buffer.from(await res.arrayBuffer());

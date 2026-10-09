@@ -129,7 +129,9 @@ export async function createMeeting(b: BookingInput) {
   await stopEnrollments({ prospectIds: b.prospectId ? [b.prospectId] : [], contactIds: stopContacts.map((c) => c.id), reason: "MEETING_BOOKED", actorUserId: b.createdByUserId ?? null }).catch((e) => console.error("[meetings] stopEnrollments failed", e));
   await publishInboxSignal(created.staffUserId, { type: "meeting" });
   for (const id of created.emailQueuedIds.slice(0, 1)) await dispatchMessage(id, new Date()).catch((e) => console.error("[meetings] confirmation dispatch failed", e));
-  return { meetingId: created.id, manageToken: created.manageToken, emailQueued: created.emailQueuedIds.length > 0 };
+  // Report what REALLY happened: the confirmation counts only if the provider accepted it (never "on its way" while sending is off).
+  const conf = created.emailQueuedIds[0] ? await db.crmEmailMessage.findUnique({ where: { id: created.emailQueuedIds[0] }, select: { status: true } }) : null;
+  return { meetingId: created.id, manageToken: created.manageToken, emailQueued: !!conf && ["SENT", "DELIVERED"].includes(conf.status) };
 }
 
 /**

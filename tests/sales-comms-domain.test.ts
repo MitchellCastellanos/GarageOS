@@ -377,3 +377,24 @@ test("capabilities: reps may enroll in approved sequences and manage their calen
   assert.ok(!rep.has("manage_sequences") && !rep.has("manage_sender_identities"));
   assert.ok(capabilitiesFor("SUPER_ADMIN").has("manage_sequences"));
 });
+
+// ── Copy parity (EN/FR) ──────────────────────────────────────────────────────────────────────
+import { commsEn, commsFr } from "../src/lib/admin-locale/sales-comms";
+function keyPaths(o: unknown, prefix = ""): string[] {
+  if (o && typeof o === "object") return Object.entries(o as Record<string, unknown>).flatMap(([k, v]) => keyPaths(v, prefix ? `${prefix}.${k}` : k));
+  return [prefix];
+}
+test("every English string of the sales-comms copy has a French counterpart (and vice versa), none empty, placeholders preserved", () => {
+  assert.deepEqual(keyPaths(commsFr).sort(), keyPaths(commsEn).sort());
+  const flat = (o: unknown, p = ""): [string, string][] => (o && typeof o === "object" ? Object.entries(o as Record<string, unknown>).flatMap(([k, v]) => flat(v, p ? `${p}.${k}` : k)) : [[p, String(o)]]);
+  const en = new Map(flat(commsEn)), fr = new Map(flat(commsFr));
+  for (const [k, v] of en) {
+    assert.ok(v.trim().length > 0 && (fr.get(k) ?? "").trim().length > 0, `empty copy at ${k}`);
+    const ph = (s: string) => (s.match(/\{\{[^}]+\}\}/g) ?? []).filter((x) => (KNOWN_VARIABLES as readonly string[]).includes(x.slice(2, -2).trim())).sort().join(); // descriptive "{{placeholders}}" wording may be translated
+    assert.equal(ph(fr.get(k)!), ph(v), `placeholders differ at ${k}`);
+  }
+  // Every error code the actions/libs can raise has a localized message in both languages.
+  for (const code of ["SLOT_TAKEN", "NO_VALID_BASIS", "SUPPRESSED", "LANGUAGE_REQUIRED", "DAILY_LIMIT", "NO_SENDER_IDENTITY", "SETUP_DOMAIN_VERIFIED", "UNRESOLVED_PLACEHOLDER", "INVALID_SUBJECT"]) {
+    assert.ok(commsEn.errors[code] && commsFr.errors[code], code);
+  }
+});

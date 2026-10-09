@@ -25,13 +25,15 @@ async function gate(rule: ReturnType<(typeof RATE_LIMITS)["salesBookViewIp"]>): 
   return (await checkRateLimit(rule)).allowed;
 }
 
+/** Unknown/revoked token: answer NOT_FOUND, but a client that keeps guessing tokens is throttled (20 misses / 10 min). */
+async function missLimited(ip: string): Promise<{ ok: false; error: "RATE_LIMITED" | "NOT_FOUND" }> {
+  return (await checkRateLimit(RATE_LIMITS.salesBookInvalidIp(ip))).allowed ? { ok: false, error: "NOT_FOUND" } : { ok: false, error: "RATE_LIMITED" };
+}
+
 export async function loadBookingPage(token: string, ip: string, browserLang: "EN" | "FR"): Promise<{ ok: true; page: PublicBookingPage } | { ok: false; error: "RATE_LIMITED" | "NOT_FOUND" }> {
   if (!(await gate(RATE_LIMITS.salesBookViewIp(ip)))) return { ok: false, error: "RATE_LIMITED" };
   const link = await resolvePublicLink(token);
-  if (!link) {
-    await checkRateLimit(RATE_LIMITS.salesBookInvalidIp(ip)); // counts misses; slots/submit below refuse once exhausted
-    return { ok: false, error: "NOT_FOUND" };
-  }
+  if (!link) return missLimited(ip);
   const cal = await loadSellerCalendar(link.staffId);
   const settings = await getCommsSettings();
   let pref: "EN" | "FR" | null = link.language === "FR" || link.language === "EN" ? link.language : null;
@@ -54,7 +56,7 @@ export async function loadBookingPage(token: string, ip: string, browserLang: "E
 export async function loadPublicSlots(token: string, durationMinutes: number, ip: string): Promise<{ ok: true; slots: string[] } | { ok: false; error: "RATE_LIMITED" | "NOT_FOUND" }> {
   if (!(await gate(RATE_LIMITS.salesBookViewIp(ip)))) return { ok: false, error: "RATE_LIMITED" };
   const link = await resolvePublicLink(token);
-  if (!link) return { ok: false, error: "NOT_FOUND" };
+  if (!link) return missLimited(ip);
   const cal = await loadSellerCalendar(link.staffId);
   if (!cal.durations.includes(durationMinutes)) return { ok: false, error: "NOT_FOUND" };
   const slots = await availableSlots(link.staffId, { durationMinutes, days: 28 });
@@ -81,7 +83,7 @@ export async function submitPublicBooking(req: PublicBookingRequest, ip: string,
   if (!isValidEmail(email) || !req.name?.trim() || req.name.length > 120) return { ok: false, error: "INVALID" };
   if (!(await gate(RATE_LIMITS.salesBookSubmitIp(ip)))) return { ok: false, error: "RATE_LIMITED" };
   const link = await resolvePublicLink(req.token, now);
-  if (!link) return { ok: false, error: "NOT_FOUND" };
+  if (!link) return missLimited(ip);
   if (!(await gate(RATE_LIMITS.salesBookSubmitEmail(email))) || !(await gate(RATE_LIMITS.salesBookSubmitStaff(link.staffId)))) return { ok: false, error: "RATE_LIMITED" };
   const startsAt = new Date(req.startsAt);
   if (Number.isNaN(startsAt.getTime())) return { ok: false, error: "INVALID" };

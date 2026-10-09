@@ -433,6 +433,21 @@ if (!enabled) {
     assert.deepEqual(await inboundLib.processInboundEmail(`stray3_${run}`), { status: "unrouted", reason: "no_identity" });
   });
 
+  test("REPLY semantics: answering the person who wrote needs no new basis; adding a NEW recipient turns it back into a solicitation that does", async () => {
+    await db.crmSendingBasis.updateMany({ where: { contactId: ids.laurentContact }, data: { revokedAt: new Date() } }); // no basis on file any more
+    try {
+      const solo = await send("Alice", { threadId: ids.laurentThread, prospectId: ids.laurentProspect, contactId: ids.laurentContact, to: ids.laurentEmail, subject: "Bonjour Laurent", bodyText: "Parfait, mardi à 10 h.", languageOverride: "FR" });
+      assert.equal(solo.ok, true, JSON.stringify(solo));
+      const m = await db.crmEmailMessage.findUniqueOrThrow({ where: { id: solo.messageId } });
+      assert.deepEqual([m.category, m.subject.startsWith("Re: "), m.inReplyTo !== null, m.references.length >= 2], ["REPLY", true, true, true]);
+      assert.equal(sends[sends.length - 1].body.headers["List-Unsubscribe"], undefined, "a conversational reply is not a marketing blast");
+      const extra = await send("Alice", { threadId: ids.laurentThread, prospectId: ids.laurentProspect, contactId: ids.laurentContact, to: ids.laurentEmail, cc: `new-person-${run}@elsewhere.test`, subject: "Re: Bonjour Laurent", bodyText: "Je mets un collègue en copie.", languageOverride: "FR" });
+      assert.deepEqual([extra.ok, extra.error], [false, "NO_VALID_BASIS"], "Cc of a stranger is a new solicitation");
+    } finally {
+      await db.crmSendingBasis.updateMany({ where: { contactId: ids.laurentContact }, data: { revokedAt: null } });
+    }
+  });
+
   // ── Delivery events, suppression, unsubscribe ───────────────────────────────────────────────────
   test("delivery webhooks: delivered/bounce update status monotonically; replays are no-ops; a permanent bounce suppresses and stops outreach; complaints too", async () => {
     const seq = await seqSetup();
@@ -879,6 +894,10 @@ if (!enabled) {
     await db.platformSalesStaff.update({ where: { id: staff.Alice }, data: { status: "INACTIVE", bookingEnabled: false } });
     assert.deepEqual(await pub.loadBookingPage(newToken, "192.0.2.11", "EN"), { ok: false, error: "NOT_FOUND" });
     await db.platformSalesStaff.update({ where: { id: staff.Alice }, data: { status: "ACTIVE", bookingEnabled: true } });
+    // Token guessing is throttled: a client probing random tokens gets RATE_LIMITED after 20 misses / 10 min.
+    const probes: string[] = [];
+    for (let i = 0; i < 24; i++) probes.push(((await pub.loadBookingPage("Q".repeat(43), "192.0.2.14", "EN")) as any).error);
+    assert.ok(probes.slice(20).every((e) => e === "RATE_LIMITED") && probes[0] === "NOT_FOUND", probes.join(","));
     // Meeting manage tokens are unguessable and rate limited.
     assert.deepEqual(await pub.loadManagedMeeting("x".repeat(30), "192.0.2.12"), { ok: false, error: "NOT_FOUND" });
     let limited = 0;
@@ -899,6 +918,16 @@ if (!enabled) {
     assert.equal(r.ok, true, JSON.stringify(r));
     const m = await db.crmMeeting.findFirstOrThrow({ where: { manageToken: (r as any).manageToken } });
     assert.deepEqual([m.prospectId, m.staffId], [mine.p.id, staff.Bob]);
+    // Honesty: with the master switch OFF the booking still succeeds, but the page is told NO confirmation email went out.
+    as(ids.root);
+    const off = fd({ sendingEnabled: "", approvedDomains: "sales.test.ca", inboundDomain: "sales.test.ca", legalName: "GarageOS Inc.", mailingAddress: "1 rue Exemple, Montréal QC", contactEmail: "", contactPhone: "", websiteUrl: "https://www.garage-os.ca", defaultDailyLimit: "30", sendWindowStartHour: "0", sendWindowEndHour: "24", minNoticeMinutes: "60", maxAdvanceDays: "60" });
+    await admin.saveCommsSettings(off);
+    const sentBefore = sends.length;
+    const quiet = await pub.submitPublicBooking({ token, startsAt: slots[6], durationMinutes: 30, type: "VIDEO", name: "Quiet", email: `quiet-${run}@shop.test`, timezone: "America/Toronto", language: "EN" }, "192.0.2.23");
+    off.set("sendingEnabled", "on"); as(ids.root); await admin.saveCommsSettings(off);
+    assert.equal(quiet.ok, true);
+    assert.equal((quiet as any).emailQueued, false, "no 'confirmation is on its way' while sending is off");
+    assert.equal(sends.length, sentBefore);
     // Unknown visitor: meeting kept, unlinked; the seller can link it later within their scope only.
     const r2 = await pub.submitPublicBooking({ token, startsAt: slots[9], durationMinutes: 30, type: "VIDEO", name: "Stranger", email: `stranger-${run}@shop.test`, timezone: "America/Toronto", language: "EN" }, "192.0.2.22");
     const m2 = await db.crmMeeting.findFirstOrThrow({ where: { manageToken: (r2 as any).manageToken } });
@@ -938,6 +967,36 @@ if (!enabled) {
     await db.crmEmailSuppression.create({ data: { emailNormalized: e, reason: "MANUAL", source: "t" } });
     await assert.rejects(() => db.crmEmailSuppression.create({ data: { emailNormalized: e, reason: "UNSUBSCRIBE", source: "t" } }), /Unique constraint|duplicate/i);
     await assert.rejects(() => db.crmSenderIdentity.create({ data: { staffId: staff.Carl, fromName: "C", fromEmail: "Carl@Sales.Test.ca", createdByUserId: ids.root } }), /check|constraint/i);
+  });
+
+  test("CONTRACT for Agent 3: scoped, serialisable reads of meeting history, engagement, timeline, sequence state, booking status and the post-demo trigger", async () => {
+    const contracts = await import("../src/lib/sales-comms/contracts");
+    const aliceActor = (await access.resolvePlatformSalesActor(ids.Alice))!;
+    const bobActor = (await access.resolvePlatformSalesActor(ids.Bob))!;
+    const pid = ids.laurentProspect;
+    const eng = await contracts.getEmailEngagement(aliceActor, pid);
+    assert.ok(eng.sent >= 1 && eng.replies >= 1 && eng.lastReplyAt && eng.lastSentAt);
+    assert.equal(JSON.stringify(eng).includes("Oui, mardi"), false, "counters only, never bodies");
+    const tl = await contracts.getCommunicationTimeline(aliceActor, pid);
+    assert.ok(tl.some((e) => e.kind === "EMAIL_IN") && tl.some((e) => e.kind === "EMAIL_OUT"));
+    assert.deepEqual([...tl].sort((a, b) => b.at.localeCompare(a.at)).map((e) => e.id), tl.map((e) => e.id), "newest first");
+    const hist = await contracts.getMeetingHistory(aliceActor, ids.bookerProspect);
+    assert.ok(hist.length >= 1 && hist[0].status === "CANCELLED" && hist[0].rescheduled === true);
+    const st = await contracts.getBookingStatus(aliceActor, ids.bookerProspect);
+    assert.deepEqual([st.hasUpcomingMeeting, st.hasActiveBookingLink], [false, true]);
+    assert.ok(Array.isArray(await contracts.getSequenceState(aliceActor, ids.bookerProspect)));
+    // Isolation: another seller gets NOT_FOUND from every contract call.
+    for (const fn of [contracts.getEmailEngagement, contracts.getCommunicationTimeline, contracts.getMeetingHistory, contracts.getSequenceState, contracts.getBookingStatus] as const) {
+      await assert.rejects(() => (fn as (a: unknown, id: string) => Promise<unknown>)(bobActor, pid), /NOT_FOUND/);
+    }
+    // Post-demo trigger: eligible only after a HELD meeting that was not "not interested", and not already followed up.
+    const held = await db.crmMeeting.findFirstOrThrow({ where: { staffId: staff.Alice, status: "COMPLETED", outcome: "HELD_INTERESTED" } });
+    const trig = await contracts.getPostDemoFollowUp(aliceActor, held.id);
+    assert.deepEqual([trig?.eligible, trig?.reason, trig?.templateKey], [true, "OK", "POST_DEMO_FOLLOW_UP"]);
+    assert.match(trig!.composeUrl, /^\/platform\/sales\/inbox\/new\?prospect=[A-Za-z0-9]+.*template=POST_DEMO_FOLLOW_UP$/);
+    assert.equal(await contracts.getPostDemoFollowUp(bobActor, held.id), null);
+    const cancelled = await db.crmMeeting.findFirstOrThrow({ where: { id: ids.bookerMeeting } });
+    assert.equal((await contracts.getPostDemoFollowUp(aliceActor, cancelled.id))?.reason, "NOT_COMPLETED");
   });
 
   test("teardown: restore global fetch", () => { globalThis.fetch = realFetch; });
