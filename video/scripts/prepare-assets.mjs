@@ -44,5 +44,12 @@ for (const loc of ["en", "fr"]) {
     a++;
   }
 }
-console.log(`prepared ${a} narration files;`);
+// approved music: full-length track + the 15 s teaser edit (built by `npm run audio:music`)
+mkdirSync(join(out, "../music"), { recursive: true });
+for (const [src, dst] of [["garageos-music.wav", "garageos-music.wav"], ["teaser-edit.wav", "teaser-edit.wav"]]) {
+  const p = join(here, "../src/audio/music", src);
+  if (!existsSync(p)) throw new Error(`Missing ${p}; run npm run audio:music`);
+  copyFileSync(p, join(out, "../music", dst));
+}
+console.log(`prepared ${a} narration files + music;`);
 console.log(`prepared ${n} captures + brand mark + fonts in ${out}`);

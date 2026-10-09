@@ -74,6 +74,3 @@ function build(locale: Locale, variant: Variant): NarrationSegment[] {
 
 export const getSegments = (locale: Locale, variant: Variant) => build(locale, variant);
 export type { SceneId, TeaserSceneId };
-
-/** Music is optional and NOT enabled: drop a licensed file at video/public/music/bed.mp3 and set it here. */
-export const MUSIC = { file: "video/public/music/bed.mp3", enabled: false, volume: 0.18 };

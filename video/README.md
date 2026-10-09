@@ -71,14 +71,16 @@ The four ElevenLabs recordings are in `src/audio/source/` exactly as supplied (n
 
 To replace a recording: overwrite the file in `src/audio/source/`, update the script text in `src/locales/*.ts` if it changed, then `npm run audio:align && npm run audio:report && npm run prepare:assets`, and re-render. If the pause structure changes, adjust `boundaryGaps` in `scripts/align-narration.ts` (it fails loudly when the words-per-second sanity check does not hold).
 
-**Music**: put a *licensed* track at `video/public/music/bed.mp3` and set `MUSIC.enabled = true` (and `volume`) in `src/audio/manifest.ts`. No music is bundled and none is required.
+## Music and final mix
+
+The approved music track lives in `src/audio/music/garageos-music.wav` (used whole, 60 s, for both full videos) and `src/audio/music/teaser-edit.wav` (15 s teaser edit built from it by `npm run audio:music`). Both languages share it. Levels, ducking and fades are in `MIX` (`src/audio/music.ts`); the track analysis, the teaser edit and the mix table are in `src/audio/MUSIC.md`. Narration stays primary: the music sits about 15 dB under the voice and rises in the gaps. Final masters are about -16.5 LUFS with true peak below -1 dBTP. To swap the track: replace the WAV, update `MUSIC_ANALYSIS` / `TEASER_EDIT` in `music.ts` (re-measure the beat grid), run `npm run audio:music`, `npm run prepare:assets`, then render. `npm run render -- audio` writes fast audio-only mix-downs to `output/audio/` for level checks.
 
 ## Known limitations
 
 * Segment boundaries come from pause detection (no speech-recognition model was reachable); the scripts were confirmed with the client, and every full-video segment passes a seconds-per-word check.
 * The English campaign editor, shop records and some product data are Québec French (the capture set is seeded in French; see `docs/demo-journey/validation.md`). The EN closing card says so. Capture 20 (campaign email) is not used because EN reuses a French example.
 * Dashboard captures show the product's real "-52.1 % vs last month" figure; it is untouched.
-* Voice only: no music or sound effects.
+* No sound effects. The music teaser edit was verified numerically (beat grid, splice alignment, levels) and by frame/loudness checks, not by ear: please listen to it.
 * The mark PNG in the brand kit has minor edge noise at full size (documented in the brand kit); it is only shown at ≤ 116 px height.
 
 ## Final production checklist

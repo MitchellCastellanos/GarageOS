@@ -8,6 +8,7 @@ import { SHOTS, shotPath, sizeOf, type ShotKey } from "../src/config/assets";
 import { COPY, LOCALES, type Locale } from "../src/locales";
 import { FULL_FRAMES, FULL_SCENES, TEASER_FRAMES, TEASER_SCENES, FPS, sec } from "../src/config/timing";
 import { getSegments } from "../src/audio/manifest";
+import { MIX, speechWindows } from "../src/audio/music";
 import { COMPOSITIONS } from "../src/Root";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -104,6 +105,7 @@ for (const l of LOCALES) for (const f of readdirSync(`${root}/src/audio/${l}`).f
 for (const c of COMPOSITIONS) console.log(`INFO  ${c.id} -> output/${c.id}.mp4 (${c.frames} frames)`);
 
 // MP4 probes
+const loud: Record<string, number> = {};
 for (const c of COMPOSITIONS) {
   const f = `${root}/output/${c.id}.mp4`;
   if (!existsSync(f)) { console.log(`SKIP  ${c.id}.mp4 not rendered`); continue; }
@@ -118,7 +120,8 @@ for (const c of COMPOSITIONS) {
   const lufs = parseFloat([...m.matchAll(/I:\s+(-?[\d.]+) LUFS/g)].pop()?.[1] ?? "NaN");
   const tp = parseFloat([...m.matchAll(/Peak:\s+(-?[\d.]+) dBFS/g)].pop()?.[1] ?? "NaN");
   const flat = parseFloat([...m.matchAll(/Flat factor: ([\d.]+)/g)].pop()?.[1] ?? "NaN");
-  ok(lufs > -17.5 && lufs < -14.5, `${c.id}.mp4 dialogue loudness ${lufs} LUFS (target -16 +/- 1.5)`);
+  ok(lufs > -17.5 && lufs < -15.5, `${c.id}.mp4 integrated loudness ${lufs} LUFS (target -16.5 +/- 1)`);
+  loud[c.id] = lufs;
   ok(tp <= -1, `${c.id}.mp4 true-peak ${tp} dBFS (<= -1.0, no clipping)`);
   ok(flat === 0, `${c.id}.mp4 flat-factor ${flat} (0 = no clipped runs)`);
   ok(Math.abs(parseFloat(au?.duration ?? "0") - c.frames / FPS) < 0.15, `${c.id}.mp4 audio duration ${au?.duration}s matches video`);
@@ -128,5 +131,67 @@ for (const l of LOCALES as Locale[]) {
   const f = `${root}/output/thumbnail-${l}.png`;
   if (existsSync(f)) { const b = readFileSync(f); ok(b.readUInt32BE(16) === 1920 && b.readUInt32BE(20) === 1080, `thumbnail-${l}.png is 1920x1080`); }
 }
+
+// ---- music: source integrity, teaser edit, mix settings ----
+const probe = (f: string) => JSON.parse(execFileSync("ffprobe", ["-v", "error", "-show_entries", "stream=codec_name,sample_rate,channels:format=duration", "-of", "json", f]).toString());
+for (const [f, secs] of [["garageos-music.wav", 60], ["teaser-edit.wav", 15]] as const) {
+  const p = `${root}/src/audio/music/${f}`;
+  ok(existsSync(p), `music ${f} present`);
+  if (!existsSync(p)) continue;
+  const j = probe(p);
+  ok(j.streams[0].codec_name === "pcm_s16le" && j.streams[0].sample_rate === "48000" && j.streams[0].channels === 2, `music ${f} is 48 kHz stereo PCM`);
+  ok(Math.abs(parseFloat(j.format.duration) - secs) < 0.01, `music ${f} duration ${j.format.duration}s (expected ${secs}s)`);
+  const dec = spawnSync("ffmpeg", ["-v", "error", "-i", p, "-f", "null", "-"], { encoding: "utf8" });
+  ok(dec.status === 0 && dec.stderr.trim() === "", `music ${f} decodes without errors`);
+}
+const MUSIC_LUFS = -13.7; // measured integrated loudness of the source track
+const voiceLufs = -16 + MIX.narrationGainDb;
+ok(voiceLufs - (MUSIC_LUFS + MIX.music.duckDb) >= 12, `music sits >= 12 dB under narration (${(voiceLufs - (MUSIC_LUFS + MIX.music.duckDb)).toFixed(1)} dB)`);
+ok(MIX.music.openDb - MIX.music.duckDb <= 12, `duck depth ${MIX.music.openDb - MIX.music.duckDb} dB (<= 12 dB: gentle)`);
+
+// ---- final MP4 mix: per-window levels measured on the decoded MP4 audio ----
+function decode(f: string): Float32Array {
+  const r = spawnSync("ffmpeg", ["-v", "error", "-i", f, "-map", "0:a:0", "-f", "f32le", "-ac", "2", "-ar", "48000", "-"], { maxBuffer: 1 << 30 });
+  const b = r.stdout;
+  return new Float32Array(b.buffer, b.byteOffset, Math.floor(b.byteLength / 4));
+}
+const rmsDb = (a: Float32Array, from: number, to: number) => {
+  const i0 = Math.floor(from * 48000) * 2, i1 = Math.min(a.length, Math.floor(to * 48000) * 2);
+  let sum = 0;
+  for (let i = i0; i < i1; i++) sum += a[i] * a[i];
+  return 10 * Math.log10(sum / Math.max(1, i1 - i0) + 1e-12);
+};
+for (const c of COMPOSITIONS) {
+  const f = `${root}/output/${c.id}.mp4`;
+  if (!existsSync(f)) continue;
+  const pcm = decode(f);
+  const secs = pcm.length / 2 / 48000;
+  ok(Math.abs(secs - c.frames / FPS) < 0.15, `${c.id}.mp4 decoded audio length ${secs.toFixed(2)}s`);
+  let peak = 0;
+  for (let i = 0; i < pcm.length; i++) peak = Math.max(peak, Math.abs(pcm[i]));
+  ok(peak < 0.89, `${c.id}.mp4 sample peak ${(20 * Math.log10(peak)).toFixed(1)} dBFS (< -1)`);
+  const kind = c.kind === "full" ? "full" : "teaser";
+  const segs = getSegments(c.locale, kind);
+  const wins = speechWindows(segs, kind);
+  // every narration segment is audible above the music bed: its voiced chunks vs the nearest music-only gap
+  const gapDb: number[] = [];
+  for (let g = 0; g + 1 < wins.length + 1; g++) {
+    const a = g === 0 ? 0 : wins[g - 1][1] + 1.3, b = g < wins.length ? wins[g][0] - 0.5 : secs - 1.6;
+    if (b - a > 0.8) gapDb.push(rmsDb(pcm, a, b));
+  }
+  const bed = gapDb.length ? Math.max(...gapDb) : -40;
+  if (gapDb.length) ok(Math.min(...gapDb) > -45, `${c.id}.mp4 music audible in every gap (quietest gap ${Math.min(...gapDb).toFixed(1)} dB RMS)`);
+  for (const s of segs) {
+    const chunks = (s.speech.length ? s.speech : [[0, s.durationSec]]).map(([a, b]) => [s.startSec + a, s.startSec + b] as [number, number]).filter(([a, b]) => b - a > 0.3);
+    const v = Math.max(...chunks.map(([a, b]) => rmsDb(pcm, a, b)));
+    ok(v > bed + 3 && v > -24, `${c.id}.mp4 ${s.sceneId} narration ${v.toFixed(1)} dB RMS stands ${(v - bed).toFixed(1)} dB above the music bed`);
+  }
+  // no dead air before the music's own decay (last 1.5 s)
+  let dead = 0;
+  for (let t = 0; t < secs - 1.5; t += 0.5) if (rmsDb(pcm, t, t + 0.5) < -60) dead++;
+  ok(dead === 0, `${c.id}.mp4 no silent gaps before the final decay`);
+}
+const ls = Object.values(loud);
+if (ls.length === 4) ok(Math.max(...ls) - Math.min(...ls) <= 1.0, `loudness spread across the four masters ${(Math.max(...ls) - Math.min(...ls)).toFixed(2)} LU (<= 1.0)`);
 console.log(failures ? `\n${failures} check(s) FAILED` : "\nAll checks passed");
 process.exit(failures ? 1 : 0);

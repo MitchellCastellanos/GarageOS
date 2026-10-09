@@ -31,7 +31,7 @@ async function video(id: string) {
   const composition = await selectComposition({ ...common, id });
   const outputLocation = `${out}/${id}.mp4`;
   console.log(`render ${id}: ${composition.durationInFrames}f @${composition.fps}fps -> ${outputLocation}`);
-  await renderMedia({ ...common, composition, codec: "h264", crf: 18, pixelFormat: "yuv420p", colorSpace: "bt709", jpegQuality: 95, outputLocation, concurrency: 4 });
+  await renderMedia({ ...common, composition, codec: "h264", crf: 18, audioBitrate: "192k", pixelFormat: "yuv420p", colorSpace: "bt709", jpegQuality: 95, outputLocation, concurrency: 4 });
 }
 
 async function still(id: string, frame: number, file: string) {
@@ -40,6 +40,16 @@ async function still(id: string, frame: number, file: string) {
   console.log(`still ${file}`);
 }
 
+if (target.startsWith("audio")) {
+  // audio-only mix-downs for level checks: output/audio/<id>.wav. `audio` = all four, `audio:<id>` = one.
+  // Frames are rendered at 5% scale: the audio mix is identical but it is much faster.
+  mkdirSync(`${out}/audio`, { recursive: true });
+  for (const id of videos.filter((v) => target === "audio" || target === `audio:${v}`)) {
+    const composition = await selectComposition({ ...common, id });
+    await renderMedia({ ...common, composition, codec: "wav", scale: 0.05, outputLocation: `${out}/audio/${id}.wav` });
+    console.log(`audio ${id}`);
+  }
+}
 if (target === "thumbnails" || target === "all") {
   for (const l of ["en", "fr"]) await still(`thumbnail-${l}`, 0, `${out}/thumbnail-${l}.png`);
 }
@@ -57,7 +67,7 @@ if (target === "stills") {
 for (const id of videos) {
   if (target === id || target === "all") await video(id);
 }
-if (!["all", "thumbnails", "stills", ...videos].includes(target)) {
+if (!["all", "thumbnails", "stills", ...videos].includes(target) && !target.startsWith("audio")) {
   console.error(`unknown target ${target}`);
   process.exit(1);
 }
