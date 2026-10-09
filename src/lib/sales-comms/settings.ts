@@ -21,3 +21,8 @@ export function providerKeyConfigured(): boolean {
   const k = process.env.RESEND_API_KEY;
   return !!k && k !== "re_placeholder";
 }
+
+/** Cloudflare Email Worker → /api/sales/inbound/cloudflare shared secret (≥32 chars; never the Resend webhook secret). */
+export function inboundSecretConfigured(): boolean {
+  return (process.env.SALES_INBOUND_SECRET ?? "").length >= 32;
+}

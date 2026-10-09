@@ -149,7 +149,7 @@ export async function dispatchMessage(id: string, now = new Date()): Promise<Dis
     }
     if (msg.meetingId) headers["Auto-Submitted"] = "auto-generated";
 
-    const replyLocal = (msg.identity.replyToEmail ?? msg.identity.fromEmail).split("@")[0];
+    const replyLocal = settings.inboundReplyLocal || (msg.identity.replyToEmail ?? msg.identity.fromEmail).split("@")[0];
     const replyTo = settings.inboundDomain ? buildReplyTo(replyLocal, settings.inboundDomain, msg.thread.replyKey) : msg.identity.replyToEmail ?? undefined;
     const attachments = [
       ...(await Promise.all(msg.attachments.map(async (a) => ({ filename: a.filename, content: await downloadSalesEmailAttachment(a.storageKey), contentType: a.mimeType })))),

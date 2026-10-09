@@ -1,0 +1,11 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "garageos-sales-inbound",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "vars": {
+    "SALES_INBOUND_URL": "https://www.garage-os.ca/api/sales/inbound/cloudflare"
+  }
+  // Do NOT add an "addresses" block: the single routing rule is created by hand in the dashboard (see README) so no existing rule can be touched.
+  // Secrets are set with `wrangler secret put` (never stored here): SALES_INBOUND_SECRET. Optional var: FALLBACK_FORWARD_TO.
+}

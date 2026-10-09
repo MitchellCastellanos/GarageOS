@@ -9,7 +9,9 @@ export interface SetupInput {
   providerSideEffectsEnabled: boolean;
   webhookSecretConfigured: boolean;
   unsubscribeSecretConfigured: boolean;
-  settings: { sendingEnabled: boolean; approvedDomains: string[]; inboundDomain: string | null; mailingAddress: string | null };
+  settings: { sendingEnabled: boolean; approvedDomains: string[]; inboundDomain: string | null; mailingAddress: string | null; inboundProvider?: "RESEND" | "CLOUDFLARE"; inboundReplyLocal?: string | null };
+  /** CLOUDFLARE inbound: SALES_INBOUND_SECRET (≥32 chars) is configured for the authenticated Worker endpoint. */
+  inboundSecretConfigured?: boolean;
   identity: { fromEmail: string; status: "DRAFT" | "ACTIVE" | "DISABLED"; replyToEmail: string | null; inboundVerifiedAt: Date | null; staffActive: boolean } | null;
   /** null = not looked up (no key / lookup failed). */
   fromDomain: DomainFact | null;
@@ -19,7 +21,7 @@ export interface SetupInput {
 
 export type SetupStepKey =
   | "provider_key" | "side_effects" | "domain_approved" | "domain_verified" | "identity_active" | "staff_active"
-  | "master_switch" | "footer" | "unsubscribe_secret" | "webhook_secret" | "inbound_domain" | "inbound_receiving" | "inbound_roundtrip";
+  | "master_switch" | "footer" | "unsubscribe_secret" | "webhook_secret" | "inbound_domain" | "inbound_receiving" | "inbound_worker" | "inbound_roundtrip";
 
 export interface SetupStep { key: SetupStepKey; ok: boolean; required: "send" | "receive" | "verified"; hint?: string }
 
@@ -39,6 +41,7 @@ export function computeSetupState(i: SetupInput): SetupState {
   const verified = !!d?.found && d.status === "verified" && d.sendingEnabled;
   const inbound = i.settings.inboundDomain?.toLowerCase() ?? null;
   const inboundFact = i.inboundDomainFact;
+  const cloudflare = i.settings.inboundProvider === "CLOUDFLARE";
 
   const steps: SetupStep[] = [
     { key: "provider_key", ok: i.providerKeyConfigured, required: "send", hint: "RESEND_API_KEY" },
@@ -50,9 +53,12 @@ export function computeSetupState(i: SetupInput): SetupState {
     { key: "identity_active", ok: i.identity?.status === "ACTIVE", required: "send" },
     { key: "domain_approved", ok: approved, required: "send", hint: domain || undefined },
     { key: "domain_verified", ok: verified, required: "send", hint: i.lookupError ?? (d ? `${d.status ?? "unknown"}` : "not looked up") },
-    { key: "webhook_secret", ok: i.webhookSecretConfigured, required: "receive", hint: "RESEND_WEBHOOK_SECRET" },
+    // Delivery/bounce events always come from Resend; with Cloudflare inbound the Resend webhook no longer gates RECEIVING.
+    { key: "webhook_secret", ok: i.webhookSecretConfigured, required: cloudflare ? "verified" : "receive", hint: "RESEND_WEBHOOK_SECRET" },
     { key: "inbound_domain", ok: !!inbound, required: "receive" },
-    { key: "inbound_receiving", ok: !!inboundFact?.found && inboundFact.receivingEnabled && inboundFact.status === "verified", required: "receive", hint: inbound ?? undefined },
+    cloudflare
+      ? { key: "inbound_worker", ok: !!i.inboundSecretConfigured, required: "receive", hint: "SALES_INBOUND_SECRET" }
+      : { key: "inbound_receiving", ok: !!inboundFact?.found && inboundFact.receivingEnabled && inboundFact.status === "verified", required: "receive", hint: inbound ?? undefined },
     { key: "inbound_roundtrip", ok: !!i.identity?.inboundVerifiedAt, required: "verified" },
   ];
   const canSend = steps.filter((s) => s.required === "send").every((s) => s.ok);

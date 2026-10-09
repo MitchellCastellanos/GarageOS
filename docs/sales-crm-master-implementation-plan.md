@@ -34,6 +34,9 @@ Corrections to the original baseline (§1 below, now historical): there **are** 
 - **Legacy migration**: migration `20261010090000_*` backfills `recoveryEmail` from non-corporate logins (verified iff the account's email was verified); Super Admin runs "Assign corporate email" (`assignCorporateEmail`) — the old login becomes the recovery email, the sender identity moves and must re-prove the reply path.
 - Audit: `STAFF_CORPORATE_EMAIL_ASSIGNED`, `STAFF_PASSWORD_RESET_REQUESTED`, `STAFF_RECOVERY_EMAIL_REQUESTED/CONFIRMED`, `STAFF_MODE_CHANGED` (CrmAuditEvent) + `SALES_STAFF_CORPORATE_EMAIL_ASSIGNED` (PlatformAuditLog).
 
+### A.5 Inbound replies via Cloudflare (Expansion Agent 1, follow-up)
+`CrmCommsSettings.inboundProvider` (`RESEND` default | `CLOUDFLARE`) + `inboundReplyLocal` (shared `replies` mailbox). Cloudflare Email Routing rule → Email Worker (`cloudflare/sales-inbound-worker`) → `POST /api/sales/inbound/cloudflare` (HMAC with `SALES_INBOUND_SECRET`, ±5 min, 1 MiB cap, strict schema, DMARC-fail ignored, `cf:` dedupe id) → the existing `processInboundEmail` (threading, dedupe, CRM link, sequence stop, activity, `inboundVerifiedAt`). Sales-only: no shop tables. Runbook: `docs/sales-inbound-cloudflare.md`; outbound check: `scripts/sales-outbound-smoke.mjs`.
+
 ### A.2 Sales modes, coverage and territories
 Four independent concepts: **administrative role** (`SALES_REP`/`SALES_MANAGER`), **sales mode** (`PlatformSalesStaff.salesMode` FIELD|REMOTE, default REMOTE), **coverage** (`coverageTerritoryKeys`, empty = all the mode allows) and **prospect ownership** (`assignedStaffId`).
 - Capabilities: `plan_field_routes`, `log_field_visits` exist only for FIELD (and Super Admin). REMOTE agents get none (`capabilitiesFor(kind, mode)`; the actor exposes `salesMode`, `coverageTerritoryKeys`).

@@ -2894,6 +2894,13 @@ enum CrmBookingLinkKind {
 }
 
 /// Singleton ("default") configuration of the sales communications system. Nothing here is a secret.
+enum CrmInboundProvider {
+  RESEND
+  CLOUDFLARE
+
+  @@schema("garageos")
+}
+
 model CrmCommsSettings {
   id                  String   @id @default("default")
   /// Master kill switch. false ⇒ no commercial or transactional sales email leaves the system.
@@ -2902,6 +2909,10 @@ model CrmCommsSettings {
   approvedDomains     String[] @default([])
   /// Domain (a Resend domain with receiving enabled) whose MX points at the provider; replies are routed here.
   inboundDomain       String?
+  /// How replies reach GarageOS: RESEND (Resend receiving, needs the provider's MX) or CLOUDFLARE (Email Routing → Email Worker → authenticated endpoint).
+  inboundProvider     CrmInboundProvider @default(RESEND)
+  /// Shared mailbox local part for replies (e.g. "replies" ⇒ replies+<key>@<inboundDomain>). null ⇒ each seller's own local part.
+  inboundReplyLocal   String?
   /// CASL: sender identification + mailing address printed in every commercial email footer.
   legalName           String   @default("GarageOS")
   mailingAddress      String?

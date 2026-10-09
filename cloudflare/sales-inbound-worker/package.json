@@ -1,0 +1,8 @@
+{
+  "name": "garageos-sales-inbound",
+  "private": true,
+  "type": "module",
+  "scripts": { "deploy": "wrangler deploy", "tail": "wrangler tail" },
+  "dependencies": { "postal-mime": "^2.4.4" },
+  "devDependencies": { "@cloudflare/workers-types": "^4.20251001.0", "wrangler": "^4.40.0" }
+}
