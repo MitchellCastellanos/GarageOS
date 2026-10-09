@@ -4,6 +4,12 @@ import type { AdminLocale } from "@/lib/admin-locale";
 
 const en = {
   templateNames: { INTRODUCTION: "Initial introduction", FOLLOW_UP_1: "First follow-up", DEMO_INVITATION: "Demo invitation", POST_DEMO_FOLLOW_UP: "Post-demo follow-up", PRICING_FOLLOW_UP: "Pricing follow-up", CLOSING_FOLLOW_UP: "Closing follow-up", MEETING_CONFIRMATION: "Meeting confirmation", MEETING_REMINDER: "Meeting reminder", MEETING_RESCHEDULED: "Meeting rescheduled", MEETING_CANCELLED: "Meeting cancelled" } as Record<string, string>,
+  sig: {
+    previewTitle: "Email Signature Preview", auto: "Generated automatically from the profile above and used on every email this person sends. Nothing to type or format.",
+    missingTitle: "The signature cannot be generated yet", missingBody: "Complete these required fields:", missing: { name: "Display name", email: "Sender email address" } as Record<string, string>,
+    noEmail: "Add the sender email address to see the signature.", titleDefault: "No job title set — “Sales Representative | GarageOS” will be used.", phoneOptional: "Add a phone number to include it.",
+    bookingOn: "The personal demo-booking link is included because online booking is on.", bookingOff: "Turn on online booking in the seller's calendar settings to add a demo-booking link.", language: "Signature language follows the email language.",
+  },
   nav: { inbox: "Sales inbox", outreach: "Outreach", calendar: "Calendar", comms: "Communications" },
   common: {
     save: "Save", saving: "Saving…", cancel: "Cancel", delete: "Delete", edit: "Edit", back: "Back", search: "Search", apply: "Apply", close: "Close", confirm: "Confirm", yes: "Yes", no: "No",
@@ -78,8 +84,8 @@ const en = {
     master: "Master sending switch", masterOn: "Sending enabled", masterOff: "Sending disabled — nothing leaves", approvedDomains: "Approved sender domains", approvedDomainsHint: "One per line. Use a dedicated sales subdomain (for example sales.garage-os.ca) to protect transactional email reputation.",
     inboundDomain: "Inbound (reply) domain", inboundHint: "A domain with receiving enabled at the provider; replies are routed as name+key@domain.", legalName: "Legal name", mailingAddress: "Mailing address (required for commercial email)", contactEmail: "Contact email", contactPhone: "Contact phone", website: "Website",
     dailyLimit: "Max commercial emails per seller per day", windowStart: "Sending window start (hour)", windowEnd: "Sending window end (hour)", minNotice: "Minimum notice for bookings (min)", maxAdvance: "Booking horizon (days)", saveSettings: "Save settings", settingsSaved: "Settings saved.",
-    identities: "Sender identities", noIdentities: "No sender identity yet.", newIdentity: "Create or update a sender identity", seller: "Seller", displayName: "Display name", fromEmail: "From address", replyTo: "Reply mailbox (optional)", jobTitle: "Job title", phone: "Phone", signature: "Signature (optional)",
-    signatureHint: "Leave empty to use the automatic GarageOS signature (name, title, address, website).", defaultLanguage: "Default sending language", dailyLimitOverride: "Daily limit override", saveIdentity: "Save identity", activate: "Activate sending", disable: "Disable sending", recheck: "Re-check with provider",
+    identities: "Sender identities", noIdentities: "No sender identity yet.", newIdentity: "Create or update a sender identity", seller: "Seller", displayName: "Display name", fromEmail: "From address", replyTo: "Reply mailbox (optional)", jobTitle: "Job title", phone: "Phone",
+ defaultLanguage: "Default sending language", dailyLimitOverride: "Daily limit override", saveIdentity: "Save identity", activate: "Activate sending", disable: "Disable sending", recheck: "Re-check with provider",
     identityStatus: { DRAFT: "Draft", ACTIVE: "Active", DISABLED: "Disabled" } as Record<string, string>, ready: "Ready", sendOnly: "Can send — replies not set up", blocked: "Blocked", preview: "Preview email", roundTrip: "Reply round trip", roundTripOk: "Verified by a real reply", roundTripNo: "Not verified — no real reply received yet",
     setup: {
       provider_key: "Email provider key configured", side_effects: "External sending authorised in this environment", master_switch: "Master sending switch on", footer: "Company mailing address on file", unsubscribe_secret: "Unsubscribe signing secret configured", staff_active: "Seller account active",
@@ -127,6 +133,12 @@ export type CommsCopy = typeof en;
 
 const fr: CommsCopy = {
   templateNames: { INTRODUCTION: "Introduction initiale", FOLLOW_UP_1: "Premier suivi", DEMO_INVITATION: "Invitation à une démo", POST_DEMO_FOLLOW_UP: "Suivi après la démo", PRICING_FOLLOW_UP: "Suivi de la tarification", CLOSING_FOLLOW_UP: "Suivi de clôture", MEETING_CONFIRMATION: "Confirmation de rencontre", MEETING_REMINDER: "Rappel de rencontre", MEETING_RESCHEDULED: "Rencontre reportée", MEETING_CANCELLED: "Rencontre annulée" } as Record<string, string>,
+  sig: {
+    previewTitle: "Aperçu de la signature courriel", auto: "Générée automatiquement à partir du profil ci-dessus et utilisée dans chaque courriel envoyé par cette personne. Rien à écrire ni à mettre en forme.",
+    missingTitle: "La signature ne peut pas encore être générée", missingBody: "Complétez ces champs obligatoires :", missing: { name: "Nom affiché", email: "Adresse courriel de l'expéditeur" } as Record<string, string>,
+    noEmail: "Ajoutez l'adresse courriel de l'expéditeur pour voir la signature.", titleDefault: "Aucun titre défini — « Représentant aux ventes | GarageOS » sera utilisé.", phoneOptional: "Ajoutez un numéro de téléphone pour l'inclure.",
+    bookingOn: "Le lien personnel de réservation de démo est inclus, car la réservation en ligne est activée.", bookingOff: "Activez la réservation en ligne dans les paramètres de calendrier du vendeur pour ajouter un lien de réservation de démo.", language: "La langue de la signature suit celle du courriel.",
+  },
   nav: { inbox: "Boîte de réception ventes", outreach: "Prospection", calendar: "Calendrier", comms: "Communications" },
   common: {
     save: "Enregistrer", saving: "Enregistrement…", cancel: "Annuler", delete: "Supprimer", edit: "Modifier", back: "Retour", search: "Rechercher", apply: "Appliquer", close: "Fermer", confirm: "Confirmer", yes: "Oui", no: "Non",
@@ -201,8 +213,8 @@ const fr: CommsCopy = {
     master: "Interrupteur général d'envoi", masterOn: "Envoi activé", masterOff: "Envoi désactivé — rien ne part", approvedDomains: "Domaines d'expédition approuvés", approvedDomainsHint: "Un par ligne. Utilisez un sous-domaine de vente dédié (par exemple sales.garage-os.ca) pour protéger la réputation des courriels transactionnels.",
     inboundDomain: "Domaine entrant (réponses)", inboundHint: "Un domaine dont la réception est activée chez le fournisseur; les réponses sont acheminées sous la forme nom+clé@domaine.", legalName: "Raison sociale", mailingAddress: "Adresse postale (obligatoire pour les courriels commerciaux)", contactEmail: "Courriel de contact", contactPhone: "Téléphone de contact", website: "Site web",
     dailyLimit: "Maximum de courriels commerciaux par vendeur par jour", windowStart: "Début de la plage d'envoi (heure)", windowEnd: "Fin de la plage d'envoi (heure)", minNotice: "Préavis minimal des réservations (min)", maxAdvance: "Horizon de réservation (jours)", saveSettings: "Enregistrer les paramètres", settingsSaved: "Paramètres enregistrés.",
-    identities: "Identités d'expéditeur", noIdentities: "Aucune identité d'expéditeur pour l'instant.", newIdentity: "Créer ou modifier une identité d'expéditeur", seller: "Vendeur", displayName: "Nom affiché", fromEmail: "Adresse d'expédition", replyTo: "Boîte de réponse (facultatif)", jobTitle: "Titre", phone: "Téléphone", signature: "Signature (facultatif)",
-    signatureHint: "Laissez vide pour utiliser la signature GarageOS automatique (nom, titre, adresse, site web).", defaultLanguage: "Langue d'envoi par défaut", dailyLimitOverride: "Limite quotidienne personnalisée", saveIdentity: "Enregistrer l'identité", activate: "Activer l'envoi", disable: "Désactiver l'envoi", recheck: "Revérifier auprès du fournisseur",
+    identities: "Identités d'expéditeur", noIdentities: "Aucune identité d'expéditeur pour l'instant.", newIdentity: "Créer ou modifier une identité d'expéditeur", seller: "Vendeur", displayName: "Nom affiché", fromEmail: "Adresse d'expédition", replyTo: "Boîte de réponse (facultatif)", jobTitle: "Titre", phone: "Téléphone",
+ defaultLanguage: "Langue d'envoi par défaut", dailyLimitOverride: "Limite quotidienne personnalisée", saveIdentity: "Enregistrer l'identité", activate: "Activer l'envoi", disable: "Désactiver l'envoi", recheck: "Revérifier auprès du fournisseur",
     identityStatus: { DRAFT: "Brouillon", ACTIVE: "Active", DISABLED: "Désactivée" } as Record<string, string>, ready: "Prête", sendOnly: "Peut envoyer — réponses non configurées", blocked: "Bloquée", preview: "Aperçu du courriel", roundTrip: "Aller-retour des réponses", roundTripOk: "Vérifié par une vraie réponse", roundTripNo: "Non vérifié — aucune vraie réponse reçue",
     setup: {
       provider_key: "Clé du fournisseur de courriel configurée", side_effects: "Envois externes autorisés dans cet environnement", master_switch: "Interrupteur général d'envoi activé", footer: "Adresse postale de l'entreprise au dossier", unsubscribe_secret: "Secret de signature des désabonnements configuré", staff_active: "Compte du vendeur actif",

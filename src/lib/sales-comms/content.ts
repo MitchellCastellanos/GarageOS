@@ -5,15 +5,31 @@ import { SalesEmail } from "@/emails/SalesEmail";
 import { assertSafeHeaderValue, cleanSubject } from "@/domain/sales-comms/email";
 import { textToHtml } from "@/domain/sales-comms/html";
 import { getAppUrl } from "@/config/app";
+import { db } from "@/lib/db";
+import { buildSignature, stripTrailingSignature, SIGNATURE_LOGO_PATH, type Signature } from "@/domain/sales-comms/signature";
+import { bookingUrl, ensureGeneralLink } from "@/lib/sales-comms/booking-links";
 
-export interface IdentityFacts { fromName: string; fromEmail: string; jobTitle: string | null; phone: string | null; signatureText: string | null }
+export interface IdentityFacts { staffId: string; fromName: string; fromEmail: string; jobTitle: string | null; phone: string | null }
 export interface SettingsFacts { legalName: string; mailingAddress: string | null; contactEmail: string | null; contactPhone: string | null; websiteUrl: string }
 
-export function signatureLinesFor(id: IdentityFacts, s: SettingsFacts, lang: "EN" | "FR"): string[] {
-  if (id.signatureText?.trim()) return id.signatureText.replace(/\r\n?/g, "\n").split("\n").map((l) => l.trimEnd()).filter((l, i, a) => l || (i > 0 && a[i - 1])).slice(0, 12);
-  const title = id.jobTitle?.trim() || (lang === "FR" ? "Représentant aux ventes — GarageOS" : "Sales Representative — GarageOS");
-  return [id.fromName, title, id.fromEmail, ...(id.phone ? [id.phone] : []), s.websiteUrl.replace(/^https?:\/\//, "")];
+/** Absolute HTTPS URL of the official logo (public/brand). NEXT_PUBLIC_APP_URL must be the https production origin. */
+export function signatureLogoUrl(): string { return `${getAppUrl()}${SIGNATURE_LOGO_PATH}`; }
+
+/**
+ * The signature of one sender, generated from their profile — never typed by hand. Sender-identity fields win, the staff
+ * profile fills the gaps (so nothing is entered twice), the website comes from the global settings, and the optional demo link
+ * is the seller's own general booking link when online booking is on.
+ * SNAPSHOT POLICY: a message captures its signature when its body is rendered — for a composed email that is the moment the
+ * seller presses Send/Schedule (what they previewed is what is sent, even if scheduled for later); for a sequence step it is
+ * the moment that step is generated (just before dispatch, so profile edits between steps are picked up); meeting notices are
+ * rendered at send time. A sent message's stored body is never rewritten.
+ */
+export async function resolveSignature(id: IdentityFacts, s: SettingsFacts, lang: "EN" | "FR"): Promise<Signature> {
+  const staff = await db.platformSalesStaff.findUnique({ where: { id: id.staffId }, select: { title: true, phone: true, bookingEnabled: true, userId: true } });
+  const bookingUrl = staff?.bookingEnabled ? bookingUrl_(await ensureGeneralLink(id.staffId, staff.userId)) : null;
+  return buildSignature({ name: id.fromName, title: id.jobTitle || staff?.title, email: id.fromEmail, phone: id.phone || staff?.phone, websiteUrl: s.websiteUrl, bookingUrl, logoUrl: signatureLogoUrl(), language: lang });
 }
+const bookingUrl_ = (link: { token: string }) => bookingUrl(link.token);
 
 export function footerLinesFor(s: SettingsFacts, lang: "EN" | "FR", commercial: boolean): string[] {
   const contact = [s.contactEmail, s.contactPhone, s.websiteUrl.replace(/^https?:\/\//, "")].filter(Boolean).join(" · ");
@@ -34,15 +50,17 @@ export interface BuiltContent { subject: string; text: string; html: string }
 /** The ONE renderer for both the live preview and the stored message, so a preview can never differ from what is sent. */
 export async function buildContent(i: BuildContentInput): Promise<BuiltContent> {
   const subject = cleanSubject(i.subject);
-  const lines = signatureLinesFor(i.identity, i.settings, i.language);
+  const sig = await resolveSignature(i.identity, i.settings, i.language);
+  // Exactly one signature: drop any the draft/template/author already put at the end before appending the generated one.
+  const bodyText = stripTrailingSignature(i.bodyText, { name: i.identity.fromName, email: i.identity.fromEmail, generatedText: sig.text });
   const footer = footerLinesFor(i.settings, i.language, i.commercial);
   const unsubLabel = i.language === "FR" ? "Se désabonner" : "Unsubscribe";
   if (i.commercial && !i.unsubscribeUrl) throw new Error("UNSUBSCRIBE_URL_REQUIRED");
   const html = await render(React.createElement(SalesEmail, {
-    lang: i.language === "FR" ? "fr" : "en", preview: subject, bodyHtml: textToHtml(i.bodyText), signatureLines: lines, footerLines: footer,
+    lang: i.language === "FR" ? "fr" : "en", preview: subject, bodyHtml: textToHtml(bodyText), signatureHtml: sig.html, footerLines: footer,
     unsubscribe: i.commercial && i.unsubscribeUrl ? { url: i.unsubscribeUrl, label: unsubLabel } : null, bookingCta: i.bookingCta ?? null,
   }));
-  const text = [i.bodyText.trim(), "", "--", ...lines, "", ...footer, ...(i.commercial && i.unsubscribeUrl ? [`${unsubLabel}: ${i.unsubscribeUrl}`] : [])].join("\n");
+  const text = [bodyText.trim(), "", "--", sig.text, "", ...footer, ...(i.commercial && i.unsubscribeUrl ? [`${unsubLabel}: ${i.unsubscribeUrl}`] : [])].join("\n");
   return { subject, text, html };
 }
 

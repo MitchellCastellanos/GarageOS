@@ -4,6 +4,7 @@ import { useState } from "react";
 import { addManualSuppression, approveTemplate, liftEmailSuppression, saveCommsSettings, saveSenderIdentity, setSenderStatus } from "@/actions/sales-comms-admin";
 import { btnPrimary, btnSecondary, btnDanger, inputCls, labelCls } from "@/components/sales-crm/ui";
 import { Msg, useComms } from "@/components/sales-comms/useComms";
+import { SignaturePreview } from "@/components/sales-comms/SignaturePreview";
 
 export interface SettingsView {
   sendingEnabled: boolean; approvedDomains: string[]; inboundDomain: string | null; legalName: string; mailingAddress: string | null; contactEmail: string | null; contactPhone: string | null; websiteUrl: string;
@@ -37,21 +38,30 @@ export function CommsSettingsForm({ locale, s }: { locale: "en" | "fr"; s: Setti
   );
 }
 
-export function IdentityForm({ locale, staff, initial }: { locale: "en" | "fr"; staff: { id: string; name: string; hasIdentity: boolean }[]; initial?: { staffId: string; fromName: string; fromEmail: string; replyToEmail: string; jobTitle: string; phone: string; signatureText: string; defaultLanguage: string; dailyLimit: string } }) {
+export interface IdentityStaffOption { id: string; name: string; hasIdentity: boolean; title: string; phone: string; bookingEnabled: boolean; bookingUrl: string | null }
+export interface IdentityFormInitial { staffId: string; fromName: string; fromEmail: string; replyToEmail: string; jobTitle: string; phone: string; defaultLanguage: string; dailyLimit: string }
+
+export function IdentityForm({ locale, staff, initial, websiteUrl, logoUrl }: { locale: "en" | "fr"; staff: IdentityStaffOption[]; initial?: IdentityFormInitial; websiteUrl: string; logoUrl: string }) {
   const { t, pending, error, notice, run } = useComms(locale);
   const m = t.comms;
   const [staffId, setStaffId] = useState(initial?.staffId ?? staff.find((s) => !s.hasIdentity)?.id ?? staff[0]?.id ?? "");
+  const person = staff.find((s) => s.id === staffId);
+  const [f, setF] = useState({ fromName: initial?.fromName ?? person?.name ?? "", fromEmail: initial?.fromEmail ?? "", jobTitle: initial?.jobTitle ?? "", phone: initial?.phone ?? "", defaultLanguage: initial?.defaultLanguage ?? "EN" });
+  const set = (k: keyof typeof f, v: string) => setF((x) => ({ ...x, [k]: v }));
   return (
     <form className="grid gap-3 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); const fd = new FormData(e.currentTarget); fd.set("staffId", staffId); run(() => saveSenderIdentity(fd), undefined, t.common.save); }}>
-      <label className={`${labelCls} sm:col-span-2`}>{m.seller}<select className={inputCls} value={staffId} onChange={(e) => setStaffId(e.target.value)}>{staff.map((s) => <option key={s.id} value={s.id}>{s.name}{s.hasIdentity ? " ✓" : ""}</option>)}</select></label>
-      <label className={labelCls}>{m.displayName}<input name="fromName" className={inputCls} defaultValue={initial?.fromName} required maxLength={100} placeholder="Alexandre Tremblay" /></label>
-      <label className={labelCls}>{m.fromEmail}<input name="fromEmail" type="email" className={inputCls} defaultValue={initial?.fromEmail} required placeholder="alexandre@sales.garage-os.ca" /></label>
+      <label className={`${labelCls} sm:col-span-2`}>{m.seller}<select className={inputCls} value={staffId} onChange={(e) => { setStaffId(e.target.value); const p = staff.find((s) => s.id === e.target.value); if (p && !initial) setF((x) => ({ ...x, fromName: x.fromName || p.name })); }}>{staff.map((s) => <option key={s.id} value={s.id}>{s.name}{s.hasIdentity ? " ✓" : ""}</option>)}</select></label>
+      <label className={labelCls}>{m.displayName}<input name="fromName" className={inputCls} value={f.fromName} onChange={(e) => set("fromName", e.target.value)} required maxLength={100} placeholder="Alexandre Tremblay" /></label>
+      <label className={labelCls}>{m.fromEmail}<input name="fromEmail" type="email" className={inputCls} value={f.fromEmail} onChange={(e) => set("fromEmail", e.target.value)} required placeholder="alexandre@sales.garage-os.ca" /></label>
       <label className={labelCls}>{m.replyTo}<input name="replyToEmail" type="email" className={inputCls} defaultValue={initial?.replyToEmail} /></label>
-      <label className={labelCls}>{m.jobTitle}<input name="jobTitle" className={inputCls} defaultValue={initial?.jobTitle} maxLength={120} placeholder="Sales Representative — GarageOS" /></label>
-      <label className={labelCls}>{m.phone}<input name="phone" className={inputCls} defaultValue={initial?.phone} maxLength={40} /></label>
-      <label className={labelCls}>{m.defaultLanguage}<select name="defaultLanguage" className={inputCls} defaultValue={initial?.defaultLanguage ?? "EN"}><option value="EN">{t.common.english}</option><option value="FR">{t.common.french}</option></select></label>
+      <label className={labelCls}>{m.jobTitle}<input name="jobTitle" className={inputCls} value={f.jobTitle} onChange={(e) => set("jobTitle", e.target.value)} maxLength={120} placeholder={person?.title || "Sales Representative"} /></label>
+      <label className={labelCls}>{m.phone}<input name="phone" className={inputCls} value={f.phone} onChange={(e) => set("phone", e.target.value)} maxLength={40} placeholder={person?.phone || ""} /></label>
+      <label className={labelCls}>{m.defaultLanguage}<select name="defaultLanguage" className={inputCls} value={f.defaultLanguage} onChange={(e) => set("defaultLanguage", e.target.value)}><option value="EN">{t.common.english}</option><option value="FR">{t.common.french}</option></select></label>
       <label className={labelCls}>{m.dailyLimitOverride}<input name="dailyLimit" type="number" min={0} max={500} className={inputCls} defaultValue={initial?.dailyLimit} /></label>
-      <label className={`${labelCls} sm:col-span-2`}>{m.signature}<textarea name="signatureText" className={`${inputCls} min-h-24 py-2`} defaultValue={initial?.signatureText} maxLength={1200} /><span className="text-xs font-normal text-slate-500">{m.signatureHint}</span></label>
+      <SignaturePreview locale={locale} src={{
+        name: f.fromName, title: f.jobTitle || person?.title || "", email: f.fromEmail, phone: f.phone || person?.phone || "", websiteUrl, logoUrl,
+        bookingEnabled: !!person?.bookingEnabled, bookingUrl: person?.bookingUrl ?? `${new URL(websiteUrl).origin}/sales/book/…`, emailLanguage: f.defaultLanguage === "FR" ? "FR" : "EN",
+      }} />
       <div className="sm:col-span-2"><Msg error={error} notice={notice} /></div>
       <div className="sm:col-span-2"><button className={btnPrimary} disabled={pending || !staffId}>{pending ? t.common.saving : m.saveIdentity}</button></div>
     </form>

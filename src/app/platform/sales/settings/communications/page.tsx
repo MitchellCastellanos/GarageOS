@@ -8,6 +8,7 @@ import { Badge, EmptyState, PageHeader, PermissionDenied, btnSecondary, cardCls,
 import { getCommsSettings } from "@/lib/sales-comms/settings";
 import { getAllIdentitySetups } from "@/lib/sales-comms/setup";
 import { TEMPLATE_KEYS, builtinTemplate, type TemplateLanguage } from "@/domain/sales-comms/templates";
+import { signatureLogoUrl } from "@/lib/sales-comms/content";
 import { CommsSettingsForm, IdentityForm, IdentityStatusActions, LiftButton, SuppressionForm, TemplateEditor } from "@/components/sales-comms/CommsAdmin";
 
 const ago = (ms: number) => new Date(Date.now() - ms); // module-level helper: pages must not call impure functions inline
@@ -20,9 +21,10 @@ export default async function CommsSettingsPage() {
   const m = t.comms;
   const since24 = ago(24 * 3_600_000);
   const since7d = ago(7 * 86_400_000);
-  const [settings, setups, staff, templates, suppressions, problems, unrouted, counts, upcoming, bookings7d] = await Promise.all([
+  const [settings, setups, staff, links, templates, suppressions, problems, unrouted, counts, upcoming, bookings7d] = await Promise.all([
     getCommsSettings(), getAllIdentitySetups(),
     db.platformSalesStaff.findMany({ where: { status: "ACTIVE" }, include: { user: { select: { name: true } }, senderIdentity: { select: { id: true } } }, orderBy: { createdAt: "asc" } }),
+    db.crmBookingLink.findMany({ where: { kind: "GENERAL", active: true }, select: { staffId: true, token: true } }),
     db.crmEmailTemplate.findMany({ where: { active: true }, orderBy: { version: "desc" } }),
     db.crmEmailSuppression.findMany({ where: { liftedAt: null }, orderBy: { createdAt: "desc" }, take: 100 }),
     db.crmEmailMessage.findMany({ where: { direction: "OUTBOUND", status: { in: ["FAILED", "BOUNCED", "COMPLAINED"] }, updatedAt: { gte: since7d } }, orderBy: { updatedAt: "desc" }, take: 15, select: { id: true, threadId: true, status: true, errorCode: true, errorMessage: true, toAddresses: true, subject: true, updatedAt: true, identity: { select: { fromName: true } } } }),
@@ -38,6 +40,9 @@ export default async function CommsSettingsPage() {
   ]);
   const latest = new Map<string, (typeof templates)[number]>();
   for (const x of templates) { const k = `${x.key}:${x.language}`; if (!latest.has(k)) latest.set(k, x); }
+  const linkBy = new Map(links.map((l) => [l.staffId, l.token]));
+  const staffOptions = staff.map((s) => ({ id: s.id, name: s.displayName ?? s.user.name, hasIdentity: !!s.senderIdentity, title: s.title ?? "", phone: s.phone ?? "", bookingEnabled: s.bookingEnabled, bookingUrl: linkBy.has(s.id) ? `${getAppUrl()}/sales/book/${linkBy.get(s.id)}` : null }));
+  const logoUrl = signatureLogoUrl();
   const webhook = `${getAppUrl()}/api/webhooks/resend`;
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -68,15 +73,15 @@ export default async function CommsSettingsPage() {
                 </ul>
                 <div className="mt-3"><IdentityStatusActions locale={locale} identityId={identity.id} status={identity.status} /></div>
                 <details className="mt-3"><summary className="min-h-11 cursor-pointer py-2 text-sm font-medium text-blue-700">{t.common.edit}</summary>
-                  <IdentityForm locale={locale} staff={staff.map((s) => ({ id: s.id, name: s.displayName ?? s.user.name, hasIdentity: !!s.senderIdentity }))}
-                    initial={{ staffId: identity.staffId, fromName: identity.fromName, fromEmail: identity.fromEmail, replyToEmail: identity.replyToEmail ?? "", jobTitle: identity.jobTitle ?? "", phone: identity.phone ?? "", signatureText: identity.signatureText ?? "", defaultLanguage: identity.defaultLanguage, dailyLimit: identity.dailyLimit?.toString() ?? "" }} />
+                  <IdentityForm locale={locale} staff={staffOptions} websiteUrl={settings.websiteUrl} logoUrl={logoUrl}
+                    initial={{ staffId: identity.staffId, fromName: identity.fromName, fromEmail: identity.fromEmail, replyToEmail: identity.replyToEmail ?? "", jobTitle: identity.jobTitle ?? "", phone: identity.phone ?? "", defaultLanguage: identity.defaultLanguage, dailyLimit: identity.dailyLimit?.toString() ?? "" }} />
                 </details>
               </li>
             ))}
           </ul>
         )}
         <details open={setups.length === 0}><summary className="min-h-11 cursor-pointer py-2 font-medium text-blue-700">{m.newIdentity}</summary>
-          <IdentityForm locale={locale} staff={staff.map((s) => ({ id: s.id, name: s.displayName ?? s.user.name, hasIdentity: !!s.senderIdentity }))} />
+          <IdentityForm locale={locale} staff={staffOptions} websiteUrl={settings.websiteUrl} logoUrl={logoUrl} />
         </details>
       </section>
 

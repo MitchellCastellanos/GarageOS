@@ -48,7 +48,7 @@ export async function renderMeetingMessage(args: { meetingId: string; kind: stri
   if (missing.length) return null;
   const content = await buildContent({
     subject: r.subject, bodyText: r.body, language: lang, commercial: false, unsubscribeUrl: null,
-    identity: { fromName: identity.fromName, fromEmail: identity.fromEmail, jobTitle: identity.jobTitle, phone: identity.phone, signatureText: identity.signatureText }, settings,
+    identity: { staffId: identity.staffId, fromName: identity.fromName, fromEmail: identity.fromEmail, jobTitle: identity.jobTitle, phone: identity.phone }, settings,
   });
   const cancelled = args.kind === "cancelled";
   const ics = meetingIcs(meeting, identity, lang, cancelled);

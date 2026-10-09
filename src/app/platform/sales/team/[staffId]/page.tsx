@@ -9,6 +9,9 @@ import { PLATFORM } from "@/lib/routes";
 import { Badge, PageHeader, PermissionDenied, cardCls, formatDate } from "@/components/sales-crm/ui";
 import { StaffForm } from "@/components/sales-crm/StaffForm";
 import { StaffActions } from "@/components/sales-crm/StaffActions";
+import { getAppUrl } from "@/config/app";
+import { signatureLogoUrl } from "@/lib/sales-comms/content";
+import { getCommsSettings } from "@/lib/sales-comms/settings";
 
 export default async function StaffDetailPage({ params }: { params: Promise<{ staffId: string }> }) {
   const { actor, t, locale } = await loadCrmPage("view_team_reporting");
@@ -23,6 +26,11 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ st
     db.platformSalesStaff.findMany({ where: { role: "SALES_MANAGER", status: { not: "INACTIVE" }, id: { not: staffId } }, select: { id: true, user: { select: { name: true } } } }),
     db.platformSalesStaff.findMany({ where: { status: "ACTIVE", id: { not: staffId } }, select: { id: true, user: { select: { name: true } } }, orderBy: { user: { name: "asc" } } }),
   ]) : [[], []];
+  const [sigIdentity, sigLink, sigSettings] = manage ? await Promise.all([
+    db.crmSenderIdentity.findUnique({ where: { staffId }, select: { fromEmail: true } }),
+    db.crmBookingLink.findFirst({ where: { staffId, kind: "GENERAL", active: true }, select: { token: true } }),
+    getCommsSettings(),
+  ]) : [null, null, null];
   const tone = staff.status === "ACTIVE" ? "bg-emerald-100 text-emerald-800" : staff.status === "INVITED" ? "bg-amber-100 text-amber-800" : "bg-slate-200 text-slate-700";
   const stat = (label: string, value: React.ReactNode) => <div className="rounded-lg border border-slate-200 p-3"><p className="text-xs text-slate-500">{label}</p><p className="mt-0.5 text-2xl font-semibold text-slate-900">{value}</p></div>;
   return (
@@ -48,8 +56,8 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ st
       {manage && (<>
         <section className={cardCls} aria-labelledby="prof-h">
           <h2 id="prof-h" className="mb-3 font-semibold text-slate-900">{t.common.edit}</h2>
-          <StaffForm locale={locale} staffId={staff.id} managers={managers.map((x) => ({ id: x.id, name: x.user.name }))}
-            values={{ name: staff.user.name, email: staff.user.email, role: staff.role, title: staff.title, phone: staff.phone, managerId: staff.managerId, territories: staff.territories, uiLocale: staff.uiLocale, timezone: staff.timezone, displayName: staff.displayName, signatureText: staff.signatureText, defaultMeetingMinutes: staff.defaultMeetingMinutes, meetingBufferMinutes: staff.meetingBufferMinutes }} />
+          <StaffForm locale={locale} staffId={staff.id} signature={{ senderEmail: sigIdentity?.fromEmail ?? null, websiteUrl: sigSettings?.websiteUrl ?? "https://www.garage-os.ca", bookingEnabled: staff.bookingEnabled, bookingUrl: sigLink ? `${getAppUrl()}/sales/book/${sigLink.token}` : null, logoUrl: signatureLogoUrl() }} managers={managers.map((x) => ({ id: x.id, name: x.user.name }))}
+            values={{ name: staff.user.name, email: staff.user.email, role: staff.role, title: staff.title, phone: staff.phone, managerId: staff.managerId, territories: staff.territories, uiLocale: staff.uiLocale, timezone: staff.timezone, displayName: staff.displayName, defaultMeetingMinutes: staff.defaultMeetingMinutes, meetingBufferMinutes: staff.meetingBufferMinutes }} />
         </section>
         <section className={cardCls} aria-labelledby="act-h">
           <h2 id="act-h" className="mb-3 font-semibold text-slate-900">{t.common.actions}</h2>

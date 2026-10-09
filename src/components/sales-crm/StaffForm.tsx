@@ -3,22 +3,28 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSalesStaff, updateSalesStaff } from "@/actions/sales-staff";
+import { commsCopy } from "@/lib/admin-locale/sales-comms";
 import { PLATFORM } from "@/lib/routes";
 import { btnPrimary, btnSecondary, inputCls, labelCls } from "@/components/sales-crm/ui";
 import { FormMessage, useCrmAction } from "@/components/sales-crm/useCrmAction";
 import { CopyLink } from "@/components/sales-crm/StaffActions";
+import { SignaturePreview, type SignatureSource } from "@/components/sales-comms/SignaturePreview";
+
+export type StaffSignatureProps = Pick<SignatureSource, "websiteUrl" | "bookingUrl" | "bookingEnabled" | "logoUrl"> & { senderEmail: string | null };
 
 export interface StaffFormValues {
   name?: string; email?: string; role?: string; title?: string | null; phone?: string | null; managerId?: string | null; territories?: string[]; uiLocale?: string; timezone?: string;
-  displayName?: string | null; signatureText?: string | null; defaultMeetingMinutes?: number; meetingBufferMinutes?: number;
+  displayName?: string | null; defaultMeetingMinutes?: number; meetingBufferMinutes?: number;
 }
 
-export function StaffForm({ locale, staffId, values = {}, managers }: { locale: "en" | "fr"; staffId?: string; values?: StaffFormValues; managers: { id: string; name: string }[] }) {
+export function StaffForm({ locale, staffId, values = {}, managers, signature }: { locale: "en" | "fr"; staffId?: string; values?: StaffFormValues; managers: { id: string; name: string }[]; signature?: StaffSignatureProps }) {
   const { t, pending, error, notice, run } = useCrmAction(locale);
   const router = useRouter();
   const [manualUrl, setManualUrl] = useState<string | null>(null);
   const [role, setRole] = useState(values.role ?? "SALES_REP");
   const editing = !!staffId;
+  // Live values for the signature preview (the inputs stay uncontrolled; the form reports every change).
+  const [live, setLive] = useState({ name: values.displayName || values.name || "", title: values.title ?? "", phone: values.phone ?? "", lang: values.uiLocale === "FR" ? "FR" : "EN" });
   const m = t.team;
   if (manualUrl) {
     return (
@@ -31,7 +37,7 @@ export function StaffForm({ locale, staffId, values = {}, managers }: { locale: 
     );
   }
   return (
-    <form className="grid gap-4 sm:grid-cols-2" action={(form) => run(
+    <form className="grid gap-4 sm:grid-cols-2" onChange={(e) => { const f = new FormData(e.currentTarget); setLive({ name: String(f.get("displayName") || f.get("name") || ""), title: String(f.get("title") ?? ""), phone: String(f.get("phone") ?? ""), lang: f.get("uiLocale") === "FR" ? "FR" : "EN" }); }} action={(form) => run(
       () => (editing ? updateSalesStaff(staffId!, form) : createSalesStaff(form)),
       (r) => {
         if (editing) return;
@@ -70,8 +76,11 @@ export function StaffForm({ locale, staffId, values = {}, managers }: { locale: 
           <label className={labelCls}>{m.bookingMinutes}<input className={inputCls} name="defaultMeetingMinutes" type="number" min={5} max={480} defaultValue={values.defaultMeetingMinutes ?? 30} disabled={pending} /></label>
           <label className={labelCls}>{m.bufferMinutes}<input className={inputCls} name="meetingBufferMinutes" type="number" min={0} max={240} defaultValue={values.meetingBufferMinutes ?? 10} disabled={pending} /></label>
         </div>
-        <label className={`${labelCls} sm:col-span-2`}>{m.signature}<textarea className={`${inputCls} min-h-24 py-2`} name="signatureText" maxLength={1000} defaultValue={values.signatureText ?? ""} disabled={pending} /></label>
       </fieldset>
+
+      {signature && (signature.senderEmail
+        ? <SignaturePreview locale={locale} src={{ name: live.name, title: live.title, phone: live.phone, email: signature.senderEmail, websiteUrl: signature.websiteUrl, bookingUrl: signature.bookingUrl, bookingEnabled: signature.bookingEnabled, logoUrl: signature.logoUrl, emailLanguage: live.lang as "EN" | "FR" }} />
+        : <p className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 sm:col-span-2">{commsCopy(locale).sig.noEmail}</p>)}
 
       <div className="sm:col-span-2"><FormMessage error={error} notice={notice} /></div>
       <div className="flex flex-wrap gap-2 sm:col-span-2">
