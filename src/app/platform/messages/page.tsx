@@ -1,7 +1,9 @@
+import { requireSuperAdmin } from "@/lib/permissions";
 import { listPlatformConversations } from "@/actions/platform-messages";
 import { MessagesInbox, type ConversationRow } from "@/components/admin/MessagesInbox";
 
 export default async function PlatformMessagesPage() {
+  await requireSuperAdmin(); // platform pages other than /platform/sales are Super Admin only
   const conversations = await listPlatformConversations();
 
   const rows: ConversationRow[] = conversations.map((c) => ({

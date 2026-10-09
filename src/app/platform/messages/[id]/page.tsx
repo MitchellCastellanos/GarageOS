@@ -1,8 +1,10 @@
+import { requireSuperAdmin } from "@/lib/permissions";
 import { notFound } from "next/navigation";
 import { getPlatformConversation } from "@/actions/platform-messages";
 import { PlatformConversationThread } from "@/components/admin/PlatformConversationThread";
 
 export default async function PlatformMessagePage({ params }: { params: Promise<{ id: string }> }) {
+  await requireSuperAdmin(); // platform pages other than /platform/sales are Super Admin only
   const { id } = await params;
   const conversation = await getPlatformConversation(id);
   if (!conversation) notFound();

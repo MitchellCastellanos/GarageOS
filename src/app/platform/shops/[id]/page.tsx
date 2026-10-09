@@ -1,3 +1,4 @@
+import { requireSuperAdmin } from "@/lib/permissions";
 import { getShopForAdmin, getShopUsageSnapshot, getShopNotes, getShopAuditLogEntries } from "@/actions/platform";
 import { db } from "@/lib/db";
 import { getShopSmsAdminOverview } from "@/actions/platform-sms";
@@ -9,6 +10,7 @@ export default async function PlatformShopPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requireSuperAdmin(); // platform pages other than /platform/sales are Super Admin only
   const { id } = await params;
   const shop = await getShopForAdmin(id);
   if (!shop) notFound();

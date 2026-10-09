@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { isSafeCallbackPath } from "@/lib/safe-redirect";
 import { signIn } from "@/lib/auth";
+import { salesStaffStatus } from "@/lib/sales-crm/staff-status";
 import { RATE_LIMITS, checkRateLimit, clientIpFromHeaders } from "@/lib/rate-limit";
 import { ADMIN, PLATFORM, adminPath } from "@/lib/routes";
 import { MARKETING_DICTIONARIES, DEFAULT_MARKETING_LOCALE, type MarketingLocale } from "@/lib/marketing-locale";
@@ -85,11 +86,12 @@ export async function POST(req: NextRequest) {
   }
 
   let userRole: string | undefined;
+  let isSalesStaff = false;
 
   try {
     const user = await db.user.findUnique({
       where: { email },
-      select: { passwordHash: true, role: true, emailVerified: true },
+      select: { id: true, passwordHash: true, role: true, shopId: true, emailVerified: true },
     });
 
     if (!user?.passwordHash) {
@@ -115,6 +117,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: errors.emailNotVerified }, { status: 403 });
     }
 
+    // Platform sales staff (no shop): only ACTIVE accounts sign in; they land in the Sales Workspace.
+    if (!user.shopId && user.role !== "SUPER_ADMIN") {
+      const staffStatus = await salesStaffStatus(user.id);
+      if (staffStatus && staffStatus !== "ACTIVE") {
+        if (isFormRequest) return loginRedirect(req, errors.invalidCredentials);
+        return NextResponse.json({ error: errors.invalidCredentials }, { status: 401 });
+      }
+      isSalesStaff = staffStatus === "ACTIVE";
+    }
+
     userRole = user.role;
   } catch (err) {
     console.error("[/api/auth/login] db error:", err);
@@ -122,7 +134,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: errors.connectionError }, { status: 500 });
   }
 
-  const destination = userRole === "SUPER_ADMIN" ? PLATFORM.home : callbackUrl;
+  const salesLanding = isSalesStaff && !callbackUrl.startsWith(PLATFORM.sales) ? PLATFORM.sales : callbackUrl;
+  const destination = userRole === "SUPER_ADMIN" ? PLATFORM.home : isSalesStaff ? salesLanding : callbackUrl;
 
   try {
     await signIn("credentials", { email, password, redirect: false, redirectTo: destination });

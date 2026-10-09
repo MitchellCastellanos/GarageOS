@@ -98,6 +98,7 @@ test("role changed in the DB is reflected on the next request", async (t) => {
 });
 
 test("shop changed (switchActiveShop / moved user) is reflected; a stale shopId never survives, even when the DB shopId is null", async (t) => {
+  patchDb(t, "platformSalesStaff", "findUnique", async () => null);
   users(t, [{ id: "u1", shopId: "shopB", role: "OWNER" }]);
   assert.equal((await jwtCb({ token: claims({ shopId: "shopA" }) })).shopId, "shopB");
   users(t, [{ id: "u1", shopId: null, role: "OWNER" }]);

@@ -19,6 +19,7 @@ import type { PlanBadge } from "@/components/layout/Topbar";
 import { daysUntil } from "@/domain/subscription-state";
 import { SubscriptionBanner, type SubscriptionBannerData } from "@/components/admin/SubscriptionBanner";
 import { getCurrentDemo } from "@/lib/sales-demo";
+import { isActiveSalesStaffUser } from "@/lib/sales-crm/staff-status";
 import { SalesDemoToolbar } from "@/components/sales-demo/SalesDemoToolbar";
 
 
@@ -38,6 +39,8 @@ export default async function DashboardLayout({
   }
 
   if (!session.user.shopId) {
+    // Platform sales staff have no shop: send them to their workspace instead of a login loop.
+    if (await isActiveSalesStaffUser(session.user.id)) redirect(PLATFORM.sales);
     redirect(ADMIN.login);
   }
 
