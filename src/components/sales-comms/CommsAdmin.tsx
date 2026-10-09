@@ -7,7 +7,7 @@ import { Msg, useComms } from "@/components/sales-comms/useComms";
 import { SignaturePreview } from "@/components/sales-comms/SignaturePreview";
 
 export interface SettingsView {
-  sendingEnabled: boolean; approvedDomains: string[]; inboundDomain: string | null; legalName: string; mailingAddress: string | null; contactEmail: string | null; contactPhone: string | null; websiteUrl: string;
+  sendingEnabled: boolean; approvedDomains: string[]; inboundDomain: string | null; inboundProvider: string; inboundReplyLocal: string | null; legalName: string; mailingAddress: string | null; contactEmail: string | null; contactPhone: string | null; websiteUrl: string;
   defaultDailyLimit: number; sendWindowStartHour: number; sendWindowEndHour: number; minNoticeMinutes: number; maxAdvanceDays: number;
 }
 
@@ -22,6 +22,10 @@ export function CommsSettingsForm({ locale, s }: { locale: "en" | "fr"; s: Setti
       </label>
       <label className={`${labelCls} sm:col-span-2`}>{m.approvedDomains}<textarea name="approvedDomains" className={`${inputCls} min-h-16 py-2`} defaultValue={s.approvedDomains.join("\n")} /><span className="text-xs font-normal text-slate-500">{m.approvedDomainsHint}</span></label>
       <label className={`${labelCls} sm:col-span-2`}>{m.inboundDomain}<input name="inboundDomain" className={inputCls} defaultValue={s.inboundDomain ?? ""} /><span className="text-xs font-normal text-slate-500">{m.inboundHint}</span></label>
+      <label className={labelCls}>{m.inboundProvider}
+        <select name="inboundProvider" className={inputCls} defaultValue={s.inboundProvider}><option value="RESEND">{m.inboundProviders.RESEND}</option><option value="CLOUDFLARE">{m.inboundProviders.CLOUDFLARE}</option></select>
+      </label>
+      <label className={labelCls}>{m.inboundReplyLocal}<input name="inboundReplyLocal" className={inputCls} defaultValue={s.inboundReplyLocal ?? ""} placeholder="replies" maxLength={40} /><span className="text-xs font-normal text-slate-500">{m.inboundReplyLocalHint}</span></label>
       <label className={labelCls}>{m.legalName}<input name="legalName" className={inputCls} defaultValue={s.legalName} required /></label>
       <label className={labelCls}>{m.website}<input name="websiteUrl" type="url" className={inputCls} defaultValue={s.websiteUrl} required /></label>
       <label className={`${labelCls} sm:col-span-2`}>{m.mailingAddress}<input name="mailingAddress" className={inputCls} defaultValue={s.mailingAddress ?? ""} maxLength={300} /></label>

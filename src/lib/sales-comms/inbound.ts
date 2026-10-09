@@ -52,7 +52,8 @@ export async function routesToSales(addresses: string[]): Promise<boolean> {
  * Stores one inbound email in the Sales Inbox. Called after the webhook signature was verified. Idempotent on the
  * provider email id (unique), so Svix retries and replays cannot create a second copy.
  */
-export async function processInboundEmail(emailId: string, preloaded?: ReceivedEmail): Promise<InboundResult> {
+export async function processInboundEmail(emailId: string, preloaded?: ReceivedEmail, opts: { provider?: "resend" | "cloudflare" } = {}): Promise<InboundResult> {
+  const provider = opts.provider ?? "resend";
   if (await db.crmEmailMessage.findUnique({ where: { inboundProviderEmailId: emailId }, select: { id: true } })) return { status: "duplicate" };
   const email = preloaded ?? await fetchReceivedEmail(emailId); // throws on provider failure ⇒ the route answers 5xx and the provider retries
   const settings = await getCommsSettings();
@@ -112,7 +113,7 @@ export async function processInboundEmail(emailId: string, preloaded?: ReceivedE
       data: {
         threadId, identityId: identity.id, direction: "INBOUND", category: "REPLY", status: "RECEIVED", prospectId: linkProspect, contactId: linkContact, opportunityId: thread.opportunityId,
         fromAddress: from.email, fromName: from.name, toAddresses: email.to.map(normalizeEmail), ccAddresses: email.cc.map(normalizeEmail), subject: (email.subject || "(no subject)").slice(0, 500), bodyText: text,
-        provider: "resend", inboundProviderEmailId: emailId, internetMessageId: email.messageId, inReplyTo: parseMessageIdList(headerValue(email.headers, "in-reply-to") ?? "")[0] ?? null, references: refs,
+        provider, inboundProviderEmailId: emailId, internetMessageId: email.messageId, inReplyTo: parseMessageIdList(headerValue(email.headers, "in-reply-to") ?? "")[0] ?? null, references: refs,
         isAutomated: automated, receivedAt: now, language: null,
       },
       select: { id: true },
@@ -146,7 +147,7 @@ export async function processInboundEmail(emailId: string, preloaded?: ReceivedE
     }
   }
 
-  await storeInboundAttachments(emailId, messageId, email).catch((e) => console.error("[inbound] attachments failed", e instanceof Error ? e.message : e));
+  await (provider === "resend" ? storeInboundAttachments(emailId, messageId, email) : noteSkippedAttachments(threadId, email)).catch((e) => console.error("[inbound] attachments failed", e instanceof Error ? e.message : e));
   await publishInboxSignal(identity.staff.userId, { threadId, type: "inbound" });
   return { status: "stored", threadId, messageId, matchedBy: match.kind, automated };
 }
@@ -176,4 +177,10 @@ async function storeInboundAttachments(emailId: string, messageId: string, email
     const thread = await db.crmEmailMessage.findUnique({ where: { id: messageId }, select: { threadId: true } });
     if (thread) await db.crmEmailNote.create({ data: { threadId: thread.threadId, authorUserId: "system", body: `${skipped} attachment(s) were not stored (type, size or storage unavailable).` } });
   }
+}
+
+/** Cloudflare path: the Worker forwards attachment METADATA only (no binary), so nothing is stored — say so in the thread. */
+async function noteSkippedAttachments(threadId: string, email: ReceivedEmail) {
+  if (email.attachments.length === 0) return;
+  await db.crmEmailNote.create({ data: { threadId, authorUserId: "system", body: `${email.attachments.length} attachment(s) were received but not stored (the reply path does not carry attachments). Ask the sender to resend them via a secure link if needed.` } });
 }

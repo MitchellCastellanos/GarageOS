@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Isolated Remotion workspace with its own toolchain.
     "video/**",
+    // Cloudflare Worker has its own toolchain (wrangler/postal-mime).
+    "cloudflare/**",
   ]),
 ]);
 

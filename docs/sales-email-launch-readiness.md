@@ -11,6 +11,9 @@ Status (updated after PR #91 closure): **code complete and deployed; live provid
 | Cron | `/api/webhooks/cron/sales` runs **once daily at 12:30 UTC** (`vercel.json`). "Send now", booking confirmations and replies dispatch immediately; **scheduled sends and sequence steps are only as punctual as this cron** | `vercel.json` |
 | Unit/DB tests (fake Resend transport) | outbound idempotency, retries, webhooks, replies stop sequences, suppression, unsubscribe, signature, territory rules: all pass | `tests/sales-*.test.ts` |
 
+## 0. Infrastructure update (owner-confirmed)
+Resend: `garage-os.ca` and `mail.garage-os.ca` verified with Sending on. Cloudflare manages DNS and Email Routing for the main domain; DMARC exists; SMTP2GO serves other mail; **no Resend Pro and no MX change**. Therefore replies are received through **Cloudflare Email Routing + Email Worker** — setup, first Hotmail round trip and troubleshooting are in `docs/sales-inbound-cloudflare.md`. Steps §3.1–§3.2 below that mention Resend receiving/MX/webhook-for-inbound no longer apply (the Resend webhook is still useful for delivery/bounce events).
+
 ## 1b. Production closure results (Oct 9–10, 2026)
 | Item | Result |
 |---|---|

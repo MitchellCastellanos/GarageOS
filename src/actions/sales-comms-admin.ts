@@ -22,6 +22,8 @@ const settingsSchema = z.object({
   sendingEnabled: z.string().optional().transform((v) => v === "on" || v === "true"),
   approvedDomains: z.string().default("").transform((v) => [...new Set(v.split(/[\s,;]+/).map((d) => d.trim().toLowerCase()).filter(Boolean))]).pipe(z.array(z.string().regex(domainRe)).max(10)),
   inboundDomain: z.string().trim().toLowerCase().optional().transform((v) => v || null).pipe(z.string().regex(domainRe).nullable()),
+  inboundProvider: z.enum(["RESEND", "CLOUDFLARE"]).default("RESEND"),
+  inboundReplyLocal: z.string().trim().toLowerCase().optional().transform((v) => v || null).pipe(z.string().regex(/^[a-z0-9][a-z0-9._-]{0,40}$/).nullable()),
   legalName: z.string().trim().min(2).max(120),
   mailingAddress: optText(300), contactEmail: z.string().trim().toLowerCase().optional().transform((v) => v || null).pipe(z.email().nullable()), contactPhone: optText(40),
   websiteUrl: z.string().trim().url().max(200).refine((v) => /^https:\/\//.test(v)),
@@ -36,7 +38,7 @@ export async function saveCommsSettings(form: FormData) {
     const v = settingsSchema.parse(Object.fromEntries(form));
     const before = await getCommsSettings();
     await db.crmCommsSettings.update({ where: { id: "default" }, data: { ...v, updatedByUserId: actor.userId } });
-    await writeCrmAudit({ actorUserId: actor.userId, action: "COMMS_SETTINGS_UPDATED", entityType: "CrmCommsSettings", entityId: "default", before: { sendingEnabled: before.sendingEnabled, approvedDomains: before.approvedDomains, inboundDomain: before.inboundDomain }, after: { sendingEnabled: v.sendingEnabled, approvedDomains: v.approvedDomains, inboundDomain: v.inboundDomain } });
+    await writeCrmAudit({ actorUserId: actor.userId, action: "COMMS_SETTINGS_UPDATED", entityType: "CrmCommsSettings", entityId: "default", before: { sendingEnabled: before.sendingEnabled, approvedDomains: before.approvedDomains, inboundDomain: before.inboundDomain }, after: { sendingEnabled: v.sendingEnabled, approvedDomains: v.approvedDomains, inboundDomain: v.inboundDomain, inboundProvider: v.inboundProvider, inboundReplyLocal: v.inboundReplyLocal } });
     refresh();
     return {};
   });
