@@ -1,0 +1,41 @@
+{
+  "name": "garageos-video",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Isolated Remotion workspace for the GarageOS bilingual product video. Not part of the Next.js app.",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "prepare:assets": "node scripts/prepare-assets.mjs",
+    "audio:sync": "tsx scripts/sync-audio.ts",
+    "validate": "tsx scripts/validate.ts",
+    "render": "tsx scripts/render.ts",
+    "render:en": "tsx scripts/render.ts full-en",
+    "render:fr": "tsx scripts/render.ts full-fr",
+    "render:teaser:en": "tsx scripts/render.ts teaser-en",
+    "render:teaser:fr": "tsx scripts/render.ts teaser-fr",
+    "render:all": "tsx scripts/render.ts all",
+    "thumbnails": "tsx scripts/render.ts thumbnails",
+    "stills": "tsx scripts/render.ts stills",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fontsource/inter": "5.2.8",
+    "@fontsource/oswald": "5.2.8",
+    "@remotion/bundler": "4.0.534",
+    "@remotion/cli": "4.0.534",
+    "@remotion/layout-utils": "4.0.534",
+    "@remotion/renderer": "4.0.534",
+    "@remotion/transitions": "4.0.534",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "remotion": "4.0.534"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "@types/react": "19.2.2",
+    "sharp": "0.34.5",
+    "tsx": "4.20.6",
+    "typescript": "5.9.3"
+  }
+}
