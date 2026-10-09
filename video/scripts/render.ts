@@ -31,7 +31,7 @@ async function video(id: string) {
   const composition = await selectComposition({ ...common, id });
   const outputLocation = `${out}/${id}.mp4`;
   console.log(`render ${id}: ${composition.durationInFrames}f @${composition.fps}fps -> ${outputLocation}`);
-  await renderMedia({ ...common, composition, codec: "h264", crf: 18, pixelFormat: "yuv420p", outputLocation, concurrency: 4 });
+  await renderMedia({ ...common, composition, codec: "h264", crf: 18, pixelFormat: "yuv420p", colorSpace: "bt709", jpegQuality: 95, outputLocation, concurrency: 4 });
 }
 
 async function still(id: string, frame: number, file: string) {
