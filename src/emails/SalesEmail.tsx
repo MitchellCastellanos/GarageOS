@@ -1,0 +1,65 @@
+// GarageOS-branded commercial / meeting email for SALES communications (platform → prospect). Distinct from the tenant
+// ShopEmailLayout (shop → customer) and PlatformEmailLayout (GarageOS → shop account). Body HTML is ALWAYS produced by
+// textToHtml() (escaped); nothing user-typed reaches the markup unescaped.
+import { Body, Container, Head, Html, Img, Link, Preview, Section, Text } from "@react-email/components";
+import React from "react";
+import { APP_NAME, getAppUrl } from "@/config/app";
+
+export interface SalesEmailProps {
+  lang: "en" | "fr";
+  preview: string;
+  bodyHtml: string;
+  signatureLines: string[];
+  footerLines: string[];
+  unsubscribe?: { url: string; label: string } | null;
+  bookingCta?: { url: string; label: string } | null;
+}
+
+const BRAND_BLUE = "#1769ff";
+
+export function SalesEmail({ lang, preview, bodyHtml, signatureLines, footerLines, unsubscribe, bookingCta }: SalesEmailProps) {
+  return (
+    <Html lang={lang}>
+      <Head />
+      <Preview>{preview}</Preview>
+      <Body style={s.body}>
+        <Container style={s.container}>
+          <Section style={s.header}>
+            <Img src={`${getAppUrl()}/brand/logo-monochrome-white.png`} alt={APP_NAME} width="140" height="47" style={{ display: "block" }} />
+          </Section>
+          <Section style={s.content}>
+            <div style={s.bodyText} dangerouslySetInnerHTML={{ __html: bodyHtml }} />
+            {bookingCta && (
+              <Section style={{ margin: "8px 0 20px 0" }}>
+                <Link href={bookingCta.url} style={s.cta}>{bookingCta.label}</Link>
+              </Section>
+            )}
+            <Section style={s.signature}>
+              {signatureLines.map((l, i) => (
+                <Text key={i} style={i === 0 ? s.sigName : s.sigLine}>{l}</Text>
+              ))}
+            </Section>
+          </Section>
+          <Section style={s.footer}>
+            {footerLines.map((l, i) => (<Text key={i} style={s.footerText}>{l}</Text>))}
+            {unsubscribe && (<Text style={s.footerText}><Link href={unsubscribe.url} style={{ color: "#64748b" }}>{unsubscribe.label}</Link></Text>)}
+          </Section>
+        </Container>
+      </Body>
+    </Html>
+  );
+}
+
+const s = {
+  body: { backgroundColor: "#f1f5f9", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", margin: "0", padding: "20px 0" },
+  container: { backgroundColor: "#ffffff", borderRadius: "12px", maxWidth: "600px", margin: "0 auto", overflow: "hidden" as const, border: "1px solid #e2e8f0" },
+  header: { backgroundColor: "#0f172a", padding: "20px 28px" },
+  content: { padding: "28px 28px 8px 28px" },
+  bodyText: { fontSize: "15px", color: "#1e293b", lineHeight: "1.6" },
+  cta: { display: "inline-block", backgroundColor: BRAND_BLUE, color: "#ffffff", padding: "12px 22px", borderRadius: "8px", textDecoration: "none", fontWeight: 600 as const, fontSize: "15px" },
+  signature: { borderTop: "1px solid #e2e8f0", marginTop: "12px", paddingTop: "14px" },
+  sigName: { fontSize: "15px", fontWeight: 700 as const, color: "#0f172a", margin: "0 0 2px 0" },
+  sigLine: { fontSize: "13px", color: "#475569", margin: "0 0 2px 0", lineHeight: "1.5" },
+  footer: { backgroundColor: "#f8fafc", padding: "16px 28px", borderTop: "1px solid #e2e8f0" },
+  footerText: { fontSize: "11px", color: "#64748b", lineHeight: "1.5", margin: "0 0 4px 0" },
+};

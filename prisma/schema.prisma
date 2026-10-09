@@ -2336,6 +2336,9 @@ enum CrmActivityType {
   ASSIGNMENT
   DEMO
   SYSTEM
+  EMAIL_SENT
+  EMAIL_RECEIVED
+  SEQUENCE
 
   @@schema("garageos")
 }
@@ -2421,6 +2424,13 @@ model PlatformSalesStaff {
   prospects     CrmProspect[]
   opportunities CrmOpportunity[]
   tasks         CrmTask[]
+  senderIdentity CrmSenderIdentity?
+  calendarSettings CrmSellerCalendar?
+  emailThreads  CrmEmailThread[]
+  enrollments   CrmSequenceEnrollment[]
+  availabilityExceptions CrmAvailabilityException[]
+  bookingLinks  CrmBookingLink[]
+  meetings      CrmMeeting[]
 
   @@index([status, role])
   @@index([managerId])
@@ -2497,6 +2507,8 @@ model CrmProspect {
   needs         CrmProspectNeed[]
   activities    CrmActivity[]
   tasks         CrmTask[]
+  emailThreads  CrmEmailThread[]
+  enrollments   CrmSequenceEnrollment[]
 
   @@index([assignedStaffId, status])
   @@index([status, createdAt])
@@ -2527,6 +2539,9 @@ model CrmContact {
   updatedAt         DateTime     @updatedAt
 
   activities CrmActivity[]
+  emailThreads CrmEmailThread[]
+  enrollments  CrmSequenceEnrollment[]
+  sendingBases CrmSendingBasis[]
 
   @@index([prospectId, archivedAt])
   @@index([emailNormalized])
@@ -2710,5 +2725,578 @@ model CrmAuditEvent {
   @@index([prospectId, createdAt])
   @@index([staffId, createdAt])
   @@index([actorUserId, createdAt])
+  @@schema("garageos")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// Sales communications & scheduling (Agent 2). Platform-level commercial messaging: NEVER shares rows with
+// tenant CommunicationThread/Message (shop↔customer) or PlatformConversation (support). No shopId anywhere.
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+
+enum CrmIdentityStatus {
+  DRAFT
+  ACTIVE
+  DISABLED
+
+  @@schema("garageos")
+}
+
+enum CrmThreadStatus {
+  OPEN
+  DONE
+  SPAM
+
+  @@schema("garageos")
+}
+
+enum CrmEmailDirection {
+  INBOUND
+  OUTBOUND
+
+  @@schema("garageos")
+}
+
+/// COMMERCIAL = solicitation (CASL basis + unsubscribe enforced); REPLY = answer inside a thread the contact started or
+/// replied to; TRANSACTIONAL = meeting confirmations/reminders the contact asked for.
+enum CrmEmailCategory {
+  COMMERCIAL
+  REPLY
+  TRANSACTIONAL
+
+  @@schema("garageos")
+}
+
+enum CrmEmailStatus {
+  DRAFT
+  SCHEDULED
+  QUEUED
+  SENDING
+  SENT
+  DELIVERED
+  DELAYED
+  BOUNCED
+  COMPLAINED
+  FAILED
+  CANCELLED
+  RECEIVED
+
+  @@schema("garageos")
+}
+
+enum CrmSuppressionReason {
+  UNSUBSCRIBE
+  HARD_BOUNCE
+  COMPLAINT
+  MANUAL
+  REPLY_OPT_OUT
+
+  @@schema("garageos")
+}
+
+enum CrmSendingBasisKind {
+  EXPRESS_CONSENT
+  IMPLIED_EXISTING_RELATIONSHIP
+  IMPLIED_PUBLISHED_ADDRESS
+  IMPLIED_DISCLOSED_ADDRESS
+  EXEMPT
+
+  @@schema("garageos")
+}
+
+enum CrmSequenceStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+
+  @@schema("garageos")
+}
+
+enum CrmEnrollmentStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  STOPPED
+
+  @@schema("garageos")
+}
+
+enum CrmMeetingType {
+  VIDEO
+  PHONE
+  ON_SITE
+
+  @@schema("garageos")
+}
+
+enum CrmMeetingStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+
+  @@schema("garageos")
+}
+
+enum CrmMeetingOutcome {
+  HELD_INTERESTED
+  HELD_NEEDS_FOLLOW_UP
+  HELD_NOT_INTERESTED
+  NO_SHOW
+  RESCHEDULE_REQUESTED
+
+  @@schema("garageos")
+}
+
+enum CrmAvailabilityExceptionKind {
+  OFF
+  EXTRA
+
+  @@schema("garageos")
+}
+
+enum CrmBookingLinkKind {
+  GENERAL
+  PROSPECT
+
+  @@schema("garageos")
+}
+
+/// Singleton ("default") configuration of the sales communications system. Nothing here is a secret.
+model CrmCommsSettings {
+  id                  String   @id @default("default")
+  /// Master kill switch. false ⇒ no commercial or transactional sales email leaves the system.
+  sendingEnabled      Boolean  @default(false)
+  /// Domains identities may send from (e.g. "sales.garage-os.ca"). A sender outside this list is refused.
+  approvedDomains     String[] @default([])
+  /// Domain (a Resend domain with receiving enabled) whose MX points at the provider; replies are routed here.
+  inboundDomain       String?
+  /// CASL: sender identification + mailing address printed in every commercial email footer.
+  legalName           String   @default("GarageOS")
+  mailingAddress      String?
+  contactEmail        String?
+  contactPhone        String?
+  websiteUrl          String   @default("https://www.garage-os.ca")
+  /// Hard ceiling on commercial messages per seller per local day (an identity may lower it, never raise it).
+  defaultDailyLimit   Int      @default(30)
+  /// Local sending window for sequences (seller timezone), whole hours.
+  sendWindowStartHour Int      @default(8)
+  sendWindowEndHour   Int      @default(17)
+  /// Meeting rules applied to every seller.
+  minNoticeMinutes    Int      @default(240)
+  maxAdvanceDays      Int      @default(45)
+  updatedByUserId     String?
+  updatedAt           DateTime @updatedAt
+  createdAt           DateTime @default(now())
+
+  @@schema("garageos")
+}
+
+/// A real, provider-backed sender. Active ONLY when Super Admin enabled it AND its domain is approved; "ready" is
+/// computed from live provider state, never from this row alone (see domain/sales-comms/sender-setup.ts).
+model CrmSenderIdentity {
+  id                String             @id @default(cuid())
+  staffId           String             @unique
+  staff             PlatformSalesStaff @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  fromName          String
+  fromEmail         String             @unique
+  /// Local part used for replies. Replies go to `<replyLocal>+<threadKey>@<inboundDomain>` when inbound is set up.
+  replyToEmail      String?
+  jobTitle          String?
+  phone             String?
+  signatureText     String?
+  defaultLanguage   CrmLanguage        @default(EN)
+  status            CrmIdentityStatus  @default(DRAFT)
+  dailyLimit        Int?
+  /// Set the first time a REAL inbound message addressed to this identity's reply route is received and matched.
+  inboundVerifiedAt DateTime?
+  /// Set by Super Admin after seeing the provider confirm the sending domain; informational (live check wins).
+  sendingCheckedAt  DateTime?
+  createdByUserId   String
+  updatedByUserId   String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  threads  CrmEmailThread[]
+  messages CrmEmailMessage[]
+
+  @@index([status])
+  @@schema("garageos")
+}
+
+/// Approved, versioned template. A row's content is immutable once approved; editing creates version n+1.
+/// Built-in defaults (code) are version 0 and apply when no row exists for the (key, language).
+model CrmEmailTemplate {
+  id               String           @id @default(cuid())
+  key              String
+  language         CrmLanguage
+  version          Int
+  category         CrmEmailCategory @default(COMMERCIAL)
+  name             String
+  subject          String
+  bodyText         String
+  active           Boolean          @default(true)
+  approvedByUserId String
+  approvedAt       DateTime         @default(now())
+  createdAt        DateTime         @default(now())
+
+  @@unique([key, language, version])
+  @@index([key, language, active])
+  @@schema("garageos")
+}
+
+model CrmEmailThread {
+  id                String              @id @default(cuid())
+  /// Random key embedded in the Reply-To plus-address; the only credential-free routing handle for replies.
+  replyKey          String              @unique
+  subject           String
+  prospectId        String?
+  prospect          CrmProspect?        @relation(fields: [prospectId], references: [id], onDelete: SetNull)
+  contactId         String?
+  contact           CrmContact?         @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  opportunityId     String?
+  identityId        String
+  identity          CrmSenderIdentity   @relation(fields: [identityId], references: [id], onDelete: Restrict)
+  /// Owner (seller) who may read the thread. Reassignable; Super Admin sees all.
+  ownerStaffId      String?
+  owner             PlatformSalesStaff? @relation(fields: [ownerStaffId], references: [id], onDelete: SetNull)
+  status            CrmThreadStatus     @default(OPEN)
+  /// Counterparty address (normalized) used for fallback matching.
+  counterpartyEmail String?
+  needsReply        Boolean             @default(false)
+  lastInboundAt     DateTime?
+  lastOutboundAt    DateTime?
+  lastMessageAt     DateTime            @default(now())
+  /// Owner has read everything up to this instant (unread = lastInboundAt > ownerSeenAt).
+  ownerSeenAt       DateTime?
+  language          CrmLanguage         @default(UNKNOWN)
+  createdByUserId   String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  messages CrmEmailMessage[]
+  notes    CrmEmailNote[]
+
+  @@index([ownerStaffId, status, lastMessageAt])
+  @@index([prospectId, lastMessageAt])
+  @@index([counterpartyEmail])
+  @@index([status, needsReply])
+  @@schema("garageos")
+}
+
+/// Every email — inbound, outbound, draft, scheduled — and the durable outbox: an outbound row in QUEUED/SCHEDULED
+/// with `nextAttemptAt` IS the job. Claiming is a compare-and-set on `status` (see lib/sales-comms/dispatcher.ts).
+model CrmEmailMessage {
+  id                     String            @id @default(cuid())
+  threadId               String
+  thread                 CrmEmailThread    @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  identityId             String
+  identity               CrmSenderIdentity @relation(fields: [identityId], references: [id], onDelete: Restrict)
+  direction              CrmEmailDirection
+  category               CrmEmailCategory  @default(COMMERCIAL)
+  status                 CrmEmailStatus    @default(DRAFT)
+  authorUserId           String?
+  prospectId             String?
+  contactId              String?
+  opportunityId          String?
+  fromAddress            String
+  fromName               String?
+  toAddresses            String[]
+  ccAddresses            String[]          @default([])
+  bccAddresses           String[]          @default([])
+  subject                String
+  bodyText               String?
+  /// Our own rendered HTML (escaped text → branded layout). Inbound HTML is never stored or rendered.
+  bodyHtml               String?
+  provider               String            @default("resend")
+  providerMessageId      String?
+  internetMessageId      String?
+  inReplyTo              String?
+  references             String[]          @default([])
+  /// Other Message-IDs this message is known by (the provider may assign its own); used for reply matching.
+  altMessageIds          String[]               @default([])
+  /// Out-of-office / bounce / list traffic: stored for the record but never counts as a human reply.
+  isAutomated            Boolean                @default(false)
+  // ── Provenance snapshots (never rewritten)
+  templateKey            String?
+  templateVersion        Int?
+  language               CrmLanguage?
+  languageSource         String?
+  sequenceEnrollmentId   String?
+  sequenceStepIndex      Int?
+  meetingId              String?
+  meetingEmailKind       String?
+  // ── Durable outbox
+  idempotencyKey         String?           @unique
+  scheduledFor           DateTime?
+  nextAttemptAt          DateTime?
+  attempts               Int               @default(0)
+  lockedAt               DateTime?
+  sentAt                 DateTime?
+  deliveredAt            DateTime?
+  failedAt               DateTime?
+  errorCode              String?
+  errorMessage           String?
+  inboundProviderEmailId String?           @unique
+  receivedAt             DateTime?
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
+
+  attachments CrmEmailAttachment[]
+  events      CrmEmailDeliveryEvent[]
+
+  @@index([threadId, createdAt])
+  @@index([status, nextAttemptAt])
+  @@index([providerMessageId])
+  @@index([internetMessageId])
+  @@index([meetingId])
+  @@index([sequenceEnrollmentId])
+  @@index([authorUserId, status])
+  @@index([identityId, direction, sentAt])
+  @@schema("garageos")
+}
+
+model CrmEmailAttachment {
+  id         String          @id @default(cuid())
+  messageId  String
+  message    CrmEmailMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  filename   String
+  mimeType   String
+  sizeBytes  Int
+  storageKey String
+  sha256     String
+  createdAt  DateTime        @default(now())
+
+  @@index([messageId])
+  @@schema("garageos")
+}
+
+model CrmEmailNote {
+  id           String         @id @default(cuid())
+  threadId     String
+  thread       CrmEmailThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  authorUserId String
+  body         String
+  createdAt    DateTime       @default(now())
+
+  @@index([threadId, createdAt])
+  @@schema("garageos")
+}
+
+/// Webhook event ledger: `providerEventId` (the Svix delivery id) is unique ⇒ a replayed webhook is a no-op.
+model CrmEmailDeliveryEvent {
+  id              String           @id @default(cuid())
+  providerEventId String           @unique
+  messageId       String?
+  message         CrmEmailMessage? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  type            String
+  providerEmailId String?
+  detail          String?
+  occurredAt      DateTime
+  createdAt       DateTime         @default(now())
+
+  @@index([messageId])
+  @@index([providerEmailId])
+  @@schema("garageos")
+}
+
+/// Global (all sellers, all sequences, all imports) email suppression. Rows are never deleted: lifting sets liftedAt.
+model CrmEmailSuppression {
+  id              String               @id @default(cuid())
+  emailNormalized String
+  reason          CrmSuppressionReason
+  source          String
+  messageId       String?
+  note            String?
+  createdByUserId String?
+  createdAt       DateTime             @default(now())
+  liftedAt        DateTime?
+  liftedByUserId  String?
+  liftNote        String?
+
+  @@index([emailNormalized, liftedAt])
+  @@index([createdAt])
+  @@schema("garageos")
+}
+
+/// CASL: documented basis for sending commercial electronic messages to a contact. History is append-only; the
+/// newest non-expired row wins. A contact with no valid basis cannot receive commercial email.
+model CrmSendingBasis {
+  id               String              @id @default(cuid())
+  contactId        String
+  contact          CrmContact          @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  kind             CrmSendingBasisKind
+  evidence         String
+  recordedAt       DateTime            @default(now())
+  /// When the consent lapses (e.g. 24 months after last purchase/inquiry); null = does not lapse.
+  expiresAt        DateTime?
+  recordedByUserId String
+  revokedAt        DateTime?
+
+  @@index([contactId, recordedAt])
+  @@schema("garageos")
+}
+
+model CrmSequence {
+  id                String            @id @default(cuid())
+  name              String
+  description       String?
+  status            CrmSequenceStatus @default(DRAFT)
+  /// Business days only (skip Sat/Sun and holidays). Day offsets then count business days.
+  businessDaysOnly  Boolean           @default(true)
+  createdByUserId   String
+  activatedByUserId String?
+  activatedAt       DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  steps       CrmSequenceStep[]
+  enrollments CrmSequenceEnrollment[]
+
+  @@index([status])
+  @@schema("garageos")
+}
+
+model CrmSequenceStep {
+  id          String      @id @default(cuid())
+  sequenceId  String
+  sequence    CrmSequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+  stepIndex   Int
+  /// Business days after enrollment (step 0 is usually 0).
+  dayOffset   Int
+  templateKey String
+
+  @@unique([sequenceId, stepIndex])
+  @@schema("garageos")
+}
+
+model CrmSequenceEnrollment {
+  id               String              @id @default(cuid())
+  sequenceId       String
+  sequence         CrmSequence         @relation(fields: [sequenceId], references: [id], onDelete: Restrict)
+  prospectId       String
+  prospect         CrmProspect         @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  contactId        String
+  contact          CrmContact          @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  opportunityId    String?
+  staffId          String
+  staff            PlatformSalesStaff  @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  status           CrmEnrollmentStatus @default(ACTIVE)
+  /// Index of the NEXT step to send.
+  nextStepIndex    Int                 @default(0)
+  nextRunAt        DateTime?
+  languageOverride CrmLanguage?
+  startedAt        DateTime            @default(now())
+  completedAt      DateTime?
+  stoppedAt        DateTime?
+  stopReason       String?
+  enrolledByUserId String
+  stoppedByUserId  String?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  @@index([status, nextRunAt])
+  @@index([prospectId, status])
+  @@index([contactId, status])
+  @@index([staffId, status])
+  @@schema("garageos")
+}
+
+model CrmAvailabilityException {
+  id              String                       @id @default(cuid())
+  staffId         String
+  staff           PlatformSalesStaff           @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  kind            CrmAvailabilityExceptionKind
+  startsAt        DateTime
+  endsAt          DateTime
+  reason          String?
+  createdByUserId String
+  createdAt       DateTime                     @default(now())
+
+  @@index([staffId, startsAt])
+  @@schema("garageos")
+}
+
+/// Public booking link. 256-bit random opaque token (never derived from any id). PROSPECT links pre-bind the booking to a CRM prospect/contact without exposing their ids.
+model CrmBookingLink {
+  id              String             @id @default(cuid())
+  token           String             @unique
+  kind            CrmBookingLinkKind
+  staffId         String
+  staff           PlatformSalesStaff @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  prospectId      String?
+  contactId       String?
+  opportunityId   String?
+  active          Boolean            @default(true)
+  expiresAt       DateTime?
+  language        CrmLanguage?
+  createdByUserId String
+  createdAt       DateTime           @default(now())
+  revokedAt       DateTime?
+
+  meetings CrmMeeting[]
+
+  @@index([staffId, kind, active])
+  @@index([prospectId])
+  @@schema("garageos")
+}
+
+/// A sales meeting (NOT a tenant Appointment). Times are UTC instants; `attendeeTimezone` is IANA.
+model CrmMeeting {
+  id                String             @id @default(cuid())
+  staffId           String
+  staff             PlatformSalesStaff @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  prospectId        String?
+  contactId         String?
+  opportunityId     String?
+  bookingLinkId     String?
+  bookingLink       CrmBookingLink?    @relation(fields: [bookingLinkId], references: [id], onDelete: SetNull)
+  type              CrmMeetingType     @default(VIDEO)
+  status            CrmMeetingStatus   @default(SCHEDULED)
+  startsAt          DateTime
+  endsAt            DateTime
+  durationMinutes   Int
+  staffTimezone     String
+  attendeeTimezone  String
+  attendeeName      String
+  attendeeEmail     String
+  attendeePhone     String?
+  /// Phone number to call / address / meeting URL — only what was really configured; never an invented link.
+  locationDetail    String?
+  language          CrmLanguage        @default(EN)
+  languageSource    String?
+  agenda            String?
+  notes             String?
+  outcome           CrmMeetingOutcome?
+  outcomeNotes      String?
+  manageToken       String             @unique
+  prepTaskId             String?
+  /// Bumps on every reschedule; keys reminder idempotency and the ICS SEQUENCE.
+  revision          Int                @default(0)
+  rescheduledFromId String?
+  cancelledAt       DateTime?
+  cancelledBy       String?
+  cancelReason      String?
+  createdByUserId   String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@index([staffId, startsAt])
+  @@index([prospectId, startsAt])
+  @@index([status, startsAt])
+  @@index([attendeeEmail])
+  @@schema("garageos")
+}
+
+/// Seller-controlled calendar options. `joinUrl` is the seller's OWN meeting room (e.g. a personal Zoom/Meet/Teams
+/// room they pasted); GarageOS never invents or auto-creates conference links.
+model CrmSellerCalendar {
+  staffId      String             @id
+  staff        PlatformSalesStaff @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  meetingTypes CrmMeetingType[]   @default([VIDEO, PHONE])
+  durations    Int[]              @default([30])
+  joinUrl      String?
+  updatedAt    DateTime           @updatedAt
+
   @@schema("garageos")
 }

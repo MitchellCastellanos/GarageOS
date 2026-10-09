@@ -11,6 +11,8 @@ export interface PusherSessionUser {
 export interface PusherAuthzDeps {
   /** shopId dueño de la conversación, o null si no existe. */
   conversationShopId(conversationId: string): Promise<string | null>;
+  /** True when the user id belongs to Super Admin or an ACTIVE sales staff member (sales inbox signals). */
+  isSalesInboxUser?(userId: string): Promise<boolean>;
 }
 
 export async function canSubscribeToPusherChannel(
@@ -25,6 +27,9 @@ export async function canSubscribeToPusherChannel(
   switch (parsed.kind) {
     case "staff-notifications":
       return parsed.id === user.id; // solo tu propio canal
+    case "sales-inbox":
+      // Own channel only, and only while still a platform sales user (a deactivated seller loses realtime too).
+      return parsed.id === user.id && !!deps.isSalesInboxUser && (await deps.isSalesInboxUser(user.id));
     case "platform-messages-admin":
       return user.role === "SUPER_ADMIN";
     case "platform-conversation": {

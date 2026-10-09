@@ -21,10 +21,13 @@ export const SALES_CAPABILITIES = [
   "manage_sequences",
   "manage_sender_identities",
   "manage_playbooks",
+  // Agent 2 (sales communications & scheduling): enrolling own prospects in approved sequences; own calendar/availability/booking.
+  "enroll_sequences",
+  "manage_calendar",
 ] as const;
 export type SalesCapability = (typeof SALES_CAPABILITIES)[number];
 
-const REP: SalesCapability[] = ["read_assigned_prospects", "manage_prospects", "import_prospects", "prepare_demo", "send_sales_email"];
+const REP: SalesCapability[] = ["read_assigned_prospects", "manage_prospects", "import_prospects", "prepare_demo", "send_sales_email", "enroll_sequences", "manage_calendar"];
 const MANAGER: SalesCapability[] = [...REP, "read_team_prospects", "reassign_prospects", "view_team_reporting"];
 
 export function capabilitiesFor(kind: PlatformSalesKind): ReadonlySet<SalesCapability> {
