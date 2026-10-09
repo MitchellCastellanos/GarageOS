@@ -8,9 +8,9 @@ import { getCommsSettings } from "@/lib/sales-comms/settings";
 // Sales communications worker: (1) turn due sequence enrollments into queued messages, (2) send everything that is due
 // (queued, scheduled, retries, meeting reminders). Idempotent and safe to overlap — see lib/sales-comms/dispatcher.ts.
 //
-// vercel.json schedules this once a day (Hobby plan limit). Meeting reminders and scheduled sends are only as punctual
-// as this cadence: for minute-level punctuality call this URL every 5–10 minutes from the Vercel Pro cron or an external
-// scheduler with `Authorization: Bearer $CRON_SECRET`. The composer's "Send now" and a booking's confirmation do NOT wait
+// vercel.json schedules this once a day (Hobby limit) as a safety net; .github/workflows/sales-cron.yml calls it every
+// 10 minutes on weekdays with `Authorization: Bearer $CRON_SECRET` (needs the SALES_CRON_* repo secrets). Both are safe to
+// overlap: messages are claimed by compare-and-set. The composer's "Send now" and a booking's confirmation do NOT wait
 // for the cron — they are dispatched immediately.
 export const maxDuration = 60;
 

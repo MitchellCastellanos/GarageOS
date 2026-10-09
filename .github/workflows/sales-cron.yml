@@ -1,0 +1,44 @@
+name: Sales email worker (every 10 minutes)
+
+# Vercel Hobby crons run at most once a day, which would delay scheduled emails, sequence steps and meeting reminders by up to
+# 24 h. This free GitHub Actions schedule (public repo = no billed minutes) calls the SAME idempotent endpoint more often.
+# The Vercel daily cron in vercel.json stays as a safety net: both paths claim messages by compare-and-set, so an overlap
+# can never send a message twice (see src/lib/sales-comms/dispatcher.ts). The endpoint itself is a no-op while sales sending
+# is disabled and refuses any request without `Authorization: Bearer $CRON_SECRET`.
+#
+# Required repository secrets (names only): SALES_CRON_SECRET (= the CRON_SECRET value set in Vercel Production) and
+# SALES_CRON_BASE_URL (the production origin, e.g. https://www.garage-os.ca — no trailing slash).
+# GitHub may delay scheduled runs by several minutes and pauses them after 60 days without repo activity; the daily
+# Vercel cron covers both gaps.
+on:
+  schedule:
+    - cron: "*/10 11-23 * * 1-5"   # weekdays, 11:00-23:59 UTC (covers every Canadian business-hours send window)
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sales-cron
+  cancel-in-progress: false
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Call the sales worker
+        env:
+          SECRET: ${{ secrets.SALES_CRON_SECRET }}
+          BASE_URL: ${{ secrets.SALES_CRON_BASE_URL }}
+        run: |
+          if [ -z "$SECRET" ] || [ -z "$BASE_URL" ]; then
+            echo "::warning::SALES_CRON_SECRET / SALES_CRON_BASE_URL are not configured; skipping (the daily Vercel cron still runs)."
+            exit 0
+          fi
+          case "$BASE_URL" in https://*) ;; *) echo "::error::SALES_CRON_BASE_URL must be an https origin"; exit 1;; esac
+          code="$(curl -sS -m 90 -o /tmp/out.json -w '%{http_code}' -H "Authorization: Bearer ${SECRET}" "${BASE_URL%/}/api/webhooks/cron/sales")" || { echo "::error::request failed"; exit 1; }
+          echo "HTTP ${code}"
+          # Print counters only (the response contains no secrets or message bodies).
+          head -c 400 /tmp/out.json; echo
+          [ "$code" = "200" ] || { echo "::error::sales worker returned HTTP ${code}"; exit 1; }
