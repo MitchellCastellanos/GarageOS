@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSalesStaff, updateSalesStaff } from "@/actions/sales-staff";
+import { identityCopy } from "@/lib/admin-locale/sales-identity";
 import { commsCopy } from "@/lib/admin-locale/sales-comms";
 import { PLATFORM } from "@/lib/routes";
 import { btnPrimary, btnSecondary, inputCls, labelCls } from "@/components/sales-crm/ui";
@@ -15,9 +16,13 @@ export type StaffSignatureProps = Pick<SignatureSource, "websiteUrl" | "bookingU
 export interface StaffFormValues {
   name?: string; email?: string; role?: string; title?: string | null; phone?: string | null; managerId?: string | null; territories?: string[]; uiLocale?: string; timezone?: string;
   displayName?: string | null; defaultMeetingMinutes?: number; meetingBufferMinutes?: number;
+  salesMode?: string; coverage?: string[];
 }
 
-export function StaffForm({ locale, staffId, values = {}, managers, signature }: { locale: "en" | "fr"; staffId?: string; values?: StaffFormValues; managers: { id: string; name: string }[]; signature?: StaffSignatureProps }) {
+export interface TerritoryOption { key: string; label: string }
+
+export function StaffForm({ locale, staffId, values = {}, managers, signature, territories = [] }: { locale: "en" | "fr"; staffId?: string; values?: StaffFormValues; managers: { id: string; name: string }[]; signature?: StaffSignatureProps; territories?: TerritoryOption[] }) {
+  const ic = identityCopy(locale).team;
   const { t, pending, error, notice, run } = useCrmAction(locale);
   const router = useRouter();
   const [manualUrl, setManualUrl] = useState<string | null>(null);
@@ -47,9 +52,16 @@ export function StaffForm({ locale, staffId, values = {}, managers, signature }:
       editing ? m.updated : undefined,
     )}>
       <label className={labelCls}>{m.name} *<input className={inputCls} name="name" required maxLength={100} defaultValue={values.name} disabled={pending} /></label>
-      <label className={labelCls}>{editing ? m.emailFixed : `${t.common.email} *`}
-        <input className={inputCls} name="email" type="email" required={!editing} maxLength={254} defaultValue={values.email} readOnly={editing} disabled={pending || editing} />
+      <label className={labelCls}>{editing ? m.emailFixed : `${ic.login} *`}
+        <input className={inputCls} name="email" type="email" required={!editing} maxLength={254} defaultValue={values.email} readOnly={editing} disabled={pending || editing} placeholder="name@garage-os.ca" />
+        {!editing && <span className="text-xs font-normal text-slate-500">{ic.loginHelp}</span>}
       </label>
+      {!editing && (
+        <label className={labelCls}>{ic.recovery} *
+          <input className={inputCls} name="recoveryEmail" type="email" required maxLength={254} autoComplete="off" disabled={pending} />
+          <span className="text-xs font-normal text-slate-500">{ic.recoveryHelp}</span>
+        </label>
+      )}
       <label className={labelCls}>{m.role}
         <select className={inputCls} name="role" value={role} onChange={(e) => setRole(e.target.value)} disabled={pending}>
           {Object.entries(t.staffRoles).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
@@ -62,6 +74,17 @@ export function StaffForm({ locale, staffId, values = {}, managers, signature }:
       </label>
       <label className={labelCls}>{m.titleField}<input className={inputCls} name="title" maxLength={100} defaultValue={values.title ?? ""} disabled={pending} /></label>
       <label className={labelCls}>{m.phone}<input className={inputCls} name="phone" type="tel" maxLength={30} defaultValue={values.phone ?? ""} disabled={pending} /></label>
+      <label className={`${labelCls} sm:col-span-2`}>{ic.mode}
+        <select className={inputCls} name="salesMode" defaultValue={values.salesMode ?? "REMOTE"} disabled={pending}><option value="REMOTE">{ic.modeRemote}</option><option value="FIELD">{ic.modeField}</option></select>
+      </label>
+      {territories.length > 0 && (
+        <fieldset className="grid gap-2 sm:col-span-2" disabled={pending}>
+          <legend className="text-sm font-medium text-slate-700">{ic.coverage}</legend>
+          <p className="text-xs text-slate-500">{ic.coverageHelp}</p>
+          <input type="hidden" name="coverageSubmitted" value="1" />
+          <div className="flex flex-wrap gap-x-5 gap-y-1">{territories.map((x) => <label key={x.key} className="flex min-h-11 items-center gap-2 text-sm text-slate-700"><input className="size-5" type="checkbox" name="coverage" value={x.key} defaultChecked={values.coverage?.includes(x.key)} />{x.label}</label>)}</div>
+        </fieldset>
+      )}
       <label className={`${labelCls} sm:col-span-2`}>{m.territories}<input className={inputCls} name="territories" defaultValue={(values.territories ?? []).join(", ")} disabled={pending} /></label>
       <label className={labelCls}>{m.uiLanguage}
         <select className={inputCls} name="uiLocale" defaultValue={values.uiLocale ?? (locale === "fr" ? "FR" : "EN")} disabled={pending}><option value="EN">English</option><option value="FR">Français</option></select>

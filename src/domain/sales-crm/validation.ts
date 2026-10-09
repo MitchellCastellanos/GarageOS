@@ -119,8 +119,12 @@ export const scoreOverrideSchema = z.object({
 
 export const staffInputSchema = z.object({
   name: z.string().transform((v) => neutralizeFormula(cleanText(v))).pipe(z.string().min(1).max(100)),
+  /** Platform login. On creation it must be a corporate address (enforced in the action by checkCorporateEmail). */
   email: z.string().trim().toLowerCase().pipe(z.email().max(254)),
+  /** Private personal recovery address; required on creation, never shown to prospects. */
+  recoveryEmail: z.string().trim().toLowerCase().pipe(z.union([z.literal(""), z.email().max(254)])).optional().transform((v) => v || null),
   role: z.enum(["SALES_REP", "SALES_MANAGER"]),
+  salesMode: z.enum(["FIELD", "REMOTE"]).default("REMOTE"),
   title: text(100), phone,
   managerId: z.string().max(40).optional().transform((v) => v || null),
   territories: z.string().optional().transform((v) =>

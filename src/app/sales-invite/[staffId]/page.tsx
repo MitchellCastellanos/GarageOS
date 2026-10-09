@@ -5,11 +5,11 @@ import { InviteForm } from "@/components/sales-crm/InviteForm";
 // secret travels in the URL fragment and is verified only when the password form is submitted.
 export const metadata: Metadata = { title: "GarageOS", robots: { index: false, follow: false } };
 
-export default async function SalesInvitePage({ params, searchParams }: { params: Promise<{ staffId: string }>; searchParams: Promise<{ lang?: string }> }) {
-  const [{ staffId }, { lang }] = await Promise.all([params, searchParams]);
+export default async function SalesInvitePage({ params, searchParams }: { params: Promise<{ staffId: string }>; searchParams: Promise<{ lang?: string; mode?: string }> }) {
+  const [{ staffId }, { lang, mode }] = await Promise.all([params, searchParams]);
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4 py-10">
-      <InviteForm staffId={staffId} locale={lang === "fr" ? "fr" : "en"} />
+      <InviteForm staffId={staffId} locale={lang === "fr" ? "fr" : "en"} reset={mode === "reset"} />
     </main>
   );
 }

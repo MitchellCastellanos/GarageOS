@@ -7,6 +7,8 @@ import { textToHtml } from "@/domain/sales-comms/html";
 import { getAppUrl } from "@/config/app";
 import { db } from "@/lib/db";
 import { buildSignature, stripTrailingSignature, SIGNATURE_LOGO_PATH, type Signature } from "@/domain/sales-comms/signature";
+import { DEFAULT_OUTREACH_VIDEO_KEY } from "@/domain/platform-video";
+import { getPublishedVideo } from "@/lib/platform-video";
 import { bookingUrl, ensureGeneralLink } from "@/lib/sales-comms/booking-links";
 
 export interface IdentityFacts { staffId: string; fromName: string; fromEmail: string; jobTitle: string | null; phone: string | null }
@@ -53,12 +55,15 @@ export async function buildContent(i: BuildContentInput): Promise<BuiltContent> 
   const sig = await resolveSignature(i.identity, i.settings, i.language);
   // Exactly one signature: drop any the draft/template/author already put at the end before appending the generated one.
   const bodyText = stripTrailingSignature(i.bodyText, { name: i.identity.fromName, email: i.identity.fromEmail, generatedText: sig.text });
+  // A PUBLISHED outreach video that the body actually links gets a linked thumbnail block (only with a real https thumbnail).
+  const pv = i.commercial ? await getPublishedVideo(DEFAULT_OUTREACH_VIDEO_KEY, i.language, "outreach") : null;
+  const video = pv?.thumbnailUrl && bodyText.includes(pv.url) ? { url: pv.url, title: pv.title, thumbnailUrl: pv.thumbnailUrl, label: i.language === "FR" ? "Regarder la vidéo" : "Watch the video" } : null;
   const footer = footerLinesFor(i.settings, i.language, i.commercial);
   const unsubLabel = i.language === "FR" ? "Se désabonner" : "Unsubscribe";
   if (i.commercial && !i.unsubscribeUrl) throw new Error("UNSUBSCRIBE_URL_REQUIRED");
   const html = await render(React.createElement(SalesEmail, {
     lang: i.language === "FR" ? "fr" : "en", preview: subject, bodyHtml: textToHtml(bodyText), signatureHtml: sig.html, footerLines: footer,
-    unsubscribe: i.commercial && i.unsubscribeUrl ? { url: i.unsubscribeUrl, label: unsubLabel } : null, bookingCta: i.bookingCta ?? null,
+    unsubscribe: i.commercial && i.unsubscribeUrl ? { url: i.unsubscribeUrl, label: unsubLabel } : null, bookingCta: i.bookingCta ?? null, video,
   }));
   const text = [bodyText.trim(), "", "--", sig.text, "", ...footer, ...(i.commercial && i.unsubscribeUrl ? [`${unsubLabel}: ${i.unsubscribeUrl}`] : [])].join("\n");
   return { subject, text, html };

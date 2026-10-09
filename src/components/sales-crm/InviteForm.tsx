@@ -5,10 +5,12 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { acceptSalesInvite } from "@/actions/sales-staff";
 import { ADMIN } from "@/lib/routes";
 import { crmCopy } from "@/lib/admin-locale/sales-crm";
+import { identityCopy } from "@/lib/admin-locale/sales-identity";
 import { btnPrimary, inputCls, labelCls } from "@/components/sales-crm/ui";
 
-export function InviteForm({ staffId, locale }: { staffId: string; locale: "en" | "fr" }) {
+export function InviteForm({ staffId, locale, reset = false }: { staffId: string; locale: "en" | "fr"; reset?: boolean }) {
   const i = crmCopy(locale).invite;
+  const v = identityCopy(locale).verify;
   const tokenRef = useRef<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -39,8 +41,8 @@ export function InviteForm({ staffId, locale }: { staffId: string; locale: "en" 
         } catch { setError(i.invalid); }
       });
     }}>
-      <h1 className="text-xl font-semibold text-slate-900">{i.title}</h1>
-      <p className="text-sm text-slate-600">{i.help}</p>
+      <h1 className="text-xl font-semibold text-slate-900">{reset ? v.resetTitle : i.title}</h1>
+      <p className="text-sm text-slate-600">{reset ? v.resetHelp : i.help}</p>
       <label className={labelCls}>{i.password}<input className={inputCls} type="password" name="password" required minLength={10} maxLength={128} autoComplete="new-password" disabled={pending} /></label>
       <label className={labelCls}>{i.confirm}<input className={inputCls} type="password" name="confirm" required minLength={10} maxLength={128} autoComplete="new-password" disabled={pending} /></label>
       {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p>}

@@ -6,11 +6,12 @@ import { usePathname } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, LogOut, Shield, BarChart3, MessagesSquare, X, Users, Kanban, ListChecks, MonitorPlay, Contact, SlidersHorizontal, Store, Mail, Send, CalendarDays, Settings2 } from "lucide-react";
+import { LayoutDashboard, LogOut, Shield, BarChart3, MessagesSquare, X, Users, Kanban, ListChecks, MonitorPlay, Contact, SlidersHorizontal, Store, Mail, Send, CalendarDays, Settings2, MapPin, Video, UserCog } from "lucide-react";
 import { ADMIN, PLATFORM } from "@/lib/routes";
 import { APP_NAME } from "@/config/app";
 import { crmCopy } from "@/lib/admin-locale/sales-crm";
 import { commsCopy } from "@/lib/admin-locale/sales-comms";
+import { identityCopy } from "@/lib/admin-locale/sales-identity";
 import type { PlatformSalesKind } from "@/domain/sales-crm/access";
 
 export interface PlatformNavContext { kind: PlatformSalesKind; locale: "en" | "fr" }
@@ -21,6 +22,7 @@ interface NavItem { href: string; label: string; icon: typeof Shield; exact?: bo
 function navFor({ kind, locale }: PlatformNavContext): { sales: NavItem[]; platform: NavItem[] } {
   const t = crmCopy(locale).nav;
   const c = commsCopy(locale).nav;
+  const ic = identityCopy(locale);
   const sales: NavItem[] = [
     { href: PLATFORM.sales, label: t.dashboard, icon: LayoutDashboard, exact: true },
     { href: PLATFORM.salesProspects, label: t.prospects, icon: Contact },
@@ -32,7 +34,8 @@ function navFor({ kind, locale }: PlatformNavContext): { sales: NavItem[]; platf
     { href: PLATFORM.salesDemos, label: t.demos, icon: MonitorPlay, also: [PLATFORM.salesNew] },
   ];
   if (kind === "SUPER_ADMIN" || kind === "SALES_MANAGER") sales.push({ href: PLATFORM.salesTeam, label: t.team, icon: Users });
-  if (kind === "SUPER_ADMIN") sales.push({ href: PLATFORM.salesNeeds, label: t.needs, icon: SlidersHorizontal }, { href: PLATFORM.salesComms, label: c.comms, icon: Settings2 });
+  if (kind === "SUPER_ADMIN") sales.push({ href: PLATFORM.salesNeeds, label: t.needs, icon: SlidersHorizontal }, { href: PLATFORM.salesComms, label: c.comms, icon: Settings2 }, { href: PLATFORM.salesTerritories, label: ic.territories.title, icon: MapPin }, { href: PLATFORM.salesVideos, label: ic.videos.title, icon: Video });
+  sales.push({ href: PLATFORM.salesAccount, label: ic.account.title, icon: UserCog });
   const platform: NavItem[] = kind === "SUPER_ADMIN" ? [
     { href: PLATFORM.home, label: t.shops, icon: Store, exact: true },
     { href: PLATFORM.analytics, label: t.analytics, icon: BarChart3 },
