@@ -73,6 +73,20 @@ for (const l of LOCALES) for (const v of ["full", "teaser"] as const) {
   });
 }
 
+// narration/subtitle integrity on the real audio
+import { cuesFor } from "../src/audio/subtitles";
+for (const l of LOCALES) {
+  const segs = getSegments(l, "full");
+  segs.forEach((s, i) => {
+    ok(s.status === "ready" && existsSync(`${root}/public/audio/${l}/scene-0${i + 1}.wav`), `full/${l}/${s.sceneId} narration file present (public/audio)`);
+    if (i > 0) ok(s.startSec >= segs[i - 1].endSec, `full/${l}/${s.sceneId} starts after previous narration ends (${s.startSec.toFixed(2)} >= ${segs[i - 1].endSec.toFixed(2)})`);
+    const cues = cuesFor(s);
+    ok(cues.every((c, j) => c.to > c.from && (j === 0 || c.from >= cues[j - 1].to - 3)), `full/${l}/${s.sceneId} ${cues.length} cue(s) ordered`);
+    ok(cues[0].from >= Math.floor(s.startSec * FPS) && cues[cues.length - 1].to <= Math.ceil(s.endSec * FPS) + 3, `full/${l}/${s.sceneId} cues inside narration window`);
+    ok(cues.every((c) => c.text.length <= 75), `full/${l}/${s.sceneId} cue length <= 75 chars`);
+  });
+}
+
 // 10. deterministic output names
 for (const c of COMPOSITIONS) console.log(`INFO  ${c.id} -> output/${c.id}.mp4 (${c.frames} frames)`);
 

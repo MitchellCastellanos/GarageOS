@@ -33,4 +33,16 @@ for (const w of ["500", "600"]) {
   if (!existsSync(p)) throw new Error(`Missing ${p}; run npm install in video/`);
   copyFileSync(p, join(out, "fonts", f));
 }
+// scene-aligned narration (mastered WAVs committed in src/audio/<locale>/) -> public/audio for Remotion
+let a = 0;
+for (const loc of ["en", "fr"]) {
+  const dir = join(here, "../src/audio", loc);
+  if (!existsSync(dir)) continue;
+  for (const f of readdirSync(dir).filter((f) => f.endsWith(".wav"))) {
+    mkdirSync(join(out, "../audio", loc), { recursive: true });
+    copyFileSync(join(dir, f), join(out, "../audio", loc, f));
+    a++;
+  }
+}
+console.log(`prepared ${a} narration files;`);
 console.log(`prepared ${n} captures + brand mark + fonts in ${out}`);
