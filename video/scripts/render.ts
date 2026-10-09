@@ -20,7 +20,7 @@ mkdirSync(`${out}/stills`, { recursive: true });
 
 // Remotion needs a headless-shell build. Override with REMOTION_BROWSER_EXECUTABLE; otherwise Remotion downloads its own,
 // or we reuse the Playwright headless shell when present (sandboxed environments without network).
-const pw = readdirSync("/opt/pw-browsers").find((d) => d.startsWith("chromium_headless_shell")) ?? "";
+const pw = (existsSync("/opt/pw-browsers") ? readdirSync("/opt/pw-browsers") : []).find((d) => d.startsWith("chromium_headless_shell")) ?? "";
 const pwShell = pw ? `/opt/pw-browsers/${pw}/chrome-linux/headless_shell` : "";
 const browserExecutable = process.env.REMOTION_BROWSER_EXECUTABLE ?? (existsSync(pwShell) ? pwShell : null);
 
