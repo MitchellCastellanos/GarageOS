@@ -5,7 +5,7 @@ import type { PlatformSalesActor } from "@/domain/sales-crm/access";
 import { resolveEffectiveLanguage } from "@/domain/sales-crm/language";
 import { CrmError, requireScopedProspect } from "@/lib/sales-crm/prospects";
 import { writeCrmAudit } from "@/lib/sales-crm/audit";
-import { cleanSubject, generateMessageId, emailDomain, isValidEmail, normalizeEmail, replySubject, parseRecipientList } from "@/domain/sales-comms/email";
+import { HeaderInjectionError, cleanSubject, generateMessageId, emailDomain, isValidEmail, normalizeEmail, replySubject, parseRecipientList } from "@/domain/sales-comms/email";
 import { randomToken, signUnsubscribeToken } from "@/domain/sales-comms/tokens";
 import { isTemplateKey, categoryOfTemplate, type TemplateKey, type TemplateLanguage } from "@/domain/sales-comms/templates";
 import { baseVars, renderResolved, resolveTemplate, toTemplateLanguage } from "@/lib/sales-comms/templates";
@@ -110,7 +110,8 @@ export async function saveDraft(actor: PlatformSalesActor, input: ComposeInput) 
   const r = parseRecipients(input);
   if (r.bad.length) throw new CrmError("INVALID_RECIPIENT");
   if (input.bodyText.length > MAX_BODY_CHARS) throw new CrmError("TOO_LONG");
-  const subject = input.subject.trim() ? cleanSubject(input.subject) : "";
+  let subject = "";
+  try { subject = input.subject.trim() ? cleanSubject(input.subject) : ""; } catch (e) { if (e instanceof HeaderInjectionError) throw new CrmError("INVALID_SUBJECT"); throw e; }
   const lang = effectiveLanguage({ override: input.languageOverride, contact: contact?.preferredLanguage, prospect: prospect ? (await db.crmProspect.findUniqueOrThrow({ where: { id: prospect.id }, select: { preferredLanguage: true } })).preferredLanguage : "UNKNOWN" });
   const templateKey = input.templateKey && isTemplateKey(input.templateKey) ? input.templateKey : null;
 

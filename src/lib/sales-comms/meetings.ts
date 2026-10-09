@@ -146,10 +146,10 @@ export async function queueMeetingEmails(tx: Tx, args: { meeting: { id: string; 
   const ids: string[] = [];
   const mk = async (kind: string, at: Date, status: "QUEUED" | "SCHEDULED") => {
     const key = meetingEmailKey(meeting.id, meeting.revision, kind);
-    try {
-      const m = await tx.crmEmailMessage.create({ data: { ...base, status, meetingEmailKind: kind, templateKey: kind === "confirmation" ? "MEETING_CONFIRMATION" : kind === "rescheduled" ? "MEETING_RESCHEDULED" : kind === "cancelled" ? "MEETING_CANCELLED" : "MEETING_REMINDER", idempotencyKey: key, scheduledFor: status === "SCHEDULED" ? at : null, nextAttemptAt: at }, select: { id: true } });
-      ids.push(m.id);
-    } catch (e) { if ((e as { code?: string }).code !== "P2002") throw e; }
+    // Look first: a unique violation would abort the surrounding PostgreSQL transaction. All callers hold the seller lock, so this is race-free.
+    if (await tx.crmEmailMessage.findUnique({ where: { idempotencyKey: key }, select: { id: true } })) return;
+    const m = await tx.crmEmailMessage.create({ data: { ...base, status, meetingEmailKind: kind, templateKey: kind === "confirmation" ? "MEETING_CONFIRMATION" : kind === "rescheduled" ? "MEETING_RESCHEDULED" : kind === "cancelled" ? "MEETING_CANCELLED" : "MEETING_REMINDER", idempotencyKey: key, scheduledFor: status === "SCHEDULED" ? at : null, nextAttemptAt: at }, select: { id: true } });
+    ids.push(m.id);
   };
   await mk(args.kind, args.now, "QUEUED");
   if (args.withReminders && args.kind !== "cancelled") for (const p of reminderPlan(meeting.startsAt, args.now)) await mk(p.kind, p.at, "SCHEDULED");
