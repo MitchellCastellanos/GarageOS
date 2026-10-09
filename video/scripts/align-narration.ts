@@ -82,8 +82,14 @@ for (const job of jobs) {
   const segs = job.segments.map((sg, i) => {
     const a = bounds[i], b = bounds[i + 1], d = b - a;
     const fades = `afade=t=in:st=0:d=${EDGE_FADE},afade=t=out:st=${(d - EDGE_FADE).toFixed(3)}:d=${EDGE_FADE}`;
-    const r = ff(["-y", "-i", src, "-ss", a.toFixed(3), "-t", d.toFixed(3), "-af", `${chain},${fades}`, "-ar", "48000", "-ac", "1", "-c:a", "pcm_s16le", `${outDir}/${sg.file}`]);
+    // trim INSIDE the graph (after the whole-file loudnorm) so the fades' timestamps start at 0 for this segment
+    const r = ff(["-y", "-i", src, "-af", `${chain},atrim=start=${a.toFixed(3)}:end=${b.toFixed(3)},asetpts=PTS-STARTPTS,${fades}`, "-ar", "48000", "-ac", "1", "-c:a", "pcm_s16le", `${outDir}/${sg.file}`]);
     if (r.status !== 0) throw new Error(r.stderr);
+    // every segment must be audible and unclipped (guards against filter/timestamp mistakes that silence a cut)
+    const vol = ff(["-i", `${outDir}/${sg.file}`, "-af", "volumedetect", "-f", "null", "-"]).stderr;
+    const mean = parseFloat(vol.match(/mean_volume: (-?[\d.]+)/)?.[1] ?? "-99");
+    const max = parseFloat(vol.match(/max_volume: (-?[\d.]+)/)?.[1] ?? "-99");
+    if (mean < -30 || max < -6 || max > -1.2) throw new Error(`${variant}-${locale}/${sg.file}: mean ${mean} dB / max ${max} dB, segment is silent, faded or clipped`);
     const words = sg.script.trim().split(/\s+/).length;
     const chunks = speech.filter(([x, y]) => y > a && x < b).map(([x, y]) => [Math.max(x, a) - a, Math.min(y, b) - a] as [number, number]);
     const spoken = chunks.reduce((t, [x, y]) => t + (y - x), 0);

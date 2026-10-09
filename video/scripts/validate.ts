@@ -1,7 +1,7 @@
 // Static + output validation. Run from video/:  npm run validate
 // Static checks always run; MP4 probes run for files that exist in output/.
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, statSync } from "node:fs";
+import { existsSync, readdirSync, statSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { SHOTS, shotPath, sizeOf, type ShotKey } from "../src/config/assets";
@@ -91,6 +91,13 @@ for (const l of LOCALES) {
     ok(cues[0].from >= Math.floor(s.startSec * FPS) && cues[cues.length - 1].to <= Math.ceil(s.endSec * FPS) + 3, `full/${l}/${s.sceneId} cues inside narration window`);
     ok(cues.every((c) => c.text.length <= 75), `full/${l}/${s.sceneId} cue length <= 75 chars`);
   });
+}
+
+// every narration file is audible and unclipped (a silent split would otherwise pass every timing check)
+for (const l of LOCALES) for (const f of readdirSync(`${root}/src/audio/${l}`).filter((x) => x.endsWith(".wav"))) {
+  const v = spawnSync("ffmpeg", ["-hide_banner", "-nostats", "-i", `${root}/src/audio/${l}/${f}`, "-af", "volumedetect", "-f", "null", "-"], { encoding: "utf8" }).stderr;
+  const mean = parseFloat(v.match(/mean_volume: (-?[\d.]+)/)?.[1] ?? "-99"), max = parseFloat(v.match(/max_volume: (-?[\d.]+)/)?.[1] ?? "-99");
+  ok(mean > -22 && mean < -13 && max <= -1.2 && max >= -3, `${l}/${f} audible and consistent (mean ${mean} dB, peak ${max} dB)`);
 }
 
 // 10. deterministic output names
