@@ -68,7 +68,7 @@ export function LoginForm({ error, destination }: LoginFormProps) {
         <PasswordField label={login.passwordLabel} />
 
         <div className="flex justify-end -mt-2">
-          <Link href="/sales-recover" className="text-sm text-blue-600 hover:underline">
+          <Link href={locale === "fr" ? "/account-recovery?lang=fr" : "/account-recovery"} className="text-sm text-blue-600 hover:underline">
             {login.forgotPassword}
           </Link>
         </div>
