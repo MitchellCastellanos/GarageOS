@@ -14,6 +14,16 @@ Status (updated after PR #91 closure): **code complete and deployed; live provid
 ## 0. Infrastructure update (owner-confirmed)
 Resend: `garage-os.ca` and `mail.garage-os.ca` verified with Sending on. Cloudflare manages DNS and Email Routing for the main domain; DMARC exists; SMTP2GO serves other mail; **no Resend Pro and no MX change**. Therefore replies are received through **Cloudflare Email Routing + Email Worker** — setup, first Hotmail round trip and troubleshooting are in `docs/sales-inbound-cloudflare.md`. Steps §3.1–§3.2 below that mention Resend receiving/MX/webhook-for-inbound no longer apply (the Resend webhook is still useful for delivery/bounce events).
 
+## 0b. Live results (Oct 9, 2026, via Resend connector — read-only checks + one authorized send)
+| Check | Result |
+|---|---|
+| Resend domains | `garage-os.ca` and `mail.garage-os.ca`: **verified, Sending enabled**, Receiving disabled (intentional: inbound goes through Cloudflare), open/click tracking off |
+| Resend webhook | One webhook → `https://www.garage-os.ca/api/webhooks/resend`, **enabled**, events: bounced, delivered, failed, complained, delivery_delayed, suppressed (enough for delivery tracking; `email.received` not needed) |
+| Existing production sends | Transactional mail already delivered (confirmation, quote) through Resend — the sending path works in production |
+| **Authorized test to mitchell.castellanos@hotmail.com** | **Sent and DELIVERED.** From `GarageOS Test <test@garage-os.ca>`, subject `[GarageOS TEST] Sales outbound check`, Resend id `01a121b2-d093-7607-bcd7-316a10e43210`, provider status `delivered` (sent through the Resend connector, not through the Sales CRM pipeline). Inbox vs junk placement: pending the owner's confirmation. |
+| Cloudflare connector | Exposes Workers/D1/KV/R2 read-write tools only: **no Email Routing and no Worker deploy**. Account has one unrelated Worker (`mimarca-stripe-webhook`). The inbound Worker and the `replies@` rule must be created by the owner (`docs/sales-inbound-cloudflare.md`). |
+| Inbound (replies) | **Not yet live**: PR #94 merged (code + Worker source + runbook); Worker not deployed, rule not created, `SALES_INBOUND_SECRET` not set. No reply round trip has happened. |
+
 ## 1b. Production closure results (Oct 9–10, 2026)
 | Item | Result |
 |---|---|
