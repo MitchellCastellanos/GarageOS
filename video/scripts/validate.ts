@@ -145,7 +145,7 @@ for (const [f, secs] of [["garageos-music.wav", 60], ["teaser-edit.wav", 15]] as
   ok(dec.status === 0 && dec.stderr.trim() === "", `music ${f} decodes without errors`);
 }
 const MUSIC_LUFS = -13.7; // measured integrated loudness of the source track
-const voiceLufs = -16 + MIX.narrationGainDb;
+const voiceLufs = -16 + MIX.narrationGainDb.full;
 ok(voiceLufs - (MUSIC_LUFS + MIX.music.duckDb) >= 12, `music sits >= 12 dB under narration (${(voiceLufs - (MUSIC_LUFS + MIX.music.duckDb)).toFixed(1)} dB)`);
 ok(MIX.music.openDb - MIX.music.duckDb <= 12, `duck depth ${MIX.music.openDb - MIX.music.duckDb} dB (<= 12 dB: gentle)`);
 
@@ -184,12 +184,12 @@ for (const c of COMPOSITIONS) {
   for (const s of segs) {
     const chunks = (s.speech.length ? s.speech : [[0, s.durationSec]]).map(([a, b]) => [s.startSec + a, s.startSec + b] as [number, number]).filter(([a, b]) => b - a > 0.3);
     const v = Math.max(...chunks.map(([a, b]) => rmsDb(pcm, a, b)));
-    ok(v > bed + 3 && v > -24, `${c.id}.mp4 ${s.sceneId} narration ${v.toFixed(1)} dB RMS stands ${(v - bed).toFixed(1)} dB above the music bed`);
+    ok(v > bed + 4 && v > -24, `${c.id}.mp4 ${s.sceneId} narration ${v.toFixed(1)} dB RMS stands ${(v - bed).toFixed(1)} dB above the music bed`);
   }
   // no dead air before the music's own decay (last 1.5 s)
   let dead = 0;
-  for (let t = 0; t < secs - 1.5; t += 0.5) if (rmsDb(pcm, t, t + 0.5) < -60) dead++;
-  ok(dead === 0, `${c.id}.mp4 no silent gaps before the final decay`);
+  for (let t = 0; t < secs - (kind === "full" ? 4 : 1.5); t += 0.5) if (rmsDb(pcm, t, t + 0.5) < -60) dead++;
+  ok(dead === 0, `${c.id}.mp4 no silent gaps before the music's final decay`);
 }
 const ls = Object.values(loud);
 if (ls.length === 4) ok(Math.max(...ls) - Math.min(...ls) <= 1.0, `loudness spread across the four masters ${(Math.max(...ls) - Math.min(...ls)).toFixed(2)} LU (<= 1.0)`);

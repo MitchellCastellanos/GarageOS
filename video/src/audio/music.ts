@@ -21,11 +21,11 @@ export const MUSIC_ANALYSIS = {
 export const TEASER_EDIT = { spliceFromBeat: 8, spliceToBeat: 92, crossfadeSec: 0.025, preKickSec: 0.025, lengthSec: 15 } as const;
 
 export const MIX = {
-  /** Narration gain on top of the mastered files (-16 LUFS, -1.5 dBFS peak). */
-  narrationGainDb: 1.5,
+  /** Narration gain on top of the mastered files (-16 LUFS, -1.5 dBFS peak); the teaser is mostly speech, so it needs less to match the full videos. */
+  narrationGainDb: { full: 2.0, teaser: 1.0 },
   music: {
     /** Music level while nobody speaks, and under speech. The difference is the duck depth. */
-    openDb: -6,
+    openDb: -9,
     duckDb: -16,
     fadeInSec: 0.6,
     fadeOutSec: 0.35,

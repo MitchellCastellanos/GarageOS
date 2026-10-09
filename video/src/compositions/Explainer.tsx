@@ -54,7 +54,7 @@ const Film: React.FC<FilmProps & { variant: "full" | "teaser"; overlap: number }
         {segments.map((seg) =>
           seg.staticPath ? (
             <Sequence key={seg.sceneId} from={Math.round(seg.startSec * FPS)} name={`narration-${seg.sceneId}`}>
-              <Audio src={seg.staticPath} volume={dbToLin(MIX.narrationGainDb)} />
+              <Audio src={seg.staticPath} volume={dbToLin(MIX.narrationGainDb[variant])} />
             </Sequence>
           ) : null,
         )}

@@ -23,9 +23,9 @@ Checked numerically: the second half of the edit matches the source at 51.015 s 
 ## Mix (Remotion, `src/audio/music.ts`, `MIX`)
 | Setting | Value |
 |---|---|
-| Narration | mastered files (-16 LUFS, -1.5 dBFS peak) +1.5 dB |
-| Music, no one speaking | -6 dB |
-| Music under narration | -16 dB (10 dB duck; music about 15 dB below the voice) |
+| Narration | mastered files (-16 LUFS, -1.5 dBFS peak) +2.0 dB (full), +1.0 dB (teaser, mostly speech) |
+| Music, no one speaking | -9 dB |
+| Music under narration | -16 dB (7 dB duck; music about 15 dB below the voice) |
 | Ducking | begins 0.15 s before a phrase, smoothstep attack 0.35 s, release 1.0 s, gaps under 1.0 s bridged (full) / 2.5 s (teaser): no pumping |
 | Teaser | music re-opens 4.05-5.25 s for the drop; +5 dB accent around the resolution at 11.32 s |
 | Fades | music in 0.6 s, out 0.35 s (linear amplitude) |
