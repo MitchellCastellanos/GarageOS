@@ -5,6 +5,8 @@ import { verifyResendWebhookSignature } from "@/lib/communications/resend-webhoo
 import { resolveShopIdByInboundAddress } from "@/lib/communications/sender-identity";
 import { uploadCommunicationAttachment } from "@/lib/storage";
 import { handleResendStatusEvent } from "@/lib/communications/email-status";
+import { applyDeliveryEvent } from "@/lib/sales-comms/delivery";
+import { processInboundEmail, routesToSales } from "@/lib/sales-comms/inbound";
 
 /**
  * Webhook único de Resend — un mismo endpoint recibe todos los tipos de evento
@@ -63,6 +65,26 @@ export async function POST(req: Request) {
 
   if (!event.type || !event.data?.email_id) {
     return NextResponse.json({ ok: true, skipped: true });
+  }
+
+  // ── GarageOS SALES mail (platform-level, separate tables from shop↔customer mail) ──────────────────────
+  // Sales is tried FIRST and only claims an event when the message/address is its own; otherwise the tenant
+  // handlers below run exactly as before.
+  const svixId = req.headers.get("svix-id") ?? "";
+  if (event.type !== "email.received") {
+    const sales = await applyDeliveryEvent({ eventId: svixId, type: event.type, createdAt: new Date(), data: event.data as never });
+    if (sales !== "unknown_message") return NextResponse.json({ ok: true, sales });
+  } else {
+    const recipients = [...(event.data.to ?? []), ...(((event.data as { cc?: string[] }).cc) ?? []), ...(((event.data as { received_for?: string[] }).received_for) ?? [])];
+    if (await routesToSales(recipients)) {
+      try {
+        const result = await processInboundEmail(event.data.email_id);
+        return NextResponse.json({ ok: true, sales: result.status });
+      } catch (err) {
+        console.error("[resend-inbound/sales] processing failed:", err instanceof Error ? err.message : err);
+        return NextResponse.json({ error: "Temporary failure" }, { status: 502 }); // provider retries; processing is idempotent
+      }
+    }
   }
 
   if (event.type !== "email.received") {

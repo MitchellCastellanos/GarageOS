@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { canSubscribeToPusherChannel } from "@/lib/platform/pusher-authz";
 import { signPusherChannelAuth } from "@/lib/platform/pusher";
+import { resolvePlatformSalesActor } from "@/lib/sales-crm/access";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +37,7 @@ export async function POST(request: Request) {
     {
       conversationShopId: async (id) =>
         (await db.platformConversation.findUnique({ where: { id }, select: { shopId: true } }))?.shopId ?? null,
+      isSalesInboxUser: async (id) => (await resolvePlatformSalesActor(id)) !== null,
     }
   );
   if (!allowed) return new NextResponse("Forbidden", { status: 403, headers: { "Cache-Control": "no-store" } });

@@ -289,3 +289,36 @@ export async function signedUrlForCommunicationAttachment(
   if (error || !data) throw new Error(`Supabase signed URL error: ${error?.message ?? "empty"}`);
   return data.signedUrl;
 }
+
+// ── Sales communications (platform-level, NOT tenant data) ────────────────────────────────────
+export const SALES_EMAIL_BUCKET = "sales-email";
+
+/** Private attachment of a sales email. Path: `<messageId>/<timestamp>-<name>`. */
+export async function uploadSalesEmailAttachment(messageId: string, fileName: string, buffer: Buffer, mimeType: string): Promise<{ storagePath: string }> {
+  if (!/^[A-Za-z0-9_-]+$/.test(messageId)) throw new Error("Invalid message id");
+  const supabase = getClient();
+  await ensureBucket(supabase, SALES_EMAIL_BUCKET, false);
+  const storagePath = `${messageId}/${Date.now()}-${sanitizeStorageFileName(fileName)}`;
+  const { error } = await supabase.storage.from(SALES_EMAIL_BUCKET).upload(storagePath, buffer, { contentType: mimeType, upsert: false });
+  if (error) throw new Error(`Supabase upload error: ${error.message}`);
+  return { storagePath };
+}
+
+/** Short-lived signed link; the caller MUST have authorized access to the owning thread first. */
+export async function signedUrlForSalesEmailAttachment(storagePath: string, expiresInSeconds = SHORT_SIGNED_URL_TTL): Promise<string> {
+  if (!/^[A-Za-z0-9_-]+\/[A-Za-z0-9._-]+$/.test(storagePath)) throw new Error("Invalid storage path");
+  const client = getClient();
+  await assertBucketPrivateForRead(client, SALES_EMAIL_BUCKET);
+  const { data, error } = await client.storage.from(SALES_EMAIL_BUCKET).createSignedUrl(storagePath, expiresInSeconds);
+  if (error || !data) throw new Error(`Supabase signed URL error: ${error?.message ?? "empty"}`);
+  return data.signedUrl;
+}
+
+export async function downloadSalesEmailAttachment(storagePath: string): Promise<Buffer> {
+  if (!/^[A-Za-z0-9_-]+\/[A-Za-z0-9._-]+$/.test(storagePath)) throw new Error("Invalid storage path");
+  const client = getClient();
+  await assertBucketPrivateForRead(client, SALES_EMAIL_BUCKET);
+  const { data, error } = await client.storage.from(SALES_EMAIL_BUCKET).download(storagePath);
+  if (error || !data) throw new Error(`Supabase download error: ${error?.message ?? "empty"}`);
+  return Buffer.from(await data.arrayBuffer());
+}

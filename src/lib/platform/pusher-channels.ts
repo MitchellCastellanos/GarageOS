@@ -23,7 +23,13 @@ export function staffNotificationChannel(userId: string): string {
   return `private-staff-notifications-${userId}`;
 }
 
+/** Sales inbox signals for one seller (platform staff only; signals carry no content). */
+export function salesInboxChannel(userId: string): string {
+  return `private-sales-inbox-${userId}`;
+}
+
 export type ParsedPusherChannel =
+  | { kind: "sales-inbox"; id: string }
   | { kind: "platform-conversation"; id: string }
   | { kind: "platform-messages-admin" }
   | { kind: "staff-notifications"; id: string };
@@ -36,6 +42,8 @@ export function parsePusherChannel(name: unknown): ParsedPusherChannel | null {
   if (name === PLATFORM_MESSAGES_CHANNEL) return { kind: "platform-messages-admin" };
   let m = /^private-platform-conversation-(.+)$/.exec(name);
   if (m && ID.test(m[1])) return { kind: "platform-conversation", id: m[1] };
+  m = /^private-sales-inbox-(.+)$/.exec(name);
+  if (m && ID.test(m[1])) return { kind: "sales-inbox", id: m[1] };
   m = /^private-staff-notifications-(.+)$/.exec(name);
   if (m && ID.test(m[1])) return { kind: "staff-notifications", id: m[1] };
   return null;

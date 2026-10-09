@@ -17,6 +17,7 @@ import { OpportunityDetailsForm, ScoreOverrideForm, StartOpportunityButton } fro
 import { AssignControl, ProspectActions } from "@/components/sales-crm/ProspectActions";
 import { ScoreBreakdown } from "@/components/sales-crm/ScoreBreakdown";
 import type { CrmCopy } from "@/lib/admin-locale/sales-crm";
+import { ProspectCommsPanel } from "@/components/sales-comms/ProspectCommsPanel";
 
 type Activity = { id: string; type: string; outcome: string | null; subject: string | null; body: string | null; metadata: unknown; occurredAt: Date; author: { name: string }; contact: { name: string } | null };
 
@@ -81,6 +82,8 @@ export default async function ProspectDetailPage({ params }: { params: Promise<{
             <ContactsPanel locale={locale} prospectId={p.id} prospectLanguage={p.preferredLanguage} canEdit={canEdit}
               contacts={p.contacts.map((c) => ({ id: c.id, name: c.name, title: c.title, email: c.email, phone: c.phone, isPrimary: c.isPrimary, isDecisionMaker: c.isDecisionMaker, preferredLanguage: c.preferredLanguage, doNotContact: c.doNotContact }))} />
           </section>
+
+          {can(actor, "send_sales_email") && p.status === "ACTIVE" && <ProspectCommsPanel actor={actor} prospectId={p.id} locale={locale} language={p.preferredLanguage} />}
 
           <section className={cardCls} aria-labelledby="needs-h">
             <h2 id="needs-h" className="mb-3 font-semibold text-slate-900">{d.needs}</h2>

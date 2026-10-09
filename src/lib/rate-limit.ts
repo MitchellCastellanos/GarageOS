@@ -76,4 +76,12 @@ export const RATE_LIMITS = {
   bookingSubmitIp: (ip: string): RateLimitRule => ({ key: `booking-submit-ip:${ip}`, limit: 15, windowSec: 60 * 60 }),
   bookingContactIp: (ip: string): RateLimitRule => ({ key: `booking-contact-ip:${ip}`, limit: 10, windowSec: 60 * 60 }),
   bookingSlotsIp: (ip: string): RateLimitRule => ({ key: `booking-slots-ip:${ip}`, limit: 120, windowSec: 60 }),
+  // Sales (platform) booking, meeting-management and unsubscribe pages
+  salesBookViewIp: (ip: string): RateLimitRule => ({ key: `sales-book-view-ip:${ip}`, limit: 90, windowSec: 60 }),
+  salesBookInvalidIp: (ip: string): RateLimitRule => ({ key: `sales-book-invalid-ip:${ip}`, limit: 20, windowSec: 10 * 60 }),
+  salesBookSubmitIp: (ip: string): RateLimitRule => ({ key: `sales-book-submit-ip:${ip}`, limit: 6, windowSec: 60 * 60 }),
+  salesBookSubmitEmail: (email: string): RateLimitRule => ({ key: `sales-book-submit-email:${email.toLowerCase()}`, limit: 4, windowSec: 24 * 60 * 60 }),
+  salesBookSubmitStaff: (staffId: string): RateLimitRule => ({ key: `sales-book-submit-staff:${staffId}`, limit: 40, windowSec: 24 * 60 * 60 }),
+  salesManageIp: (ip: string): RateLimitRule => ({ key: `sales-manage-ip:${ip}`, limit: 30, windowSec: 10 * 60 }),
+  salesUnsubscribeIp: (ip: string): RateLimitRule => ({ key: `sales-unsub-ip:${ip}`, limit: 20, windowSec: 10 * 60 }),
 } as const;
