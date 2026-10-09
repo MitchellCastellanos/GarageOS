@@ -1,6 +1,6 @@
 // Static + output validation. Run from video/:  npm run validate
 // Static checks always run; MP4 probes run for files that exist in output/.
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, statSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -48,13 +48,14 @@ ok(FULL_FRAMES === sec(60) && FULL_FRAMES === 1800, `full = ${FULL_FRAMES} frame
 ok(TEASER_FRAMES === sec(15), `teaser = ${TEASER_FRAMES} frames (15.0 s)`);
 
 // 5. every scene supports both locales: non-empty, distinct copy; no English leaking into FR
-const flat = (c: object): string[] => Object.values(c).flatMap((v) => (typeof v === "string" ? [v] : typeof v === "object" ? flat(v as object) : []));
+const flat = (c: object): string[] => Object.entries(c).filter(([k]) => k !== "scene").map(([, v]) => v).flatMap((v) => (typeof v === "string" ? [v] : typeof v === "object" ? flat(v as object) : []));
 const en = flat(COPY.en), fr = flat(COPY.fr);
 ok(en.length === fr.length && en.every(Boolean) && fr.every(Boolean), `EN and FR copy have the same shape (${en.length} strings, none empty)`);
-const same = en.map((s, i) => [s, fr[i]]).filter(([a, b]) => a === b && !/^garage-os\.ca$/.test(a));
+const same = en.map((s, i) => [s, fr[i]]).filter(([a, b]) => a === b && !/^(garage-os\.ca|Inspections\.)$/.test(a));
 ok(same.length === 0, `no FR string equals its EN string${same.length ? ": " + JSON.stringify(same) : ""}`);
 for (const id of [...FULL_SCENES.map((s) => s.id)]) for (const l of LOCALES) ok(!!COPY[l].narration[id], `narration ${l}/${id}`);
-for (const s of TEASER_SCENES) for (const l of LOCALES) ok(!!COPY[l].teaser[s.id as never] && !!COPY[l].teaserNarration[s.id as never], `teaser copy+narration ${l}/${s.id}`);
+for (const s of TEASER_SCENES) for (const l of LOCALES) ok(!!COPY[l].teaser[s.id as never], `teaser copy ${l}/${s.id}`);
+for (const l of LOCALES) ok(COPY[l].teaserNarration.length === 3 && COPY[l].teaserNarration.every((t) => t.script && TEASER_SCENES.some((s) => s.id === t.scene)), `teaser narration segments ${l}`);
 
 // 7. headline fit: character budget (the runtime fitter in AnimatedHeadline enforces actual width; see stills)
 for (const l of LOCALES) {
@@ -62,14 +63,19 @@ for (const l of LOCALES) {
   for (const h of heads) ok(h.length <= 62, `headline fits budget (${h.length} chars) ${l}: ${h}`);
 }
 
-// audio plan: narration must finish before its scene ends (small spill tolerated and reported)
-for (const l of LOCALES) for (const v of ["full", "teaser"] as const) {
-  const list = v === "full" ? FULL_SCENES : TEASER_SCENES;
+// audio plan: full narration must finish before its scene ends; teaser narration before the video ends
+for (const l of LOCALES) {
   let at = 0;
-  getSegments(l, v).forEach((seg, i) => {
-    const end = at + list[i].seconds;
-    ok(seg.endSec <= end + 0.01, `${v}/${l}/${seg.sceneId} narration est. ${seg.startSec.toFixed(1)}-${seg.endSec.toFixed(1)}s within scene end ${end.toFixed(1)}s (${seg.measured ? "measured" : "estimated"}, ${seg.status})`);
+  getSegments(l, "full").forEach((seg, i) => {
+    const end = at + FULL_SCENES[i].seconds;
+    ok(seg.endSec <= end + 0.01, `full/${l}/${seg.sceneId} narration ${seg.startSec.toFixed(1)}-${seg.endSec.toFixed(1)}s within scene end ${end.toFixed(1)}s (${seg.measured ? "measured" : "estimated"}, ${seg.status})`);
     at = end;
+  });
+  const t = getSegments(l, "teaser");
+  t.forEach((seg, i) => {
+    ok(seg.endSec <= TEASER_FRAMES / FPS, `teaser/${l}/${seg.sceneId} narration ${seg.startSec.toFixed(2)}-${seg.endSec.toFixed(2)}s ends before the ${TEASER_FRAMES / FPS}s video end (${seg.status})`);
+    ok(seg.status === "ready" && existsSync(`${root}/public/audio/${l}/teaser-0${i + 1}.wav`), `teaser/${l}/${seg.sceneId} narration file present`);
+    if (i > 0) ok(seg.startSec >= t[i - 1].endSec, `teaser/${l}/${seg.sceneId} starts after previous narration ends`);
   });
 }
 
@@ -99,6 +105,16 @@ for (const c of COMPOSITIONS) {
   ok(s.width === 1920 && s.height === 1080, `${c.id}.mp4 ${s.width}x${s.height}`);
   ok(s.codec_name === "h264" && s.r_frame_rate === "30/1", `${c.id}.mp4 codec ${s.codec_name} @ ${s.r_frame_rate}`);
   ok(s.pix_fmt === "yuv420p" && s.color_range === "tv" && s.color_space === "bt709", `${c.id}.mp4 broadly compatible pixel format (${s.pix_fmt}, ${s.color_range}, ${s.color_space})`);
+  const au = JSON.parse(execFileSync("ffprobe", ["-v", "error", "-select_streams", "a:0", "-show_entries", "stream=codec_name,channels,sample_rate,duration", "-of", "json", f]).toString()).streams[0];
+  ok(!!au && au.codec_name === "aac", `${c.id}.mp4 has an audio stream (${au?.codec_name}, ${au?.channels}ch, ${au?.sample_rate} Hz)`);
+  const m = spawnSync("ffmpeg", ["-hide_banner", "-nostats", "-i", f, "-map", "0:a:0", "-af", "ebur128=peak=true,astats=metadata=0", "-f", "null", "-"], { encoding: "utf8", maxBuffer: 1 << 26 }).stderr;
+  const lufs = parseFloat([...m.matchAll(/I:\s+(-?[\d.]+) LUFS/g)].pop()?.[1] ?? "NaN");
+  const tp = parseFloat([...m.matchAll(/Peak:\s+(-?[\d.]+) dBFS/g)].pop()?.[1] ?? "NaN");
+  const flat = parseFloat([...m.matchAll(/Flat factor: ([\d.]+)/g)].pop()?.[1] ?? "NaN");
+  ok(lufs > -17.5 && lufs < -14.5, `${c.id}.mp4 dialogue loudness ${lufs} LUFS (target -16 +/- 1.5)`);
+  ok(tp <= -1, `${c.id}.mp4 true-peak ${tp} dBFS (<= -1.0, no clipping)`);
+  ok(flat === 0, `${c.id}.mp4 flat-factor ${flat} (0 = no clipped runs)`);
+  ok(Math.abs(parseFloat(au?.duration ?? "0") - c.frames / FPS) < 0.15, `${c.id}.mp4 audio duration ${au?.duration}s matches video`);
   ok(Math.abs(parseFloat(j.format.duration) - c.frames / FPS) < 0.1, `${c.id}.mp4 duration ${j.format.duration}s (expected ${c.frames / FPS}s)`);
 }
 for (const l of LOCALES as Locale[]) {

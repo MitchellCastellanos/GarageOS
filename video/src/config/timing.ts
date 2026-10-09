@@ -14,15 +14,17 @@ export const FULL_SCENES: { id: SceneId; seconds: number }[] = [
 ];
 
 export const TEASER_SCENES: { id: string; seconds: number }[] = [
-  { id: "hook", seconds: 3 },
-  { id: "booking", seconds: 3.5 },
-  { id: "inspection", seconds: 3 },
-  { id: "invoice", seconds: 2.5 },
-  { id: "closing", seconds: 3 },
+  { id: "hook", seconds: 2.5 },
+  { id: "booking", seconds: 2.9 },
+  { id: "inspection", seconds: 2.5 },
+  { id: "invoice", seconds: 3.2 },
+  { id: "closing", seconds: 3.9 },
 ];
 
 /** Cross-fade overlap between consecutive scenes, in frames. */
 export const OVERLAP = 12;
+/** Teaser cross-fade overlap, in frames. */
+export const TEASER_OVERLAP = 8;
 
 export const sceneStarts = <T extends { seconds: number }>(list: T[]) => {
   let at = 0;
@@ -45,4 +47,10 @@ export const TEASER_FRAMES = TEASER_SCENES.reduce((a, s) => a + sec(s.seconds), 
 export const NARRATION_START: Record<Locale, Record<SceneId, number>> = {
   en: { hook: 0.5, booking: 4.6, inspection: 6.2, work: 3.6, retention: 3.2, closing: 2.2 },
   fr: { hook: 0.5, booking: 4.4, inspection: 5.8, work: 3.3, retention: 3.0, closing: 2.2 },
+};
+
+/** Teaser narration start, seconds from the start of the Sequence of the segment's scene (see NARRATION_START). */
+export const TEASER_NARRATION_START: Record<Locale, Record<string, number>> = {
+  en: { booking: 0.4, inspection: 0.34, invoice: 0.76 },
+  fr: { booking: 0.4, inspection: 0.3, invoice: 0.56 },
 };

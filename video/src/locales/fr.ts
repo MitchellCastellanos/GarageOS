@@ -51,11 +51,9 @@ export const fr: LocaleCopy = {
     retention: "Gardez le contact avec vos clients grâce aux rappels d’entretien et aux communications de suivi.",
     closing: "GarageOS. Tout votre garage, connecté.",
   },
-  teaserNarration: {
-    hook: "Gérer un garage, c’est déjà compliqué.",
-    booking: "Organisez vos rendez-vous, réservez en ligne.",
-    inspection: "Inspections et soumissions claires.",
-    invoice: "Facturez au même endroit.",
-    closing: "GarageOS. Tout votre garage, connecté.",
-  },
+  teaserNarration: [
+    { scene: "booking", script: "Rendez-vous." },
+    { scene: "inspection", script: "Inspections." },
+    { scene: "invoice", script: "Factures. Tout est connecté. Découvrez GarageOS, une façon plus simple de gérer votre garage." },
+  ],
 };

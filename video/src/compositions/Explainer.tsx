@@ -1,6 +1,6 @@
 import React from "react";
 import { AbsoluteFill, Audio, Sequence } from "remotion";
-import { FPS, FULL_SCENES, OVERLAP, TEASER_SCENES, sceneStarts } from "../config/timing";
+import { FPS, FULL_SCENES, OVERLAP, TEASER_OVERLAP, TEASER_SCENES, sceneStarts } from "../config/timing";
 import { FontGate } from "../config/fonts";
 import { MUSIC, getSegments } from "../audio/manifest";
 import { cuesFor } from "../audio/subtitles";
@@ -63,4 +63,4 @@ const Film: React.FC<FilmProps & { variant: "full" | "teaser"; overlap: number }
 };
 
 export const Explainer: React.FC<FilmProps> = (p) => <Film {...p} variant="full" overlap={OVERLAP} />;
-export const Teaser: React.FC<FilmProps> = (p) => <Film {...p} variant="teaser" overlap={8} />;
+export const Teaser: React.FC<FilmProps> = (p) => <Film {...p} variant="teaser" overlap={TEASER_OVERLAP} />;

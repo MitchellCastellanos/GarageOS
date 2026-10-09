@@ -8,6 +8,7 @@
     "studio": "remotion studio src/index.ts",
     "prepare:assets": "node scripts/prepare-assets.mjs",
     "audio:align": "tsx scripts/align-narration.ts",
+    "audio:report": "tsx scripts/audio-report.ts",
     "audio:sync": "tsx scripts/sync-audio.ts",
     "validate": "tsx scripts/validate.ts",
     "render": "tsx scripts/render.ts",

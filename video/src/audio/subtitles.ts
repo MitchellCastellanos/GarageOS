@@ -10,6 +10,7 @@ export interface Cue {
 }
 
 const MAX_CUE_CHARS = 60;
+const COMMA_SPLIT_CHARS = 45;
 
 // Words a cue should not end on / is happy to start with (EN + FR).
 const WEAK_END = new Set("a an the and or to of in on for with your our their your et ou de des du la le les un une vos votre aux au à à en pour avec que qui".split(" "));
@@ -34,7 +35,7 @@ function halve(s: string): string[] {
 export function clauses(script: string): string[] {
   const sentences = script.match(/[^.!?]+[.!?]+|[^.!?]+$/g)?.map((s) => s.trim()).filter(Boolean) ?? [script];
   return sentences.flatMap((s) => {
-    if (s.length <= MAX_CUE_CHARS) return [s];
+    if (s.length <= COMMA_SPLIT_CHARS) return [s];
     const parts = s.split(/(?<=,)\s+/);
     // merge tiny leftovers so we never show 1-2 word cues
     const out: string[] = [];
@@ -63,11 +64,24 @@ export function cuesFor(seg: NarrationSegment): Cue[] {
     }
     return speech[speech.length - 1][1];
   };
+  // chunk boundaries on the speech-only timeline (cumulative end of every voiced chunk except the last)
+  const edges: number[] = [];
+  let run = 0;
+  for (const [a, b] of speech.slice(0, -1)) { run += b - a; edges.push(run); }
+  // a clause boundary lands on a real pause when one is within SNAP seconds of where proportion puts it
+  const SNAP = 0.45;
+  const snap = (x: number) => {
+    let best = x, d = SNAP;
+    for (const e of edges) if (Math.abs(e - x) < d) { d = Math.abs(e - x); best = e; }
+    return best;
+  };
   let acc = 0;
+  let prev = 0;
   const cues = parts.map((text, i) => {
-    const x0 = (acc / total) * speechTotal;
     acc += weight[i];
-    const x1 = (acc / total) * speechTotal;
+    const x0 = prev;
+    const x1 = i === parts.length - 1 ? speechTotal : Math.max(x0 + 0.05, snap((acc / total) * speechTotal));
+    prev = x1;
     // start right at the first voiced sample of the cue; end where its last voiced sample is
     const a = i === 0 ? speech[0][0] : at(x0 + 1e-6);
     const b = at(x1);

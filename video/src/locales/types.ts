@@ -19,6 +19,9 @@ export interface LocaleCopy {
   teaser: Record<TeaserSceneId, { headline: string; sub?: string }>;
   /** Full-commercial narration, one segment per scene. */
   narration: Record<SceneId, string>;
-  /** Teaser narration, one segment per teaser scene. */
-  teaserNarration: Record<TeaserSceneId, string>;
+  /**
+   * Teaser narration as recorded: one continuous take, cut at its natural pauses into these segments.
+   * `scene` is the scene whose visuals the segment starts on; a segment may run on into the next scene.
+   */
+  teaserNarration: { scene: TeaserSceneId; script: string }[];
 }
