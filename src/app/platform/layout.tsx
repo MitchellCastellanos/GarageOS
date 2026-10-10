@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { PlatformChrome } from "@/components/admin/PlatformChrome";
 import { getPlatformPendingCount } from "@/actions/platform";
@@ -5,6 +6,9 @@ import { requireSession } from "@/lib/permissions";
 import { resolvePlatformSalesActor } from "@/lib/sales-crm/access";
 import { ADMIN } from "@/lib/routes";
 import { canViewRoutes } from "@/domain/sales-crm/field-route";
+
+// Panel interno de la plataforma: nunca indexable.
+export const metadata: Metadata = { robots: { index: false, follow: false, nocache: true } };
 
 // /platform admits Super Admin AND active platform sales staff. The layout only decides who may see the shell;
 // every page/action enforces its own capability (Super Admin-only pages call requireSuperAdmin()).

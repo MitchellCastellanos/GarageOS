@@ -19,6 +19,7 @@ import {
   buildDemoBookingPage,
 } from "../src/lib/demo-booking-shop";
 import * as D from "../scripts/marketing/garage-laurent-dataset";
+import { isTrackablePath } from "../src/lib/privacy/private-paths";
 
 // PhoneLink exige children en sus props; createElement los recibe como argumento.
 const Phone = PhoneLink as unknown as ComponentType<{ phone: string; className?: string; children?: ReactNode }>;
@@ -186,6 +187,9 @@ test("demo-only source files perform no network or write calls", () => {
 
 test("the page-view beacon skips the demo booking replica (no write endpoint, no IP/user-agent stored)", () => {
   const src = readFileSync(path.join(root, "src/components/AnalyticsBeacon.tsx"), "utf8");
-  assert.match(src, /pathname\.startsWith\("\/demo\/booking"\)\) return/);
-  assert.doesNotMatch(src, /startsWith\("\/demo"\)\)/); // /demo (marketing) sigue igual
+  // El beacon decide con la función compartida (src/lib/privacy/private-paths.ts), que además excluye las rutas con token.
+  assert.match(src, /if \(!isTrackablePath\(pathname\)\) return;/);
+  assert.equal(isTrackablePath("/demo/booking"), false);
+  assert.equal(isTrackablePath("/demo/booking/anything"), false);
+  assert.equal(isTrackablePath("/demo"), true); // /demo (marketing) sigue igual
 });

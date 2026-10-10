@@ -97,5 +97,11 @@ export async function generateMetadata({
   const { token } = await params;
   const quote = await getQuoteForApproval(token);
   const language = resolveLanguage(quote?.language);
-  return { title: getQuoteApprovalStrings(language).metaTitle };
+  return {
+    title: getQuoteApprovalStrings(language).metaTitle,
+    // Enlace con token secreto: no indexar ni filtrar la URL por Referer a terceros (same-origin: no-referrer envía
+    // `Origin: null` en los POST del Server Action de aprobación).
+    robots: { index: false, follow: false, nocache: true },
+    referrer: "same-origin" as const,
+  };
 }

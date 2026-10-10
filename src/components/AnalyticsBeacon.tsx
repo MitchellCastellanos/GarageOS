@@ -2,11 +2,12 @@
 
 import { useEffect, useRef } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
+import { isTrackablePath } from "@/lib/privacy/private-paths";
 
 /**
  * Dispara un beacon de pageview de primera parte al montar y en cada cambio
  * de ruta. Sin cookies, sin almacenamiento del lado del cliente, sin script
- * de terceros. Se omite por completo en /admin, /platform y /demo/booking.
+ * de terceros. Se omite en las rutas privadas y con token (ver isTrackablePath).
  */
 export default function AnalyticsBeacon() {
   const pathname = usePathname();
@@ -14,8 +15,10 @@ export default function AnalyticsBeacon() {
   const lastSent = useRef<string | null>(null);
 
   useEffect(() => {
-    // /demo/booking es una réplica local sin escrituras: tampoco registra visitas (IP/user-agent).
-    if (pathname.startsWith("/admin") || pathname.startsWith("/platform") || pathname.startsWith("/activate-demo/") || pathname.startsWith("/demo/booking")) return;
+    // Nunca se registra una ruta privada ni con token (/portal, /quote, /inspection, gestión de cita, /sales…): el path
+    // completo —token incluido— acabaría guardado en PageView y visible en el panel de analítica. También se omiten
+    // /admin, /platform, /activate-demo y /demo/booking (réplica local sin escrituras). Ver src/lib/privacy/private-paths.ts.
+    if (!isTrackablePath(pathname)) return;
     if (lastSent.current === pathname) return;
     lastSent.current = pathname;
 

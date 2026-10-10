@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import {
   canClientCancel,
@@ -9,6 +10,12 @@ import { LocaleProvider } from "@/components/booking/LocaleProvider";
 import { ManageAppointmentView } from "@/components/booking/ManageAppointmentView";
 import { formatClientName } from "@/lib/client-name";
 import { formatShopDateTime } from "@/lib/shop-timezone";
+
+// Enlace con token secreto: no indexar ni filtrar la URL por Referer a terceros.
+export const metadata: Metadata = {
+  robots: { index: false, follow: false, nocache: true },
+  referrer: "same-origin",
+};
 
 interface PageProps {
   params: Promise<{ slug: string; token: string }>;

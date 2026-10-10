@@ -10,7 +10,7 @@ import { INSPECTIONS_ADVANCED_DICT } from "@/lib/admin-locale/inspections-advanc
 
 export const dynamic = "force-dynamic";
 // Enlace con token secreto: que no lo indexen ni lo cacheen.
-export const metadata = { robots: { index: false, follow: false } };
+export const metadata = { robots: { index: false, follow: false, nocache: true }, referrer: "same-origin" as const };
 
 const BADGE = {
   GOOD: "bg-emerald-100 text-emerald-700",
