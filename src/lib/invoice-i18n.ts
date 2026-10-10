@@ -151,9 +151,9 @@ const EN: Strings = {
 const FR: Strings = {
   documentTitle: (num) => `Facture ${num}`,
   invoiceTitle: "FACTURE",
-  quoteTitle: "SOUMISSION",
+  quoteTitle: "DEVIS",
   invoiceNo: "No de facture",
-  quoteNo: "No de soumission",
+  quoteNo: "No de devis",
   date: "Date d'émission",
   due: "Date d'échéance",
   validUntil: "Valide jusqu'au",

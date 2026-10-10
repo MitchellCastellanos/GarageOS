@@ -107,7 +107,7 @@ test("real quote email uses normal localized renderer, sender route, Resend SDK 
   });
   await sendQuoteEmail({ shop: { id: "shop-A", name: "Garage" }, to: "prospect@example.test", clientName: "Prospect", shopName: "Garage", quoteNumber: "DEMO-1",
     totalFormatted: "$120.00", vehicleDescription: "Toyota Corolla", language: "FR", pdfBuffer: Buffer.from("fake PDF"), pdfFilename: "quote.pdf", quoteId: "quote-A", sendAttempt: 1 });
-  assert.equal(requests.length, 1); assert.match(requests[0].subject, /Soumission/);
+  assert.equal(requests.length, 1); assert.match(requests[0].subject, /Devis/);
   assert.equal(requests[0].reply_to, "reply@example.test"); assert.match(requests[0].html, /Garage/);
   assert.equal(rows[0].salesDemoOriginId, "demo-A"); assert.equal(rows[0].idempotencyKey, "quote-email:quote-A:1");
 });

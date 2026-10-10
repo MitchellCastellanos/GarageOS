@@ -41,7 +41,7 @@ export const EMAIL_SENDING_DICT: Record<AdminLocale, EmailSendingDictionary> = {
     banner: {
       title: "Votre expéditeur de courriel",
       bodyWithAddress: (address) =>
-        `Tous vos courriels (rendez-vous, factures, soumissions, messages) proviennent de ${address}.`,
+        `Tous vos courriels (rendez-vous, factures, devis, messages) proviennent de ${address}.`,
       bodyNoSlug:
         "Vous n'avez pas encore configuré d'identifiant, donc vos courriels utilisent un expéditeur partagé de GarageOS.",
       linkText: "Configurez votre identifiant dans l'onglet Page de réservation",

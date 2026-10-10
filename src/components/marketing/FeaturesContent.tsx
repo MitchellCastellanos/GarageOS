@@ -16,7 +16,7 @@ const BRANDING: Record<"en" | "fr", { eyebrow: string; heading: string; body: st
   fr: {
     eyebrow: "Votre marque. Vos clients.",
     heading: "Paraissez professionnel. Gardez le contrôle.",
-    body: "Les confirmations de rendez-vous, soumissions, factures, le portail client et les mises à jour de statut partent sous votre logo, vos couleurs et vos coordonnées. GarageOS travaille en coulisses — vos clients voient votre atelier.",
+    body: "Les confirmations de rendez-vous, devis, factures, le portail client et les mises à jour de statut partent sous votre logo, vos couleurs et vos coordonnées. GarageOS travaille en coulisses — vos clients voient votre atelier.",
     bullets: ["Courriels, documents et portail client à votre image", "Une page de réservation aux couleurs de votre atelier", "Aucun logo GarageOS devant vos clients"],
   },
 };

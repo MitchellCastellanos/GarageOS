@@ -68,7 +68,7 @@ const fr: Dict = {
     LOCATION_UNAVAILABLE: "Un prospect sélectionné n’a pas de position utilisable (adresse manquante, modifiée, ambiguë ou invalide).", TOO_MANY_STOPS: "Une route compte au maximum 25 arrêts.", DUPLICATE_STOP: "Un prospect ne peut apparaître qu’une fois dans une route.",
     INVALID_DATE: "Choisissez une date valide (de 2 jours passés à 1 an à venir).", STALE_ROUTE: "Cette route a été modifiée ailleurs. Rechargez-la avant d’enregistrer à nouveau.", ROUTE_NOT_EDITABLE: "Seules les routes en brouillon peuvent être modifiées.",
     ROUTE_BAD_STATE: "Cette action n’est pas disponible dans l’état actuel de la route.", ROUTE_EMPTY: "Ajoutez au moins un arrêt à visiter avant de démarrer la route.", ANOTHER_ROUTE_IN_PROGRESS: "Vous avez déjà une route en cours. Terminez-la ou annulez-la d’abord.",
-    STOP_NOT_PENDING: "Cet arrêt a déjà un résultat.", IDEMPOTENCY_CONFLICT: "Cette soumission a déjà servi pour un autre arrêt.", FOLLOW_UP_DATE_REQUIRED: "Choisissez la date convenue avec le prospect.",
+    STOP_NOT_PENDING: "Cet arrêt a déjà un résultat.", IDEMPOTENCY_CONFLICT: "Cet envoi a déjà servi pour un autre arrêt.", FOLLOW_UP_DATE_REQUIRED: "Choisissez la date convenue avec le prospect.",
     TASK_NOT_ALLOWED: "Aucune tâche de suivi ne peut être créée pour ce résultat.", NOTE_REQUIRED: "Ajoutez une courte note.",
   },
   nav: "Planificateur terrain", title: "Planificateur terrain", subtitle: "Planifiez et réalisez vos routes de prospection en personne.",

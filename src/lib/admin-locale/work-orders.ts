@@ -517,7 +517,7 @@ export const WORK_ORDERS_DICT: Record<AdminLocale, WorkOrdersDictionary> = {
       colUnitPrice: "Prix unit.",
       colTotal: "Total",
       subtotal: "Sous-total estimé",
-      fromQuote: (quoteNumber) => `Généré depuis la soumission ${quoteNumber}`,
+      fromQuote: (quoteNumber) => `Généré depuis le devis ${quoteNumber}`,
       linkedInvoice: (invoiceNumber) => `Facturé sous ${invoiceNumber}`,
     },
     actions: {

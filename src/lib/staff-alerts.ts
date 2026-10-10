@@ -163,7 +163,7 @@ interface AppointmentAlertInput {
 
 const LABELS = {
   EN: { client: "Client", service: "Service", when: "Date and time", contact: "Contact", quote: "Quote", decision: "Decision", signedBy: "Signed by" },
-  FR: { client: "Client", service: "Service", when: "Date et heure", contact: "Coordonnées", quote: "Soumission", decision: "Décision", signedBy: "Signé par" },
+  FR: { client: "Client", service: "Service", when: "Date et heure", contact: "Coordonnées", quote: "Devis", decision: "Décision", signedBy: "Signé par" },
 } as const;
 
 function appointmentDetails(input: AppointmentAlertInput, language: PlatformEmailLanguage) {
@@ -250,13 +250,13 @@ export async function alertStaffQuoteDecided(input: {
       ];
       return language === "FR"
         ? {
-            subject: `Soumission ${input.quoteNumber} ${accepted ? "acceptée" : "refusée"} — ${input.clientName}`,
-            heading: accepted ? "Soumission acceptée" : "Soumission refusée",
+            subject: `Devis ${input.quoteNumber} ${accepted ? "accepté" : "refusé"} — ${input.clientName}`,
+            heading: accepted ? "Devis accepté" : "Devis refusé",
             intro: accepted
-              ? "Le client a accepté la soumission en ligne. Vous pouvez planifier le travail."
-              : "Le client a refusé la soumission en ligne.",
+              ? "Le client a accepté le devis en ligne. Vous pouvez planifier le travail."
+              : "Le client a refusé le devis en ligne.",
             details,
-            ctaLabel: "Voir la soumission",
+            ctaLabel: "Voir le devis",
           }
         : {
             subject: `Quote ${input.quoteNumber} ${accepted ? "accepted" : "declined"} — ${input.clientName}`,

@@ -40,7 +40,7 @@ If this isn't relevant, just let me know and I won't write again.`, ["booking.li
   T("INTRODUCTION", "FR", "Moins de paperasse chez {{prospect.name}}",
 `{{greeting}}
 
-Je m'appelle {{seller.name}} et je travaille chez GarageOS. Nous offrons un logiciel de gestion pour les garages indépendants : rendez-vous, bons de travail, inspections, factures et rappels aux clients au même endroit.
+Je m'appelle {{seller.name}} et je travaille chez GarageOS. Nous offrons un logiciel de gestion pour les garages indépendants : rendez-vous, ordres de travail, inspections, factures et rappels aux clients au même endroit.
 
 Je vous écris au sujet de {{prospect.name}}, car plusieurs garages nous disent que la planification et les suivis leur prennent un temps qu'ils préféreraient passer à l'atelier. Si cela vous ressemble, je serais heureux de vous présenter GarageOS lors d'un court appel.
 
@@ -150,7 +150,7 @@ If this isn't relevant, just let me know and I won't write again.`, ["video.link
   T("VIDEO_INTRODUCTION", "FR", "Un coup d'œil rapide à GarageOS pour {{prospect.name}}",
 `{{greeting}}
 
-Je m'appelle {{seller.name}} et je travaille chez GarageOS. Nous offrons un logiciel de gestion pour les garages indépendants : rendez-vous, bons de travail, inspections, factures et rappels aux clients au même endroit.
+Je m'appelle {{seller.name}} et je travaille chez GarageOS. Nous offrons un logiciel de gestion pour les garages indépendants : rendez-vous, ordres de travail, inspections, factures et rappels aux clients au même endroit.
 
 Plutôt qu'un long courriel, voici une courte vidéo qui montre le fonctionnement dans un vrai garage : {{video.link}}
 
@@ -171,7 +171,7 @@ You can also simply reply to this email with any question.`, ["booking.link"]),
 
 Merci du temps que vous m'avez accordé lors de mon passage chez {{prospect.name}}. Comme convenu, je vous écris pour faire un suivi.
 
-GarageOS aide les garages indépendants à gérer les rendez-vous en ligne, les bons de travail, les inspections et les rappels aux clients sans tout ressaisir. Si vous souhaitez le voir en pensant à votre garage, voici un moment qui pourrait vous convenir : {{booking.link}}
+GarageOS aide les garages indépendants à gérer les rendez-vous en ligne, les ordres de travail, les inspections et les rappels aux clients sans tout ressaisir. Si vous souhaitez le voir en pensant à votre garage, voici un moment qui pourrait vous convenir : {{booking.link}}
 
 Vous pouvez aussi simplement répondre à ce courriel pour toute question.`, ["booking.link"]),
 

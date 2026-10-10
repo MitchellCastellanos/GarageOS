@@ -42,7 +42,7 @@ const fr: PermissionsDictionary = {
   saved: "Permissions enregistrées",
   roleDefault: "par défaut du rôle",
   labels: {
-    "ops.write": "Créer et modifier le travail (rendez-vous, ordres, estimations, messages)",
+    "ops.write": "Créer et modifier le travail (rendez-vous, ordres de travail, devis, messages)",
     "customers.write": "Créer et modifier clients et véhicules",
     "invoices.view": "Voir les factures",
     "invoices.write": "Créer, envoyer et modifier les factures",

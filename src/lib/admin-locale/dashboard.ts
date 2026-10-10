@@ -318,7 +318,7 @@ export const DASHBOARD_DICT: Record<AdminLocale, DashboardDictionary> = {
       today: "Horaire du jour",
       appointments: "rendez-vous",
       appointmentsEmpty: "Aucun rendez-vous prévu aujourd’hui.",
-      openQuotes: "Soumissions ouvertes",
+      openQuotes: "Devis ouverts",
       conversations: "Conversations",
       campaigns: "Campagnes actives",
       workOrders: "Ordres de travail",
