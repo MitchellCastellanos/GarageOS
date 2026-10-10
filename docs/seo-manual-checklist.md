@@ -1,0 +1,51 @@
+# SEO — manual steps checklist
+
+Steps that need an account, DNS or dashboard access and are **not** done by code changes. Keep this file updated as
+PRs land. Per decision D15, Search Console / Bing / external SEO services are configured at the end, by the owner.
+No blocking: all technical infrastructure ships first.
+
+Legend: ☐ pending · ☑ done · ⏸ waiting on a PR
+
+## A. Search Console and Bing (final stage, owner)
+
+- ☐ Google Search Console: add a **Domain property** for `garage-os.ca` (DNS TXT verification).
+- ☐ Bing Webmaster Tools: add the site (can import from Search Console).
+- ⏸ Submit `https://www.garage-os.ca/sitemap.xml` in both (after the sitemap PR is deployed).
+- ⏸ Check in Search Console after deploy of PR "canonical": URL Inspection on `/help`, `/pricing`, `/guides/set-up-your-shop` → "User-declared canonical" must be the page itself, not the home page.
+- ⏸ Page indexing report: confirm no `/quote/`, `/portal/`, `/inspection/`, `/book/*/manage/`, `/sales*`, `/admin/*` URL is indexed. If one is, temporarily remove its `Disallow` from `robots.ts` so the crawler can read `noindex`, then restore it; use the Removals tool for urgent cases.
+- ⏸ After `/fr` ships: International Targeting is automatic via hreflang; check the hreflang report for return-tag errors.
+- ☐ Decide who owns the Search Console / Bing accounts (D15) and add a second owner.
+
+## B. Hosting / DNS (do not change without explicit approval)
+
+- ☑ Read-only check (2026-10-10): Vercel project `garage-os`; `garage-os.ca` → 308 → `www.garage-os.ca`; production `NEXT_PUBLIC_APP_URL` renders as `https://www.garage-os.ca`.
+- ☐ **Technical follow-up (does not block merges):** correct the **Preview** environment variable `NEXT_PUBLIC_APP_URL`. It is a fixed value pointing at an old branch URL, so canonicals and Open Graph URLs on Preview carry that host. Until it is fixed, **do not treat Preview canonical hosts as validated**; verify hosts on Production or on a local build.
+- ☐ Authority host is `https://www.garage-os.ca` (D10). Keep the GABAN page `gabansolutions.ca/software/garageos` temporarily; review its traffic and inbound links before deciding on a redirect/canonical (needs GABAN Search Console data).
+
+## C. Data clean-up (owner, after PR "private routes" is deployed)
+
+- ☐ Dry run: `npx tsx scripts/redact-pageview-private-paths.ts --allow-remote` with the production `DATABASE_URL` (prints counts only).
+- ☐ If the counts are non-zero and expected: `npx tsx scripts/redact-pageview-private-paths.ts --allow-remote --apply`.
+- ☐ Decide whether any token that appeared in `PageView.path` and is still valid (portal and quote links last 30 days) should be revoked. Revoke-all is available per customer in the portal card.
+
+## D. Email provider
+
+- ☐ **Final external-configuration step (not touched yet):** review Resend and turn **click tracking off** for the transactional sending domains. Quote-approval, portal, inspection-report, appointment-management and unsubscribe links carry bearer tokens; with click tracking on, the links are rewritten through a tracking domain that sees them. Do not change Resend until this step.
+
+## E. Analytics (after the analytics PR)
+
+- ☐ Update the privacy policy text with the new first-party events/attribution fields (legal review, D8/D13).
+- ☐ Confirm no cookies are introduced.
+
+## F. Content and compliance (later stages)
+
+- ☐ **Québec contextual terminology review — required BEFORE publishing French commercial content (PR 4).** Do not impose France terminology: validate with shop owners / a Québec reviewer what Québec garages actually say. Decision so far: **"Devis"** is the official module name; **"Soumission"** may be used as a commercial/educational synonym where natural (e.g. "devis (soumission)" in marketing and help text); "ordre de travail" with "bon de travail" as a synonym. Also check the Québec Consumer Protection Act wording for the written repair estimate.
+- ☐ French videos (`video/src/locales/fr.ts`, narration alignment) still use the old terms: **not regenerated automatically**; decide later if it is really necessary.
+- ☐ Existing data: the sales CRM seed row 'Soumissions et factures' lives in an already-applied migration. Never edit applied migrations; correct existing data only through a new, safe, reviewed procedure (new migration or controlled data update with backup).
+- ☐ Privacy / terms FR pages: legal review of the terminology swap (meaning unchanged).
+
+- ☐ Native French review of all FR content (Québec).
+- ☐ Legal review: CASL / Law 25 articles; comparison pages; terminology change (Devis).
+- ☐ Competitor facts re-verified on official sites on the publication date (this environment cannot open external sites).
+- ☐ Directory listings (Capterra / GetApp / Software Advice) — optional external SEO service, owner's decision.
+- ☐ `llms.txt` (optional, D20).
