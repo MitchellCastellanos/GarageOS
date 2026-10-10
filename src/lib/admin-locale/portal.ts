@@ -40,7 +40,7 @@ const en: PortalAdminDictionary = {
 
 const fr: PortalAdminDictionary = {
   title: "Portail client",
-  description: "Donnez à ce client un lien sécurisé vers ses véhicules, son historique d'entretien, ses soumissions et ses factures. Les liens expirent après 30 jours et peuvent être révoqués.",
+  description: "Donnez à ce client un lien sécurisé vers ses véhicules, son historique d'entretien, ses devis et ses factures. Les liens expirent après 30 jours et peuvent être révoqués.",
   activeLinks: (n) => (n === 0 ? "Aucun lien actif" : `${n} lien${n === 1 ? "" : "s"} actif${n === 1 ? "" : "s"}`),
   sendEmail: "Envoyer le lien par courriel",
   sending: "Envoi…",

@@ -23,7 +23,7 @@ export interface QuoteEmailProps {
 
 function quoteSubject(num: string, shop: string, lang: InvoiceLanguage | string, isResend: boolean) {
   if (lang === "FR") {
-    return isResend ? `Renvoi : Soumission ${num} — ${shop}` : `Soumission ${num} — ${shop}`;
+    return isResend ? `Renvoi : Devis ${num} — ${shop}` : `Devis ${num} — ${shop}`;
   }
   return isResend ? `Resend: Quote ${num} — ${shop}` : `Quote ${num} — ${shop}`;
 }
@@ -54,8 +54,8 @@ export function QuoteEmail({
         : "Please find attached our quote for services on your vehicle. Contact us if you have any questions."
       : language === "FR"
         ? isResend
-          ? "Nous vous renvoyons la soumission ci-jointe au cas où vous ne l'auriez pas reçue."
-          : "Veuillez trouver ci-joint notre soumission pour les services sur votre véhicule. Contactez-nous pour toute question."
+          ? "Nous vous renvoyons le devis ci-joint au cas où vous ne l'auriez pas reçu."
+          : "Veuillez trouver ci-joint notre devis pour les services sur votre véhicule. Contactez-nous pour toute question."
         : isResend
           ? "Te reenviamos la cotización adjunta por si no la recibiste o necesitas una copia."
           : "Adjuntamos nuestra cotización por los servicios en tu vehículo. Si tienes alguna pregunta, contáctanos.";
@@ -64,14 +64,14 @@ export function QuoteEmail({
     language === "EN"
       ? "The PDF quote is attached to this email."
       : language === "FR"
-        ? "La soumission PDF est jointe à ce courriel."
+        ? "Le devis PDF est joint à ce courriel."
         : "La cotización en PDF va adjunta a este correo.";
 
   const contactPrompt =
     language === "EN"
       ? "For questions about this quote:"
       : language === "FR"
-        ? "Pour toute question concernant cette soumission :"
+        ? "Pour toute question concernant ce devis :"
         : "Para consultas sobre esta cotización:";
 
   return (

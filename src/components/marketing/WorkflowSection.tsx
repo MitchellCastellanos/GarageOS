@@ -10,7 +10,7 @@ export function WorkflowSection() {
   const customerMessage = locale === "fr"
     ? {
         title: "Vos clients restent dans la boucle — sans nouvelle application à télécharger.",
-        body: "Confirmations, estimations et approbations, mises à jour, factures et rappels arrivent directement par courriel ou SMS, selon la configuration du garage. Chaque communication garde le nom, l’identité et l’image de marque de votre atelier — GarageOS reste en arrière-plan.",
+        body: "Confirmations, devis et approbations, mises à jour, factures et rappels arrivent directement par courriel ou SMS, selon la configuration du garage. Chaque communication garde le nom, l’identité et l’image de marque de votre atelier — GarageOS reste en arrière-plan.",
         email: "Courriel",
         sms: "SMS",
       }

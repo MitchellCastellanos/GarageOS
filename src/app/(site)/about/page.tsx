@@ -21,7 +21,7 @@ function Body({ lang }: { lang: "en" | "fr" }) {
           {fr ? (
             <>
               <p>
-                Gérer un atelier de mécanique indépendant, c&apos;est jongler avec les rendez-vous, les soumissions, les factures
+                Gérer un atelier de mécanique indépendant, c&apos;est jongler avec les rendez-vous, les devis, les factures
                 et les suivis clients — souvent entre des tableurs, des notes autocollantes et des appels téléphoniques.
                 GarageOS existe pour tout regrouper au même endroit.
               </p>

@@ -327,7 +327,7 @@ export const BILLING_DICT: Record<AdminLocale, BillingDictionary> = {
     features: {
       CORE: [
         "Jusqu'à 3 utilisateurs · 1 emplacement",
-        "Rendez-vous, clients, soumissions, bons de travail et factures",
+        "Rendez-vous, clients, devis, ordres de travail et factures",
         "DVI de base, rappels et portail client",
         "Page de réservation avec votre logo, couleur et photos",
       ],

@@ -63,8 +63,8 @@ const EN: QuoteApprovalStrings = {
 };
 
 const FR: QuoteApprovalStrings = {
-  metaTitle: "Réviser la soumission | GarageOS",
-  title: (quoteNumber) => `Soumission ${quoteNumber}`,
+  metaTitle: "Réviser le devis | GarageOS",
+  title: (quoteNumber) => `Devis ${quoteNumber}`,
   intro: "Consultez les détails et répondez directement à partir de ce lien sécurisé.",
   client: "Client",
   validUntil: "Valide jusqu'au",
@@ -75,19 +75,19 @@ const FR: QuoteApprovalStrings = {
   totalCad: "Total CAD",
   footerDisclaimer: "Ce lien est privé et ne peut être utilisé qu'une seule fois.",
   form: {
-    acceptedHeading: "Soumission acceptée",
-    rejectedHeading: "Soumission refusée",
+    acceptedHeading: "Devis accepté",
+    rejectedHeading: "Devis refusé",
     decisionReceivedBody: (shopName) => `${shopName} a reçu votre décision. Vous pouvez fermer cette fenêtre.`,
     whatToDo: "Que souhaitez-vous faire ?",
     subtitle: "Votre nom sera enregistré avec la décision.",
     nameLabel: "Nom",
     namePlaceholder: "Votre nom complet",
-    acceptButton: "Accepter la soumission",
+    acceptButton: "Accepter le devis",
     rejectButton: "Refuser",
   },
   errors: {
     nameRequired: "Écrivez votre nom pour enregistrer la décision.",
-    linkInvalid: "Ce lien n'est plus valide ou la soumission n'est plus disponible.",
+    linkInvalid: "Ce lien n'est plus valide ou le devis n'est plus disponible.",
     alreadyUsed: "Ce lien a déjà été utilisé.",
     genericFailure: "Nous n'avons pas pu enregistrer votre décision. Veuillez réessayer.",
   },
