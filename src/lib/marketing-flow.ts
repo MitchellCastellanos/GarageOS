@@ -80,7 +80,7 @@ export const DEMO_STEPS: { chip: Localized; title: Localized; example: Localized
     href: "/guides/digital-vehicle-inspections", label: L("See inspections", "Voir les inspections") },
   { chip: L("Estimating", "Devis"), title: L("Prepare the estimate", "Préparer le devis"),
     example: L("The findings become a priced list of work and parts.", "Les constats deviennent une liste de travaux et de pièces avec prix."),
-    body: L("Create the estimate from the findings, review quantities, prices and taxes, then send it to the customer by email or text.", "Créez le devis à partir des constats, vérifiez quantités, prix et taxes, puis envoyez-la au client par courriel ou texto."),
+    body: L("Create the estimate from the findings, review quantities, prices and taxes, then send it to the customer by email or text.", "Créez le devis à partir des constats, vérifiez quantités, prix et taxes, puis envoyez-le au client par courriel ou texto."),
     href: "/guides/estimate-to-invoice", label: L("See the estimate workflow", "Voir le flux de devis") },
   { chip: L("Approved", "Approuvé"), title: L("Capture the approval", "Obtenir l'approbation"),
     example: L("The customer reviews the estimate on their phone and accepts.", "Le client examine le devis sur son téléphone et accepte."),
