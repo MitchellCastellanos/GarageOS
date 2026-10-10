@@ -176,13 +176,13 @@ test("demo copy carries the required form note in FR, EN and ES", () => {
 test("demo-only source files perform no network or write calls", () => {
   const files = [
     "src/lib/demo-booking-availability.ts", "src/lib/demo-booking-shop.ts", "src/lib/demo-booking-copy.ts",
-    "src/components/booking/demo/DemoBookingExperience.tsx", "src/app/demo/booking/page.tsx",
+    "src/components/booking/demo/DemoBookingExperience.tsx", "src/app/(site)/demo/booking/page.tsx",
   ];
   for (const f of files) {
     const src = readFileSync(path.join(root, f), "utf8");
     assert.doesNotMatch(src, /\bfetch\(|XMLHttpRequest|sendBeacon|@\/lib\/db|prisma|supabase|use server|"POST"/i, f);
   }
-  assert.ok(readdirSync(path.join(root, "src/app/demo/booking")).every((n) => n === "page.tsx"), "no route handlers under /demo/booking");
+  assert.ok(readdirSync(path.join(root, "src/app/(site)/demo/booking")).every((n) => n === "page.tsx"), "no route handlers under /demo/booking");
 });
 
 test("the page-view beacon skips the demo booking replica (no write endpoint, no IP/user-agent stored)", () => {

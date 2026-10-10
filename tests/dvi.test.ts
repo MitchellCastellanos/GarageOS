@@ -5,7 +5,7 @@ import { allowOwnership, mockSubscription, patchDb } from "./helpers/db-mock";
 
 const insp = await import("../src/actions/inspections");
 const tpl = await import("../src/actions/inspection-templates");
-const report = (await import("../src/app/inspection/[token]/page")).default;
+const report = (await import("../src/app/(site)/inspection/[token]/page")).default;
 
 const owner = () => setSession({ user: { id: "u1", role: "OWNER", shopId: "shop-A" } });
 const base = { clientId: "c1", vehicleId: "v1", workOrderId: "", mechanicId: "", mileage: null };

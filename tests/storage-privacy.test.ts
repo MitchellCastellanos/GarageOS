@@ -215,7 +215,7 @@ test("communication attachments stay private: private bucket, tenant-bound signe
 // ── Reporte DVI compartido (cliente / Customer Portal) ─────────────────────
 test("shared DVI report photo: token holder gets a 60s signed redirect; wrong token / other inspection / no plan get 404", async (t) => {
   const f = withClient(t);
-  const route = await import("../src/app/inspection/[token]/photo/[photoId]/route");
+  const route = await import("../src/app/(site)/inspection/[token]/photo/[photoId]/route");
   const TOKEN = "t".repeat(32);
   const find = patchDb(t, "inspectionPhoto", "findFirst", (async (args: { where: { id: string; inspectionItem: { inspection: { shareToken: string } } } }) =>
     args.where.id === "p1" && args.where.inspectionItem.inspection.shareToken === TOKEN
@@ -244,7 +244,7 @@ test("shared DVI report photo: token holder gets a 60s signed redirect; wrong to
 
 test("shared DVI report photo: shop without the plan no longer serves photos", async (t) => {
   withClient(t);
-  const route = await import("../src/app/inspection/[token]/photo/[photoId]/route");
+  const route = await import("../src/app/(site)/inspection/[token]/photo/[photoId]/route");
   patchDb(t, "inspectionPhoto", "findFirst", (async () => ({ storagePath: "shopA/inspections/i1/a.jpg", inspectionItem: { inspection: { shopId: "shopA" } } })) as never);
   mockSubscription(t, "CORE");
   const res = await route.GET(new Request("http://x"), { params: Promise.resolve({ token: "t".repeat(32), photoId: "p1" }) });

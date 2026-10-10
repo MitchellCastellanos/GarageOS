@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Oswald } from "next/font/google";
 import { Suspense } from "react";
-import "./globals.css";
+import "../globals.css";
 import { APP_NAME } from "@/config/app";
 import { getSiteUrl } from "@/lib/seo/site";
 import AnalyticsBeacon from "@/components/AnalyticsBeacon";
