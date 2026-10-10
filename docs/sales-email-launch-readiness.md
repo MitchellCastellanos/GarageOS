@@ -65,3 +65,12 @@ Do not complete the invitation/reset links on the recipient's behalf. Do not fab
 - **One-off sales email operational?** Yes in code and in the production deploy; becomes live when §3.1–§3.4 are true (the checklist turns the identity to READY). Unverified live.
 - **Scheduled outreach operational?** Yes, with once-daily punctuality until §3.5.
 - **Sequences ready to activate?** Yes (templates EN/FR, signature, CASL, territory rules). Nothing is activated or enrolled; Super Admin activates explicitly. Greater Montréal FIELD prospects cannot be enrolled for cold first contact until a documented visit.
+
+
+## 2026-10-10 — Lead Engine and FIELD pilot planning addendum
+
+This is a **forward-looking requirement**, not a retroactive change to the live-test evidence above. The owner has chosen a GarageOS-native Lead Engine with an initial static Lead Radar CSV import (Airtable API is quota-blocked), FIELD_PRIORITY for Greater Montréal/Laval/Rive-Sud, automatic national assignment to FIELD and REMOTE, manager/team and Super Admin/global evidence approvals, and a 100-shop pilot. No import or commercial campaign has been authorized by this documentation change.
+
+**Critical pre-pilot regression:** current generic `FIELD_VISIT` engagement must be distinguished from a qualifying interaction. Unsuccessful visits, unavailable contacts, rejected/DNC or closed shops must not unlock automated first-contact email. A valid CASL sending basis remains independently required even after an actual conversation. Implement and test this before logging real route visits or activating sequences. Existing historical live-test results remain unchanged.
+
+See [GarageOS Lead Engine and Field Planner roadmap](garageos-lead-engine-field-planner-roadmap.md) and [CASL matrix](compliance/casl-matrix.md).
