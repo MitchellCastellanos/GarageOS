@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { LocaleLink as Link } from "@/components/marketing/LocaleLink";
 import { ArrowRight, CalendarDays, Mail, MessageSquareText } from "lucide-react";
 import { useMarketingLocale } from "@/components/marketing/MarketingLocaleProvider";
 import { GarageOSAppIcon } from "@/components/marketing/GarageOSLogo";
