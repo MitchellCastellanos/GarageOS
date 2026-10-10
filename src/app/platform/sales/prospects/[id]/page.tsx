@@ -22,6 +22,9 @@ import { identityCopy } from "@/lib/admin-locale/sales-identity";
 import { loadEngagement, territoryOfLocation } from "@/lib/sales-crm/territory";
 import { requiredMode } from "@/domain/sales-crm/territory";
 import { ProspectCommsPanel } from "@/components/sales-comms/ProspectCommsPanel";
+import { VideoEngagement } from "@/components/sales-crm/VideoEngagement";
+import { videoSummaryForProspect } from "@/lib/sales-video";
+import { VIDEO_CRM_COPY } from "@/lib/admin-locale/sales-video";
 
 type Activity = { id: string; type: string; outcome: string | null; subject: string | null; body: string | null; metadata: unknown; occurredAt: Date; author: { name: string }; contact: { name: string } | null };
 
@@ -99,6 +102,8 @@ export default async function ProspectDetailPage({ params }: { params: Promise<{
 
           {can(actor, "send_sales_email") && p.status === "ACTIVE" && <ProspectCommsPanel actor={actor} prospectId={p.id} locale={locale} language={p.preferredLanguage} />}
 
+          <VideoEngagement locale={locale} rows={await videoSummaryForProspect(p.id)} className={cardCls} />
+
           <section className={cardCls} aria-labelledby="needs-h">
             <h2 id="needs-h" className="mb-3 font-semibold text-slate-900">{d.needs}</h2>
             <NeedsPanel locale={locale} prospectId={p.id} canEdit={canEdit}
@@ -124,6 +129,9 @@ export default async function ProspectDetailPage({ params }: { params: Promise<{
                       {a.subject && <p className="break-words text-sm text-slate-800">{a.subject}</p>}
                       {a.type === "STAGE_CHANGE" && !!meta.lossReason && <p className="text-sm text-slate-600">{t.lossReasons[String(meta.lossReason)]}</p>}
                       {a.type === "ASSIGNMENT" && <p className="text-sm text-slate-600">{t.activities.assignment}</p>}
+                      {typeof meta.event === "string" && meta.event.startsWith("video_") && (
+                        <p className="text-sm text-slate-600">{VIDEO_CRM_COPY[locale].languages[meta.language === "FR" ? "FR" : "EN"]} · {VIDEO_CRM_COPY[locale].kinds[meta.videoKey === "teaser" ? "teaser" : "commercial"]}{meta.afterWatching ? ` · ${VIDEO_CRM_COPY[locale].afterWatching}` : ""}</p>
+                      )}
                       {a.body && <p className="mt-0.5 whitespace-pre-wrap break-words text-sm text-slate-700">{a.body}</p>}
                       <p className="mt-0.5 text-xs text-slate-500">{formatDate(a.occurredAt, locale, true)} · {t.activities.by} {a.author.name}</p>
                     </li>

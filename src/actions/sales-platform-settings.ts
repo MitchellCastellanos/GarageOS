@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { PLATFORM } from "@/lib/routes";
@@ -73,6 +73,7 @@ export async function saveVideo(form: FormData) {
       : await db.platformVideo.create({ data: { key: v.key, language: v.language, ...data } });
     await writeCrmAudit({ actorUserId: actor.userId, action: v.status === "PUBLISHED" ? "VIDEO_PUBLISHED" : "VIDEO_SAVED", entityType: "PlatformVideo", entityId: row.id, metadata: { key: v.key, language: v.language, status: v.status } });
     revalidatePath(PLATFORM.salesVideos);
+    revalidateTag("platform-videos", { expire: 0 }); // public website/watch pages pick the change up now, not after the 5-minute cache
     return {};
   });
 }

@@ -16,6 +16,7 @@ import { evaluatePolicy } from "@/lib/sales-comms/policy";
 import { activeSuppressions } from "@/lib/sales-comms/suppression";
 import { baseVars, renderResolved, resolveTemplate, toTemplateLanguage, withVideoVars } from "@/lib/sales-comms/templates";
 import { buildContent, unsubscribeUrlFor } from "@/lib/sales-comms/content";
+import { linkMessageToVideos } from "@/lib/sales-video";
 import { createThread, threadingFor } from "@/lib/sales-comms/threads";
 import { bookingUrl, ensureProspectLink } from "@/lib/sales-comms/booking-links";
 
@@ -232,7 +233,7 @@ export async function processDueEnrollments(opts: { now?: Date; limit?: number }
     const tpl = await resolveTemplate(step.templateKey as never, tl);
     let link: string | null = null;
     if (e.staff.bookingEnabled) link = bookingUrl((await ensureProspectLink({ staffId: e.staffId, prospectId: e.prospectId, contactId: e.contactId, opportunityId: e.opportunityId, language: tl, actorUserId: e.enrolledByUserId })).token, tl);
-    const rendered = await renderResolved(tpl, await withVideoVars(baseVars({ language: tl, contactName: e.contact.name, prospectName: e.prospect.name, sellerName: identity.fromName, sellerTitle: identity.jobTitle, bookingUrl: link }), tl));
+    const rendered = await renderResolved(tpl, await withVideoVars(baseVars({ language: tl, contactName: e.contact.name, prospectName: e.prospect.name, sellerName: identity.fromName, sellerTitle: identity.jobTitle, bookingUrl: link }), tl, { staffId: e.staffId, userId: e.enrolledByUserId, prospectId: e.prospectId, contactId: e.contactId }));
     if (rendered.missing.length) { await pauseWithReason(e.id, `TEMPLATE_INCOMPLETE:${rendered.missing.join(",")}`); out.paused++; continue; }
 
     const messageId = randomToken(12);
@@ -266,7 +267,7 @@ export async function processDueEnrollments(opts: { now?: Date; limit?: number }
           select: { id: true },
         });
       });
-      if (created) out.queued++; else out.skipped++;
+      if (created) { out.queued++; await linkMessageToVideos(created.id, content.text); } else out.skipped++;
     } catch (err) {
       if ((err as { code?: string }).code === "P2002") out.skipped++; else throw err;
     }

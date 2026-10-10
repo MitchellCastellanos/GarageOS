@@ -35,7 +35,7 @@ export function SalesEmail({ lang, preview, bodyHtml, signatureHtml, footerLines
             {video && (
               <Section style={{ margin: "4px 0 20px 0" }}>
                 <Link href={video.url} style={{ textDecoration: "none" }}>
-                  <Img src={video.thumbnailUrl} alt={video.title} width="480" style={{ display: "block", width: "100%", maxWidth: "480px", height: "auto", borderRadius: "8px", border: "1px solid #e2e8f0" }} />
+                  <Img src={video.thumbnailUrl} alt={video.title} width="480" height="270" style={{ display: "block", width: "100%", maxWidth: "480px", height: "auto", borderRadius: "8px", border: "1px solid #e2e8f0" }} />
                 </Link>
                 <Link href={video.url} style={s.cta}>{video.label}</Link>
               </Section>

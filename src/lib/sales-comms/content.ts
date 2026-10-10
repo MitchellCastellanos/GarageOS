@@ -8,6 +8,7 @@ import { getAppUrl } from "@/config/app";
 import { db } from "@/lib/db";
 import { buildSignature, stripTrailingSignature, SIGNATURE_LOGO_PATH, type Signature } from "@/domain/sales-comms/signature";
 import { DEFAULT_OUTREACH_VIDEO_KEY } from "@/domain/platform-video";
+import { extractWatchLinks } from "@/domain/sales-video";
 import { getPublishedVideo } from "@/lib/platform-video";
 import { bookingUrl, ensureGeneralLink } from "@/lib/sales-comms/booking-links";
 
@@ -43,6 +44,25 @@ export function footerLinesFor(s: SettingsFacts, lang: "EN" | "FR", commercial: 
   return lines.filter(Boolean);
 }
 
+const WATCH_LABEL = {
+  commercial: { EN: "Watch the 60-second video", FR: "Regarder la vidéo de 60 secondes" },
+  teaser: { EN: "Watch the 15-second preview", FR: "Regarder l’aperçu de 15 secondes" },
+} as const;
+
+/** The thumbnail block for the first tracked watch link in the body — only when that video is really published (never a dead image). */
+async function watchLinkBlock(bodyText: string) {
+  const found = extractWatchLinks(bodyText, getAppUrl())[0];
+  if (!found) return null;
+  const v = await getPublishedVideo(found.kind, found.lang, "outreach");
+  if (!v) return null;
+  return { url: found.url, title: v.title, thumbnailUrl: `${getAppUrl()}/video/email-${found.lang.toLowerCase()}.jpg`, label: WATCH_LABEL[found.kind][found.lang] };
+}
+
+/** The linked thumbnail replaces a bare URL line in the HTML part (the plain-text part keeps the URL). A URL inside a sentence is left alone. */
+function withoutOwnLine(text: string, url: string): string {
+  return text.split("\n").filter((l) => l.trim() !== url).join("\n").replace(/\n{3,}/g, "\n\n");
+}
+
 export interface BuildContentInput {
   subject: string; bodyText: string; language: "EN" | "FR"; identity: IdentityFacts; settings: SettingsFacts;
   commercial: boolean; unsubscribeUrl: string | null; bookingCta?: { url: string; label: string } | null;
@@ -57,12 +77,14 @@ export async function buildContent(i: BuildContentInput): Promise<BuiltContent> 
   const bodyText = stripTrailingSignature(i.bodyText, { name: i.identity.fromName, email: i.identity.fromEmail, generatedText: sig.text });
   // A PUBLISHED outreach video that the body actually links gets a linked thumbnail block (only with a real https thumbnail).
   const pv = i.commercial ? await getPublishedVideo(DEFAULT_OUTREACH_VIDEO_KEY, i.language, "outreach") : null;
-  const video = pv?.thumbnailUrl && bodyText.includes(pv.url) ? { url: pv.url, title: pv.title, thumbnailUrl: pv.thumbnailUrl, label: i.language === "FR" ? "Regarder la vidéo" : "Watch the video" } : null;
+  const legacy = pv?.thumbnailUrl && bodyText.includes(pv.url) ? { url: pv.url, title: pv.title, thumbnailUrl: pv.thumbnailUrl, label: i.language === "FR" ? "Regarder la vidéo" : "Watch the video" } : null;
+  // A tracked GarageOS video-page link in the body becomes a clickable approved thumbnail (email clients do not play video; the MP4 is never attached).
+  const video = (i.commercial ? await watchLinkBlock(bodyText) : null) ?? legacy;
   const footer = footerLinesFor(i.settings, i.language, i.commercial);
   const unsubLabel = i.language === "FR" ? "Se désabonner" : "Unsubscribe";
   if (i.commercial && !i.unsubscribeUrl) throw new Error("UNSUBSCRIBE_URL_REQUIRED");
   const html = await render(React.createElement(SalesEmail, {
-    lang: i.language === "FR" ? "fr" : "en", preview: subject, bodyHtml: textToHtml(bodyText), signatureHtml: sig.html, footerLines: footer,
+    lang: i.language === "FR" ? "fr" : "en", preview: subject, bodyHtml: textToHtml(video && bodyText.includes(video.url) ? withoutOwnLine(bodyText, video.url) : bodyText), signatureHtml: sig.html, footerLines: footer,
     unsubscribe: i.commercial && i.unsubscribeUrl ? { url: i.unsubscribeUrl, label: unsubLabel } : null, bookingCta: i.bookingCta ?? null, video,
   }));
   const text = [bodyText.trim(), "", "--", sig.text, "", ...footer, ...(i.commercial && i.unsubscribeUrl ? [`${unsubLabel}: ${i.unsubscribeUrl}`] : [])].join("\n");

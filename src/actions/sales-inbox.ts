@@ -11,6 +11,7 @@ import { CrmError, requireScopedProspect } from "@/lib/sales-crm/prospects";
 import { crmAction } from "@/lib/sales-crm/result";
 import { applyTemplate, bookingLinkFor, deleteDraft, prepareSend, queueDraft, saveDraft, requireOwnIdentity } from "@/lib/sales-comms/compose";
 import { requireScopedThread } from "@/lib/sales-comms/threads";
+import { videoLinkFor } from "@/lib/sales-video";
 import { suppressEmail } from "@/lib/sales-comms/suppression";
 import { suggestedBasisExpiry } from "@/domain/sales-comms/casl";
 import { validateAttachment, MAX_ATTACHMENTS, MAX_TOTAL_ATTACHMENT_BYTES } from "@/domain/sales-comms/attachments";
@@ -102,6 +103,18 @@ export async function insertBookingLink(form: FormData) {
   return crmAction(async () => ({
     url: await bookingLinkFor(actor, { prospectId: String(form.get("prospectId") ?? "") || null, contactId: String(form.get("contactId") ?? "") || null, language: lang.parse(form.get("language") || null) }),
   }));
+}
+
+/** Composer "Insert video": a tracked landing link for the commercial/teaser in the recipient's language. Needs the seller's own prospect scope. */
+export async function insertVideoLink(form: FormData) {
+  const actor = await requireCrmActor("send_sales_email");
+  return crmAction(async () => {
+    const parsed = z.object({ prospectId: z.string().min(1), contactId: z.string().nullable().catch(null), kind: z.enum(["commercial", "teaser"]), language: z.enum(["EN", "FR"]) }).parse({
+      prospectId: String(form.get("prospectId") ?? ""), contactId: String(form.get("contactId") ?? "") || null, kind: form.get("kind"), language: form.get("language"),
+    });
+    const v = await videoLinkFor(actor, parsed);
+    return { url: v.url };
+  });
 }
 
 export async function retryFailedEmail(messageId: string) {

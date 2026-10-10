@@ -31,6 +31,8 @@
     "video:render:all": "npm --prefix video run render:all",
     "video:thumbnails": "npm --prefix video run thumbnails",
     "video:validate": "npm --prefix video run validate",
+    "video:seed-registry": "tsx scripts/video/seed-platform-videos.ts",
+    "video:verify-cdn": "node scripts/video/verify-cdn.mjs",
     "seed:marketing-garage-laurent": "tsx scripts/seed-marketing-garage-laurent.ts",
     "attach:marketing-garage-laurent-assets": "tsx scripts/marketing/attach-garage-laurent-assets.ts"
   },

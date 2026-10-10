@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { PLATFORM } from "@/lib/routes";
-import { attachFile, discardDraft, insertBookingLink, loadTemplate, previewEmail, removeAttachment, saveEmailDraft, sendEmail } from "@/actions/sales-inbox";
+import { attachFile, discardDraft, insertBookingLink, insertVideoLink, loadTemplate, previewEmail, removeAttachment, saveEmailDraft, sendEmail } from "@/actions/sales-inbox";
 import { btnPrimary, btnSecondary, btnDanger, inputCls, labelCls } from "@/components/sales-crm/ui";
 import { Msg, useComms } from "@/components/sales-comms/useComms";
 import { commsError } from "@/lib/admin-locale/sales-comms";
@@ -27,6 +27,7 @@ export function Composer({ locale, prospects, templates, initial, isReply, sende
   const [f, setF] = useState(initial);
   const [attachments, setAttachments] = useState(initialAttachments);
   const [preview, setPreview] = useState<{ html: string; text: string; subject: string; blocked: string | null; blockedDetail: string | null; warnings: string[]; language: string | null } | null>(null);
+  const [videoKind, setVideoKind] = useState<"commercial" | "teaser">("commercial");
   const [schedule, setSchedule] = useState(false);
   const [when, setWhen] = useState({ date: "", time: "09:00" });
   const bodyRef = useRef<HTMLTextAreaElement>(null);
@@ -126,6 +127,15 @@ export function Composer({ locale, prospects, templates, initial, isReply, sende
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" className={btnSecondary} disabled={pending || !bookingEnabled} title={bookingEnabled ? undefined : c.bookingDisabled}
             onClick={() => run(() => insertBookingLink(form({ language: f.languageOverride })), (r) => { const url = (r as unknown as { url: string }).url; setF((s) => ({ ...s, body: `${s.body}${s.body && !s.body.endsWith("\n") ? "\n" : ""}${url}` })); }, undefined, false)}>{c.insertBooking}</button>
+          {!isReply && (
+            <span className="flex items-center gap-1" title={c.videoHint}>
+              <select aria-label={c.insertVideo} className={`${inputCls} w-auto`} value={videoKind} onChange={(e) => setVideoKind(e.target.value as "commercial" | "teaser")} disabled={pending}>
+                <option value="commercial">{c.videoCommercial}</option><option value="teaser">{c.videoTeaser}</option>
+              </select>
+              <button type="button" className={btnSecondary} disabled={pending || !f.prospectId || effectiveLang === "UNKNOWN"} title={!f.prospectId ? c.videoNeedsProspect : effectiveLang === "UNKNOWN" ? c.languageNeeded : c.videoHint}
+                onClick={() => run(() => insertVideoLink(form({ kind: videoKind, language: effectiveLang })), (r) => { const url = (r as unknown as { url: string }).url; setF((s) => ({ ...s, body: `${s.body}${s.body && !s.body.endsWith("\n") ? "\n" : ""}${url}` })); }, undefined, false)}>{c.insertVideo}</button>
+            </span>
+          )}
           <label className={`${btnSecondary} cursor-pointer`}>
             {c.attach}
             <input type="file" className="sr-only" accept="application/pdf,image/png,image/jpeg,image/webp" onChange={async (e) => {

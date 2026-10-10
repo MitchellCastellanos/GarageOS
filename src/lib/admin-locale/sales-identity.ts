@@ -33,7 +33,7 @@ const en = {
     cities: "Cities", postal: "Postal prefixes", days: "Priority days", start: "Priority start", save: "Save territory", saved: "Territory saved.", active: "Active", order: "Order (lower = more specific)", key: "Key (a-z, 0-9, -)", nameEn: "Name (EN)", nameFr: "Name (FR)", provinces: "Provinces (e.g. QC)", add: "Add territory", csvHelp: "Comma-separated.",
   },
   videos: {
-    title: "Videos", help: "Reusable website and outreach videos. Only PUBLISHED videos are ever shown or sent; otherwise the message falls back safely. Final URLs can be added later — outreach does not depend on them.",
+    title: "Videos", help: "Reusable website and outreach videos. Use the keys “commercial” (60 s) and “teaser” (15 s), one row per language; the URL is the CDN link of the MP4. Only PUBLISHED videos are ever shown or sent. Emails link to the GarageOS video page (with a tracked, expiring link), never to the MP4 itself.",
     key: "Stable key", language: "Language", titleField: "Title", description: "Description", url: "Video URL (https)", thumb: "Thumbnail URL (optional, https)", status: "Status", statuses: { DRAFT: "Draft", PUBLISHED: "Published" } as Record<string, string>,
     website: "Website", outreach: "Outreach", save: "Save video", saved: "Video saved.", publish: "Published", empty: "No videos yet. The video email templates stay blocked until one is published for the right language.", add: "Add or update a video",
   },
@@ -79,7 +79,7 @@ const fr: Dict = {
     cities: "Villes", postal: "Préfixes postaux", days: "Jours de priorité", start: "Début de la priorité", save: "Enregistrer le territoire", saved: "Territoire enregistré.", active: "Actif", order: "Ordre (plus bas = plus précis)", key: "Clé (a-z, 0-9, -)", nameEn: "Nom (EN)", nameFr: "Nom (FR)", provinces: "Provinces (ex. QC)", add: "Ajouter un territoire", csvHelp: "Séparés par des virgules.",
   },
   videos: {
-    title: "Vidéos", help: "Vidéos réutilisables pour le site et les courriels. Seules les vidéos PUBLIÉES sont affichées ou envoyées ; sinon le message revient à une version sûre. Les URL finales peuvent être ajoutées plus tard — la prospection n’en dépend pas.",
+    title: "Vidéos", help: "Vidéos réutilisables pour le site et les courriels. Utilisez les clés « commercial » (60 s) et « teaser » (15 s), une ligne par langue; l’URL est le lien CDN du fichier MP4. Seules les vidéos PUBLIÉES sont affichées ou envoyées. Les courriels renvoient à la page vidéo de GarageOS (lien suivi et à durée limitée), jamais directement au MP4.",
     key: "Clé stable", language: "Langue", titleField: "Titre", description: "Description", url: "URL de la vidéo (https)", thumb: "URL de la vignette (facultatif, https)", status: "Statut", statuses: { DRAFT: "Brouillon", PUBLISHED: "Publiée" },
     website: "Site web", outreach: "Prospection", save: "Enregistrer la vidéo", saved: "Vidéo enregistrée.", publish: "Publiée", empty: "Aucune vidéo. Les modèles de courriel avec vidéo restent bloqués jusqu’à la publication d’une vidéo dans la bonne langue.", add: "Ajouter ou mettre à jour une vidéo",
   },

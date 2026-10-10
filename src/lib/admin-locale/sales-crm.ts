@@ -115,6 +115,7 @@ const en = {
     events: {
       PROSPECT_CREATED: "Prospect created", PROSPECT_UPDATED: "Prospect details updated", DO_NOT_CONTACT_SET: "Marked do-not-contact", DO_NOT_CONTACT_CLEARED: "Do-not-contact removed", OPPORTUNITY_CREATED: "New opportunity opened",
       SCORE_OVERRIDDEN: "Score overridden", DEMO_PREPARED: "Demo prepared", TASK_OUTCOME: "Follow-up completed",
+      video_page_view: "Opened the video page", video_play: "Started watching the video", video_progress_75: "Watched 75% of the video", video_complete: "Watched the video to the end", video_cta_demo: "Clicked “Book your demo”", video_cta_trial: "Clicked “Start your free trial”",
     } as Record<string, string>,
     stageChange: "Stage", assignment: "Assigned", from: "from", to: "to", fields: "Changed",
   },
@@ -284,6 +285,7 @@ const fr: Dict = {
     events: {
       PROSPECT_CREATED: "Prospect créé", PROSPECT_UPDATED: "Détails du prospect mis à jour", DO_NOT_CONTACT_SET: "Marqué « ne pas contacter »", DO_NOT_CONTACT_CLEARED: "« Ne pas contacter » retiré", OPPORTUNITY_CREATED: "Nouvelle opportunité ouverte",
       SCORE_OVERRIDDEN: "Pointage ajusté", DEMO_PREPARED: "Démo préparée", TASK_OUTCOME: "Suivi terminé",
+      video_page_view: "A ouvert la page de la vidéo", video_play: "A commencé à regarder la vidéo", video_progress_75: "A regardé 75 % de la vidéo", video_complete: "A regardé la vidéo jusqu’à la fin", video_cta_demo: "A cliqué sur « Réservez votre démo »", video_cta_trial: "A cliqué sur « Démarrer l’essai gratuit »",
     },
     stageChange: "Étape", assignment: "Assigné", from: "de", to: "à", fields: "Modifié",
   },
