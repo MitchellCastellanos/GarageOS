@@ -1,5 +1,10 @@
-import { cleanText, parseCsv, MAX_IMPORT_ROWS } from "@/domain/sales-crm/csv";
-import { normalizeBusinessName, normalizeCity, normalizeEmail, phoneDigits, websiteDomain } from "@/domain/sales-crm/normalize";
+import { createHash } from "node:crypto";
+import { canonicalAddress, type AddressQuality } from "@/domain/sales-crm/address";
+import { cleanText, neutralizeFormula, parseCsv, MAX_IMPORT_ROWS } from "@/domain/sales-crm/csv";
+import { classifyAgainstPool, type MatchKey, type MatchReason, type PoolEntry } from "@/domain/sales-crm/dedupe";
+import { normalizeBusinessName, normalizeEmail, phoneDigits, websiteDomain } from "@/domain/sales-crm/normalize";
+import { IMPORT_FIELDS } from "@/domain/sales-crm/import-fields";
+import { cityKey } from "@/domain/sales-crm/territory";
 import { contactInputSchema, prospectInputSchema, type ContactInput, type ProspectInput } from "@/domain/sales-crm/validation";
 
 const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
@@ -18,6 +23,8 @@ const ALIASES: Record<string, string[]> = {
   shopSize: ["shop_size", "size", "staff", "staff_size", "employees", "taille"],
   locationCount: ["locations", "location_count", "nb_locations", "succursales"],
   currentSoftware: ["software", "current_software", "logiciel", "logiciel_actuel"],
+  externalId: ["external_id", "source_id", "source_record_id", "record_id", "id", "identifiant", "identifiant_source", "id_source"],
+  sourceUrl: ["source_url", "source_link", "url_source", "lien_source", "listing_url"],
   source: ["source", "lead_source"],
   sourceDetail: ["source_detail", "detail_source"],
   preferredLanguage: ["language", "preferred_language", "langue", "langue_preferee"],
@@ -33,11 +40,51 @@ const ALIASES: Record<string, string[]> = {
 };
 const ALIAS_LOOKUP = new Map<string, string>();
 for (const [canonical, list] of Object.entries(ALIASES)) for (const a of list) if (!ALIAS_LOOKUP.has(a)) ALIAS_LOOKUP.set(a, canonical);
+/** Canonical import fields a column can be mapped to (the owner picks them in the wizard; nothing source-specific is hardcoded). */
+export { IMPORT_FIELDS };
+/** Fields that have header aliases (kept equal to IMPORT_FIELDS by a test). */
+export const ALIAS_FIELDS: readonly string[] = Object.keys(ALIASES);
+export type ImportMapping = Record<string, string | null>;
+
+/** Header index → canonical field using the EN/FR aliases. First column wins when two columns claim the same field. */
+export function suggestMapping(headers: string[]): ImportMapping {
+  const used = new Set<string>(), out: ImportMapping = {};
+  headers.forEach((h, i) => {
+    const f = ALIAS_LOOKUP.get(fold(h)) ?? null;
+    if (f && !used.has(f)) { used.add(f); out[String(i)] = f; } else out[String(i)] = null;
+  });
+  return out;
+}
+/** Validates a user-supplied mapping: known fields only, each at most once, indexes inside the header row. */
+export function sanitizeMapping(raw: unknown, columnCount: number): ImportMapping | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const used = new Set<string>(), out: ImportMapping = {};
+  for (let i = 0; i < columnCount; i++) {
+    const v = (raw as Record<string, unknown>)[String(i)];
+    if (v === null || v === undefined || v === "") { out[String(i)] = null; continue; }
+    if (typeof v !== "string" || !(IMPORT_FIELDS as readonly string[]).includes(v) || used.has(v)) return null;
+    used.add(v); out[String(i)] = v;
+  }
+  return out;
+}
+/** First rows and header labels for the mapping step. Cells are truncated; nothing is stored. */
+export function inspectCsv(csvText: string): { headerError: ParsedImport["headerError"]; headers: string[]; suggested: ImportMapping; sample: string[][]; totalRows: number } {
+  let rows: string[][];
+  try { rows = parseCsv(csvText); } catch { return { headerError: "MALFORMED", headers: [], suggested: {}, sample: [], totalRows: 0 }; }
+  if (rows.length < 2) return { headerError: "EMPTY", headers: [], suggested: {}, sample: [], totalRows: 0 };
+  const headers = rows[0].map((h) => cleanText(h).slice(0, 80));
+  const total = rows.length - 1;
+  return {
+    headerError: total > MAX_IMPORT_ROWS ? "TOO_MANY_ROWS" : null, headers, suggested: suggestMapping(rows[0]),
+    sample: rows.slice(1, 4).map((r) => headers.map((_, i) => cleanText(r[i] ?? "").slice(0, 60))), totalRows: total,
+  };
+}
 
 export type ImportIssueCode =
   | "MISSING_NAME" | "INVALID_FIELD" | "INVALID_PHONE" | "INVALID_WEBSITE" | "INVALID_EMAIL" | "CONTACT_NAME_REQUIRED" | "CONTACT_INVALID"
   | "LANGUAGE_UNRECOGNIZED" | "SIZE_UNRECOGNIZED" | "INDUSTRY_UNRECOGNIZED" | "SOURCE_UNRECOGNIZED"
-  | "DUPLICATE_IN_FILE" | "DUPLICATE_EXISTING" | "DUPLICATE_DO_NOT_CONTACT" | "ROW_TOO_LONG";
+  | "DUPLICATE_IN_FILE" | "DUPLICATE_EXISTING" | "DUPLICATE_DO_NOT_CONTACT" | "ROW_TOO_LONG"
+  | "TERRITORY_BLOCKED" | "INVALID_POSTAL" | "ADDRESS_INCOMPLETE" | "DUPLICATE_SOURCE_ID" | "ALREADY_IMPORTED" | "NEEDS_REVIEW" | "BRANCH_OF_EXISTING" | "LINKED_EXISTING" | "DNC_PROPAGATED";
 export interface ImportIssue { row: number; field: string; code: ImportIssueCode; severity: "error" | "warning" | "skipped" }
 
 export interface ImportCandidate {
@@ -45,7 +92,11 @@ export interface ImportCandidate {
   prospect: Omit<ProspectInput, "assignedStaffId">;
   contact: ContactInput | null;
   doNotContact: boolean;
-  keys: { nameNormalized: string; city: string; websiteDomain: string | null; phoneDigits: string | null; contactEmail: string | null; email: string | null };
+  /** Source-supplied record id (verbatim, trimmed) when the file has one. */
+  externalId: string | null;
+  sourceUrl: string | null;
+  addressQuality: AddressQuality;
+  keys: MatchKey & { contactEmail: string | null; email: string | null };
 }
 export interface ParsedImport {
   headerError: "EMPTY" | "NO_NAME_COLUMN" | "TOO_MANY_ROWS" | "MALFORMED" | null;
@@ -82,12 +133,14 @@ const SOURCE_MAP: Record<string, string> = {
 };
 const truthy = (v: string) => ["1", "true", "yes", "y", "oui", "x", "dnc"].includes(fold(v));
 
-export function parseProspectCsv(csvText: string, opts: { defaultSource?: string } = {}): ParsedImport {
+export function parseProspectCsv(csvText: string, opts: { defaultSource?: string; mapping?: ImportMapping | null } = {}): ParsedImport {
   const empty = (headerError: ParsedImport["headerError"]): ParsedImport => ({ headerError, totalRows: 0, candidates: [], issues: [], ignoredColumns: 0 });
   let rows: string[][];
   try { rows = parseCsv(csvText); } catch { return empty("MALFORMED"); }
   if (rows.length < 2) return empty("EMPTY");
-  const header = rows[0].map((h) => ALIAS_LOOKUP.get(fold(h)) ?? null);
+  const mapping = opts.mapping ? sanitizeMapping(opts.mapping, rows[0].length) : null;
+  if (opts.mapping && !mapping) return empty("MALFORMED");
+  const header = rows[0].map((h, i) => (mapping ? (mapping[String(i)] ?? null) : (suggestMapping(rows[0])[String(i)] ?? null)));
   if (!header.includes("name")) return empty("NO_NAME_COLUMN");
   const dataRows = rows.slice(1);
   if (dataRows.length > MAX_IMPORT_ROWS) return { ...empty("TOO_MANY_ROWS"), totalRows: dataRows.length };
@@ -146,11 +199,20 @@ export function parseProspectCsv(csvText: string, opts: { defaultSource?: string
       else if (!c.success) issues.push({ row: rowNumber, field: "contact", code: "CONTACT_INVALID", severity: "warning" });
       else contact = c.data;
     }
+    const addr = canonicalAddress(prospect);
+    if (prospect.postalCode && !addr.postalKey) issues.push({ row: rowNumber, field: "postalCode", code: "INVALID_POSTAL", severity: "warning" });
+    if (addr.quality === "UNKNOWN" || addr.quality === "INCOMPLETE") issues.push({ row: rowNumber, field: "address", code: "ADDRESS_INCOMPLETE", severity: "warning" });
+    // Store the canonical postal when valid; keep the raw value otherwise (never invent).
+    if (addr.postalKey) prospect.postalCode = addr.postalCode;
+    const externalId = neutralizeFormula(cleanText(get("externalId"))).slice(0, 120) || null;
+    const sourceUrlRaw = get("sourceUrl").trim();
+    const sourceUrl = /^https?:\/\//i.test(sourceUrlRaw) && sourceUrlRaw.length <= 500 ? sourceUrlRaw.replace(/[\u0000-\u001F\u007F\s]/g, "") : null;
     candidates.push({
-      rowNumber, prospect, contact, doNotContact: truthy(get("doNotContact")),
+      rowNumber, prospect, contact, doNotContact: truthy(get("doNotContact")), externalId, sourceUrl, addressQuality: addr.quality,
       keys: {
-        nameNormalized: normalizeBusinessName(prospect.name), city: normalizeCity(prospect.city),
+        nameNormalized: normalizeBusinessName(prospect.name), cityKey: cityKey(prospect.city),
         websiteDomain: websiteDomain(prospect.website), phoneDigits: phoneDigits(prospect.phone),
+        addressKey: addr.addressKey, postalKey: addr.postalKey,
         contactEmail: normalizeEmail(contact?.email), email: normalizeEmail(prospect.email),
       },
     });
@@ -159,30 +221,71 @@ export function parseProspectCsv(csvText: string, opts: { defaultSource?: string
   return { headerError: null, totalRows: dataRows.length, candidates, issues, ignoredColumns };
 }
 
-/** Two rows are the same business if they share a website domain, a phone number, or a name+city. */
-export function dedupeWithinFile(candidates: ImportCandidate[]): { kept: ImportCandidate[]; issues: ImportIssue[] } {
-  const seen = { domain: new Set<string>(), phone: new Set<string>(), nameCity: new Set<string>() };
-  const kept: ImportCandidate[] = [], issues: ImportIssue[] = [];
-  for (const c of candidates) {
-    const { websiteDomain: d, phoneDigits: p, nameNormalized: n, city } = c.keys;
-    const nameCity = n ? `${n}|${city}` : null;
-    if ((d && seen.domain.has(d)) || (p && seen.phone.has(p)) || (nameCity && seen.nameCity.has(nameCity))) {
-      issues.push({ row: c.rowNumber, field: "name", code: "DUPLICATE_IN_FILE", severity: "skipped" });
-      continue;
-    }
-    if (d) seen.domain.add(d);
-    if (p) seen.phone.add(p);
-    if (nameCity) seen.nameCity.add(nameCity);
-    kept.push(c);
-  }
-  return { kept, issues };
+/** Idempotency key of a source record: its own id when the file has one, otherwise file hash + row number. */
+export function recordKeyOf(c: Pick<ImportCandidate, "externalId" | "rowNumber">, fileHash: string): string {
+  return c.externalId ? `id:${c.externalId}` : `row:${fileHash}:${c.rowNumber}`;
+}
+/** Content fingerprint of the business-level facts of a row (contact persons excluded). Same facts ⇒ same fingerprint. */
+export function fingerprintOf(c: ImportCandidate): string {
+  const p = c.prospect;
+  return createHash("sha256").update(JSON.stringify([c.keys.nameNormalized, c.keys.addressKey, c.keys.cityKey, p.province, c.keys.postalKey, c.keys.phoneDigits, c.keys.websiteDomain, c.keys.email, c.doNotContact])).digest("hex").slice(0, 40);
+}
+/** Minimal, business-level snapshot kept with the observation for provenance. No contact persons, emails or raw payload. */
+export function snapshotOf(c: ImportCandidate): Record<string, unknown> {
+  const p = c.prospect;
+  return {
+    name: p.name, address: p.address, city: p.city, province: p.province, postalCode: p.postalCode, phone: p.phone, websiteDomain: c.keys.websiteDomain,
+    hasEmail: !!c.keys.email, hasContact: !!c.contact, language: p.preferredLanguage, industry: p.industry, addressQuality: c.addressQuality, optOut: c.doNotContact,
+  };
 }
 
-/** Pure matcher used against rows already in the database (the DB layer supplies `existing`). */
-export interface ExistingKey { id: string; nameNormalized: string; city: string; websiteDomain: string | null; phoneDigits: string | null; doNotContact: boolean }
-export function findExistingMatch(c: ImportCandidate, existing: ExistingKey[]): ExistingKey | null {
-  return existing.find((e) =>
-    (c.keys.websiteDomain && e.websiteDomain === c.keys.websiteDomain) ||
-    (c.keys.phoneDigits && e.phoneDigits === c.keys.phoneDigits) ||
-    (c.keys.nameNormalized && e.nameNormalized === c.keys.nameNormalized && e.city === c.keys.city)) ?? null;
+export interface ExistingProspectKey extends PoolEntry { assignedStaffId: string | null }
+export interface ExistingSource { fingerprint: string; prospectId: string | null }
+
+export type RowPlan =
+  | { row: number; action: "CREATE"; branchOf: string[] }
+  | { row: number; action: "ALREADY_IMPORTED" }
+  | { row: number; action: "DUPLICATE_SOURCE_ID" }
+  | { row: number; action: "LINK_EXACT"; target: string }
+  | { row: number; action: "LINK_STRONG"; target: string; reasons: MatchReason[] }
+  /** Strong match to an earlier row of the same file (target row number); resolved to a prospect id when written. */
+  | { row: number; action: "LINK_IN_FILE"; targetRow: number; reasons: MatchReason[] }
+  /** Ambiguous: held for a human. `target` is an existing prospect id or `row:<n>` for an earlier row of this file. */
+  | { row: number; action: "REVIEW"; target: string; reasons: MatchReason[] };
+
+/**
+ * Sequential, deterministic plan for a whole file, shared by preview and confirm so both always agree.
+ *  1. the same (record, content) seen before → ALREADY_IMPORTED (retries are no-ops);
+ *  2. the same source record id seen before with changed content → LINK_EXACT (idempotent identity);
+ *  3. otherwise branch-aware classification against existing prospects AND earlier rows of this file.
+ * Rows never merge existing prospects with each other.
+ */
+export function planImport(
+  candidates: ImportCandidate[], recordKeys: Map<number, string>, fingerprints: Map<number, string>,
+  pool: readonly PoolEntry[], sources: ReadonlyMap<string, ExistingSource[]>,
+): RowPlan[] {
+  const live: PoolEntry[] = [...pool], seenRecord = new Set<string>(), plans: RowPlan[] = [];
+  for (const c of candidates) {
+    const rk = recordKeys.get(c.rowNumber)!, fp = fingerprints.get(c.rowNumber)!;
+    const prior = sources.get(rk) ?? [];
+    if (prior.some((x) => x.fingerprint === fp)) { plans.push({ row: c.rowNumber, action: "ALREADY_IMPORTED" }); continue; }
+    if (c.externalId) {
+      if (seenRecord.has(rk)) { plans.push({ row: c.rowNumber, action: "DUPLICATE_SOURCE_ID" }); continue; }
+      seenRecord.add(rk);
+      const linked = prior.find((x) => x.prospectId);
+      if (linked) { plans.push({ row: c.rowNumber, action: "LINK_EXACT", target: linked.prospectId! }); continue; }
+    }
+    const r = classifyAgainstPool(c.keys, live);
+    const inFile = (id: string) => (id.startsWith("row:") ? Number(id.slice(4)) : null);
+    if (r.outcome === "STRONG") {
+      const tr = inFile(r.strong!.id);
+      plans.push(tr !== null ? { row: c.rowNumber, action: "LINK_IN_FILE", targetRow: tr, reasons: r.strong!.reasons } : { row: c.rowNumber, action: "LINK_STRONG", target: r.strong!.id, reasons: r.strong!.reasons });
+    } else if (r.outcome === "AMBIGUOUS") {
+      plans.push({ row: c.rowNumber, action: "REVIEW", target: r.ambiguous[0].id, reasons: r.ambiguous[0].reasons });
+    } else {
+      plans.push({ row: c.rowNumber, action: "CREATE", branchOf: r.branchOf });
+      live.push({ id: `row:${c.rowNumber}`, ...c.keys, doNotContact: c.doNotContact });
+    }
+  }
+  return plans;
 }

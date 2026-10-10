@@ -3,11 +3,18 @@
 // (documented basis, identification, unsubscribe, suppression); it is not legal advice.
 import type { CrmSendingBasisKind } from "@prisma/client";
 
-export interface BasisRow { kind: CrmSendingBasisKind; evidence: string; recordedAt: Date; expiresAt: Date | null; revokedAt: Date | null }
+export interface BasisRow {
+  kind: CrmSendingBasisKind; evidence: string; recordedAt: Date; expiresAt: Date | null; revokedAt: Date | null;
+  /** Lead Engine review status. Absent (older callers) is treated as "not approved" for kinds that need approval. */
+  reviewStatus?: "NOT_REQUIRED" | "LEGACY_UNREVIEWED" | "PENDING_REVIEW" | "APPROVED" | "REJECTED";
+}
 
 export type BasisEvaluation =
   | { valid: true; kind: CrmSendingBasisKind; expiresAt: Date | null }
-  | { valid: false; reason: "NONE" | "EXPIRED" | "REVOKED" | "WEAK_EVIDENCE" };
+  | { valid: false; reason: "NONE" | "EXPIRED" | "REVOKED" | "WEAK_EVIDENCE" | "PENDING_REVIEW" | "REJECTED_EVIDENCE" | "UNREVIEWED" };
+
+/** Published/disclosed-address bases only authorise a send once a second person approved their structured evidence. */
+const NEEDS_APPROVAL: readonly CrmSendingBasisKind[] = ["IMPLIED_PUBLISHED_ADDRESS", "IMPLIED_DISCLOSED_ADDRESS"];
 
 export const MIN_EVIDENCE_CHARS = 12;
 
@@ -18,6 +25,11 @@ export function evaluateSendingBasis(rows: BasisRow[], now: Date): BasisEvaluati
   if (newest.revokedAt) return { valid: false, reason: "REVOKED" };
   if (newest.expiresAt && newest.expiresAt.getTime() <= now.getTime()) return { valid: false, reason: "EXPIRED" };
   if (newest.evidence.trim().length < MIN_EVIDENCE_CHARS) return { valid: false, reason: "WEAK_EVIDENCE" };
+  // Review gate. Pending/rejected evidence never authorises anything; address-based bases need an explicit approval, so
+  // rows that pre-date the review workflow (LEGACY_UNREVIEWED) are never treated as verified.
+  if (newest.reviewStatus === "REJECTED") return { valid: false, reason: "REJECTED_EVIDENCE" };
+  if (newest.reviewStatus === "PENDING_REVIEW") return { valid: false, reason: "PENDING_REVIEW" };
+  if (NEEDS_APPROVAL.includes(newest.kind) && newest.reviewStatus !== "APPROVED") return { valid: false, reason: "UNREVIEWED" };
   return { valid: true, kind: newest.kind, expiresAt: newest.expiresAt };
 }
 

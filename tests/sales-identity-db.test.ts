@@ -201,7 +201,7 @@ if (!enabled) {
     assert.equal(((await pipeline.assignProspect(pid, staff.Rene)) as any).ok, true, "explicit transfer by Super Admin");
     // import: rows the chosen owner may not acquire are imported unassigned (Super Admin may hold a pool)
     const csv = `name,city,province,postal code,phone\nImp Montreal ${run},Montréal,QC,H3A 1A1,514${String(Date.now() % 10000000).padStart(7, "0")}\nImp Calgary ${run},Calgary,AB,T2P 1A1,403${String((Date.now() + 1) % 10000000).padStart(7, "0")}\n`;
-    const form = fd({ assignedStaffId: staff.Rene }); form.set("file", new File([csv], "leads.csv", { type: "text/csv" }));
+    const form = fd({ assignedStaffId: staff.Rene, lawfulSourceNote: "Synthetic test fixture" }); form.set("file", new File([csv], "leads.csv", { type: "text/csv" }));
     const prev: any = await imports.previewProspectImport(form); assert.equal(prev.ok, true, JSON.stringify(prev));
     assert.equal(((await imports.confirmProspectImport(prev.batchId)) as any).ok, true);
     const m = await db.crmProspect.findFirstOrThrow({ where: { name: `Imp Montreal ${run}` } });
@@ -210,7 +210,7 @@ if (!enabled) {
     // a rep (not manager / admin) cannot import field-held rows into a book they may not hold: the rows are skipped, not mis-assigned
     as(ids.Rene);
     const csv2 = `name,city,province,postal code,phone\nImp2 Montreal ${run},Montréal,QC,H3A 1A1,438${String(Date.now() % 10000000).padStart(7, "0")}\n`;
-    const f2 = fd({}); f2.set("file", new File([csv2], "leads2.csv", { type: "text/csv" }));
+    const f2 = fd({ lawfulSourceNote: "Synthetic test fixture" }); f2.set("file", new File([csv2], "leads2.csv", { type: "text/csv" }));
     const p2: any = await imports.previewProspectImport(f2); assert.equal(p2.ok, true, JSON.stringify(p2));
     const done: any = await imports.confirmProspectImport(p2.batchId);
     assert.equal(done.created, 0); assert.ok(done.skipped >= 1);

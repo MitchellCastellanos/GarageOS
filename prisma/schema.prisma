@@ -2424,6 +2424,10 @@ model PlatformSalesStaff {
   salesMode             SalesMode            @default(REMOTE)
   /// CrmTerritory.key values this agent covers. Empty = every territory their mode permits.
   coverageTerritoryKeys String[]             @default([])
+  /// Lead Engine: whether this seller takes part in automatic lead distribution (vacation / pause switch).
+  acceptsAutoAssignment Boolean              @default(true)
+  /// Lead Engine: optional cap on active owned prospects for automatic distribution (null = no cap).
+  maxActiveLeads        Int?
   // ── Corporate identity: `User.email` is the corporate login (@garage-os.ca once assigned); the personal recovery
   // address below is private, never used in prospect-facing mail, and must be verified before it can recover an account.
   recoveryEmail            String?
@@ -2485,10 +2489,18 @@ model CrmImportBatch {
   skippedCount    Int             @default(0)
   errorCount      Int             @default(0)
   defaultSource   CrmLeadSource   @default(IMPORT)
+  /// Lead Engine provenance: provider-neutral source key (e.g. "lead-radar-2026-10"), lawful-use note and observation time.
+  sourceKey       String          @default("csv-import")
+  sourceUrl       String?
+  lawfulSourceNote String?
+  observedAt      DateTime?
+  /// Column mapping used for this file: { "<header index>": "<canonical field>" | null }. Headers themselves are not stored.
+  mapping         Json?
   createdAt       DateTime        @default(now())
   completedAt     DateTime?
 
-  prospects CrmProspect[]
+  prospects    CrmProspect[]
+  observations CrmSourceObservation[]
 
   @@index([createdByUserId, createdAt])
   @@index([fileHash])
@@ -2531,9 +2543,23 @@ model CrmProspect {
   createdByUserId   String
   archivedAt        DateTime?
   lastActivityAt    DateTime?
+  // ── Lead Engine derived columns (see docs/lead-engine-contracts.md). Recomputed whenever the address changes.
+  /// Normalised civic number + street ("123 rue principale"); null when no street.
+  addressKey         String?
+  /// Canonical postal code without spaces ("H2X1Y4"); null when invalid/absent.
+  postalKey          String?
+  addressQuality     CrmAddressQuality   @default(UNKNOWN)
+  /// Stable hash of the canonical address; Agent 2 uses it to invalidate geocoding.
+  addressFingerprint String?
+  /// Territory snapshot at `territoryResolvedAt`. null state = never computed.
+  territoryKey       String?
+  territoryState     CrmTerritoryState?
+  territoryResolvedAt DateTime?
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
 
+  observations     CrmSourceObservation[]
+  duplicateReviews CrmDuplicateReview[]
   contacts      CrmContact[]
   opportunities CrmOpportunity[]
   needs         CrmProspectNeed[]
@@ -2548,6 +2574,9 @@ model CrmProspect {
   @@index([websiteDomain])
   @@index([phoneDigits])
   @@index([city])
+  @@index([addressKey])
+  @@index([postalKey])
+  @@index([territoryState, territoryKey])
   @@schema("garageos")
 }
 
@@ -3175,8 +3204,24 @@ model CrmSendingBasis {
   expiresAt        DateTime?
   recordedByUserId String
   revokedAt        DateTime?
+  // ── Structured evidence + approval (Lead Engine). `evidence` stays the human summary.
+  /// NOT_REQUIRED: kinds that need no second pair of eyes (behaviour unchanged). Published/disclosed-address bases
+  /// start as PENDING_REVIEW and cannot authorise a send until APPROVED. Rows that existed before the Lead Engine are
+  /// LEGACY_UNREVIEWED: never treated as verified.
+  reviewStatus     CrmBasisReviewStatus @default(NOT_REQUIRED)
+  evidenceType     CrmEvidenceType?
+  sourceUrl        String?
+  capturedAt       DateTime?
+  supportingFacts  String?
+  roleRelevance    String?
+  /// Published-address basis: recorder confirms the address is published without a "no unsolicited messages" statement.
+  publishedConditionsConfirmed Boolean @default(false)
+  reviewedByUserId String?
+  reviewedAt       DateTime?
+  reviewNote       String?
 
   @@index([contactId, recordedAt])
+  @@index([reviewStatus, recordedAt])
   @@schema("garageos")
 }
 
@@ -3344,6 +3389,155 @@ model CrmSellerCalendar {
   @@schema("garageos")
 }
 
+
+// ── Lead Engine (provider-neutral source observations, duplicate review, assignment runs) ─────────────────────────
+enum CrmAddressQuality {
+  UNKNOWN
+  INCOMPLETE
+  PARTIAL
+  COMPLETE
+
+  @@schema("garageos")
+}
+
+enum CrmTerritoryState {
+  /// Matches a city/postal-specific territory (e.g. Greater Montréal).
+  LOCAL
+  /// Positively outside every local territory (province/postal known).
+  NATIONAL
+  /// Not enough address information to decide; never auto-assigned.
+  UNRESOLVED
+
+  @@schema("garageos")
+}
+
+enum CrmObservationOutcome {
+  CREATED
+  LINKED_EXACT
+  LINKED_STRONG
+  LINKED_IN_FILE
+  REVIEW_PENDING
+  REVIEW_LINKED
+  REVIEW_CREATED
+  REVIEW_DISMISSED
+
+  @@schema("garageos")
+}
+
+enum CrmDuplicateReviewStatus {
+  PENDING
+  LINKED
+  DISTINCT
+  DISMISSED
+
+  @@schema("garageos")
+}
+
+enum CrmAssignmentRunStatus {
+  PREVIEWED
+  APPLYING
+  APPLIED
+  CANCELLED
+
+  @@schema("garageos")
+}
+
+enum CrmBasisReviewStatus {
+  NOT_REQUIRED
+  LEGACY_UNREVIEWED
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+
+  @@schema("garageos")
+}
+
+enum CrmEvidenceType {
+  WEBSITE_PUBLICATION
+  DIRECTORY_LISTING
+  BUSINESS_CARD
+  EMAIL_THREAD
+  FORM_SUBMISSION
+  IN_PERSON_CONVERSATION
+  OTHER
+
+  @@schema("garageos")
+}
+
+/// One sighting of a business in a source (a CSV row today, a provider API record later). Append-only and idempotent:
+/// (sourceKey, recordKey, contentFingerprint) is unique, so retries and re-imports never duplicate observations.
+/// `snapshot` holds BUSINESS-level normalised fields only — never contact persons, emails or the raw payload.
+model CrmSourceObservation {
+  id                 String                @id @default(cuid())
+  sourceKey          String
+  /// "id:<externalId>" when the source supplies a record id, else "row:<fileHash>:<rowNumber>".
+  recordKey          String
+  externalId         String?
+  contentFingerprint String
+  observedAt         DateTime
+  importBatchId      String?
+  importBatch        CrmImportBatch?       @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+  rowNumber          Int?
+  sourceUrl          String?
+  lawfulSourceNote   String?
+  snapshot           Json
+  /// Field names where the source disagreed with already-stored prospect data (values are never copied).
+  conflicts          String[]              @default([])
+  matchOutcome       CrmObservationOutcome
+  matchReasons       String[]              @default([])
+  prospectId         String?
+  prospect           CrmProspect?          @relation(fields: [prospectId], references: [id], onDelete: SetNull)
+  createdAt          DateTime              @default(now())
+
+  review CrmDuplicateReview?
+
+  @@unique([sourceKey, recordKey, contentFingerprint])
+  @@index([prospectId])
+  @@index([importBatchId])
+  @@index([sourceKey, externalId])
+  @@schema("garageos")
+}
+
+/// An ambiguous match held for a human: the observation could be the same business as `prospectId`, or a distinct branch.
+/// Nothing is created or merged until it is decided. Decisions are made by someone who can access `prospectId`.
+model CrmDuplicateReview {
+  id               String                   @id @default(cuid())
+  observationId    String                   @unique
+  observation      CrmSourceObservation     @relation(fields: [observationId], references: [id], onDelete: Cascade)
+  prospectId       String
+  prospect         CrmProspect              @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  reasons          String[]                 @default([])
+  status           CrmDuplicateReviewStatus @default(PENDING)
+  decidedByUserId  String?
+  decidedAt        DateTime?
+  resultProspectId String?
+  note             String?
+  /// The not-yet-created prospect (+ contact) from the source row. Holds personal data, so it is cleared the moment
+  /// the review is decided.
+  pendingCandidate Json?
+  createdByUserId  String
+  createdAt        DateTime                 @default(now())
+
+  @@index([prospectId, status])
+  @@index([status, createdAt])
+  @@schema("garageos")
+}
+
+/// Auditable preview → controlled confirmation of automatic lead distribution. `proposals` holds ids and reason codes only.
+model CrmAssignmentRun {
+  id              String                 @id @default(cuid())
+  createdByUserId String
+  status          CrmAssignmentRunStatus @default(PREVIEWED)
+  proposals       Json
+  summary         Json                   @default("{}")
+  appliedCount    Int                    @default(0)
+  skippedCount    Int                    @default(0)
+  createdAt       DateTime               @default(now())
+  appliedAt       DateTime?
+
+  @@index([createdByUserId, createdAt])
+  @@schema("garageos")
+}
 
 /// Sales territory. The most specific active territory (lowest sortOrder) whose rules match a prospect's location wins.
 model CrmTerritory {

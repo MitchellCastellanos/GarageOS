@@ -94,7 +94,7 @@ if (!enabled) {
     await db.crmOpportunity.create({ data: { prospectId: p.id, assignedStaffId: ownerStaffId, createdByUserId: ids.root } });
     const email = opts.email ?? `${name.toLowerCase()}-${run}@shop.test`;
     const c = await db.crmContact.create({ data: { prospectId: p.id, name: `Jean ${name}`, email, emailNormalized: email, isPrimary: true, preferredLanguage: opts.contactLang ?? null } });
-    if (opts.basis !== false) await db.crmSendingBasis.create({ data: { contactId: c.id, kind: "IMPLIED_PUBLISHED_ADDRESS", evidence: "Email published on the shop's own website contact page", recordedByUserId: ids.root } });
+    if (opts.basis !== false) await db.crmSendingBasis.create({ data: { contactId: c.id, kind: "IMPLIED_PUBLISHED_ADDRESS", evidence: "Email published on the shop's own website contact page", recordedByUserId: ids.root, reviewStatus: "APPROVED" } });
     return { p, c, email };
   }
   const composeForm = (o: Record<string, string>) => fd({ to: "", subject: "Hello", bodyText: "Bonjour, un petit mot.", ...o });
@@ -163,7 +163,7 @@ if (!enabled) {
     assert.deepEqual([r.ok, r.error], [false, "NO_VALID_BASIS"], "commercial email without a documented basis is refused");
 
     as(ids.Alice);
-    const b: any = await inbox.recordSendingBasis(fd({ contactId: c.id, kind: "IMPLIED_PUBLISHED_ADDRESS", evidence: "Address published on laurent-garage.example contact page" }));
+    const b: any = await inbox.recordSendingBasis(fd({ contactId: c.id, kind: "IMPLIED_EXISTING_RELATIONSHIP", evidence: "Existing customer enquiry received from laurent-garage.example" })); // address-based bases need reviewed evidence: see lead-engine-db.test.ts
     assert.equal(b.ok, true, JSON.stringify(b));
 
     r = await send("Alice", base);

@@ -1,7 +1,7 @@
 # GarageOS Lead Engine + Field Route Planner — Approved Architecture & Execution Roadmap
 
 **Decision date:** 2026-10-10  
-**Status:** Architecture/operating direction approved; implementation not yet authorized.  
+**Status:** Architecture/operating direction approved. Agent 1 Lead Engine scope (P1/P2) implemented on branch `claude/lead-engine-implementation` — see [lead-engine-contracts.md](lead-engine-contracts.md); P0 visit-engagement safety and P3 route planner (Agent 2) are separate.  
 **Repository:** `MitchellCastellanos/GarageOS`  
 **Related:** [Sales CRM master plan](sales-crm-master-implementation-plan.md) §D; [Sales email launch readiness](sales-email-launch-readiness.md); [CASL matrix](compliance/casl-matrix.md).
 

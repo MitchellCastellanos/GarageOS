@@ -4,10 +4,15 @@ import { db } from "@/lib/db";
 import {
   assignedScopeWhere, canAccessAssignedStaff, canAssignToStaff, type PlatformSalesActor,
 } from "@/domain/sales-crm/access";
-import { normalizeBusinessName, normalizeCity, normalizeEmail, phoneDigits, websiteDomain } from "@/domain/sales-crm/normalize";
+import { canonicalAddress } from "@/domain/sales-crm/address";
+import { classifyAgainstPool, type MatchKey } from "@/domain/sales-crm/dedupe";
+import { normalizeBusinessName, normalizeEmail, phoneDigits, websiteDomain } from "@/domain/sales-crm/normalize";
+import { cityKey, classifyTerritory, type TerritoryRule } from "@/domain/sales-crm/territory";
 import type { ProspectInput } from "@/domain/sales-crm/validation";
 import { writeCrmAudit } from "@/lib/sales-crm/audit";
 import { recomputeOpportunityScores } from "@/lib/sales-crm/scoring";
+import { loadMatchPool } from "@/lib/sales-crm/lead-pool";
+import { loadTerritoryRulesWith } from "@/lib/sales-crm/territory-rules";
 
 export type Tx = Prisma.TransactionClient;
 
@@ -41,11 +46,24 @@ export async function resolveAssignee(actor: PlatformSalesActor, staffId: string
   return staff.id;
 }
 
+/** Lead Engine derived columns (address key/quality/fingerprint). Pure; recomputed on every write that can change the address. */
+export function addressColumns(loc: { address?: string | null; city?: string | null; province?: string | null; postalCode?: string | null }) {
+  const a = canonicalAddress(loc);
+  return { addressKey: a.addressKey, postalKey: a.postalKey, addressQuality: a.quality, addressFingerprint: a.fingerprint };
+}
+/** Territory snapshot for a location given the active rules (loaded once by the caller). */
+export function territoryColumns(rules: TerritoryRule[], loc: { city?: string | null; province?: string | null; postalCode?: string | null }, now = new Date()) {
+  const c = classifyTerritory(rules, loc);
+  return { territoryKey: c.state === "UNRESOLVED" ? null : (c.rule?.key ?? null), territoryState: c.state, territoryResolvedAt: now };
+}
+
 export function prospectColumns(input: Omit<ProspectInput, "assignedStaffId" | "tags" | "notes"> & { tags?: string[]; notes?: string | null }) {
+  const addr = canonicalAddress(input);
   return {
     name: input.name, nameNormalized: normalizeBusinessName(input.name),
     website: input.website, websiteDomain: websiteDomain(input.website),
-    address: input.address, city: input.city, province: input.province, postalCode: input.postalCode,
+    address: input.address, city: input.city, province: input.province, postalCode: addr.postalKey ? addr.postalCode : input.postalCode,
+    ...addressColumns(input),
     phone: input.phone, phoneDigits: phoneDigits(input.phone), email: normalizeEmail(input.email),
     industry: input.industry, shopSize: input.shopSize, locationCount: input.locationCount,
     currentSoftware: input.currentSoftware, source: input.source, sourceDetail: input.sourceDetail,
@@ -54,31 +72,31 @@ export function prospectColumns(input: Omit<ProspectInput, "assignedStaffId" | "
   };
 }
 
-export interface DuplicateMatch { id: string; name: string; accessible: boolean; reason: "website" | "phone" | "name_city" }
-/** Finds existing prospects (including archived and do-not-contact) that look like the same business. */
-export async function findDuplicateProspects(actor: PlatformSalesActor, input: { name: string; city: string | null; website: string | null; phone: string | null }, excludeId?: string): Promise<DuplicateMatch[]> {
-  const domain = websiteDomain(input.website), digits = phoneDigits(input.phone), nameN = normalizeBusinessName(input.name);
-  const or: Prisma.CrmProspectWhereInput[] = [];
-  if (domain) or.push({ websiteDomain: domain });
-  if (digits) or.push({ phoneDigits: digits });
-  if (nameN) or.push({ nameNormalized: nameN });
-  if (!or.length) return [];
-  const rows = await db.crmProspect.findMany({
-    where: { OR: or, ...(excludeId ? { id: { not: excludeId } } : {}) },
-    select: { id: true, name: true, city: true, websiteDomain: true, phoneDigits: true, nameNormalized: true, assignedStaffId: true },
-    take: 10,
-  });
-  const city = normalizeCity(input.city);
-  const out: DuplicateMatch[] = [];
-  for (const r of rows) {
-    const reason = domain && r.websiteDomain === domain ? "website" : digits && r.phoneDigits === digits ? "phone"
-      : r.nameNormalized === nameN && normalizeCity(r.city) === city ? "name_city" : null;
-    if (!reason) continue;
-    const accessible = canAccessAssignedStaff(actor, r.assignedStaffId);
+export interface DuplicateMatch { id: string; name: string; accessible: boolean; reasons: string[]; strength: "strong" | "possible" }
+/**
+ * Finds existing prospects (including archived and do-not-contact) that look like the same business. Branch-aware:
+ * a shared domain/phone/name at a DIFFERENT address is a separate location and is not reported.
+ */
+export async function findDuplicateProspects(
+  actor: PlatformSalesActor,
+  input: { name: string; city: string | null; website: string | null; phone: string | null; address?: string | null; province?: string | null; postalCode?: string | null },
+  excludeId?: string,
+): Promise<DuplicateMatch[]> {
+  const addr = canonicalAddress(input);
+  const key: MatchKey = { nameNormalized: normalizeBusinessName(input.name), cityKey: cityKey(input.city), websiteDomain: websiteDomain(input.website), phoneDigits: phoneDigits(input.phone), addressKey: addr.addressKey, postalKey: addr.postalKey };
+  const pool = (await loadMatchPool([key])).filter((p) => p.id !== excludeId);
+  const r = classifyAgainstPool(key, pool);
+  const hits = [...(r.strong ? [{ ...r.strong, strength: "strong" as const }] : []), ...r.ambiguous.map((a) => ({ ...a, strength: "possible" as const }))].slice(0, 10);
+  if (!hits.length) return [];
+  const names = await db.crmProspect.findMany({ where: { id: { in: hits.map((h) => h.id) } }, select: { id: true, name: true, assignedStaffId: true } });
+  const byId = new Map(names.map((n) => [n.id, n]));
+  return hits.flatMap((h) => {
+    const row = byId.get(h.id);
+    if (!row) return [];
+    const accessible = canAccessAssignedStaff(actor, row.assignedStaffId);
     // Out-of-scope matches are reported without identity so reps cannot browse each other's books.
-    out.push({ id: accessible ? r.id : "", name: accessible ? r.name : "", accessible, reason });
-  }
-  return out;
+    return [{ id: accessible ? row.id : "", name: accessible ? row.name : "", accessible, reasons: h.reasons, strength: h.strength }];
+  });
 }
 
 /**
@@ -87,9 +105,10 @@ export async function findDuplicateProspects(actor: PlatformSalesActor, input: {
  */
 export async function createProspectRecord(tx: Tx, actor: PlatformSalesActor, input: ProspectInput, assignedStaffId: string | null, extra: { importBatchId?: string; doNotContact?: boolean } = {}) {
   const now = new Date();
+  const rules = await loadTerritoryRulesWith(tx);
   const prospect = await tx.crmProspect.create({
     data: {
-      ...prospectColumns(input), assignedStaffId, createdByUserId: actor.userId, importBatchId: extra.importBatchId ?? null,
+      ...prospectColumns(input), ...territoryColumns(rules, input, now), assignedStaffId, createdByUserId: actor.userId, importBatchId: extra.importBatchId ?? null,
       doNotContact: !!extra.doNotContact, doNotContactAt: extra.doNotContact ? now : null, lastActivityAt: now,
     },
     select: { id: true },

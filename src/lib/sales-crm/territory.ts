@@ -2,13 +2,13 @@ import "server-only";
 import type { Mode, TerritoryRule, Engagement, Location } from "@/domain/sales-crm/territory";
 import { evaluateAcquisition, resolveTerritory } from "@/domain/sales-crm/territory";
 import { db } from "@/lib/db";
+import { loadTerritoryRulesWith } from "@/lib/sales-crm/territory-rules";
 import { CrmError } from "@/lib/sales-crm/prospects";
 
 const TOUCH_TYPES = ["CALL", "MEETING", "FIELD_VISIT", "EMAIL_SENT", "EMAIL_RECEIVED", "EMAIL_LOGGED", "SEQUENCE", "DEMO"] as const;
 
 export async function loadTerritoryRules(): Promise<TerritoryRule[]> {
-  const rows = await db.crmTerritory.findMany({ where: { active: true }, orderBy: { sortOrder: "asc" } });
-  return rows.map((r) => ({ key: r.key, nameEn: r.nameEn, nameFr: r.nameFr, acquisition: r.acquisition, provinces: r.provinces, cities: r.cities, postalPrefixes: r.postalPrefixes, priorityDays: r.priorityDays, priorityStartedAt: r.priorityStartedAt, active: r.active, sortOrder: r.sortOrder }));
+  return loadTerritoryRulesWith(db);
 }
 
 export async function territoryOfLocation(loc: Location): Promise<TerritoryRule | null> {

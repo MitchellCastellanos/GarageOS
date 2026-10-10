@@ -98,3 +98,30 @@ export function evaluateColdEmail(i: { required: Mode; eng: Engagement; automate
   if (i.senderMode === "FIELD" || i.senderIsSuperAdmin) return { allowed: true };
   return { allowed: false, code: "TERRITORY_FIELD_ONLY" };
 }
+
+// ── Lead Engine: territory classification of a (possibly incomplete) address ────────────────────────────────────────
+export type TerritoryState = "LOCAL" | "NATIONAL" | "UNRESOLVED";
+export interface TerritoryClassification { state: TerritoryState; rule: TerritoryRule | null }
+const isLocalRule = (r: TerritoryRule) => r.cities.length > 0 || r.postalPrefixes.length > 0;
+const validFsa = (pc: string) => /^[ABCEGHJ-NPRSTVXY]\d[ABCEGHJ-NPRSTV-Z]/.test(pc);
+
+/**
+ * Like `resolveTerritory`, but honest about missing data. A location that matches a city/postal-specific territory is
+ * LOCAL. A location that is positively outside every local territory (province known + a city or valid postal that
+ * matches nothing local) is NATIONAL. Anything else — e.g. "Québec" with no city and no postal code could be
+ * Montréal — is UNRESOLVED and must never be auto-assigned as a remote lead.
+ */
+export function classifyTerritory(rules: TerritoryRule[], loc: Location): TerritoryClassification {
+  const rule = resolveTerritory(rules, loc);
+  if (rule && isLocalRule(rule)) return { state: "LOCAL", rule };
+  const prov = provinceCode(loc.province);
+  const hasCity = !!cityKey(loc.city);
+  const pc = postalKey(loc.postalCode);
+  const hasPostal = validFsa(pc);
+  if (!prov && !hasPostal) return { state: "UNRESOLVED", rule: null };
+  if (!hasCity && !hasPostal) {
+    const couldBeLocal = rules.some((r) => r.active && isLocalRule(r) && (!r.provinces.length || !prov || r.provinces.map((p) => p.toUpperCase()).includes(prov)));
+    if (couldBeLocal) return { state: "UNRESOLVED", rule: null };
+  }
+  return { state: "NATIONAL", rule };
+}

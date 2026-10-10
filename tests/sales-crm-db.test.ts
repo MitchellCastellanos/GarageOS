@@ -271,20 +271,21 @@ if (!enabled) {
   test("CSV import: 1,200 rows, preview → confirm, dedupe (file + existing + DNC), formula defence, idempotent, atomic", async () => {
     const lines = ["name,city,phone,website,email,language,shop size,contact name,contact email,do not contact"];
     for (let i = 0; i < 1200; i++) lines.push(`Import Garage ${run} ${i},Ville${i % 7},4${PH}${String(i).padStart(4, "0")},imp${run}-${i}.ca,,${i % 3 === 0 ? "français" : i % 3 === 1 ? "english" : ""},${(i % 4) + 1},Contact ${i},c${i}-${run}@imp.test,`);
-    lines.push(`Import Garage ${run} 5,Ville5,,,,,,,,`); // duplicate of row 5 (name+city)
+    lines.push(`Import Garage ${run} 5,Ville5,,,,,,,,`); // same name+city as row 5 but no address on either side → held for review
     lines.push(`=HYPERLINK("http://evil${run}"),Ville1,,,,,,,,`); // formula-looking name
     lines.push(`Bad Phone ${run},Ville1,=cmd,,,,,,,`); // invalid phone → error row
     lines.push(`Optout ${run},Ville2,,,,,,,,oui`); // opt-out
     lines.push(`,Ville3,,,,,,,,`); // missing name
-    lines.push(`Garage Alpha ${run},Laval,,,,,,,,`); // exists already (rep1's)
+    lines.push(`Garage Alpha ${run},Laval,,,,,,,,`); // same name+city as rep1's prospect (no addresses) → held for review
     as(userIds.Rep2);
     const file = new File([lines.join("\r\n")], "leads.csv", { type: "text/csv" });
-    const form = fd({ source: "DIRECTORY" }); form.set("file", file);
+    const form = fd({ source: "DIRECTORY", lawfulSourceNote: "Synthetic test fixture, no real data" }); form.set("file", file);
     const prev: any = await imports.previewProspectImport(form);
     assert.equal(prev.ok, true, JSON.stringify(prev));
     assert.deepEqual([prev.summary.totalRows, prev.summary.importable, prev.summary.errors, prev.summary.duplicatesInFile, prev.summary.duplicatesExisting, prev.summary.doNotContactRows],
-      [1206, 1202, 2, 1, 1, 1]);
-    assert.equal(prev.summary.existingLinks.length, 0, "the duplicate belongs to Rep1 → its id is not revealed to Rep2");
+      [1206, 1202, 2, 0, 0, 1]);
+    assert.equal(prev.summary.needsReview, 2, "ambiguous rows are held for a human, not skipped and not created");
+    assert.equal(prev.summary.existingLinks.length, 0, "nothing is linked; Rep1's prospect id is never revealed to Rep2");
     assert.equal(await db.crmProspect.count({ where: { name: { startsWith: `Import Garage ${run}` } } }), 0, "preview writes no prospects");
     // another rep cannot confirm or read this batch
     as(userIds.Rep1);
@@ -292,14 +293,15 @@ if (!enabled) {
     assert.equal(((await imports.importIssueReport(prev.batchId)) as any).error, "NOT_FOUND");
     as(userIds.Rep2);
     const report: any = await imports.importIssueReport(prev.batchId);
-    assert.ok(report.csv.startsWith("row,field,code,severity"));
+    assert.ok(report.csv.startsWith("row,outcome,territory,address_quality,field,code,severity"));
     assert.ok(!report.csv.includes("evil") && !report.csv.includes("cmd"), "the report carries codes only, never cell values");
     const started = Date.now();
     const [c1, c2]: any[] = await Promise.all([imports.confirmProspectImport(prev.batchId), imports.confirmProspectImport(prev.batchId)]);
     assert.ok(Date.now() - started < 60_000);
     const winners = [c1, c2].filter((r) => r.ok && !r.alreadyCompleted);
     assert.equal(winners.length, 1, "double confirm imports exactly once");
-    assert.equal(winners[0].created, 1202);
+    assert.equal(winners[0].created, 1202); assert.equal(winners[0].review, 2);
+    assert.equal(await db.crmDuplicateReview.count({ where: { observation: { importBatchId: prev.batchId }, status: "PENDING" } }), 2);
     const rep2Rows = await db.crmProspect.findMany({ where: { importBatchId: prev.batchId } });
     assert.equal(rep2Rows.length, 1202);
     assert.ok(rep2Rows.every((r) => r.assignedStaffId === staffIds.Rep2 && r.source === "DIRECTORY"));
@@ -313,13 +315,14 @@ if (!enabled) {
     const batch = await db.crmImportBatch.findUniqueOrThrow({ where: { id: prev.batchId } });
     assert.equal(batch.status, "COMPLETED"); assert.equal(batch.rows, null, "stored rows (PII) are cleared after the import");
     // re-importing the same file creates nothing: everything is now a duplicate, and the opt-out stays suppressed
-    const form2 = fd({ source: "DIRECTORY" }); form2.set("file", file);
+    const form2 = fd({ source: "DIRECTORY", lawfulSourceNote: "Synthetic test fixture, no real data" }); form2.set("file", file);
     const again: any = await imports.previewProspectImport(form2);
     assert.equal(again.summary.importable, 0); assert.equal(again.summary.previouslyImported, true);
+    assert.equal(again.summary.needsReview, 0); assert.equal(again.summary.alreadyImported, 1204, "re-reading the same file is a no-op: no new prospects, observations or reviews");
     assert.equal(((await imports.cancelProspectImport(again.batchId)) as any).ok, true);
     assert.equal(((await imports.confirmProspectImport(again.batchId)) as any).error, "IMPORT_NOT_CONFIRMABLE");
     // header / size problems are reported, not thrown
-    const bad = fd({}); bad.set("file", new File(["city\nLaval\n"], "x.csv", { type: "text/csv" }));
+    const bad = fd({ lawfulSourceNote: "Synthetic test fixture" }); bad.set("file", new File(["city\nLaval\n"], "x.csv", { type: "text/csv" }));
     assert.equal(((await imports.previewProspectImport(bad)) as any).error, "IMPORT_NO_NAME_COLUMN");
     const big = fd({}); big.set("file", new File(["a".repeat(2 * 1024 * 1024 + 1)], "big.csv", { type: "text/csv" }));
     assert.equal(((await imports.previewProspectImport(big)) as any).error, "FILE_TOO_LARGE");

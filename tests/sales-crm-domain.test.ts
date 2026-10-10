@@ -8,7 +8,7 @@ import { resolveEffectiveLanguage } from "../src/domain/sales-crm/language";
 import { computeFitScore, computeIntentScore, effectiveScore, recommendDemoFeatures, combineFactors } from "../src/domain/sales-crm/scoring";
 import { cleanPhone, neutralizeFormula, parseCsv, toCsv, csvCell } from "../src/domain/sales-crm/csv";
 import { normalizeBusinessName, phoneDigits, websiteDomain, normalizeWebsite } from "../src/domain/sales-crm/normalize";
-import { dedupeWithinFile, findExistingMatch, parseProspectCsv } from "../src/domain/sales-crm/import";
+import { fingerprintOf, parseProspectCsv, planImport, recordKeyOf } from "../src/domain/sales-crm/import";
 import { activityInputSchema, contactInputSchema, needInputSchema, prospectInputSchema, scoreOverrideSchema, staffInputSchema, taskInputSchema } from "../src/domain/sales-crm/validation";
 import { crmCopy } from "../src/lib/admin-locale/sales-crm";
 
@@ -182,23 +182,20 @@ test("import parser: header errors and formula neutralization inside imported ce
   assert.equal(ok.candidates[0].prospect.notes, "@evil", "multi-line notes keep their text; formula defence applies on export");
 });
 
-test("import: 1,500 rows parse quickly, in-file duplicates are dropped, existing matches use domain/phone/name+city", () => {
+test("import: 1,500 rows parse and plan quickly; branches survive, in-file strong duplicates are linked, name+city without address goes to review", () => {
   const lines = [HEADER];
   for (let i = 0; i < 1500; i++) lines.push(`Garage ${i},Ville${i % 10},${String(5140000000 + i)},site${i}.ca,,,,,,,,`);
-  lines.push("Garage 5,Ville5,,,,,,,,,,"); // same name+city as row 5
-  lines.push("Autre,Ailleurs,5140000007,,,,,,,,,"); // same phone as Garage 7
-  lines.push("Autre2,Ailleurs,,https://www.site9.ca,,,,,,,,"); // same domain as Garage 9
+  lines.push("Garage 5,Ville5,,,,,,,,,,"); // same name+city as row 5, no address on either side → ambiguous
+  lines.push("Autre,Ailleurs,5140000007,,,,,,,,,"); // same phone as Garage 7 but another city → a different place
+  lines.push("Autre2,Ville9,,https://www.site9.ca,,,,,,,,"); // same domain as Garage 9, same city, no address → ambiguous
   const started = Date.now();
   const parsed = parseProspectCsv(lines.join("\n"));
-  const { kept, issues } = dedupeWithinFile(parsed.candidates);
+  const rk = new Map(parsed.candidates.map((c) => [c.rowNumber, recordKeyOf(c, "h")])), fp = new Map(parsed.candidates.map((c) => [c.rowNumber, fingerprintOf(c)]));
+  const plans = planImport(parsed.candidates, rk, fp, [], new Map());
   assert.ok(Date.now() - started < 3000);
   assert.equal(parsed.candidates.length, 1503);
-  assert.equal(kept.length, 1500);
-  assert.equal(issues.length, 3);
-  assert.ok(issues.every((i) => i.code === "DUPLICATE_IN_FILE"));
-  const existing = [{ id: "x", nameNormalized: "garage 1", city: "ville1", websiteDomain: null, phoneDigits: null, doNotContact: true }];
-  assert.equal(findExistingMatch(kept[1], existing)?.id, "x");
-  assert.equal(findExistingMatch(kept[2], existing), null);
+  assert.equal(plans.filter((p) => p.action === "CREATE").length, 1501, "the other-city row is a separate location");
+  assert.equal(plans.filter((p) => p.action === "REVIEW").length, 2);
 });
 
 test("input schemas: contacts need a method; confirmed needs need evidence; overrides need a reason; language override cannot be UNKNOWN", () => {
