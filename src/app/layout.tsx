@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { Oswald } from "next/font/google";
 import { Suspense } from "react";
 import "./globals.css";
-import { APP_NAME, getAppUrl } from "@/config/app";
+import { APP_NAME } from "@/config/app";
+import { getSiteUrl } from "@/lib/seo/site";
 import AnalyticsBeacon from "@/components/AnalyticsBeacon";
 
 const oswald = Oswald({
@@ -15,19 +16,17 @@ const oswald = Oswald({
 const description = "Auto shop management software for independent garages.";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(getAppUrl()),
+  metadataBase: new URL(getSiteUrl()),
   title: {
     default: APP_NAME,
     template: `%s · ${APP_NAME}`,
   },
   description,
-  alternates: {
-    canonical: getAppUrl(),
-  },
+  // Sin `alternates.canonical` ni `openGraph.url` aquí: Next los hereda a TODAS las páginas hijas y cada una
+  // pasaría a declarar la home como original. Cada página pública los define con pageMetadata().
   openGraph: {
     title: APP_NAME,
     description,
-    url: getAppUrl(),
     siteName: APP_NAME,
     locale: "en_CA",
     alternateLocale: ["fr_CA"],

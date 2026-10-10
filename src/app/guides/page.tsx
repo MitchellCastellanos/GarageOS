@@ -3,8 +3,9 @@ import { MarketingPageShell } from "@/components/marketing/MarketingPageShell";
 import { PageHero } from "@/components/marketing/PageHero";
 import { GroupedResourceCards } from "@/components/marketing/ResourceArticles";
 import { GUIDES } from "@/lib/marketing-resources";
+import { pageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = { title: "Guides", description: "Set up your shop and follow the steps for booking, estimates, invoicing, reminders, inventory and more with GarageOS." };
+export const metadata: Metadata = pageMetadata({ path: "/guides", title: "Guides", description: "Set up your shop and follow the steps for booking, estimates, invoicing, reminders, inventory and more with GarageOS." });
 export default function GuidesPage() {
   return <MarketingPageShell><div lang="en">
     <PageHero eyebrow="Resources" heading="Put GarageOS to work" description="Start with your shop setup, then follow the steps for everyday appointments, inspections, estimates, Work Orders, invoicing and the rest of the job." />
