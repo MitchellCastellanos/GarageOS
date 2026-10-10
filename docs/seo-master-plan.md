@@ -57,10 +57,24 @@ Plan **aprobado**; implementación por tandas, revisando cada una antes de autor
 
 | Tanda | Contenido | Estado |
 |---|---|---|
-| 1 | PR A canonical · PR B privacidad e indexación | **En revisión** — PR #99 y PR #100 |
-| 2 | Terminología francesa · enrutamiento EN/FR · SEO técnico multilingüe · páginas comerciales prioritarias | Pendiente de autorización |
+| 1 | PR A canonical · PR B privacidad e indexación | **Cerrada (2026-10-10)** — PR #99 (`625c7ab`) y PR #100 (`007e5fe`) mergeados y verificados en producción |
+| 2 | Terminología francesa · enrutamiento EN/FR · SEO técnico multilingüe · páginas comerciales prioritarias | Plan técnico listo: `docs/seo-round-2-plan.md`; **pendiente de autorización** |
 | 3 | Renovación de Resources · Help Center bilingüe · documentación P0/P1 · videos y ayuda contextual | Pendiente |
 | 4 | Contenido educativo · comparativas verificadas · analítica y conversiones · optimización · validaciones finales | Pendiente |
+
+### Cierre de la tanda 1
+
+| Verificación en producción (deployment `dpl_BQEKCH98…`, commit `007e5fe`, alias `www.garage-os.ca`) | Resultado |
+|---|---|
+| `/robots.txt` | 200, 25 reglas, sin `Sitemap:` todavía |
+| `/api/track` | 405 con `X-Robots-Tag: noindex, nofollow, noarchive` |
+| `/help`, `/pricing` | 200; `canonical` y `og:url` propios (`https://www.garage-os.ca/help`, `…/pricing`), sin `meta robots` |
+| `/book/garage-laurent-demo` | No existe en producción (taller de la base local): no aplica |
+
+- **Incidencia de build resuelta:** el Preview del último commit del PR #100 falló una vez con `Turbopack build failed: next/font/google queries have exactly one entry` (fuente Oswald). Ajeno al diff; un único reintento del mismo commit pasó. Si se repite en `main`, investigar aparte.
+- **Dry-run de PageView en producción: NO ejecutado.** Sin acceso autorizado (la BD de la app es Neon; el proyecto Supabase conectado es solo almacenamiento). Procedimiento y criterios de decisión: `docs/pageview-token-purge-runbook.md`.
+- **Pendientes no bloqueantes:** variable `NEXT_PUBLIC_APP_URL` de Preview; click-tracking de Resend (paso final de configuración externa); confirmar con `curl -I https://www.garage-os.ca/help` que no hay `x-robots-tag` en el dominio público (Vercel lo añade en URLs `*.vercel.app`); Search Console y Bing al final.
+- Plan técnico de la tanda 2: `docs/seo-round-2-plan.md`.
 
 ### Hallazgos de la tanda 1 que ajustan este plan
 
