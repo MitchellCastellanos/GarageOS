@@ -9,9 +9,11 @@ import { isCorporateEmail } from "@/domain/sales-crm/identity";
 import { normalizeEmail } from "@/domain/sales-crm/normalize";
 import { requireCrmActor } from "@/lib/sales-crm/access";
 import { writeCrmAudit } from "@/lib/sales-crm/audit";
-import { CrmError, requireScopedProspect, touchProspect } from "@/lib/sales-crm/prospects";
+import { CrmError, requireScopedProspect } from "@/lib/sales-crm/prospects";
 import { crmAction } from "@/lib/sales-crm/result";
 import { cityKey } from "@/domain/sales-crm/territory";
+import { FIELD_VISIT_OUTCOMES, SUBMISSION_ID_RE, cleanVisitNote, type FieldVisitOutcome, type NextAction } from "@/domain/sales-crm/field-visit";
+import { assertProspectVisitable, findVisitBySubmission, writeFieldVisit } from "@/lib/sales-crm/field-visit-service";
 
 const csv = (v: string | undefined, max: number, f: (s: string) => string = (s) => s) =>
   [...new Set((v ?? "").split(/[,;\n]/).map((s) => f(s.trim())).filter(Boolean))].slice(0, max);
@@ -78,21 +80,46 @@ export async function saveVideo(form: FormData) {
   });
 }
 
-/** FIELD agents (and Super Admin) document an in-person visit. It is what unlocks follow-up email in field-held territories. */
-export async function logFieldVisit(prospectId: string, note: string) {
+/**
+ * FIELD agents (and Super Admin) document an in-person visit with a STRUCTURED outcome. Without an explicit outcome the visit is
+ * recorded as NOTE_ONLY, which never satisfies the territory engagement gate. Even a qualifying outcome is not consent: it only
+ * satisfies the separate territory condition; the CASL sending basis, DNC, suppression and language checks still decide any send.
+ * Only the prospect's own seller (or a Super Admin) may record it; `submissionId` makes a retry return the original record.
+ */
+export async function logFieldVisit(prospectId: string, note: string, extra: { outcome?: string; submissionId?: string; nextAction?: string; followUpDate?: string } = {}) {
   const actor = await requireCrmActor("log_field_visits");
   return crmAction(async () => {
-    await requireScopedProspect(actor, prospectId);
-    const body = String(note ?? "").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "").trim().slice(0, 2000);
-    if (body.length < 3) throw new CrmError("NOTE_REQUIRED");
-    const opp = await db.crmOpportunity.findFirst({ where: { prospectId, stage: { in: ["NEW", "CONTACTED", "ENGAGED", "QUALIFIED", "DEMO_SCHEDULED", "DEMO_COMPLETED", "DECISION"] } }, select: { id: true } });
-    await db.$transaction(async (tx) => {
-      await tx.crmActivity.create({ data: { prospectId, opportunityId: opp?.id ?? null, type: "FIELD_VISIT", subject: "Field visit", body, authorUserId: actor.userId } });
-      await touchProspect(tx, prospectId);
-      await writeCrmAudit({ actorUserId: actor.userId, action: "FIELD_VISIT_LOGGED", entityType: "CrmProspect", entityId: prospectId, prospectId }, tx);
-    });
-    revalidatePath(PLATFORM.salesProspect(prospectId));
-    return {};
+    const outcome = extra.outcome === undefined ? "NOTE_ONLY" : extra.outcome;
+    if (!(FIELD_VISIT_OUTCOMES as readonly string[]).includes(outcome)) throw new CrmError("INVALID");
+    const submissionId = extra.submissionId ?? null;
+    if (submissionId !== null && !SUBMISSION_ID_RE.test(submissionId)) throw new CrmError("INVALID");
+    const p = await requireScopedProspect(actor, prospectId);
+    // Ownership: a visit is the assigned seller's own work. A manager's team scope or an unassigned pool is not enough.
+    if (!actor.all && (!actor.staffId || p.assignedStaffId !== actor.staffId)) throw new CrmError("NOT_FOUND");
+    const body = cleanVisitNote(note);
+    if (outcome === "NOTE_ONLY" && body.length < 3) throw new CrmError("NOTE_REQUIRED");
+    if (submissionId) {
+      const prior = await findVisitBySubmission(actor.userId, submissionId);
+      if (prior) {
+        if (prior.prospectId !== prospectId) throw new CrmError("IDEMPOTENCY_CONFLICT");
+        return { activityId: prior.id, replayed: true };
+      }
+    }
+    const full = await db.crmProspect.findUniqueOrThrow({ where: { id: prospectId }, select: { status: true, doNotContact: true, mergedIntoId: true, archivedAt: true } });
+    assertProspectVisitable(full);
+    const tz = actor.staffId ? (await db.platformSalesStaff.findUnique({ where: { id: actor.staffId }, select: { timezone: true } }))?.timezone ?? "America/Toronto" : "America/Toronto";
+    try {
+      const r = await db.$transaction((tx) => writeFieldVisit(tx, { actor, prospectId, outcome: outcome as FieldVisitOutcome, note: body || null, nextAction: extra.nextAction as NextAction | undefined, followUpDate: extra.followUpDate || undefined, submissionId, timezone: tz }));
+      revalidatePath(PLATFORM.salesProspect(prospectId));
+      revalidatePath(PLATFORM.salesTasks);
+      return { activityId: r.activityId, replayed: false };
+    } catch (e) {
+      if (submissionId && (e as { code?: string }).code === "P2002") {
+        const prior = await findVisitBySubmission(actor.userId, submissionId);
+        if (prior && prior.prospectId === prospectId) return { activityId: prior.id, replayed: true };
+      }
+      throw e;
+    }
   });
 }
 

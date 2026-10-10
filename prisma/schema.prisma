@@ -2375,6 +2375,71 @@ enum CrmActivityOutcome {
   @@schema("garageos")
 }
 
+/// Structured result of an in-person visit. Only the QUALIFYING subset (see src/domain/sales-crm/field-visit.ts) can
+/// satisfy the territory engagement gate; none of them is consent. NOTE_ONLY is the safe default for legacy/free-text visits.
+enum CrmFieldVisitOutcome {
+  DECISION_MAKER_CONTACTED
+  INTERESTED
+  DEMO_DISCUSSED
+  DEMO_SCHEDULED
+  FOLLOW_UP_REQUIRED
+  DECISION_MAKER_UNAVAILABLE
+  NO_ANSWER
+  BUSINESS_CLOSED
+  INVALID_LOCATION
+  NOT_INTERESTED
+  CONTACT_REJECTED
+  DO_NOT_CONTACT
+  NOTE_ONLY
+
+  @@schema("garageos")
+}
+
+enum CrmLocationStatus {
+  /// Coordinates returned by a provider with sufficient confidence.
+  GEOCODED
+  /// Coordinates confirmed by a human.
+  VERIFIED
+  /// Provider returned several plausible matches / low confidence: no coordinates are stored.
+  AMBIGUOUS
+  /// Provider could not resolve the address: no coordinates are stored.
+  INVALID
+  MISSING_ADDRESS
+  /// Transient provider failure (rate limit, outage): retry later.
+  ERROR
+
+  @@schema("garageos")
+}
+
+enum CrmLocationAccuracy {
+  ROOFTOP
+  RANGE
+  STREET
+  POSTAL_CODE
+  CITY
+
+  @@schema("garageos")
+}
+
+enum CrmFieldRouteStatus {
+  DRAFT
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+
+  @@schema("garageos")
+}
+
+enum CrmFieldRouteStopStatus {
+  PENDING
+  VISITED
+  SKIPPED
+  /// The prospect became unavailable (archived, merged, DNC, reassigned, invalid location).
+  UNAVAILABLE
+
+  @@schema("garageos")
+}
+
 enum CrmTaskType {
   FOLLOW_UP
   CALL
@@ -2463,6 +2528,7 @@ model PlatformSalesStaff {
   bookingLinks  CrmBookingLink[]
   videoLinks    CrmVideoLink[]
   meetings      CrmMeeting[]
+  fieldRoutes   CrmFieldRoute[]
 
   @@index([status, role])
   @@index([managerId])
@@ -2541,6 +2607,8 @@ model CrmProspect {
   tasks         CrmTask[]
   emailThreads  CrmEmailThread[]
   enrollments   CrmSequenceEnrollment[]
+  location      CrmProspectLocation?
+  routeStops    CrmFieldRouteStop[]
 
   @@index([assignedStaffId, status])
   @@index([status, createdAt])
@@ -2706,10 +2774,17 @@ model CrmActivity {
   authorUserId  String
   author        User                @relation(fields: [authorUserId], references: [id], onDelete: Restrict)
   createdAt     DateTime            @default(now())
+  /// FIELD_VISIT only. NULL on legacy rows, which therefore never count as a qualifying interaction.
+  fieldVisitOutcome CrmFieldVisitOutcome?
+  /// Client-generated submission id: a retried visit result resolves to this row instead of creating another.
+  idempotencyKey String?
+  fieldRouteStop CrmFieldRouteStop?
 
+  @@unique([authorUserId, idempotencyKey])
   @@index([prospectId, occurredAt])
   @@index([opportunityId, occurredAt])
   @@index([authorUserId, occurredAt])
+  @@index([prospectId, type, fieldVisitOutcome])
   @@schema("garageos")
 }
 
@@ -3465,5 +3540,95 @@ model CrmVideoLinkMessage {
 
   @@id([linkId, messageId])
   @@index([messageId])
+  @@schema("garageos")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// Field Route Planner. Locations are a side table (never columns on CrmProspect); routes reference prospects by id.
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+
+/// Geocoded position of a prospect's address. Coordinates exist ONLY for GEOCODED/VERIFIED rows (CHECK constraint) and are
+/// valid only while `addressFingerprint` equals the fingerprint of the prospect's current address.
+model CrmProspectLocation {
+  id                 String               @id @default(cuid())
+  prospectId         String               @unique
+  prospect           CrmProspect          @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  status             CrmLocationStatus
+  latitude           Float?
+  longitude          Float?
+  provider           String
+  addressFingerprint String
+  accuracy           CrmLocationAccuracy?
+  /// 0..1 as reported by the provider (null when not reported).
+  confidence         Float?
+  failureCode        String?
+  attempts           Int                  @default(0)
+  geocodedAt         DateTime?
+  lastAttemptAt      DateTime             @default(now())
+  verifiedByUserId   String?
+  verifiedAt         DateTime?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  @@index([status])
+  @@index([addressFingerprint])
+  @@schema("garageos")
+}
+
+model CrmFieldRoute {
+  id              String              @id @default(cuid())
+  ownerStaffId    String
+  owner           PlatformSalesStaff  @relation(fields: [ownerStaffId], references: [id], onDelete: Restrict)
+  /// Calendar day of the route (no time zone semantics).
+  plannedDate     DateTime            @db.Date
+  name            String?
+  /// Territory key or city the route was planned for (filter label only, not an authorization).
+  areaLabel       String?
+  status          CrmFieldRouteStatus @default(DRAFT)
+  /// Straight-line (great-circle) length of the saved order, in metres. An estimate, never a driving distance.
+  estimatedDistanceM Int?
+  /// Optimistic-concurrency counter: every route/stop mutation increments it.
+  version         Int                 @default(1)
+  /// Client submission id: retrying the same save returns the same route.
+  clientRequestId String?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  stops CrmFieldRouteStop[]
+
+  @@unique([ownerStaffId, clientRequestId])
+  @@index([ownerStaffId, plannedDate])
+  @@index([status, plannedDate])
+  @@schema("garageos")
+}
+
+model CrmFieldRouteStop {
+  id               String                  @id @default(cuid())
+  routeId          String
+  route            CrmFieldRoute           @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  prospectId       String
+  prospect         CrmProspect             @relation(fields: [prospectId], references: [id], onDelete: Restrict)
+  /// 1-based order inside the route.
+  position         Int
+  status           CrmFieldRouteStopStatus @default(PENDING)
+  /// Minimal snapshot so the route stays reproducible even if the prospect later changes.
+  nameSnapshot     String
+  addressSnapshot  String?
+  latitude         Float
+  longitude        Float
+  outcome          CrmFieldVisitOutcome?
+  skipReason       String?
+  resolvedAt       DateTime?
+  /// The visit activity written for this stop (exactly one per stop).
+  activityId       String?                 @unique
+  activity         CrmActivity?            @relation(fields: [activityId], references: [id], onDelete: SetNull)
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  @@unique([routeId, prospectId])
+  @@unique([routeId, position])
+  @@index([prospectId, status])
   @@schema("garageos")
 }

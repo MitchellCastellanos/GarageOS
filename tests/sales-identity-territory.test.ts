@@ -101,7 +101,8 @@ test("future FIELD territory: priority window, then untouched prospects are rele
 test("cold email: never automated first contact in a field-held territory; follow-up is allowed after a documented visit or reply", () => {
   const base = { required: "FIELD" as const, eng: NO_ENGAGEMENT, automated: true, senderMode: "FIELD" as const };
   assert.deepEqual(evaluateColdEmail(base), { allowed: false, code: "TERRITORY_FIELD_FIRST_CONTACT" });
-  assert.equal(evaluateColdEmail({ ...base, eng: { ...NO_ENGAGEMENT, visited: true, touched: true } }).allowed, true, "post-visit follow-up");
+  assert.equal(evaluateColdEmail({ ...base, eng: { ...NO_ENGAGEMENT, qualifiedVisit: true, visited: true, touched: true } }).allowed, true, "post-qualifying-visit follow-up");
+  assert.deepEqual(evaluateColdEmail({ ...base, eng: { ...NO_ENGAGEMENT, visited: true, touched: true } }), { allowed: false, code: "TERRITORY_FIELD_FIRST_CONTACT" }, "a generic/unsuccessful visit is not engagement");
   assert.equal(evaluateColdEmail({ ...base, eng: { ...NO_ENGAGEMENT, replied: true } }).allowed, true);
   assert.deepEqual(evaluateColdEmail({ ...base, automated: false, senderMode: "REMOTE" }), { allowed: false, code: "TERRITORY_FIELD_ONLY" });
   assert.equal(evaluateColdEmail({ ...base, automated: false }).allowed, true, "a FIELD agent may write one-off");

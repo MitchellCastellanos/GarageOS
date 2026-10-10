@@ -229,9 +229,29 @@ if (!enabled) {
     await assert.rejects(() => settings.logFieldVisit(p.id, "I went there"), /SALES_FORBIDDEN/);
     as(ids.Fiona);
     assert.equal(((await settings.logFieldVisit(p.id, "x")) as any).error, "NOTE_REQUIRED");
-    assert.equal(((await settings.logFieldVisit(p.id, "Spoke with the owner at the counter; asked for a follow-up email.")) as any).ok, true);
-    assert.equal((await policy.evaluateTerritoryPolicy(p.id, { automated: true, ...fieldWho }, now)).allowed, true, "post-visit follow-up is preserved");
+    // P0 regression: a generic (NOTE_ONLY) visit and every unsuccessful/negative outcome do NOT unlock automated first contact.
+    assert.equal(((await settings.logFieldVisit(p.id, "Went by, nobody at the counter.")) as any).ok, true);
+    assert.deepEqual(await policy.evaluateTerritoryPolicy(p.id, { automated: true, ...fieldWho }, now), { allowed: false, code: "TERRITORY_FIELD_FIRST_CONTACT" }, "a generic visit is not engagement");
+    for (const o of ["DECISION_MAKER_UNAVAILABLE", "NO_ANSWER", "FOLLOW_UP_REQUIRED"]) {
+      assert.equal(((await settings.logFieldVisit(p.id, "", { outcome: o, submissionId: `reg-${o}-${run}` })) as any).ok, true);
+      assert.equal((await policy.evaluateTerritoryPolicy(p.id, { automated: true, ...fieldWho }, now)).allowed, false, `${o} must not unlock`);
+    }
+    assert.equal((await policy.evaluateTerritoryPolicy(p.id, { automated: false, ...remoteWho }, now)).allowed, false);
+    // a genuine conversation satisfies ONLY the separate territory condition
+    const qual: any = await settings.logFieldVisit(p.id, "Spoke with the owner at the counter.", { outcome: "DECISION_MAKER_CONTACTED", submissionId: `reg-qual-${run}` });
+    assert.equal(qual.ok, true);
+    assert.equal((await policy.evaluateTerritoryPolicy(p.id, { automated: true, ...fieldWho }, now)).allowed, true, "qualifying conversation satisfies the territory gate");
     assert.equal((await policy.evaluateTerritoryPolicy(p.id, { automated: false, ...remoteWho }, now)).allowed, true);
+    // idempotent retry returns the same activity; a different prospect with the same key is a conflict
+    const again: any = await settings.logFieldVisit(p.id, "Spoke with the owner at the counter.", { outcome: "DECISION_MAKER_CONTACTED", submissionId: `reg-qual-${run}` });
+    assert.equal(again.activityId, qual.activityId); assert.equal(again.replayed, true);
+    assert.equal(await db.crmActivity.count({ where: { prospectId: p.id, idempotencyKey: `reg-qual-${run}` } }), 1);
+    // but a later refusal revokes it
+    assert.equal(((await settings.logFieldVisit(p.id, "", { outcome: "NOT_INTERESTED", submissionId: `reg-ni-${run}` })) as any).ok, true);
+    assert.equal((await policy.evaluateTerritoryPolicy(p.id, { automated: true, ...fieldWho }, new Date())).allowed, false, "a later refusal revokes the earlier conversation");
+    // a visit is not consent: the full policy still refuses a prospect without a sending basis, whatever the territory says
+    // (covered below by the Rene-owned policy check; no basis is created by any visit)
+    assert.equal(await db.crmSendingBasis.count({ where: { contact: { prospectId: p.id } } }), 0, "visits never create a sending basis");
     const tor = await db.crmProspect.findFirstOrThrow({ where: { name: `Toronto Auto ${run}` } });
     assert.equal((await policy.evaluateTerritoryPolicy(tor.id, { automated: true, ...remoteWho }, now)).allowed, true, "outside Greater Montréal: unchanged");
     // the full policy enforces it too (before any provider is touched)
