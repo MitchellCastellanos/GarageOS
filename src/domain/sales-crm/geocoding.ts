@@ -1,7 +1,10 @@
 // Prospect location rules — pure (no DB, no network). Coordinates are never invented: a position exists only when a provider
 // returned it with enough confidence, or a human verified it, and only for the exact address it was resolved for.
 import { createHash } from "node:crypto";
+import { distanceMeters } from "@/domain/sales-crm/geo";
 import { postalKey, provinceCode } from "@/domain/sales-crm/territory";
+
+export { distanceMeters };
 
 export interface AddressParts { address?: string | null; city?: string | null; province?: string | null; postalCode?: string | null }
 
@@ -80,14 +83,6 @@ export function usableLocation(loc: LocationRow | null, current: AddressParts, n
 }
 
 export const SYNTHETIC_PROVIDER = "synthetic-test";
-
-/** Great-circle distance in metres (haversine). */
-export function distanceMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
-  const R = 6_371_008.8, rad = Math.PI / 180;
-  const dLat = (b.lat - a.lat) * rad, dLng = (b.lng - a.lng) * rad;
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
-}
 
 /**
  * Deterministic SYNTHETIC coordinates for fixtures only (never a real position): a hash of the address fingerprint placed on a

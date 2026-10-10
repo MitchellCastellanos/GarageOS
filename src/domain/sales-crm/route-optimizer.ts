@@ -1,6 +1,6 @@
 // Route ordering — pure and deterministic. Straight-line (great-circle) distance only: this is NOT driving distance and carries
 // no traffic data. Nearest-neighbour builds the first order, 2-opt shortens it. Same input → same output, always.
-import { distanceMeters } from "@/domain/sales-crm/geocoding";
+import { distanceMeters } from "@/domain/sales-crm/geo";
 
 export const MAX_ROUTE_STOPS = 25;
 export interface RoutePoint { id: string; lat: number; lng: number }

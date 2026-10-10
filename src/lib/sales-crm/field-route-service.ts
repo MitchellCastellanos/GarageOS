@@ -245,6 +245,8 @@ export interface RouteStopView {
   id: string; prospectId: string; position: number; status: string; name: string; address: string | null; lat: number; lng: number; outcome: string | null; skipReason: string | null;
   /** Live availability of the prospect right now (a stale stop is shown but cannot be executed). */
   blocked: string | null;
+  /** Prospect phone, only for the route's owner (tap-to-call). */
+  phone: string | null;
 }
 export interface RouteView {
   id: string; ownerStaffId: string; ownerName: string | null; plannedDate: string; name: string | null; areaLabel: string | null; status: RouteStatus; version: number; estimatedDistanceM: number | null;
@@ -255,7 +257,7 @@ export async function getRoute(actor: PlatformSalesActor, routeId: string): Prom
   if (!canViewRoutes(actor)) throw new Error("SALES_FORBIDDEN");
   const r = await db.crmFieldRoute.findFirst({
     where: { id: routeId, ...routeScopeWhere(actor) },
-    include: { owner: { select: { user: { select: { name: true } } } }, stops: { orderBy: { position: "asc" }, include: { prospect: { select: PROSPECT_FACTS } } } },
+    include: { owner: { select: { user: { select: { name: true } } } }, stops: { orderBy: { position: "asc" }, include: { prospect: { select: { ...PROSPECT_FACTS, phone: true } } } } },
   });
   if (!r) return null;
   return {
@@ -264,6 +266,7 @@ export async function getRoute(actor: PlatformSalesActor, routeId: string): Prom
     stops: r.stops.map((s) => ({
       id: s.id, prospectId: s.prospectId, position: s.position, status: s.status, name: s.nameSnapshot, address: s.addressSnapshot, lat: s.latitude, lng: s.longitude, outcome: s.outcome, skipReason: s.skipReason,
       blocked: s.status === "PENDING" ? stopBlock(s.prospect, r.ownerStaffId) : null,
+      phone: canMutateRoute(actor, r) ? s.prospect.phone : null,
     })),
   };
 }

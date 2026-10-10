@@ -1,5 +1,6 @@
 import type { AdminLocale } from "@/lib/admin-locale";
 import { identityError } from "@/lib/admin-locale/sales-identity";
+import { fieldError } from "@/lib/admin-locale/sales-field";
 
 const en = {
   nav: {
@@ -342,5 +343,5 @@ const fr: Dict = {
 export type CrmCopy = Dict;
 export function crmCopy(locale: AdminLocale | "en" | "fr"): CrmCopy { return locale === "fr" ? fr : en; }
 export function crmError(t: CrmCopy, code: string | undefined): string {
-  return t.errors[code ?? ""] ?? identityError(t === fr ? "fr" : "en", code) ?? t.errors.unexpected;
+  return t.errors[code ?? ""] ?? identityError(t === fr ? "fr" : "en", code) ?? fieldError(t === fr ? "fr" : "en", code) ?? t.errors.unexpected;
 }

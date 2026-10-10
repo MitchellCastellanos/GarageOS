@@ -52,6 +52,7 @@
     "decimal.js": "^10.6.0",
     "framer-motion": "^13.1.1",
     "lucide-react": "^1.8.0",
+    "maplibre-gl": "6.13.0",
     "next": "16.2.3",
     "next-auth": "^5.0.0-beta.30",
     "pdf-lib": "^1.17.1",
