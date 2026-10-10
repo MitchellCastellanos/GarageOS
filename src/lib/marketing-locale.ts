@@ -547,7 +547,7 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
     meta: {
       title: "GarageOS — Logiciel de gestion pour ateliers mécaniques",
       description:
-        "Gérez tout le déroulement d'une réparation au même endroit — de la réservation et de la soumission jusqu'à l'approbation du client, la facturation et le prochain rappel de service. Conçu pour les garages indépendants, par des gens qui comprennent le métier.",
+        "Gérez tout le déroulement d'une réparation au même endroit — de la réservation et du devis jusqu'à l'approbation du client, la facturation et le prochain rappel de service. Conçu pour les garages indépendants, par des gens qui comprennent le métier.",
     },
     nav: {
       product: "Produit",
@@ -569,7 +569,7 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
       titleLine1: "Moins d'admin.",
       titleLine2: "Plus de temps sous le capot.",
       description:
-        "Gérez tout le déroulement d'une réparation au même endroit — de la prise de rendez-vous et de la soumission jusqu'à l'approbation du client, la facturation et le prochain rappel de service.",
+        "Gérez tout le déroulement d'une réparation au même endroit — de la prise de rendez-vous et du devis jusqu'à l'approbation du client, la facturation et le prochain rappel de service.",
       ctaPrimary: "Essai gratuit de 14 jours",
       ctaSecondary: "Voir la démo",
       bullets: ["Gardez chaque dossier organisé", "Gardez vos clients informés", "Faites revenir vos clients"],
@@ -588,7 +588,7 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
         nav: [
           "Tableau de bord",
           "Rendez-vous",
-          "Soumissions",
+          "Devis",
           "Clients",
           "Véhicules",
           "Factures",
@@ -635,7 +635,7 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
         activity: [
           { text: "Facture #1054 payée", time: "il y a 2 heures" },
           { text: "Nouveau rendez-vous", time: "il y a 3 heures" },
-          { text: "Soumission approuvée", time: "il y a 4 heures" },
+          { text: "Devis approuvé", time: "il y a 4 heures" },
           { text: "Véhicule prêt à récupérer", time: "il y a 5 heures" },
         ],
       },
@@ -643,8 +643,8 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
     featureStrip: [
       "Rendez-vous et réservation",
       "Clients et véhicules",
-      "Inspections et soumissions",
-      "Bons de travail et pièces",
+      "Inspections et devis",
+      "Ordres de travail et pièces",
       "Courriel et SMS",
       "Factures et paiements",
       "Portail client",
@@ -666,7 +666,7 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
         },
         {
           title: "Approuver",
-          description: "Transformez le travail proposé en soumission claire et enregistrez la décision du client.",
+          description: "Transformez le travail proposé en devis clair et enregistrez la décision du client.",
         },
         {
           title: "Réparer",
@@ -689,28 +689,28 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
         "Du premier rendez-vous jusqu'à la facture finale, GarageOS vous aide à rester organisé, professionnel et rentable.",
       highlights: [
         {
-          title: "Des soumissions claires et détaillées",
+          title: "Des devis clairs et détaillés",
           description:
-            "Établissez le prix du travail une seule fois — sans ressaisir entre la soumission, le bon de travail et la facture.",
+            "Établissez le prix du travail une seule fois — sans ressaisir entre le devis, l'ordre de travail et la facture.",
         },
         {
           title: "Approbations client",
-          description: "Envoyez une soumission claire et gardez une trace de ce que le client a approuvé, et quand.",
+          description: "Envoyez un devis clair et gardez une trace de ce que le client a approuvé, et quand.",
         },
         {
           title: "Inspections numériques",
           description:
-            "Notez les constats sur une liste de vérification et transformez-les en soumission. Avec Pro : photos, modèles réutilisables et rapport que le client ouvre sur son téléphone.",
+            "Notez les constats sur une liste de vérification et transformez-les en devis. Avec Pro : photos, modèles réutilisables et rapport que le client ouvre sur son téléphone.",
         },
         {
-          title: "Des bons de travail qui suivent les pièces",
+          title: "Des ordres de travail qui suivent les pièces",
           description:
             "Suivez chaque travail jusqu'à « Prêt à récupérer ». Avec Pro, les pièces sortent de l'inventaire automatiquement au fil de leur utilisation.",
         },
         {
           title: "Un portail client",
           description:
-            "Vos clients consultent leurs véhicules, soumissions, factures et historique d'entretien depuis leur téléphone — aux couleurs de votre atelier.",
+            "Vos clients consultent leurs véhicules, devis, factures et historique d'entretien depuis leur téléphone — aux couleurs de votre atelier.",
         },
         {
           title: "Des rappels qui ramènent les clients",
@@ -726,7 +726,7 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
       cards: [
         {
           title: "Inventaire et entreposage de pneus",
-          description: "Suivez les pièces et leurs mouvements, utilisez-les dans les bons de travail et gérez l'entreposage saisonnier des pneus.",
+          description: "Suivez les pièces et leurs mouvements, utilisez-les dans les ordres de travail et gérez l'entreposage saisonnier des pneus.",
         },
         {
           title: "Rapports et comptabilité",
@@ -831,12 +831,12 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
         titleLine2: "en toute",
         titleAccent: "confiance.",
         description:
-          "GarageOS regroupe rendez-vous, clients, véhicules, soumissions et facturation en un seul endroit — pour que vous puissiez vous concentrer sur votre métier.",
+          "GarageOS regroupe rendez-vous, clients, véhicules, devis et facturation en un seul endroit — pour que vous puissiez vous concentrer sur votre métier.",
         features: [
           "Rendez-vous et horaire",
           "Gestion des clients",
           "Historique des véhicules",
-          "Soumissions et facturation",
+          "Devis et facturation",
           "Rappels de service",
           "Rapports et caisse",
         ],
@@ -844,7 +844,7 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
         valueProps: [
           { title: "Moins de paperasse", caption: "Plus de temps à l'atelier" },
           { title: "Clients satisfaits", caption: "Rappels automatiques" },
-          { title: "Tout au même endroit", caption: "Rendez-vous, soumissions et caisse" },
+          { title: "Tout au même endroit", caption: "Rendez-vous, devis et caisse" },
         ],
       },
       login: {
