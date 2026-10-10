@@ -38,6 +38,8 @@ export const PLATFORM = {
   salesProspect: (id: string) => `/platform/sales/prospects/${id}`,
   salesPipeline: "/platform/sales/pipeline",
   salesTasks: "/platform/sales/tasks",
+  salesField: "/platform/sales/field",
+  salesFieldRoute: (id: string) => `/platform/sales/field/${id}`,
   salesTeam: "/platform/sales/team",
   salesTeamNew: "/platform/sales/team/new",
   salesTeamMember: (id: string) => `/platform/sales/team/${id}`,
