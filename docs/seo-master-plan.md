@@ -36,6 +36,40 @@ Conflicto que sigue abierto: la interfaz FR actual dice **«Soumissions»** (≈
 
 ---
 
+## Estado de ejecución (actualizado 2026-10-10)
+
+Plan **aprobado**; implementación por tandas, revisando cada una antes de autorizar la siguiente. Máximo dos agentes. Sin merge ni deploy sin aprobación.
+
+### Decisiones definitivas
+
+| ID | Decisión |
+|---|---|
+| D1 | «Devis» sustituye a «Soumissions», con revisión contextual de traducciones, en un PR independiente |
+| D2 | «Ordres de travail» es el término operativo estándar; «bons de travail» queda como sinónimo cuando corresponda |
+| D5 | Rutas `/fr/` para todo el sitio público; ambas lenguas indexables y con cobertura nacional |
+| D9 | Hotfixes inmediatos: canonical (confirmando antes en el HTML renderizado) y privacidad/indexación (incluida la revisión de fugas de token por Referer, logs y analítica) |
+| D10 | Dominio autoridad `https://www.garage-os.ca`; verificar redirects y configuración sin tocar DNS; la página de GarageOS en GABAN se conserva por ahora |
+| D13 | Ampliar la analítica propia (idioma, landing, canal, clics a Demo/Pricing/Signup, atribución de registro); sin Google Analytics; privacidad primero, sin cookies de seguimiento |
+| D14 | Formulario de demo: estudiarlo como PR futuro separado, reutilizando el CRM; **no implementar todavía** |
+| D15 | Search Console, Bing y servicios externos de SEO: etapa final, a cargo del propietario. Ver `docs/seo-manual-checklist.md` |
+
+### Tandas
+
+| Tanda | Contenido | Estado |
+|---|---|---|
+| 1 | PR A canonical · PR B privacidad e indexación | **En revisión** — PR #99 y PR #100 |
+| 2 | Terminología francesa · enrutamiento EN/FR · SEO técnico multilingüe · páginas comerciales prioritarias | Pendiente de autorización |
+| 3 | Renovación de Resources · Help Center bilingüe · documentación P0/P1 · videos y ayuda contextual | Pendiente |
+| 4 | Contenido educativo · comparativas verificadas · analítica y conversiones · optimización · validaciones finales | Pendiente |
+
+### Hallazgos de la tanda 1 que ajustan este plan
+
+- **Canonical confirmado en producción** (HTML de `main` @ `23a129c`): `/help` declaraba `canonical` y `og:url` = home. Era el problema que sospechábamos en §1.2.
+- **Host de producción confirmado**: `garage-os.ca` → 308 → `www.garage-os.ca`; `NEXT_PUBLIC_APP_URL` de producción rinde `https://www.garage-os.ca`. La variable de **Preview** es un valor fijo antiguo: los canonicals de Preview llevan ese host (inofensivo, pero solo las rutas son verificables en Preview).
+- **Fuga de tokens en la analítica propia** (nuevo, más grave que lo indexable): el beacon enviaba cualquier ruta y `PageView.path` guardaba los tokens de portal, cotización, inspección, gestión de cita y páginas de ventas. Corregido en PR B; las filas históricas requieren el script de limpieza (checklist §C).
+- **`Referrer-Policy`**: se usa `same-origin`, no `no-referrer`, porque este último hace que los navegadores envíen `Origin: null` en POST del mismo origen y rompería los Server Actions (aprobación de cotización, enlace de cita).
+- **robots.txt ya existe en PR B** (adelantado desde PR-02); el sitemap sigue en PR-03.
+
 ## 1. Diagnóstico SEO actual de todo GarageOS
 
 ### 1.1 Mapa de indexación por familia de rutas [V]
