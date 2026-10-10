@@ -56,13 +56,17 @@ test("pageMetadata gives each page its own canonical and og:url, and keeps the s
   });
 });
 
-test("root layout must not declare a canonical or og:url (Next inherits both into every child page)", () => {
-  const layout = read("src/app/(site)/layout.tsx");
-  const code = layout.replace(/\/\/.*$/gm, "");
-  assert.ok(!/canonical\s*:/.test(code), "layout.tsx declares alternates.canonical");
+test("root metadata must not declare a canonical or og:url (Next inherits both into every child page)", () => {
+  for (const layoutFile of ["src/app/(site)/layout.tsx", "src/app/(fr)/layout.tsx"]) {
+    assert.match(read(layoutFile), /rootMetadata\(/, `${layoutFile} must use the shared root metadata`);
+    assert.ok(!/canonical|openGraph/.test(read(layoutFile).replace(/\/\/.*$/gm, "")), `${layoutFile} must not define its own canonical/openGraph`);
+  }
+  const layout = read("src/lib/seo/root-metadata.ts");
+  const code = layout.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.ok(!/canonical\s*:/.test(code), "root-metadata declares alternates.canonical");
   const og = code.slice(code.indexOf("openGraph"), code.indexOf("twitter"));
   // Direct child `url:` of openGraph (4-space indent); the nested images[].url is fine.
-  assert.ok(!/\n {4}url\s*:/.test(og), "layout.tsx declares openGraph.url");
+  assert.ok(!/\n {6}url\s*:/.test(og), "root-metadata declares openGraph.url");
 });
 
 // Public, indexable pages and the path each must declare as canonical.
