@@ -16,7 +16,7 @@ const en = {
 };
 const fr: typeof en = {
   title: "Parcours de démonstration", scenario: "Charger un scénario de démonstration",
-  scenarioHelp: "Ajoute un client, véhicule, rendez-vous, soumission, ordre de travail et facture brouillon clairement fictifs. Aucun vrai destinataire ni envoi automatique.",
+  scenarioHelp: "Ajoute un client, véhicule, rendez-vous, devis, ordre de travail et facture brouillon clairement fictifs. Aucun vrai destinataire ni envoi automatique.",
   loaded: "Scénario chargé. Utilisez les écrans du produit réel ci-dessous.", live: "Vous pouvez aussi créer votre prospect comme vrai client dans Clients.",
   enable: "Activer les communications de la démo", enabled: "Communications de la démo activées",
   communicationHelp: "Les SMS et courriels utilisent les commandes normales et de vrais destinataires. Les SMS de démo sont définitivement exclus de la facturation Stripe. L’envoi dépend des fournisseurs configurés et des permissions de la plateforme.",
@@ -27,6 +27,6 @@ const fr: typeof en = {
   liveLinks: "Ce scénario est lié à des opérations financières, approbations ou données réelles. Rien n’a été réinitialisé. Recommencez sans supprimer le scénario.",
   success: "Enregistré", error: "Action indisponible. Vérifiez la session de démo active et réessayez.",
   booking: "Ouvrir la vraie page de réservation", bookingHelp: "Utilise la configuration publiée et le moteur réel. Les designs Pro reviennent à Classic avec Core. Activez les réservations dans Paramètres.",
-  clients: "Clients", appointments: "Rendez-vous", quotes: "Soumissions", orders: "Ordres de travail", invoices: "Factures", inbox: "Boîte de réception", settings: "Paramètres de réservation", back: "Tableau de bord",
+  clients: "Clients", appointments: "Rendez-vous", quotes: "Devis", orders: "Ordres de travail", invoices: "Factures", inbox: "Boîte de réception", settings: "Paramètres de réservation", back: "Tableau de bord",
 };
 export const salesDemoExperienceCopy = (locale: AdminLocale) => locale === "fr" ? fr : en;

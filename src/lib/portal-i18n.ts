@@ -100,13 +100,13 @@ const en: PortalStrings = {
 const fr: PortalStrings = {
   metaTitle: "Portail client",
   greeting: (n) => `Bonjour ${n}`,
-  intro: "Vos véhicules, rendez-vous, soumissions et factures au même endroit.",
+  intro: "Vos véhicules, rendez-vous, devis et factures au même endroit.",
   sections: {
-    inShop: "Actuellement à l'atelier", appointments: "Rendez-vous", vehicles: "Vos véhicules", estimates: "Soumissions",
+    inShop: "Actuellement à l'atelier", appointments: "Rendez-vous", vehicles: "Vos véhicules", estimates: "Devis",
     invoices: "Factures", inspections: "Rapports d'inspection", reminders: "Rappels d'entretien", history: "Historique d'entretien",
   },
   empty: {
-    appointments: "Aucun rendez-vous à venir.", vehicles: "Aucun véhicule au dossier pour l'instant.", estimates: "Aucune soumission.", invoices: "Aucune facture pour l'instant.",
+    appointments: "Aucun rendez-vous à venir.", vehicles: "Aucun véhicule au dossier pour l'instant.", estimates: "Aucun devis.", invoices: "Aucune facture pour l'instant.",
     inspections: "Aucun rapport d'inspection ne vous a été partagé.", reminders: "Tout est à jour.", history: "Aucun historique d'entretien pour l'instant.",
   },
   book: "Prendre rendez-vous",
@@ -118,7 +118,7 @@ const fr: PortalStrings = {
   viewHistory: "Historique d'entretien",
   back: "Retour",
   reviewEstimate: "Consulter et répondre",
-  estimateStatus: { SENT: "En attente de votre réponse", ACCEPTED: "Approuvée", REJECTED: "Refusée", EXPIRED: "Expirée", CONVERTED: "Approuvée et facturée" },
+  estimateStatus: { SENT: "En attente de votre réponse", ACCEPTED: "Approuvé", REJECTED: "Refusé", EXPIRED: "Expiré", CONVERTED: "Approuvé et facturé" },
   expires: (d) => `Valide jusqu'au ${d}`,
   invoiceStatus: { DRAFT: "Émise", SENT: "À payer", OVERDUE: "En retard", PAID: "Payée" },
   dueOn: (d) => `Échéance : ${d}`,
@@ -131,7 +131,7 @@ const fr: PortalStrings = {
     READY_FOR_PICKUP: "Prêt à récupérer", COMPLETED: "Terminé",
   },
   workOrderStatus: { OPEN: "Ouvert", AWAITING_APPROVAL: "En attente d'approbation", APPROVED: "Approuvé", IN_PROGRESS: "En cours", COMPLETED: "Terminé", INVOICED: "Terminé" },
-  orderNumber: (n) => `Bon de travail ${n}`,
+  orderNumber: (n) => `Ordre de travail ${n}`,
   dueService: (d, km) => [d ? `Échéance : ${d}` : null, km ? `à ${km.toLocaleString("fr-CA")}` : null].filter(Boolean).join(" · ") || "Bientôt dû",
   invoice: {
     title: (n) => `Facture ${n}`, issued: "Émise le", total: "Total", subtotal: "Sous-total", taxes: "Taxes", refunded: "Remboursé", payments: "Paiements",
@@ -139,7 +139,7 @@ const fr: PortalStrings = {
   },
   linkExpired: { title: "Ce lien n'est plus valide", body: "Pour votre sécurité, les liens du portail expirent ou peuvent être remplacés. Demandez-en un nouveau et nous l'enverrons à l'adresse courriel au dossier.", request: "M'envoyer un nouveau lien" },
   request: {
-    title: "Portail client", intro: "Entrez l'adresse courriel que l'atelier a au dossier et nous vous enverrons un lien sécurisé vers vos véhicules, soumissions et factures.",
+    title: "Portail client", intro: "Entrez l'adresse courriel que l'atelier a au dossier et nous vous enverrons un lien sécurisé vers vos véhicules, devis et factures.",
     email: "Adresse courriel", submit: "M'envoyer mon lien", sent: "Vérifiez votre boîte de réception", sentBody: "Si cette adresse correspond à un client de cet atelier, un lien sécurisé est en route. Cela peut prendre une minute.", back: "Retour",
   },
   footer: "Portail client sécurisé · Propulsé par GarageOS",

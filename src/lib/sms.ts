@@ -258,7 +258,7 @@ export const QUOTE_SMS_COPY: Record<SmsLanguage, (data: QuoteSmsData) => string>
   EN: (data) =>
     `${data.shopName}: ${data.isResend ? "resend of " : ""}quote ${data.quoteNumber} — ${data.totalFormatted}. Review and respond: ${data.approvalUrl}`,
   FR: (data) =>
-    `${data.shopName} : ${data.isResend ? "renvoi de " : ""}soumission ${data.quoteNumber} — ${data.totalFormatted}. Consultez-la et répondez : ${data.approvalUrl}`,
+    `${data.shopName} : ${data.isResend ? "renvoi de " : ""}devis ${data.quoteNumber} — ${data.totalFormatted}. Consultez-le et répondez : ${data.approvalUrl}`,
 };
 
 export async function sendQuoteSms(data: QuoteSmsData): Promise<void> {

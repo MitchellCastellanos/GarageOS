@@ -186,8 +186,8 @@ function quoteEmailSubject(
 ) {
   if (language === "FR") {
     return isResend
-      ? `Renvoi : Soumission ${quoteNumber} — ${shopName}`
-      : `Soumission ${quoteNumber} — ${shopName}`;
+      ? `Renvoi : Devis ${quoteNumber} — ${shopName}`
+      : `Devis ${quoteNumber} — ${shopName}`;
   }
   return isResend
     ? `Resend: Quote ${quoteNumber} — ${shopName}`
@@ -439,7 +439,7 @@ const PORTAL_LINK_COPY = {
     subject: (shop: string) => `Votre portail client — ${shop}`,
     subtitle: "Votre portail client",
     body: (d: PortalLinkEmailData) =>
-      `Bonjour ${d.clientName},\n\nVoici votre lien sécurisé pour consulter vos véhicules, votre historique d'entretien, vos soumissions et vos factures chez ${d.shop.name} :\n\n${d.portalUrl}\n\nCe lien est personnel — ne le partagez pas. Il expire dans ${d.expiresInDays} jours; vous pouvez en demander un nouveau en tout temps.`,
+      `Bonjour ${d.clientName},\n\nVoici votre lien sécurisé pour consulter vos véhicules, votre historique d'entretien, vos devis et vos factures chez ${d.shop.name} :\n\n${d.portalUrl}\n\nCe lien est personnel — ne le partagez pas. Il expire dans ${d.expiresInDays} jours; vous pouvez en demander un nouveau en tout temps.`,
   },
 } as const;
 

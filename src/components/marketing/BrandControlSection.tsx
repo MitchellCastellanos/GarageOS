@@ -12,7 +12,7 @@ export function BrandControlSection() {
     ? {
         eyebrow: "Votre atelier. Votre marque.",
         heading: "Vos clients voient votre atelier, pas notre logiciel.",
-        description: "GarageOS donne à votre atelier une présence client cohérente : une page publique de réservation à votre image, puis des confirmations, estimations, approbations, mises à jour, factures et rappels envoyés directement par courriel ou SMS. Aucun portail compliqué ni application à faire télécharger à vos clients.",
+        description: "GarageOS donne à votre atelier une présence client cohérente : une page publique de réservation à votre image, puis des confirmations, devis, approbations, mises à jour, factures et rappels envoyés directement par courriel ou SMS. Aucun portail compliqué ni application à faire télécharger à vos clients.",
         domain: "Commencez avec votre page GarageOS et utilisez votre propre domaine et identité d’envoi lorsque votre configuration le permet.",
         booking: "Réserver un rendez-vous",
         available: "Prochaine disponibilité",

@@ -64,13 +64,13 @@ const WORK_ORDER_CANNOT_DELETE: Record<AdminLocale, string> = {
 const QUOTE_NOT_FOUND: Record<AdminLocale, string> = {
   es: "Cotización no encontrada",
   en: "Quote not found",
-  fr: "Soumission introuvable",
+  fr: "Devis introuvable",
 };
 
 const QUOTE_NOT_ACCEPTED: Record<AdminLocale, string> = {
   es: "La cotización debe estar aceptada antes de generar una orden de trabajo",
   en: "The quote must be accepted before generating a work order",
-  fr: "La soumission doit être acceptée avant de générer un ordre de travail",
+  fr: "Le devis doit être accepté avant de générer un ordre de travail",
 };
 
 const STOCK_ERRORS: Record<AdminLocale, { insufficient: (part: string, available: number, needed: number) => string; notFound: string; fractional: string }> = {

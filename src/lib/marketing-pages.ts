@@ -46,7 +46,7 @@ export const FEATURES_HERO: Record<MarketingLocale, { eyebrow: string; heading: 
     eyebrow: "Fonctionnalités",
     heading: "Tous les outils que votre atelier utilise vraiment.",
     description: "De la première réservation au prochain rappel, GarageOS relie le client, le véhicule, le travail et l'argent. Les pastilles indiquent ce qui demande Pro ou Complete.",
-    meta: { title: "Fonctionnalités", description: "Tout ce que GarageOS offre à votre atelier — réservation, inspections, soumissions et approbations, bons de travail, inventaire, facturation, rapports, QuickBooks et multi-atelier." },
+    meta: { title: "Fonctionnalités", description: "Tout ce que GarageOS offre à votre atelier — réservation, inspections, devis et approbations, ordres de travail, inventaire, facturation, rapports, QuickBooks et multi-atelier." },
   },
 };
 
@@ -60,17 +60,17 @@ export const FEATURE_GROUPS: PageGroup[] = [
       { icon: "calendar", title: L("Front-desk appointments", "Rendez-vous à la réception"), description: L("Schedule and manage appointments from the shop calendar, with mechanic assignment.", "Planifiez et gérez les rendez-vous depuis le calendrier de l'atelier, avec assignation d'un mécanicien.") },
       { icon: "users", title: L("Customers & vehicles", "Clients et véhicules"), description: L("Every customer and vehicle in one place, with communication preferences and full service history.", "Chaque client et chaque véhicule au même endroit, avec préférences de communication et historique complet.") },
       { icon: "upload", title: L("Import your data", "Importez vos données"), description: L("Bring customers and vehicles over from CSV or Excel with a preview, duplicate detection and an error report. Pro adds inventory and larger files.", "Transférez clients et véhicules depuis un fichier CSV ou Excel avec aperçu, détection des doublons et rapport d'erreurs. Pro ajoute l'inventaire et les fichiers plus volumineux."), gate: undefined },
-      { icon: "smartphone", title: L("Customer portal", "Portail client"), description: L("A secure link where customers see their vehicles, appointments, estimates, invoices and history on their phone — and answer estimates.", "Un lien sécurisé où les clients voient leurs véhicules, rendez-vous, soumissions, factures et historique sur leur téléphone — et répondent aux soumissions.") },
+      { icon: "smartphone", title: L("Customer portal", "Portail client"), description: L("A secure link where customers see their vehicles, appointments, estimates, invoices and history on their phone — and answer estimates.", "Un lien sécurisé où les clients voient leurs véhicules, rendez-vous, devis, factures et historique sur leur téléphone — et répondent aux devis.") },
     ],
   },
   {
     id: "inspect",
     title: L("Inspect & authorize", "Inspecter et faire approuver"),
-    description: L("Turn what the vehicle needs into a clear estimate and a documented customer decision.", "Transformez les besoins du véhicule en soumission claire et en décision documentée du client."),
+    description: L("Turn what the vehicle needs into a clear estimate and a documented customer decision.", "Transformez les besoins du véhicule en devis clair et en décision documentée du client."),
     items: [
-      { icon: "clipboard", title: L("Digital inspections (DVI)", "Inspections numériques (DVI)"), description: L("A standard checklist with condition and notes per item, and an estimate created from the findings.", "Une liste de vérification standard avec état et notes par élément, et une soumission créée à partir des constats.") },
+      { icon: "clipboard", title: L("Digital inspections (DVI)", "Inspections numériques (DVI)"), description: L("A standard checklist with condition and notes per item, and an estimate created from the findings.", "Une liste de vérification standard avec état et notes par élément, et un devis créé à partir des constats.") },
       { icon: "camera", title: L("Advanced DVI", "DVI avancé"), description: L("Photos on findings, reusable inspection templates and a report you can share with the customer.", "Photos sur les constats, modèles d'inspection réutilisables et rapport à partager avec le client."), gate: "dvi.photos" },
-      { icon: "file", title: L("Itemized estimates", "Soumissions détaillées"), description: L("Services and parts with quantities and prices, with Canadian taxes calculated for you.", "Services et pièces avec quantités et prix, taxes canadiennes calculées pour vous.") },
+      { icon: "file", title: L("Itemized estimates", "Devis détaillés"), description: L("Services and parts with quantities and prices, with Canadian taxes calculated for you.", "Services et pièces avec quantités et prix, taxes canadiennes calculées pour vous.") },
       { icon: "shield", title: L("Customer approval trail", "Suivi de l'approbation du client"), description: L("Customers accept or decline online; GarageOS keeps a time-stamped record of exactly what they saw.", "Les clients acceptent ou refusent en ligne; GarageOS conserve un enregistrement horodaté de ce qu'ils ont vu.") },
     ],
   },
@@ -79,9 +79,9 @@ export const FEATURE_GROUPS: PageGroup[] = [
     title: L("Run the job", "Exécuter le travail"),
     description: L("Keep the front desk and the shop floor aligned on what's approved and what's next.", "Gardez la réception et l'atelier alignés sur ce qui est approuvé et sur la suite."),
     items: [
-      { icon: "wrench", title: L("Work Orders", "Bons de travail"), description: L("Approved estimates become Work Orders with the customer's concern, parts and labour lines and an assigned mechanic.", "Les soumissions approuvées deviennent des bons de travail avec la demande du client, les pièces, la main-d'œuvre et le mécanicien assigné.") },
+      { icon: "wrench", title: L("Work Orders", "Ordres de travail"), description: L("Approved estimates become Work Orders with the customer's concern, parts and labour lines and an assigned mechanic.", "Les devis approuvés deviennent des ordres de travail avec la demande du client, les pièces, la main-d'œuvre et le mécanicien assigné.") },
       { icon: "bell", title: L("Job status & Ready for Pickup", "Statut des travaux et « Prêt à récupérer »"), description: L("Track each job from check-in to done and tell the customer by email or text when the vehicle is ready.", "Suivez chaque travail de la réception à la fin et avisez le client par courriel ou texto quand le véhicule est prêt.") },
-      { icon: "package", title: L("Inventory that follows the job", "Un inventaire qui suit le travail"), description: L("Track stock and movements; parts used on a Work Order come off inventory automatically, and returns put them back.", "Suivez le stock et les mouvements; les pièces utilisées dans un bon de travail sortent automatiquement de l'inventaire, et les retours les remettent."), gate: "inventory.manage" },
+      { icon: "package", title: L("Inventory that follows the job", "Un inventaire qui suit le travail"), description: L("Track stock and movements; parts used on a Work Order come off inventory automatically, and returns put them back.", "Suivez le stock et les mouvements; les pièces utilisées dans un ordre de travail sortent automatiquement de l'inventaire, et les retours les remettent."), gate: "inventory.manage" },
       { icon: "tire", title: L("Tire storage", "Entreposage de pneus"), description: L("Check seasonal tire sets in and out with location, condition and history, tied to the customer and vehicle.", "Enregistrez l'entrée et la sortie des pneus saisonniers avec emplacement, état et historique, liés au client et au véhicule."), gate: "tireStorage.manage" },
     ],
   },
@@ -90,7 +90,7 @@ export const FEATURE_GROUPS: PageGroup[] = [
     title: L("Communicate & retain", "Communiquer et fidéliser"),
     description: L("Keep customers informed today, and bring them back for the next visit.", "Gardez les clients informés aujourd'hui et ramenez-les pour la prochaine visite."),
     items: [
-      { icon: "mail", title: L("Branded email", "Courriels à votre image"), description: L("Appointment, estimate and invoice emails go out under your shop's name, logo and reply address.", "Les courriels de rendez-vous, de soumission et de facture partent sous le nom, le logo et l'adresse de réponse de votre atelier.") },
+      { icon: "mail", title: L("Branded email", "Courriels à votre image"), description: L("Appointment, estimate and invoice emails go out under your shop's name, logo and reply address.", "Les courriels de rendez-vous, de devis et de facture partent sous le nom, le logo et l'adresse de réponse de votre atelier.") },
       { icon: "message", title: L("Two-way SMS inbox", "Boîte SMS bidirectionnelle"), description: L("Text customers from a dedicated shop number and read their replies in one inbox. A monthly SMS allowance is included.", "Envoyez des textos aux clients depuis un numéro dédié à l'atelier et lisez leurs réponses dans une seule boîte. Une allocation mensuelle de SMS est incluse.") },
       { icon: "calendarClock", title: L("Maintenance reminders", "Rappels d'entretien"), description: L("Attach the next service to the customer and vehicle and send the reminder when it's due.", "Associez le prochain entretien au client et au véhicule et envoyez le rappel à l'échéance.") },
       { icon: "repeat", title: L("Automated reminders", "Rappels automatisés"), description: L("Recurring rules create reminders from the services you complete and send them by the customer's preferred channel.", "Des règles récurrentes créent des rappels à partir des services effectués et les envoient par le canal préféré du client."), gate: "reminders.automation" },
@@ -103,7 +103,7 @@ export const FEATURE_GROUPS: PageGroup[] = [
     title: L("Invoice & get paid", "Facturer et être payé"),
     description: L("Close out the job cleanly, with taxes and payments recorded the way accountants expect.", "Terminez le travail proprement, avec taxes et paiements consignés comme les comptables l'attendent."),
     items: [
-      { icon: "receipt", title: L("Invoices & receipts", "Factures et reçus"), description: L("Branded PDF invoices created from the estimate or Work Order, with GST/QST and other taxes fixed on each invoice.", "Factures PDF à votre image créées à partir de la soumission ou du bon de travail, avec TPS/TVQ et autres taxes figées sur chaque facture.") },
+      { icon: "receipt", title: L("Invoices & receipts", "Factures et reçus"), description: L("Branded PDF invoices created from the estimate or Work Order, with GST/QST and other taxes fixed on each invoice.", "Factures PDF à votre image créées à partir du devis ou de l'ordre de travail, avec TPS/TVQ et autres taxes figées sur chaque facture.") },
       { icon: "card", title: L("Payments & refunds", "Paiements et remboursements"), description: L("Record card, cash, Interac e-Transfer and cheque payments collected by your shop, and issue full or partial refunds. GarageOS records payments; it doesn't process cards.", "Consignez les paiements par carte, comptant, virement Interac et chèque encaissés par votre atelier, et émettez des remboursements complets ou partiels. GarageOS consigne les paiements; il ne traite pas les cartes.") },
       { icon: "banknote", title: L("Cash drawer", "Caisse"), description: L("Keep a simple record of cash in and out alongside your invoices.", "Tenez un registre simple des entrées et sorties d'argent comptant en parallèle de vos factures.") },
     ],
@@ -114,7 +114,7 @@ export const FEATURE_GROUPS: PageGroup[] = [
     description: L("See how the business is doing, and hand your accountant clean numbers.", "Voyez comment va l'entreprise et remettez des chiffres propres à votre comptable."),
     items: [
       { icon: "chart", title: L("Overview reports", "Rapports d'aperçu"), description: L("Paid revenue, outstanding balances, jobs opened and new customers for this month, last month or the last 30 days.", "Revenus encaissés, soldes à recevoir, travaux ouverts et nouveaux clients pour ce mois-ci, le mois dernier ou les 30 derniers jours.") },
-      { icon: "chart", title: L("Advanced reports", "Rapports avancés"), description: L("Sales, receivables aging, jobs and quotes, customers and inventory for any date range, with CSV export.", "Ventes, âge des comptes à recevoir, travaux et soumissions, clients et inventaire pour toute période, avec export CSV."), gate: "reports.advanced" },
+      { icon: "chart", title: L("Advanced reports", "Rapports avancés"), description: L("Sales, receivables aging, jobs and quotes, customers and inventory for any date range, with CSV export.", "Ventes, âge des comptes à recevoir, travaux et devis, clients et inventaire pour toute période, avec export CSV."), gate: "reports.advanced" },
       { icon: "book", title: L("Accounting Light", "Comptabilité allégée"), description: L("Sales and tax summaries (GST/QST), payments and refunds by method, an activity log and accountant-ready CSV exports. Not a general ledger.", "Sommaires des ventes et des taxes (TPS/TVQ), paiements et remboursements par mode, journal d'activité et exports CSV pour le comptable. Ce n'est pas un grand livre."), gate: "accounting.light" },
       { icon: "plug", title: L("QuickBooks Online sync", "Synchronisation QuickBooks Online"), description: L("Connect QuickBooks Online and sync customers, invoices, payments and refunds without retyping.", "Connectez QuickBooks Online et synchronisez clients, factures, paiements et remboursements sans ressaisie."), gate: "quickbooks.sync" },
     ],
@@ -165,10 +165,10 @@ export const PRODUCT_COPY: Record<MarketingLocale, {
     seeFeatures: "See all features", seePricing: "Compare plans", walkthrough: "Walk through a sample visit",
   },
   fr: {
-    meta: { title: "Produit", description: "GarageOS relie le client, le véhicule, l'inspection, la soumission, l'approbation, le bon de travail et le paiement dans un seul flux — de la réservation à la prochaine visite." },
+    meta: { title: "Produit", description: "GarageOS relie le client, le véhicule, l'inspection, le devis, l'approbation, l'ordre de travail et le paiement dans un seul flux — de la réservation à la prochaine visite." },
     eyebrow: "Produit",
     heading: "Un seul système, de la réservation à la prochaine visite.",
-    description: "GarageOS relie le client, le véhicule, l'inspection, la soumission, l'approbation, le travail et le paiement dans un seul flux de travail.",
+    description: "GarageOS relie le client, le véhicule, l'inspection, le devis, l'approbation, le travail et le paiement dans un seul flux de travail.",
     workflowTitle: "Le flux de travail principal",
     workflowIntro: "Chaque travail suit le même parcours connecté — rien ne se perd entre la réception, l'atelier et le client.",
     step: "Étape",
@@ -176,7 +176,7 @@ export const PRODUCT_COPY: Record<MarketingLocale, {
     customerIntro: "Vos clients vivent votre atelier, pas GarageOS. Chaque point de contact porte votre image.",
     frontEyebrow: "Pensé pour la réception",
     frontTitle: "Conçu pour se gérer depuis la réception.",
-    frontBody: "GarageOS est pensé autour du propriétaire et de la réception qui mènent la journée — rendez-vous, inspections, soumissions, approbations, facturation et communications — sans obliger chaque mécanicien à travailler dans un logiciel complexe dans l'atelier.",
+    frontBody: "GarageOS est pensé autour du propriétaire et de la réception qui mènent la journée — rendez-vous, inspections, devis, approbations, facturation et communications — sans obliger chaque mécanicien à travailler dans un logiciel complexe dans l'atelier.",
     simpleTitle: "Simple là où il le faut",
     simpleBody: "Donnez à chaque membre de l'équipe l'accès que son rôle exige — propriétaires et réception ont tout le flux, les mécaniciens voient ce qui concerne le travail devant eux.",
     managementTitle: "La couche de gestion",
@@ -187,23 +187,23 @@ export const PRODUCT_COPY: Record<MarketingLocale, {
 
 export const PRODUCT_WORKFLOW: ProductStep[] = [
   { icon: "calendar", title: L("Book", "Réserver"), description: L("Customers request an appointment on your branded booking page, or your front desk schedules it. The customer, vehicle and service are captured from the start.", "Les clients demandent un rendez-vous sur votre page de réservation, ou la réception le planifie. Le client, le véhicule et le service sont saisis dès le départ.") },
-  { icon: "clipboard", title: L("Inspect", "Inspecter"), description: L("Record the vehicle's condition on a digital inspection — with photos and a shareable report on Pro — and turn the findings into an estimate.", "Notez l'état du véhicule dans une inspection numérique — avec photos et rapport partageable sur Pro — et transformez les constats en soumission.") },
-  { icon: "file", title: L("Approve", "Faire approuver"), description: L("Send a clear, itemized estimate. The customer's decision is recorded with what they saw and when.", "Envoyez une soumission claire et détaillée. La décision du client est consignée avec ce qu'il a vu et quand.") },
-  { icon: "wrench", title: L("Repair", "Réparer"), description: L("Approved work becomes a Work Order with a job status the front desk can see, and parts that come off inventory on Pro.", "Le travail approuvé devient un bon de travail avec un statut visible à la réception, et des pièces qui sortent de l'inventaire avec Pro.") },
+  { icon: "clipboard", title: L("Inspect", "Inspecter"), description: L("Record the vehicle's condition on a digital inspection — with photos and a shareable report on Pro — and turn the findings into an estimate.", "Notez l'état du véhicule dans une inspection numérique — avec photos et rapport partageable sur Pro — et transformez les constats en devis.") },
+  { icon: "file", title: L("Approve", "Faire approuver"), description: L("Send a clear, itemized estimate. The customer's decision is recorded with what they saw and when.", "Envoyez un devis clair et détaillé. La décision du client est consignée avec ce qu'il a vu et quand.") },
+  { icon: "wrench", title: L("Repair", "Réparer"), description: L("Approved work becomes a Work Order with a job status the front desk can see, and parts that come off inventory on Pro.", "Le travail approuvé devient un ordre de travail avec un statut visible à la réception, et des pièces qui sortent de l'inventaire avec Pro.") },
   { icon: "receipt", title: L("Pay", "Payer"), description: L("Invoice the completed work with Canadian taxes, record the payment your shop collected and keep the history together.", "Facturez le travail terminé avec les taxes canadiennes, consignez le paiement encaissé par votre atelier et gardez l'historique réuni.") },
   { icon: "calendarClock", title: L("Return", "Revenir"), description: L("Set a maintenance reminder tied to the vehicle — automatic on Pro — so the next service doesn't get forgotten.", "Créez un rappel d'entretien lié au véhicule — automatique avec Pro — pour ne pas oublier le prochain entretien.") },
 ];
 
 export const PRODUCT_CUSTOMER: ProductStep[] = [
   { icon: "calendar", title: L("Branded booking", "Réservation à votre image"), description: L("Customers book on a page with your logo, colors and contact information.", "Les clients réservent sur une page avec votre logo, vos couleurs et vos coordonnées.") },
-  { icon: "file", title: L("Estimates & approvals", "Soumissions et approbations"), description: L("A clear estimate the customer can accept or decline from their phone.", "Une soumission claire que le client peut accepter ou refuser depuis son téléphone.") },
+  { icon: "file", title: L("Estimates & approvals", "Devis et approbations"), description: L("A clear estimate the customer can accept or decline from their phone.", "Un devis clair que le client peut accepter ou refuser depuis son téléphone.") },
   { icon: "clipboard", title: L("Inspection reports", "Rapports d'inspection"), description: L("Findings and photos the customer can review before they approve (Pro).", "Constats et photos que le client peut consulter avant d'approuver (Pro).") },
-  { icon: "smartphone", title: L("Customer portal", "Portail client"), description: L("Vehicles, appointments, estimates, invoices and service history in one secure place.", "Véhicules, rendez-vous, soumissions, factures et historique d'entretien au même endroit sécurisé.") },
+  { icon: "smartphone", title: L("Customer portal", "Portail client"), description: L("Vehicles, appointments, estimates, invoices and service history in one secure place.", "Véhicules, rendez-vous, devis, factures et historique d'entretien au même endroit sécurisé.") },
   { icon: "message", title: L("Status updates", "Mises à jour de statut"), description: L("Email or text updates, including when the vehicle is ready for pickup.", "Mises à jour par courriel ou texto, y compris quand le véhicule est prêt.") },
 ];
 
 export const PRODUCT_MANAGEMENT: ProductStep[] = [
-  { icon: "package", title: L("Inventory & tire storage", "Inventaire et pneus"), description: L("Stock that follows your Work Orders, and seasonal tire sets you can find.", "Un stock qui suit vos bons de travail, et des pneus saisonniers faciles à retrouver.") },
+  { icon: "package", title: L("Inventory & tire storage", "Inventaire et pneus"), description: L("Stock that follows your Work Orders, and seasonal tire sets you can find.", "Un stock qui suit vos ordres de travail, et des pneus saisonniers faciles à retrouver.") },
   { icon: "chart", title: L("Reports & books", "Rapports et comptabilité"), description: L("Sales, receivables and job reports, Accounting Light and QuickBooks Online sync.", "Rapports de ventes, de comptes à recevoir et de travaux, Comptabilité allégée et synchronisation QuickBooks Online.") },
   { icon: "building", title: L("Multi-Shop", "Multi-atelier"), description: L("Several locations, one organization, consolidated reporting.", "Plusieurs emplacements, une organisation, des rapports consolidés.") },
   { icon: "users", title: L("Team & data", "Équipe et données"), description: L("Roles and permissions, and import from your old system.", "Rôles et permissions, et importation depuis votre ancien système.") },
@@ -254,7 +254,7 @@ export const INTEGRATIONS_AVAILABLE: IntegrationItem[] = [
   { icon: "plug", title: L("QuickBooks Online", "QuickBooks Online"), status: L("Pro & Complete", "Pro et Complete"), gate: "quickbooks.sync",
     description: L("Connect your QuickBooks Online company from Settings and sync customers, invoices, payments and refunds with your Canadian tax codes. Sync starts from the date you choose; documents aren't sent twice.", "Connectez votre entreprise QuickBooks Online depuis les Paramètres et synchronisez clients, factures, paiements et remboursements avec vos codes de taxes canadiens. La synchronisation commence à la date choisie; aucun document n'est envoyé deux fois.") },
   { icon: "mail", title: L("Branded email", "Courriels à votre image"), status: L("All plans", "Tous les forfaits"),
-    description: L("Appointment, estimate, invoice and reminder emails sent from your shop's name and reply address. Pro and Complete can send from their own domain.", "Courriels de rendez-vous, de soumission, de facture et de rappel envoyés au nom de votre atelier et avec votre adresse de réponse. Pro et Complete peuvent envoyer depuis leur propre domaine.") },
+    description: L("Appointment, estimate, invoice and reminder emails sent from your shop's name and reply address. Pro and Complete can send from their own domain.", "Courriels de rendez-vous, de devis, de facture et de rappel envoyés au nom de votre atelier et avec votre adresse de réponse. Pro et Complete peuvent envoyer depuis leur propre domaine.") },
   { icon: "message", title: L("Two-way SMS", "SMS bidirectionnel"), status: L("All plans", "Tous les forfaits"),
     description: L("Text customers from a dedicated shop number (delivered through Twilio) and read replies in your inbox. STOP requests are honored automatically. A monthly allowance is included.", "Envoyez des textos aux clients depuis un numéro dédié à l'atelier (acheminé par Twilio) et lisez les réponses dans votre boîte. Les demandes STOP sont respectées automatiquement. Une allocation mensuelle est incluse.") },
   { icon: "upload", title: L("Data import", "Importation de données"), status: L("All plans", "Tous les forfaits"),
