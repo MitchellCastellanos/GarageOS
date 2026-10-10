@@ -6,20 +6,21 @@ import { usePathname } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, LogOut, Shield, BarChart3, MessagesSquare, X, Users, Kanban, ListChecks, MonitorPlay, Contact, SlidersHorizontal, Store, Mail, Send, CalendarDays, Settings2, MapPin, Video, UserCog } from "lucide-react";
+import { LayoutDashboard, LogOut, Shield, BarChart3, MessagesSquare, X, Users, Kanban, ListChecks, MonitorPlay, Contact, SlidersHorizontal, Store, Mail, Send, CalendarDays, Settings2, MapPin, Video, UserCog, Route } from "lucide-react";
 import { ADMIN, PLATFORM } from "@/lib/routes";
 import { APP_NAME } from "@/config/app";
 import { crmCopy } from "@/lib/admin-locale/sales-crm";
 import { commsCopy } from "@/lib/admin-locale/sales-comms";
 import { identityCopy } from "@/lib/admin-locale/sales-identity";
+import { fieldCopy } from "@/lib/admin-locale/sales-field";
 import type { PlatformSalesKind } from "@/domain/sales-crm/access";
 
-export interface PlatformNavContext { kind: PlatformSalesKind; locale: "en" | "fr" }
+export interface PlatformNavContext { kind: PlatformSalesKind; locale: "en" | "fr"; /** Field planner link: FIELD sellers and managers/Super Admin (read-only for non-FIELD). Convenience only; pages re-check. */ fieldPlanner?: boolean }
 
 interface NavItem { href: string; label: string; icon: typeof Shield; exact?: boolean; also?: string[] }
 
 /** Navigation is built from the platform role. Hiding is only convenience: every page and action re-checks on the server. */
-function navFor({ kind, locale }: PlatformNavContext): { sales: NavItem[]; platform: NavItem[] } {
+function navFor({ kind, locale, fieldPlanner }: PlatformNavContext): { sales: NavItem[]; platform: NavItem[] } {
   const t = crmCopy(locale).nav;
   const c = commsCopy(locale).nav;
   const ic = identityCopy(locale);
@@ -28,6 +29,7 @@ function navFor({ kind, locale }: PlatformNavContext): { sales: NavItem[]; platf
     { href: PLATFORM.salesProspects, label: t.prospects, icon: Contact },
     { href: PLATFORM.salesPipeline, label: t.pipeline, icon: Kanban },
     { href: PLATFORM.salesTasks, label: t.tasks, icon: ListChecks },
+    ...(fieldPlanner ? [{ href: PLATFORM.salesField, label: fieldCopy(locale).nav, icon: Route }] : []),
     { href: PLATFORM.salesInbox, label: c.inbox, icon: Mail },
     { href: PLATFORM.salesOutreach, label: c.outreach, icon: Send },
     { href: PLATFORM.salesCalendar, label: c.calendar, icon: CalendarDays },

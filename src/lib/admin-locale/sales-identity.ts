@@ -41,7 +41,7 @@ const en = {
     title: "Internal test recipient", help: "Prepares a clearly labelled TEST prospect for an address you control (SALES_TEST_RECIPIENTS or your own login), with a documented sending basis. Then write to it from the normal composer — signature, footer, unsubscribe and queue are the real ones. Nothing is sent from here.",
     to: "Test recipient email", prepare: "Prepare test recipient", ready: "Test recipient ready.", open: "Open the test prospect",
   },
-  visit: { log: "Log field visit", help: "Documents an in-person visit. It unlocks follow-up email for field-held prospects.", note: "What happened?", done: "Visit logged.", type: "Field visit" },
+  visit: { log: "Log field visit", help: "Documents an in-person visit. Only a real conversation counts as engagement; a visit never replaces consent to email.", note: "What happened?", done: "Visit logged.", type: "Field visit" },
   territoryBadge: { FIELD: "Field-held", REMOTE: "Remote" } as Record<string, string>,
 };
 type Dict = typeof en;
@@ -87,7 +87,7 @@ const fr: Dict = {
     title: "Destinataire de test interne", help: "Prépare un prospect TEST clairement identifié pour une adresse que vous contrôlez (SALES_TEST_RECIPIENTS ou votre propre identifiant), avec une base d’envoi documentée. Écrivez-lui ensuite depuis le compositeur habituel — signature, pied de page, désabonnement et file sont les vrais. Rien n’est envoyé d’ici.",
     to: "Courriel du destinataire de test", prepare: "Préparer le destinataire de test", ready: "Destinataire de test prêt.", open: "Ouvrir le prospect de test",
   },
-  visit: { log: "Consigner une visite terrain", help: "Documente une visite en personne. Elle débloque les courriels de suivi pour les prospects en territoire terrain.", note: "Que s’est-il passé ?", done: "Visite consignée.", type: "Visite terrain" },
+  visit: { log: "Consigner une visite terrain", help: "Documente une visite en personne. Seule une vraie conversation compte comme engagement ; une visite ne remplace jamais le consentement à recevoir des courriels.", note: "Que s’est-il passé ?", done: "Visite consignée.", type: "Visite terrain" },
   territoryBadge: { FIELD: "Territoire terrain", REMOTE: "À distance" },
 };
 export type IdentityCopy = Dict;

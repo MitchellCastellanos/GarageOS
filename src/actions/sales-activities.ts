@@ -9,6 +9,7 @@ import { requireCrmActor } from "@/lib/sales-crm/access";
 import { writeCrmAudit } from "@/lib/sales-crm/audit";
 import { CrmError, recomputeOpportunityScores, requireScopedProspect, resolveAssignee, touchProspect } from "@/lib/sales-crm/prospects";
 import { crmAction } from "@/lib/sales-crm/result";
+import { insertCrmTask } from "@/lib/sales-crm/task-service";
 import { parseShopDateTime } from "@/lib/shop-timezone";
 
 const OPEN_STAGES = ["NEW", "CONTACTED", "ENGAGED", "QUALIFIED", "DEMO_SCHEDULED", "DEMO_COMPLETED", "DECISION"] as const;
@@ -69,14 +70,7 @@ export async function createTask(prospectId: string, form: FormData) {
     const dueAt = await taskDue(input.dueDate, input.dueTime, assignee, null);
     const opp = await db.crmOpportunity.findFirst({ where: { prospectId, stage: { in: [...OPEN_STAGES] } }, select: { id: true } });
     const created = await db.$transaction(async (tx) => {
-      const t = await tx.crmTask.create({
-        data: {
-          prospectId, opportunityId: opp?.id ?? null, assignedStaffId: assignee, type: input.type, title: input.title, notes: input.notes,
-          priority: input.priority, dueAt, createdByUserId: actor.userId,
-        },
-        select: { id: true },
-      });
-      await writeCrmAudit({ actorUserId: actor.userId, action: "TASK_CREATED", entityType: "CrmTask", entityId: t.id, prospectId, metadata: { assignedStaffId: assignee } }, tx);
+      const t = await insertCrmTask(tx, { actor, prospectId, opportunityId: opp?.id ?? null, assignedStaffId: assignee, type: input.type, title: input.title, notes: input.notes, priority: input.priority, dueAt });
       return t;
     });
     refresh(prospectId);
