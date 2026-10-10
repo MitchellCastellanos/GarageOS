@@ -19,7 +19,7 @@ Legend: ☐ pending · ☑ done · ⏸ waiting on a PR
 ## B. Hosting / DNS (do not change without explicit approval)
 
 - ☑ Read-only check (2026-10-10): Vercel project `garage-os`; `garage-os.ca` → 308 → `www.garage-os.ca`; production `NEXT_PUBLIC_APP_URL` renders as `https://www.garage-os.ca`.
-- ☐ Optional: update the **Preview** environment variable `NEXT_PUBLIC_APP_URL`. It is a fixed value pointing at an old branch URL, so canonicals on Preview carry that host. Harmless (Vercel noindexes previews) but misleading when verifying.
+- ☐ **Technical follow-up (does not block merges):** correct the **Preview** environment variable `NEXT_PUBLIC_APP_URL`. It is a fixed value pointing at an old branch URL, so canonicals and Open Graph URLs on Preview carry that host. Until it is fixed, **do not treat Preview canonical hosts as validated**; verify hosts on Production or on a local build.
 - ☐ Authority host is `https://www.garage-os.ca` (D10). Keep the GABAN page `gabansolutions.ca/software/garageos` temporarily; review its traffic and inbound links before deciding on a redirect/canonical (needs GABAN Search Console data).
 
 ## C. Data clean-up (owner, after PR "private routes" is deployed)
@@ -30,7 +30,7 @@ Legend: ☐ pending · ☑ done · ⏸ waiting on a PR
 
 ## D. Email provider
 
-- ☐ Resend: confirm **click tracking is off** for the transactional sending domains (quote, portal, inspection, appointment-management and unsubscribe links carry bearer tokens; a tracking domain would see them).
+- ☐ **Final external-configuration step (not touched yet):** review Resend and turn **click tracking off** for the transactional sending domains. Quote-approval, portal, inspection-report, appointment-management and unsubscribe links carry bearer tokens; with click tracking on, the links are rewritten through a tracking domain that sees them. Do not change Resend until this step.
 
 ## E. Analytics (after the analytics PR)
 
