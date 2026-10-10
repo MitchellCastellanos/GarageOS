@@ -27,3 +27,9 @@ Verify campaign UI cannot send to suppressed recipients; unsubscribe links work 
 - Proposed published-address/other evidence requires structured support and review by an authorized Sales Manager **within their team** or Super Admin **globally**. Reps may not approve their own evidence. Previously self-attested bases must not be silently grandfathered as verified.
 - Before real outreach, validate the precise applicable CASL grounds and unsubscribe/identification requirements with qualified counsel; do not treat product policy as legal advice.
 - See [GarageOS Lead Engine and Field Planner roadmap](../garageos-lead-engine-field-planner-roadmap.md) for implementation gates. **These rules are approved requirements, not a claim that code has already implemented them.**
+
+## Implementation status — Lead Engine evidence & approval (code, 2026-10-12)
+Implemented in the Lead Engine PR (see [lead-engine-contracts.md](../lead-engine-contracts.md)); **not legal advice and not yet live in Production**.
+- Published-/disclosed-address bases require structured evidence (type, source URL for published addresses, capture date, supporting facts, role relevance, published-conditions confirmation) and are stored `PENDING_REVIEW`; they authorise nothing until `APPROVED` by a Sales Manager **for their own team** or a Super Admin. Reps cannot approve; nobody but a Super Admin approves their own evidence. Every decision is audited.
+- Pre-existing bases are **not modified** by the migration (`reviewStatus` stays `NULL` = legacy, unchanged behaviour, never "verified"). A separate Super Admin procedure (preview → apply → revert, audited) can reclassify them `LEGACY_UNREVIEWED`, after which address-based legacy bases stop authorising sends until fresh evidence is approved.
+- Imports never create a basis or an enrollment. Counsel review of the precise CASL grounds remains a launch gate.

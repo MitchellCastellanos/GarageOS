@@ -7,13 +7,14 @@ import { effectiveScore, recommendDemoFeatures, type NeedInput } from "@/domain/
 import { resolveEffectiveLanguage } from "@/domain/sales-crm/language";
 import { normalizeBusinessName, phoneDigits } from "@/domain/sales-crm/normalize";
 import { loadNeedInputs } from "@/lib/sales-crm/scoring";
+import { loadQueueContext, queueWhere, type ProspectQueue } from "@/lib/sales-crm/queues";
 
 export const PAGE_SIZE = 25;
 const OPEN = BOARD_STAGES as unknown as PipelineStage[];
 
 export interface ProspectFilters {
   q?: string; status?: "ACTIVE" | "ARCHIVED"; stage?: string; owner?: string; language?: string; source?: string; industry?: string;
-  dnc?: boolean; sort?: "name" | "created" | "activity"; dir?: "asc" | "desc"; page?: number;
+  dnc?: boolean; queue?: ProspectQueue; territory?: string; sort?: "name" | "created" | "activity"; dir?: "asc" | "desc"; page?: number;
 }
 
 /** Spreadsheet-safe, injection-safe text search over the fields a seller actually types. */
@@ -32,11 +33,14 @@ function searchWhere(q: string): Prisma.CrmProspectWhereInput {
 export async function listProspects(actor: PlatformSalesActor, f: ProspectFilters) {
   const page = Math.max(1, Math.floor(f.page ?? 1));
   const ownerWhere: Prisma.CrmProspectWhereInput = f.owner === "none" ? { assignedStaffId: null } : f.owner ? { assignedStaffId: f.owner } : {};
+  const queueFragment: Prisma.CrmProspectWhereInput = f.queue ? queueWhere(f.queue, actor, await loadQueueContext()) : {};
   const where: Prisma.CrmProspectWhereInput = {
     AND: [
-      assignedScopeWhere(actor), ownerWhere,
+      assignedScopeWhere(actor), ownerWhere, queueFragment,
+      f.territory === "unresolved" ? { territoryState: "UNRESOLVED" } : f.territory === "national" ? { territoryState: "NATIONAL" } : f.territory ? { territoryState: "LOCAL", territoryKey: f.territory } : {},
       f.q?.trim() ? searchWhere(f.q) : {},
-      { status: f.status ?? "ACTIVE" },
+      // Queues define their own status/DNC semantics (e.g. "do not contact"); the status filter only applies outside a queue.
+      f.queue ? {} : { status: f.status ?? "ACTIVE" },
       f.stage ? { opportunities: { some: { stage: f.stage as PipelineStage } } } : {},
       f.language ? { preferredLanguage: f.language as never } : {},
       f.source ? { source: f.source as never } : {},
@@ -55,14 +59,20 @@ export async function listProspects(actor: PlatformSalesActor, f: ProspectFilter
       where, orderBy, skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE,
       select: {
         id: true, name: true, city: true, province: true, preferredLanguage: true, source: true, industry: true, status: true, doNotContact: true, lastActivityAt: true, createdAt: true,
+        territoryKey: true, territoryState: true, addressQuality: true, assignedStaffId: true,
+        duplicateReviews: { where: { status: "PENDING" }, take: 1, select: { id: true } },
         assignedStaff: { select: { id: true, status: true, user: { select: { name: true } } } },
         contacts: { where: { archivedAt: null, isPrimary: true }, take: 1, select: { name: true } },
         opportunities: { orderBy: { createdAt: "desc" }, take: 1, select: { id: true, stage: true, fitScore: true, fitScoreOverride: true, intentScore: true, intentScoreOverride: true } },
-        tasks: { where: { status: "OPEN", dueAt: { lt: new Date() } }, take: 1, select: { id: true } },
+        tasks: { where: { status: "OPEN" }, orderBy: { dueAt: "asc" }, take: 1, select: { id: true, dueAt: true, title: true } },
       },
     }),
   ]);
-  return { total, page, pageSize: PAGE_SIZE, pages: Math.max(1, Math.ceil(total / PAGE_SIZE)), rows: rows.map((r) => ({ ...r, overdue: r.tasks.length > 0 })) };
+  const now = new Date();
+  return {
+    total, page, pageSize: PAGE_SIZE, pages: Math.max(1, Math.ceil(total / PAGE_SIZE)),
+    rows: rows.map((r) => ({ ...r, overdue: !!r.tasks[0] && r.tasks[0].dueAt < now, nextTask: r.tasks[0] ?? null, reviewPending: r.duplicateReviews.length > 0 })),
+  };
 }
 
 export async function getProspectDetail(actor: PlatformSalesActor, id: string) {

@@ -3,6 +3,11 @@ import { listAssignableStaff, listProspects, type ProspectFilters } from "@/lib/
 import { loadCrmPage } from "@/lib/sales-crm/page";
 import { effectiveScore } from "@/domain/sales-crm/scoring";
 import { PLATFORM } from "@/lib/routes";
+import { leadCopy } from "@/lib/admin-locale/sales-lead-engine";
+import { isProspectQueue, loadQueueContext, queueCounts, PROSPECT_QUEUES } from "@/lib/sales-crm/queues";
+import { loadTerritoryRules } from "@/lib/sales-crm/territory";
+import { can } from "@/domain/sales-crm/access";
+import { CollapsibleFilters } from "@/components/sales-crm/CollapsibleFilters";
 import { Badge, EmptyState, LanguageBadge, PageHeader, Pager, PermissionDenied, ScorePill, StageBadge, btnPrimary, btnSecondary, cardCls, formatDate, inputCls, labelCls } from "@/components/sales-crm/ui";
 
 type SP = Record<string, string | string[] | undefined>;
@@ -17,16 +22,19 @@ export default async function ProspectsPage({ searchParams }: { searchParams: Pr
     language: one(sp.language) || undefined, source: one(sp.source) || undefined, industry: one(sp.industry) || undefined, dnc: one(sp.dnc) === "1",
     sort: (["name", "created", "activity"].includes(one(sp.sort)) ? one(sp.sort) : "activity") as ProspectFilters["sort"],
     dir: one(sp.dir) === "asc" ? "asc" : "desc", page: Number(one(sp.page)) || 1,
+    queue: isProspectQueue(one(sp.queue)) ? (one(sp.queue) as ProspectFilters["queue"]) : undefined, territory: one(sp.territory) || undefined,
   };
-  const [result, staff] = await Promise.all([listProspects(actor, filters), listAssignableStaff(actor)]);
+  const L = leadCopy(locale);
+  const ctx = await loadQueueContext();
+  const [result, staff, counts, rules] = await Promise.all([listProspects(actor, filters), listAssignableStaff(actor), queueCounts(actor, ctx), loadTerritoryRules()]);
   const p = t.prospects;
   const qs = (over: Record<string, string | number | undefined>) => {
     const params = new URLSearchParams();
-    const base: Record<string, string | undefined> = { q: filters.q, status: filters.status === "ARCHIVED" ? "ARCHIVED" : undefined, stage: filters.stage, owner: filters.owner, language: filters.language, source: filters.source, industry: filters.industry, dnc: filters.dnc ? "1" : undefined, sort: filters.sort, dir: filters.dir };
+    const base: Record<string, string | undefined> = { q: filters.q, status: filters.status === "ARCHIVED" ? "ARCHIVED" : undefined, stage: filters.stage, owner: filters.owner, language: filters.language, source: filters.source, industry: filters.industry, dnc: filters.dnc ? "1" : undefined, queue: filters.queue, territory: filters.territory, sort: filters.sort, dir: filters.dir };
     for (const [k, v] of Object.entries({ ...base, ...over })) if (v !== undefined && v !== "") params.set(k, String(v));
     return `${PLATFORM.salesProspects}?${params.toString()}`;
   };
-  const hasFilters = !!(filters.q || filters.stage || filters.owner || filters.language || filters.source || filters.industry || filters.dnc || filters.status === "ARCHIVED");
+  const hasFilters = !!(filters.queue || filters.territory || filters.q || filters.stage || filters.owner || filters.language || filters.source || filters.industry || filters.dnc || filters.status === "ARCHIVED");
   const sortLink = (key: string, label: string) => {
     const active = filters.sort === key;
     const nextDir = active && filters.dir === "asc" ? "desc" : "asc";
@@ -41,6 +49,22 @@ export default async function ProspectsPage({ searchParams }: { searchParams: Pr
         <Link href={PLATFORM.salesProspectImport} className={btnSecondary}>{p.import}</Link>
       </>} />
 
+      <nav aria-label={L.queues.label} className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+        <ul className="flex min-w-max gap-2 pb-1">
+          <li><Link href={qs({ queue: undefined, page: 1 })} aria-current={!filters.queue ? "page" : undefined} className={`inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3 text-sm ${!filters.queue ? "border-blue-600 bg-blue-50 text-blue-800" : "border-slate-200 bg-white text-slate-700"}`}>{L.queues.all}</Link></li>
+          {PROSPECT_QUEUES.filter((q) => q !== "new" || actor.all || actor.kind === "SALES_MANAGER").filter((q) => q !== "field" || actor.all || actor.kind === "SALES_MANAGER" || actor.salesMode === "FIELD").map((q) => (
+            <li key={q}><Link href={qs({ queue: q, page: 1 })} title={L.queues.hints[q]} aria-current={filters.queue === q ? "page" : undefined} className={`inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3 text-sm ${filters.queue === q ? "border-blue-600 bg-blue-50 text-blue-800" : "border-slate-200 bg-white text-slate-700"}`}>{L.queues.names[q]} <span className="rounded-full bg-slate-100 px-1.5 text-xs tabular-nums text-slate-700">{counts[q]}</span></Link></li>
+          ))}
+        </ul>
+      </nav>
+      {filters.queue && <p className="text-sm text-slate-600">{L.queues.hints[filters.queue]}</p>}
+      <div className="flex flex-wrap gap-2 text-sm">
+        {can(actor, "manage_prospects") && counts.duplicates > 0 && <Link href={PLATFORM.salesDuplicates} className={btnSecondary}>{L.indicators.links.duplicates} ({counts.duplicates})</Link>}
+        {can(actor, "reassign_prospects") && <Link href={PLATFORM.salesAssignment} className={btnSecondary}>{L.indicators.links.assignment}</Link>}
+        {can(actor, "approve_casl_evidence") && <Link href={PLATFORM.salesEvidence} className={btnSecondary}>{L.indicators.links.evidence}</Link>}
+      </div>
+
+      <CollapsibleFilters label={t.common.filters} activeCount={[filters.q, filters.stage, filters.owner, filters.language, filters.source, filters.industry, filters.territory, filters.dnc, filters.status === "ARCHIVED"].filter(Boolean).length}>
       <form method="get" className={`${cardCls} grid gap-3 sm:grid-cols-2 lg:grid-cols-4`}>
         <label className={`${labelCls} sm:col-span-2`}>{t.common.search}
           <input className={inputCls} type="search" name="q" defaultValue={filters.q} placeholder={p.searchPlaceholder} maxLength={80} />
@@ -56,6 +80,9 @@ export default async function ProspectsPage({ searchParams }: { searchParams: Pr
         <label className={labelCls}>{t.common.language}
           <select className={inputCls} name="language" defaultValue={filters.language ?? ""}><option value="">{p.anyLanguage}</option>{Object.entries(t.languages).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
         </label>
+        <label className={labelCls}>{L.queues.territoryFilter}
+          <select className={inputCls} name="territory" defaultValue={filters.territory ?? ""}><option value="">{L.queues.anyTerritory}</option>{rules.filter((r) => r.cities.length > 0 || r.postalPrefixes.length > 0).map((r) => <option key={r.key} value={r.key}>{locale === "fr" ? r.nameFr : r.nameEn}</option>)}<option value="national">{L.queues.national}</option><option value="unresolved">{L.queues.unresolved}</option></select>
+        </label>
         <label className={labelCls}>{t.common.source}
           <select className={inputCls} name="source" defaultValue={filters.source ?? ""}><option value="">{p.anySource}</option>{Object.entries(t.sources).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
         </label>
@@ -66,12 +93,13 @@ export default async function ProspectsPage({ searchParams }: { searchParams: Pr
           <select className={inputCls} name="status" defaultValue={filters.status}><option value="ACTIVE">{t.staffStatus.ACTIVE}</option><option value="ARCHIVED">{p.archived}</option></select>
         </label>
         <label className="flex min-h-11 items-center gap-2 text-sm text-slate-700"><input type="checkbox" name="dnc" value="1" defaultChecked={filters.dnc} className="h-4 w-4" /> {p.dnc}</label>
-        <input type="hidden" name="sort" value={filters.sort} /><input type="hidden" name="dir" value={filters.dir} />
+        {filters.queue && <input type="hidden" name="queue" value={filters.queue} />}<input type="hidden" name="sort" value={filters.sort} /><input type="hidden" name="dir" value={filters.dir} />
         <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-4">
           <button className={btnPrimary}>{t.common.apply}</button>
           {hasFilters && <Link href={PLATFORM.salesProspects} className={btnSecondary}>{t.common.clear}</Link>}
         </div>
       </form>
+      </CollapsibleFilters>
 
       {result.rows.length === 0 ? (
         <EmptyState title={hasFilters ? p.emptyFiltered : t.states.emptyProspects} hint={hasFilters ? undefined : t.states.emptyProspectsHint}
@@ -101,13 +129,18 @@ export default async function ProspectsPage({ searchParams }: { searchParams: Pr
                         <span>{[r.city, r.province].filter(Boolean).join(", ") || t.common.none}</span><LanguageBadge language={r.preferredLanguage} t={t} />
                         {r.doNotContact && <Badge tone="bg-red-100 text-red-800">{t.prospects.detail.doNotContactBanner}</Badge>}
                         {r.overdue && <Badge tone="bg-rose-100 text-rose-800">{p.overdue}</Badge>}
+                        {r.reviewPending && <Badge tone="bg-amber-100 text-amber-800">{L.indicators.reviewPending}</Badge>}
+                      </div>
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
+                        <Badge tone={r.territoryState === "LOCAL" ? "bg-indigo-100 text-indigo-800" : r.territoryState === "UNRESOLVED" ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-700"}>{r.territoryState === "LOCAL" ? (rules.find((x) => x.key === r.territoryKey)?.[locale === "fr" ? "nameFr" : "nameEn"] ?? r.territoryKey) : L.indicators.territory[r.territoryState ?? "NONE"]}</Badge>
+                        {(r.addressQuality === "UNKNOWN" || r.addressQuality === "INCOMPLETE") && <Badge tone="bg-amber-100 text-amber-800">{L.indicators.quality[r.addressQuality]}</Badge>}
                       </div>
                     </td>
                     <td className="px-3 py-3 text-slate-700">{r.contacts[0]?.name ?? t.common.none}</td>
                     <td className="px-3 py-3">{o ? <StageBadge stage={o.stage} t={t} /> : t.common.none}</td>
                     <td className="px-3 py-3"><div className="flex flex-wrap gap-1">{fit && <ScorePill value={fit.value} overridden={fit.overridden} label={p.fit} t={t} />}{intent && <ScorePill value={intent.value} overridden={intent.overridden} label={p.intent} t={t} />}</div></td>
                     <td className="px-3 py-3 text-slate-700">{r.assignedStaff ? <>{r.assignedStaff.user.name}{r.assignedStaff.status === "INACTIVE" && <span className="text-xs text-amber-700"> ({t.common.inactive})</span>}</> : <span className="text-slate-400">{t.common.unassigned}</span>}</td>
-                    <td className="px-3 py-3 text-slate-500">{formatDate(r.lastActivityAt, locale)}</td>
+                    <td className="px-3 py-3 text-slate-500"><div>{formatDate(r.lastActivityAt, locale)}</div><div className={`mt-1 text-xs ${r.overdue ? "text-rose-700" : "text-slate-500"}`}>{r.nextTask ? `${L.indicators.nextAction}: ${formatDate(r.nextTask.dueAt, locale)}${r.overdue ? ` (${L.indicators.overdueBy})` : ""}` : L.indicators.none}</div></td>
                   </tr>
                 );
               })}
@@ -128,7 +161,13 @@ export default async function ProspectsPage({ searchParams }: { searchParams: Pr
                   {fit && <ScorePill value={fit.value} overridden={fit.overridden} label={p.fit} t={t} />}{intent && <ScorePill value={intent.value} overridden={intent.overridden} label={p.intent} t={t} />}
                   {r.overdue && <Badge tone="bg-rose-100 text-rose-800">{p.overdue}</Badge>}{r.doNotContact && <Badge tone="bg-red-100 text-red-800">{t.prospects.detail.doNotContactBanner}</Badge>}
                 </div>
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <Badge tone={r.territoryState === "LOCAL" ? "bg-indigo-100 text-indigo-800" : r.territoryState === "UNRESOLVED" ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-700"}>{r.territoryState === "LOCAL" ? (rules.find((x) => x.key === r.territoryKey)?.[locale === "fr" ? "nameFr" : "nameEn"] ?? r.territoryKey) : L.indicators.territory[r.territoryState ?? "NONE"]}</Badge>
+                  {(r.addressQuality === "UNKNOWN" || r.addressQuality === "INCOMPLETE") && <Badge tone="bg-amber-100 text-amber-800">{L.indicators.quality[r.addressQuality]}</Badge>}
+                  {r.reviewPending && <Badge tone="bg-amber-100 text-amber-800">{L.indicators.reviewPending}</Badge>}
+                </div>
                 <p className="mt-2 text-xs text-slate-500">{r.assignedStaff?.user.name ?? t.common.unassigned} · {formatDate(r.lastActivityAt, locale)}</p>
+                <p className={`text-xs ${r.overdue ? "text-rose-700" : "text-slate-500"}`}>{r.nextTask ? `${L.indicators.nextAction}: ${formatDate(r.nextTask.dueAt, locale)}${r.overdue ? ` (${L.indicators.overdueBy})` : ""}` : L.indicators.none}</p>
               </li>
             );
           })}

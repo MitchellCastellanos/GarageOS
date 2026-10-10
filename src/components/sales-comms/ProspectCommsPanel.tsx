@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import type { PlatformSalesActor } from "@/domain/sales-crm/access";
 import { commsCopy } from "@/lib/admin-locale/sales-comms";
 import { evaluateSendingBasis } from "@/domain/sales-comms/casl";
+import { leadCopy } from "@/lib/admin-locale/sales-lead-engine";
 import { PLATFORM } from "@/lib/routes";
 import { Badge, btnPrimary, btnSecondary, cardCls, formatDate } from "@/components/sales-crm/ui";
 import { BasisForm } from "@/components/sales-comms/BasisForm";
@@ -42,7 +43,8 @@ export async function ProspectCommsPanel({ actor, prospectId, locale, language }
             return (
               <li key={c.id} className="rounded-lg border border-slate-200 p-3">
                 <div className="flex flex-wrap items-center gap-2 text-sm"><b className="break-words">{c.name}</b><span className="break-all text-slate-500">{c.email ?? "—"}</span>
-                  {!c.email ? null : ev.valid ? <Badge tone="bg-emerald-100 text-emerald-800">{t.basis.kinds[ev.kind]}{ev.expiresAt ? ` · ${t.basis.expires} ${formatDate(ev.expiresAt, locale)}` : ""}</Badge> : <Badge tone="bg-amber-100 text-amber-800">{ev.reason === "NONE" ? t.basis.none : ev.reason === "EXPIRED" ? t.basis.expired : ev.reason === "REVOKED" ? t.basis.revoked : t.basis.weak}</Badge>}
+                  {!c.email ? null : ev.valid ? <Badge tone="bg-emerald-100 text-emerald-800">{t.basis.kinds[ev.kind]}{ev.expiresAt ? ` · ${t.basis.expires} ${formatDate(ev.expiresAt, locale)}` : ""}</Badge> : <Badge tone="bg-amber-100 text-amber-800">{ev.reason === "NONE" ? t.basis.none : ev.reason === "EXPIRED" ? t.basis.expired : ev.reason === "REVOKED" ? t.basis.revoked : ev.reason === "PENDING_REVIEW" || ev.reason === "REJECTED_EVIDENCE" || ev.reason === "UNREVIEWED" ? leadCopy(locale).evidence.reasonBlocked[ev.reason] : t.basis.weak}</Badge>}
+                  {c.email && c.sendingBases[0] && (c.sendingBases[0].reviewStatus === null || c.sendingBases[0].reviewStatus === "LEGACY_UNREVIEWED") && <Badge tone="bg-slate-100 text-slate-700">{leadCopy(locale).evidence.status.LEGACY_UNREVIEWED}</Badge>}
                   {s && <Badge tone="bg-red-100 text-red-800">{t.comms.suppressionReasons[s]}</Badge>}
                 </div>
                 {c.email && <div className="mt-2"><BasisForm locale={locale} contactId={c.id} hasBasis={c.sendingBases.some((b) => !b.revokedAt)} /></div>}

@@ -216,7 +216,7 @@ test("isSlotOffered rejects forged starts (off-grid, outside hours, inside a buf
 
 // ── CASL / send policy ───────────────────────────────────────────────────────────────────────
 const NOW = new Date("2026-03-10T12:00:00Z");
-const basisRow = (over = {}) => ({ kind: "IMPLIED_PUBLISHED_ADDRESS" as const, evidence: "Address published on shop website contact page", recordedAt: new Date("2026-02-01"), expiresAt: null, revokedAt: null, ...over });
+const basisRow = (over = {}) => ({ kind: "IMPLIED_PUBLISHED_ADDRESS" as const, evidence: "Address published on shop website contact page", recordedAt: new Date("2026-02-01"), expiresAt: null, revokedAt: null, reviewStatus: "APPROVED" as const, ...over });
 
 test("sending basis: none/expired/revoked/under-documented never authorise; newest row wins", () => {
   assert.deepEqual(evaluateSendingBasis([], NOW), { valid: false, reason: "NONE" });
@@ -225,6 +225,33 @@ test("sending basis: none/expired/revoked/under-documented never authorise; newe
   assert.deepEqual(evaluateSendingBasis([basisRow({ evidence: "yes" })], NOW), { valid: false, reason: "WEAK_EVIDENCE" });
   assert.equal(evaluateSendingBasis([basisRow(), basisRow({ recordedAt: new Date("2026-03-05"), revokedAt: new Date("2026-03-06") })], NOW).valid, false);
   assert.equal(evaluateSendingBasis([basisRow()], NOW).valid, true);
+});
+
+test("sending basis review gate: address-based bases created under the workflow need APPROVED; LEGACY_UNREVIEWED/pending/rejected/omitted never authorise; unclassified legacy (null) keeps its previous validity; other kinds keep their behaviour", () => {
+  // null = a row from before the Lead Engine, untouched by the migration: exactly the pre-migration rules apply to every kind
+  for (const kind of ["EXPRESS_CONSENT", "IMPLIED_EXISTING_RELATIONSHIP", "IMPLIED_PUBLISHED_ADDRESS", "IMPLIED_DISCLOSED_ADDRESS", "EXEMPT"] as const) {
+    assert.equal(evaluateSendingBasis([basisRow({ kind, reviewStatus: null })], NOW).valid, true, `legacy null ${kind}`);
+  }
+  assert.equal(evaluateSendingBasis([basisRow({ reviewStatus: null, expiresAt: new Date("2026-03-01") })], NOW).valid, false, "legacy rows still expire");
+  assert.equal(evaluateSendingBasis([basisRow({ reviewStatus: null, revokedAt: new Date("2026-03-02") })], NOW).valid, false, "legacy rows still revoke");
+  assert.equal(evaluateSendingBasis([basisRow({ reviewStatus: null, evidence: "yes" })], NOW).valid, false, "legacy weak evidence still blocked");
+  // a NEW pending row shadows an older legacy row (newest decides)
+  assert.equal(evaluateSendingBasis([basisRow({ reviewStatus: null }), basisRow({ recordedAt: new Date("2026-03-05"), reviewStatus: "PENDING_REVIEW" })], NOW).valid, false);
+  for (const reviewStatus of ["PENDING_REVIEW", "LEGACY_UNREVIEWED", "REJECTED", "NOT_REQUIRED", undefined] as const) { // undefined = a caller that forgot the column: fail closed
+    assert.equal(evaluateSendingBasis([basisRow({ reviewStatus })], NOW).valid, false, `published address with ${reviewStatus}`);
+    assert.equal(evaluateSendingBasis([basisRow({ kind: "IMPLIED_DISCLOSED_ADDRESS", reviewStatus })], NOW).valid, false, `disclosed address with ${reviewStatus}`);
+  }
+  assert.deepEqual(evaluateSendingBasis([basisRow({ reviewStatus: "PENDING_REVIEW" })], NOW), { valid: false, reason: "PENDING_REVIEW" });
+  assert.deepEqual(evaluateSendingBasis([basisRow({ reviewStatus: "LEGACY_UNREVIEWED" })], NOW), { valid: false, reason: "UNREVIEWED" });
+  assert.deepEqual(evaluateSendingBasis([basisRow({ reviewStatus: "REJECTED" })], NOW), { valid: false, reason: "REJECTED_EVIDENCE" });
+  // Existing behaviour for self-attested kinds that need no second review is unchanged (legacy rows included) …
+  for (const kind of ["EXPRESS_CONSENT", "IMPLIED_EXISTING_RELATIONSHIP", "EXEMPT"] as const) {
+    assert.equal(evaluateSendingBasis([basisRow({ kind, reviewStatus: "LEGACY_UNREVIEWED" })], NOW).valid, true, kind);
+    assert.equal(evaluateSendingBasis([basisRow({ kind })], NOW).valid, true, kind);
+    assert.equal(evaluateSendingBasis([basisRow({ kind, reviewStatus: "REJECTED" })], NOW).valid, false, kind);
+  }
+  // … and a newer pending row shadows an older approved one (newest decides).
+  assert.equal(evaluateSendingBasis([basisRow(), basisRow({ recordedAt: new Date("2026-03-05"), reviewStatus: "PENDING_REVIEW" })], NOW).valid, false);
 });
 
 const policy = (over: Partial<SendPolicyInput> = {}): SendPolicyInput => ({

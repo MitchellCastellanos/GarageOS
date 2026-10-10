@@ -3,11 +3,21 @@
 // (documented basis, identification, unsubscribe, suppression); it is not legal advice.
 import type { CrmSendingBasisKind } from "@prisma/client";
 
-export interface BasisRow { kind: CrmSendingBasisKind; evidence: string; recordedAt: Date; expiresAt: Date | null; revokedAt: Date | null }
+export interface BasisRow {
+  kind: CrmSendingBasisKind; evidence: string; recordedAt: Date; expiresAt: Date | null; revokedAt: Date | null;
+  /**
+   * Lead Engine review status — REQUIRED so a caller cannot forget it (an omitted value is `undefined` and fails closed).
+   * `null` = a row that pre-dates the Lead Engine and was never classified: it keeps exactly its previous validity.
+   */
+  reviewStatus: "NOT_REQUIRED" | "LEGACY_UNREVIEWED" | "PENDING_REVIEW" | "APPROVED" | "REJECTED" | null;
+}
 
 export type BasisEvaluation =
   | { valid: true; kind: CrmSendingBasisKind; expiresAt: Date | null }
-  | { valid: false; reason: "NONE" | "EXPIRED" | "REVOKED" | "WEAK_EVIDENCE" };
+  | { valid: false; reason: "NONE" | "EXPIRED" | "REVOKED" | "WEAK_EVIDENCE" | "PENDING_REVIEW" | "REJECTED_EVIDENCE" | "UNREVIEWED" };
+
+/** Published/disclosed-address bases only authorise a send once a second person approved their structured evidence. */
+const NEEDS_APPROVAL: readonly CrmSendingBasisKind[] = ["IMPLIED_PUBLISHED_ADDRESS", "IMPLIED_DISCLOSED_ADDRESS"];
 
 export const MIN_EVIDENCE_CHARS = 12;
 
@@ -18,6 +28,13 @@ export function evaluateSendingBasis(rows: BasisRow[], now: Date): BasisEvaluati
   if (newest.revokedAt) return { valid: false, reason: "REVOKED" };
   if (newest.expiresAt && newest.expiresAt.getTime() <= now.getTime()) return { valid: false, reason: "EXPIRED" };
   if (newest.evidence.trim().length < MIN_EVIDENCE_CHARS) return { valid: false, reason: "WEAK_EVIDENCE" };
+  // Review gate. Pending/rejected evidence never authorises anything. Address-based bases created under the review workflow
+  // need an explicit approval. A row that pre-dates the workflow (reviewStatus null) keeps its previous validity — the
+  // migration neither grants nor removes anything — until a Super Admin explicitly reclassifies it LEGACY_UNREVIEWED, after
+  // which an address-based legacy row is never treated as verified. `undefined` (a caller that did not load the column) fails closed.
+  if (newest.reviewStatus === "REJECTED") return { valid: false, reason: "REJECTED_EVIDENCE" };
+  if (newest.reviewStatus === "PENDING_REVIEW") return { valid: false, reason: "PENDING_REVIEW" };
+  if (NEEDS_APPROVAL.includes(newest.kind) && newest.reviewStatus !== "APPROVED" && newest.reviewStatus !== null) return { valid: false, reason: "UNREVIEWED" };
   return { valid: true, kind: newest.kind, expiresAt: newest.expiresAt };
 }
 
