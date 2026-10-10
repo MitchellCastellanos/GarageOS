@@ -68,13 +68,19 @@ export const leadEn = {
     form: { structured: "Structured evidence", required: "Required for this basis type.", submitNote: "This basis will wait for approval by a manager or Super Admin before it can authorise a send." },
     reasonBlocked: { PENDING_REVIEW: "Evidence awaiting approval", REJECTED_EVIDENCE: "Evidence rejected", UNREVIEWED: "Evidence not reviewed" } as Record<string, string>,
     selfApproved: "approved by its own recorder (Super Admin)",
+    legacy: {
+      title: "Legacy sending bases", help: "Bases recorded before the Lead Engine still work exactly as before. Reclassifying marks them “legacy, not reviewed”: published- and disclosed-address bases then stop authorising emails until fresh structured evidence is approved. Nothing is sent, enrolled or deleted. Preview first.",
+      kinds: "Basis types to reclassify", preview: "Preview impact", previewing: "Calculating…", apply: "Reclassify {n} bases", applying: "Applying…", revert: "Undo this run",
+      rows: "Bases in this batch", remaining: "Unclassified bases remaining", contacts: "Contacts affected", losing: "Contacts that would lose sendability", enrollments: "Active sequence enrollments that would stop", queued: "Queued commercial emails that would be blocked",
+      sample: "Examples", none: "Nothing to reclassify for these types.", done: "Reclassified {n} bases.", reverted: "Restored {n} bases.", runs: "Previous runs", runRow: "{n} bases", staleHint: "Anything that changes after the preview invalidates it: preview again before applying.",
+    },
   },
   errors: {
     SOURCE_KEY_INVALID: "The source key must be 2–60 characters: letters, numbers, dot, dash or underscore.", LAWFUL_SOURCE_REQUIRED: "Describe how this data may lawfully be used (at least 8 characters).",
     SOURCE_URL_INVALID: "The source URL must start with http:// or https://.", OBSERVED_AT_INVALID: "The collection date is not valid.", MAPPING_INVALID: "The column mapping is not valid.", IMPORT_CONFLICT: "Another import just wrote the same records. Nothing was saved; upload the file again.",
     REVIEW_NOT_DECIDABLE: "This review cannot be decided any more.", RUN_NOT_CONFIRMABLE: "This assignment preview can no longer be confirmed.", ASSIGNMENT_FAILED: "The assignment failed and nothing was changed.",
     EVIDENCE_INCOMPLETE: "The evidence is incomplete. Fill in every required item.", CASL_NOT_AUTHORIZED: "You are not allowed to review evidence.", CASL_SELF_APPROVAL: "You cannot approve evidence you recorded yourself.",
-    CASL_NOT_PENDING: "This evidence is no longer awaiting review.", CASL_EVIDENCE_INCOMPLETE: "The evidence is incomplete and cannot be approved.", INVALID_DATE: "The date is not valid.", INVALID_URL: "The URL is not valid.",
+    LEGACY_PREVIEW_STALE: "The data changed since the preview. Preview again before applying.", CASL_NOT_PENDING: "This evidence is no longer awaiting review.", CASL_EVIDENCE_INCOMPLETE: "The evidence is incomplete and cannot be approved.", INVALID_DATE: "The date is not valid.", INVALID_URL: "The URL is not valid.",
   } as Record<string, string>,
 };
 
@@ -148,13 +154,19 @@ export const leadFr: Dict = {
     form: { structured: "Preuve structurée", required: "Obligatoire pour ce type de base.", submitNote: "Cette base attendra l’approbation d’un gestionnaire ou du Super Admin avant de pouvoir autoriser un envoi." },
     reasonBlocked: { PENDING_REVIEW: "Preuve en attente d’approbation", REJECTED_EVIDENCE: "Preuve rejetée", UNREVIEWED: "Preuve non vérifiée" },
     selfApproved: "approuvé par son auteur (Super Admin)",
+    legacy: {
+      title: "Anciennes bases d’envoi", help: "Les bases consignées avant le moteur de prospects fonctionnent exactement comme avant. Les reclasser les marque « ancien, non vérifié » : les bases « adresse publiée » et « adresse communiquée » cessent alors d’autoriser des courriels jusqu’à l’approbation d’une preuve structurée récente. Rien n’est envoyé, inscrit ni supprimé. Faites d’abord l’aperçu.",
+      kinds: "Types de bases à reclasser", preview: "Aperçu de l’impact", previewing: "Calcul…", apply: "Reclasser {n} bases", applying: "Application…", revert: "Annuler cette exécution",
+      rows: "Bases dans ce lot", remaining: "Bases non classées restantes", contacts: "Contacts touchés", losing: "Contacts qui perdraient la possibilité d’envoi", enrollments: "Inscriptions actives à des séquences qui s’arrêteraient", queued: "Courriels commerciaux en file qui seraient bloqués",
+      sample: "Exemples", none: "Rien à reclasser pour ces types.", done: "{n} bases reclassées.", reverted: "{n} bases restaurées.", runs: "Exécutions précédentes", runRow: "{n} bases", staleHint: "Tout changement après l’aperçu l’invalide : refaites l’aperçu avant d’appliquer.",
+    },
   },
   errors: {
     SOURCE_KEY_INVALID: "La clé de source doit compter 2 à 60 caractères : lettres, chiffres, point, tiret ou soulignement.", LAWFUL_SOURCE_REQUIRED: "Décrivez comment ces données peuvent être utilisées légalement (8 caractères ou plus).",
     SOURCE_URL_INVALID: "L’URL de la source doit commencer par http:// ou https://.", OBSERVED_AT_INVALID: "La date de collecte n’est pas valide.", MAPPING_INVALID: "L’association des colonnes n’est pas valide.", IMPORT_CONFLICT: "Une autre importation vient d’écrire les mêmes enregistrements. Rien n’a été enregistré ; téléversez de nouveau le fichier.",
     REVIEW_NOT_DECIDABLE: "Cette vérification ne peut plus être décidée.", RUN_NOT_CONFIRMABLE: "Cet aperçu d’assignation ne peut plus être confirmé.", ASSIGNMENT_FAILED: "L’assignation a échoué et rien n’a été modifié.",
     EVIDENCE_INCOMPLETE: "La preuve est incomplète. Remplissez tous les éléments requis.", CASL_NOT_AUTHORIZED: "Vous n’avez pas le droit de vérifier les preuves.", CASL_SELF_APPROVAL: "Vous ne pouvez pas approuver une preuve que vous avez consignée.",
-    CASL_NOT_PENDING: "Cette preuve n’attend plus de vérification.", CASL_EVIDENCE_INCOMPLETE: "La preuve est incomplète et ne peut pas être approuvée.", INVALID_DATE: "La date n’est pas valide.", INVALID_URL: "L’URL n’est pas valide.",
+    LEGACY_PREVIEW_STALE: "Les données ont changé depuis l’aperçu. Refaites l’aperçu avant d’appliquer.", CASL_NOT_PENDING: "Cette preuve n’attend plus de vérification.", CASL_EVIDENCE_INCOMPLETE: "La preuve est incomplète et ne peut pas être approuvée.", INVALID_DATE: "La date n’est pas valide.", INVALID_URL: "L’URL n’est pas valide.",
   },
 };
 

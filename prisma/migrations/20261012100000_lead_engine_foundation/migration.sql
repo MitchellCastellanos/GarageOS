@@ -1,8 +1,11 @@
--- Lead Engine foundation (Agent 1). ADDITIVE ONLY: new enums, nullable/defaulted columns, new tables. Nothing is dropped.
+-- Lead Engine foundation (Agent 1). ADDITIVE ONLY: new enums, nullable/defaulted columns, new tables. Nothing is dropped
+-- and NO EXISTING ROW IS MODIFIED.
 --  * CrmProspect gains derived address/territory columns (null/UNKNOWN until recomputed — see docs/lead-engine-contracts.md).
---  * CrmSendingBasis gains structured evidence + review status. Every row that exists at migration time is stamped
---    LEGACY_UNREVIEWED (never "verified"). That can only make sending STRICTER (address-based bases need approval);
---    it cannot enable a send that was blocked before.
+--  * CrmSendingBasis gains structured evidence + a NULLABLE review status WITHOUT a default and WITHOUT a backfill.
+--    Pre-existing rows keep reviewStatus = NULL = "legacy, unclassified": they behave exactly as before this migration
+--    (no permission gained, none lost). New application code always writes an explicit status (NOT_REQUIRED or
+--    PENDING_REVIEW). Reclassifying legacy rows to LEGACY_UNREVIEWED is a separate, explicit, audited Super Admin
+--    procedure with an impact preview (docs/lead-engine-legacy-basis-impact.md), never part of the automatic migration.
 --  * No data is imported, no sequence is enrolled, no territory rule is touched.
 
 -- CreateEnum
@@ -47,7 +50,7 @@ ALTER TABLE "garageos"."CrmSendingBasis" ADD COLUMN     "capturedAt" TIMESTAMP(3
 ADD COLUMN     "evidenceType" "garageos"."CrmEvidenceType",
 ADD COLUMN     "publishedConditionsConfirmed" BOOLEAN NOT NULL DEFAULT false,
 ADD COLUMN     "reviewNote" TEXT,
-ADD COLUMN     "reviewStatus" "garageos"."CrmBasisReviewStatus" NOT NULL DEFAULT 'NOT_REQUIRED',
+ADD COLUMN     "reviewStatus" "garageos"."CrmBasisReviewStatus",
 ADD COLUMN     "reviewedAt" TIMESTAMP(3),
 ADD COLUMN     "reviewedByUserId" TEXT,
 ADD COLUMN     "roleRelevance" TEXT,
@@ -160,6 +163,3 @@ ALTER TABLE "garageos"."CrmDuplicateReview" ADD CONSTRAINT "CrmDuplicateReview_o
 
 -- AddForeignKey
 ALTER TABLE "garageos"."CrmDuplicateReview" ADD CONSTRAINT "CrmDuplicateReview_prospectId_fkey" FOREIGN KEY ("prospectId") REFERENCES "garageos"."CrmProspect"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- Never silently grandfather self-attested bases as verified: stamp all pre-existing rows as legacy/unreviewed.
-UPDATE "garageos"."CrmSendingBasis" SET "reviewStatus" = 'LEGACY_UNREVIEWED';

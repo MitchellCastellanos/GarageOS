@@ -1,48 +1,65 @@
-# Impact of `LEGACY_UNREVIEWED` on existing sending bases (read before the Production migration)
+# Legacy sending bases and the Lead Engine deploy — impact, runbook and rollback
 
-Migration `20261012100000_lead_engine_foundation` stamps **every existing `CrmSendingBasis` row** `LEGACY_UNREVIEWED`. `evaluateSendingBasis` (the single function used by the composer, sequence enrollment, the sequence worker and the dispatcher) then treats rows as follows:
+## Deploy is behaviour-neutral
+Migration `20261012100000_lead_engine_foundation` adds `CrmSendingBasis.reviewStatus` as a **nullable column with no default and no backfill**, and contains **no `UPDATE`/`DELETE`** (asserted by `tests/lead-engine-db.test.ts`). Every basis that exists in Production keeps `reviewStatus = NULL` = *legacy, unclassified* and is evaluated by `evaluateSendingBasis` with **exactly the pre-migration rules** (kind, evidence length, expiry, revocation, newest-row-wins). So merging and deploying this PR:
 
-| Basis kind | `LEGACY_UNREVIEWED` after migration | Composer (`sendEmail`) | Enrollment | Worker / dispatcher on in-flight items |
+* gives **no** contact a new permission (nothing changes for any existing row, and a legacy row never becomes more valid);
+* removes **no** valid permission — composer, enrollment, the sequence worker and the dispatcher behave as before for all five kinds.
+
+Tested with a real DB and fake provider (`tests/sales-comms-db.test.ts`, "LEGACY (A)"): all five kinds, composer + enrollment + in-flight sequences through worker and dispatcher.
+
+## What changes for NEW bases (immediately on deploy)
+| Basis recorded after deploy | Stored status | Effect |
+|---|---|---|
+| `IMPLIED_PUBLISHED_ADDRESS` / `IMPLIED_DISCLOSED_ADDRESS` | `PENDING_REVIEW` (structured evidence mandatory: type, capture date, supporting facts, role relevance, + source URL and published-conditions confirmation for published address) | authorises nothing until a Sales Manager (own team) or Super Admin approves; a pending/rejected row, being the newest, also shadows an older legacy row |
+| `EXPRESS_CONSENT`, `IMPLIED_EXISTING_RELATIONSHIP`, `EXEMPT` | `NOT_REQUIRED` | as before |
+
+Imports and FIELD visits never create a basis. Callers must pass `reviewStatus` to the policy function (the type requires it; an omitted value fails closed).
+
+## The explicit legacy reclassification procedure (run later, when the owner decides)
+Evidence page → *Legacy sending bases* (**Super Admin only**), server actions in `src/actions/sales-casl-legacy.ts`:
+
+1. **Preview impact** (`previewLegacyBasisReclassification`, read-only + an audit row). Computed with the *real* send policy before vs after: bases in the batch (oldest 2,000 per run) and remaining; contacts affected; **contacts that would lose sendability**; **active/paused sequence enrollments that would stop**; **queued/scheduled commercial emails that would be blocked**; examples. Defaults to the two address-based kinds; the other kinds can be selected but only change a bookkeeping mark.
+2. **Apply** (`reclassifyLegacyBases(kinds, token)`). The token binds the call to exactly the previewed rows and impact; anything that changed since (new basis, revocation, another run, a concurrent writer) → `LEGACY_PREVIEW_STALE`, nothing written, preview again. Only rows still `NULL` are updated (`NULL → LEGACY_UNREVIEWED`), in one transaction, with an audit event `LEGACY_BASES_RECLASSIFIED` carrying the affected ids. Repeating it is a no-op. Two concurrent applies: exactly one succeeds.
+3. **Effect**: address-based legacy bases stop authorising sends until *fresh structured evidence is approved* (a new `PENDING_REVIEW` → `APPROVED` row restores sending). Composer and enrollment refuse them; the worker/dispatcher stop live enrollments with `NO_VALID_BASIS` and do not send queued steps. The other three kinds are unaffected. Nothing is sent, enrolled or deleted by the procedure itself, and stopped enrollments are not auto-resumed.
+4. **Revert** (`revertLegacyReclassification(auditId)`): rows of that run that are still `LEGACY_UNREVIEWED` (and never reviewed) go back to `NULL` = previous behaviour. Idempotent; audited `LEGACY_BASES_REVERTED`. Enrollments already stopped stay stopped.
+
+Tested (`tests/lead-engine-db.test.ts` procedure test; `tests/sales-comms-db.test.ts` "LEGACY (B)"): authorization (manager/rep refused), preview changes nothing, stale and wrong tokens refused, concurrency, impact counts, audit ids, idempotency, recovery via approved evidence, revert, and the real composer/enrollment/worker/dispatcher outcomes per kind:
+
+| Kind | After the procedure (default kinds) | Composer | Enrollment | In-flight enrollment + queued step |
 |---|---|---|---|---|
-| `EXPRESS_CONSENT` | still valid (unchanged) | allowed | allowed | keeps running |
-| `IMPLIED_EXISTING_RELATIONSHIP` | still valid (unchanged) | allowed | allowed | keeps running |
-| `EXEMPT` | still valid (unchanged) | allowed | allowed | keeps running |
-| `IMPLIED_PUBLISHED_ADDRESS` | **not valid** (`UNREVIEWED`) | blocked `NO_VALID_BASIS` | refused | enrollment **stopped** (`NO_VALID_BASIS`), queued step not sent |
-| `IMPLIED_DISCLOSED_ADDRESS` | **not valid** (`UNREVIEWED`) | blocked `NO_VALID_BASIS` | refused | enrollment **stopped** (`NO_VALID_BASIS`), queued step not sent |
+| `IMPLIED_PUBLISHED_ADDRESS` | `LEGACY_UNREVIEWED` | blocked `NO_VALID_BASIS` | refused | stopped `NO_VALID_BASIS`, email not sent |
+| `IMPLIED_DISCLOSED_ADDRESS` | `LEGACY_UNREVIEWED` | blocked | refused | stopped, not sent |
+| `EXPRESS_CONSENT` / `IMPLIED_EXISTING_RELATIONSHIP` / `EXEMPT` | unchanged (`NULL`) | allowed | allowed | keeps running, sent |
 
-Tested (real DB, fake provider): `tests/sales-comms-db.test.ts` — "LEGACY_UNREVIEWED impact: composer + enrollment" (all 5 kinds, plus restoration once approved) and "…IN-FLIGHT enrollment…" (all 5 kinds through worker and dispatcher; asserts nothing is sent after the stamp for address-based kinds and that other kinds are unaffected). Pure rules: `tests/sales-comms-domain.test.ts` ("review gate").
+## Suggested rollout order (nothing here is run by the PR)
+1. Merge → deploy (migration applies automatically; neutral). Optionally run the read-only SQL below at leisure.
+2. Super Admin: *Assignment* → **Recompute** (address/territory snapshot). Unrelated to CASL.
+3. When ready: *CASL evidence* → **Preview impact**. If the numbers are acceptable (Production is expected to have 0 enrollments/queued mail per `docs/sales-email-launch-readiness.md`), **Apply**. If not, approve fresh evidence first, or do nothing — legacy bases keep working.
+4. Rollback at any time: **Undo this run** (Super Admin), or code rollback (old code ignores the column; the new tables/columns are inert).
 
-## Properties
-* **Stricter only.** No row that was invalid becomes valid. Nothing is sent, enrolled or scheduled by the migration.
-* **Stops are one-way.** An enrollment stopped with `NO_VALID_BASIS` is not auto-resumed when evidence is later approved; a human re-enrolls.
-* **Newest row decides** (unchanged): a newer `PENDING_REVIEW` row shadows an older approved one until decided.
-* **Recovery path.** Record structured evidence on the prospect (new row, `PENDING_REVIEW`) → a manager of the owning team or a Super Admin approves in *CASL evidence* → the basis is valid again. The *Eligibility review* queue lists contacts with legacy or pending bases.
-* Rows inserted by old application code *after* the migration but before deploy default to `NOT_REQUIRED`; address-based kinds with `NOT_REQUIRED` are still **not** valid (fail closed).
-
-## Read-only impact queries (run before migrating; no writes)
+## Read-only SQL (optional, equivalent to the in-app preview)
 ```sql
--- 1. Live bases by kind (what the stamp will touch)
+-- Legacy bases by kind (reviewStatus NULL = untouched legacy)
 SELECT kind, count(*) AS rows, count(*) FILTER (WHERE "revokedAt" IS NULL AND ("expiresAt" IS NULL OR "expiresAt" > now())) AS currently_valid
-FROM garageos."CrmSendingBasis" GROUP BY kind ORDER BY kind;
+FROM garageos."CrmSendingBasis" WHERE "reviewStatus" IS NULL GROUP BY kind ORDER BY kind;
 
--- 2. Contacts whose NEWEST basis is address-based and currently valid (these lose sendability)
+-- Contacts whose newest basis is address-based and currently valid (these would lose sendability if reclassified)
 SELECT count(*) FROM (
   SELECT DISTINCT ON ("contactId") "contactId", kind, "revokedAt", "expiresAt"
   FROM garageos."CrmSendingBasis" ORDER BY "contactId", "recordedAt" DESC
-) n WHERE kind IN ('IMPLIED_PUBLISHED_ADDRESS','IMPLIED_DISCLOSED_ADDRESS')
-  AND "revokedAt" IS NULL AND ("expiresAt" IS NULL OR "expiresAt" > now());
+) n WHERE kind IN ('IMPLIED_PUBLISHED_ADDRESS','IMPLIED_DISCLOSED_ADDRESS') AND "revokedAt" IS NULL AND ("expiresAt" IS NULL OR "expiresAt" > now());
 
--- 3. Active/paused sequence enrollments that would be stopped at the next worker run
+-- Active/paused sequence enrollments on such contacts
 SELECT count(*) FROM garageos."CrmSequenceEnrollment" e
 JOIN (SELECT DISTINCT ON ("contactId") "contactId", kind FROM garageos."CrmSendingBasis" ORDER BY "contactId", "recordedAt" DESC) b ON b."contactId" = e."contactId"
 WHERE e.status IN ('ACTIVE','PAUSED') AND b.kind IN ('IMPLIED_PUBLISHED_ADDRESS','IMPLIED_DISCLOSED_ADDRESS');
 
--- 4. Queued/scheduled COMMERCIAL emails to contacts whose newest basis is address-based
+-- Queued/scheduled COMMERCIAL emails to such contacts
 SELECT count(*) FROM garageos."CrmEmailMessage" m
 JOIN (SELECT DISTINCT ON ("contactId") "contactId", kind FROM garageos."CrmSendingBasis" ORDER BY "contactId", "recordedAt" DESC) b ON b."contactId" = m."contactId"
 WHERE m.category = 'COMMERCIAL' AND m.status IN ('QUEUED','SCHEDULED') AND b.kind IN ('IMPLIED_PUBLISHED_ADDRESS','IMPLIED_DISCLOSED_ADDRESS');
 ```
-Per `docs/sales-email-launch-readiness.md` no sequence is activated and nothing is enrolled in Production, so queries 3–4 are expected to return 0 — confirm before migrating. If any are non-zero, either approve fresh evidence first or accept that those items stop.
 
-## Test-suite note (historic, not related to this change)
-`tests/sales-comms-db.test.ts` tests 11, 13, 15 and 28 (inbound reply-stops-sequence, delivery webhooks, sequences schedule, signature) fail on pristine `main` whenever the suite runs on a non-business day or an hour outside the sending window: they call `processDueEnrollments({ now: new Date() })` and expect the first step to be due *now*, but the scheduler correctly defers step 0 to the next business day (e.g. Saturday 2026-10-10; Monday 2026-10-12 is a Canadian holiday). With the system clock shifted to a Wednesday all four pass. They are historic, calendar-dependent test-design issues, not regressions of this PR. The two new impact tests above use explicit future `now` values and are date-independent.
+## Note on `sales-comms-db` (historic, calendar-dependent)
+Tests 11, 13, 15 and 28 fail on pristine `main` whenever the suite runs on a non-business day or outside the sending window: they call `processDueEnrollments({ now: new Date() })` and expect step 0 to be due *now*, but the scheduler correctly defers it to the next business day. With the clock shifted to a business day the whole file passes (31/31, including the legacy tests). They are not regressions of this work; the new legacy tests use explicit future `now` values and a raised per-run cap, so they are date-independent.

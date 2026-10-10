@@ -5,8 +5,11 @@ import type { CrmSendingBasisKind } from "@prisma/client";
 
 export interface BasisRow {
   kind: CrmSendingBasisKind; evidence: string; recordedAt: Date; expiresAt: Date | null; revokedAt: Date | null;
-  /** Lead Engine review status. Absent (older callers) is treated as "not approved" for kinds that need approval. */
-  reviewStatus?: "NOT_REQUIRED" | "LEGACY_UNREVIEWED" | "PENDING_REVIEW" | "APPROVED" | "REJECTED";
+  /**
+   * Lead Engine review status — REQUIRED so a caller cannot forget it (an omitted value is `undefined` and fails closed).
+   * `null` = a row that pre-dates the Lead Engine and was never classified: it keeps exactly its previous validity.
+   */
+  reviewStatus: "NOT_REQUIRED" | "LEGACY_UNREVIEWED" | "PENDING_REVIEW" | "APPROVED" | "REJECTED" | null;
 }
 
 export type BasisEvaluation =
@@ -25,11 +28,13 @@ export function evaluateSendingBasis(rows: BasisRow[], now: Date): BasisEvaluati
   if (newest.revokedAt) return { valid: false, reason: "REVOKED" };
   if (newest.expiresAt && newest.expiresAt.getTime() <= now.getTime()) return { valid: false, reason: "EXPIRED" };
   if (newest.evidence.trim().length < MIN_EVIDENCE_CHARS) return { valid: false, reason: "WEAK_EVIDENCE" };
-  // Review gate. Pending/rejected evidence never authorises anything; address-based bases need an explicit approval, so
-  // rows that pre-date the review workflow (LEGACY_UNREVIEWED) are never treated as verified.
+  // Review gate. Pending/rejected evidence never authorises anything. Address-based bases created under the review workflow
+  // need an explicit approval. A row that pre-dates the workflow (reviewStatus null) keeps its previous validity — the
+  // migration neither grants nor removes anything — until a Super Admin explicitly reclassifies it LEGACY_UNREVIEWED, after
+  // which an address-based legacy row is never treated as verified. `undefined` (a caller that did not load the column) fails closed.
   if (newest.reviewStatus === "REJECTED") return { valid: false, reason: "REJECTED_EVIDENCE" };
   if (newest.reviewStatus === "PENDING_REVIEW") return { valid: false, reason: "PENDING_REVIEW" };
-  if (NEEDS_APPROVAL.includes(newest.kind) && newest.reviewStatus !== "APPROVED") return { valid: false, reason: "UNREVIEWED" };
+  if (NEEDS_APPROVAL.includes(newest.kind) && newest.reviewStatus !== "APPROVED" && newest.reviewStatus !== null) return { valid: false, reason: "UNREVIEWED" };
   return { valid: true, kind: newest.kind, expiresAt: newest.expiresAt };
 }
 

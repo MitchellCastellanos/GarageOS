@@ -21,6 +21,7 @@ if (!enabled) {
   const dupes = await import("../src/actions/sales-duplicates");
   const assignment = await import("../src/actions/sales-assignment");
   const caslActions = await import("../src/actions/sales-casl");
+  const legacyActions = await import("../src/actions/sales-casl-legacy");
   const inbox = await import("../src/actions/sales-inbox");
   const queries = await import("../src/lib/sales-crm/queries");
   const queues = await import("../src/lib/sales-crm/queues");
@@ -70,18 +71,96 @@ if (!enabled) {
     assert.equal(t.find((x) => x.key === "greater-montreal")!.acquisition, "FIELD_EXCLUSIVE");
   });
 
-  test("migration safety: every pre-existing sending basis is LEGACY_UNREVIEWED and address-based legacy rows can no longer authorise a send", async () => {
+  test("migration is data-neutral: the review column is nullable with no default and the migration SQL never updates existing bases; unclassified legacy rows behave exactly as before", async () => {
+    const { readFileSync } = await import("node:fs");
+    const sql = readFileSync(new URL("../prisma/migrations/20261012100000_lead_engine_foundation/migration.sql", import.meta.url), "utf8");
+    assert.ok(!/^\s*UPDATE\s+"garageos"\."CrmSendingBasis"/im.test(sql) && !/^\s*(UPDATE|DELETE)\b/im.test(sql), "the automatic migration modifies no existing row");
+    const col: any[] = await db.$queryRaw`SELECT is_nullable, column_default FROM information_schema.columns WHERE table_schema = 'garageos' AND table_name = 'CrmSendingBasis' AND column_name = 'reviewStatus'`;
+    assert.deepEqual([col[0].is_nullable, col[0].column_default], ["YES", null]);
+    // a row as it exists in Production today (written by pre-Lead-Engine code → reviewStatus NULL)
     const p = await db.crmProspect.create({ data: { name: `Legacy ${run}`, nameNormalized: `legacy ${run}`, createdByUserId: ids.root } });
-    const c = await db.crmContact.create({ data: { prospectId: p.id, name: "L", email: `l-${run}@x.test`, emailNormalized: `l-${run}@x.test` } });
-    // simulate a row created BEFORE the migration (what the migration's UPDATE stamps)
-    const b = await db.crmSendingBasis.create({ data: { contactId: c.id, kind: "IMPLIED_PUBLISHED_ADDRESS", evidence: "Address published on the shop website", recordedByUserId: ids.root, reviewStatus: "LEGACY_UNREVIEWED" } });
-    const rows = await db.crmSendingBasis.findMany({ where: { contactId: c.id } });
-    assert.equal(evaluateSendingBasis(rows, new Date()).valid, false);
-    assert.deepEqual(evaluateSendingBasis(rows, new Date()), { valid: false, reason: "UNREVIEWED" });
-    assert.equal(b.reviewStatus, "LEGACY_UNREVIEWED");
-    // fail closed even for a row inserted without any review status (column default NOT_REQUIRED)
-    await db.crmSendingBasis.create({ data: { contactId: c.id, kind: "IMPLIED_DISCLOSED_ADDRESS", evidence: "Address given to us by the owner", recordedByUserId: ids.root } });
-    assert.equal(evaluateSendingBasis(await db.crmSendingBasis.findMany({ where: { contactId: c.id } }), new Date()).valid, false);
+    const mk = async (kind: any, tag: string) => { const c = await db.crmContact.create({ data: { prospectId: p.id, name: tag, email: `${tag}-${run}@x.test`, emailNormalized: `${tag}-${run}@x.test` } }); await db.crmSendingBasis.create({ data: { contactId: c.id, kind, evidence: "Self-attested basis recorded before the Lead Engine", recordedByUserId: ids.root } }); return c.id; };
+    const legacy = { pub: await mk("IMPLIED_PUBLISHED_ADDRESS", "pub"), dis: await mk("IMPLIED_DISCLOSED_ADDRESS", "dis"), exp: await mk("EXPRESS_CONSENT", "exp") };
+    for (const id of Object.values(legacy)) {
+      const rows = await db.crmSendingBasis.findMany({ where: { contactId: id } });
+      assert.equal(rows[0].reviewStatus, null);
+      assert.equal(evaluateSendingBasis(rows, new Date()).valid, true, "no permission lost by the migration");
+    }
+    ids.legacyPub = legacy.pub; ids.legacyDis = legacy.dis; ids.legacyExp = legacy.exp; ids.legacyProspect = p.id;
+    // …and nothing is gained: a revoked legacy row stays invalid, and a NEW address-based basis still needs structured evidence + approval
+    const rev = await mk("IMPLIED_PUBLISHED_ADDRESS", "rev");
+    await db.crmSendingBasis.updateMany({ where: { contactId: rev }, data: { revokedAt: new Date() } });
+    assert.equal(evaluateSendingBasis(await db.crmSendingBasis.findMany({ where: { contactId: rev } }), new Date()).valid, false);
+    // fail closed for an explicitly legacy-marked address row, and for a row stamped NOT_REQUIRED (column value reserved for non-address kinds)
+    const c2 = await db.crmContact.create({ data: { prospectId: p.id, name: "nr", email: `nr-${run}@x.test`, emailNormalized: `nr-${run}@x.test` } });
+    await db.crmSendingBasis.create({ data: { contactId: c2.id, kind: "IMPLIED_DISCLOSED_ADDRESS", evidence: "Address given to us by the owner", recordedByUserId: ids.root, reviewStatus: "NOT_REQUIRED" } });
+    assert.equal(evaluateSendingBasis(await db.crmSendingBasis.findMany({ where: { contactId: c2.id } }), new Date()).valid, false);
+  });
+
+  test("new address-based bases still require structured evidence AND approval, even next to a valid legacy row; new non-address kinds are explicit NOT_REQUIRED", async () => {
+    as(users.FieldA);
+    const own: any = await prospects.createProspect(fd({ name: `NewBasis ${run}`, city: "Laval", province: "QC", address: "9 rue N", postalCode: "H7A 9N9" }));
+    const contact: any = await prospects.addContact(own.prospectId, fd({ name: "Nia", email: `nia-${run}@new.test`, isPrimary: "on" }));
+    await db.crmSendingBasis.create({ data: { contactId: contact.contactId, kind: "IMPLIED_PUBLISHED_ADDRESS", evidence: "Legacy self-attested basis from before", recordedByUserId: ids.root, recordedAt: new Date(Date.now() - 86_400_000) } });
+    assert.equal(evaluateSendingBasis(await db.crmSendingBasis.findMany({ where: { contactId: contact.contactId } }), new Date()).valid, true, "legacy row valid as before");
+    const bare: any = await inbox.recordSendingBasis(fd({ contactId: contact.contactId, kind: "IMPLIED_PUBLISHED_ADDRESS", evidence: "Address published on the shop contact page" }));
+    assert.deepEqual([bare.ok, bare.error], [false, "EVIDENCE_INCOMPLETE"], "structured evidence is mandatory for new address-based bases");
+    const rec: any = await inbox.recordSendingBasis(fd({ contactId: contact.contactId, kind: "IMPLIED_PUBLISHED_ADDRESS", evidence: "Address published on the shop contact page", evidenceType: "WEBSITE_PUBLICATION", sourceUrl: "https://new.test/c", capturedAt: "2026-10-05", supportingFacts: "Printed on the contact page with no refusal wording.", roleRelevance: "Owner decides on shop software", publishedConditionsConfirmed: "on" }));
+    assert.equal(rec.pendingReview, true);
+    const stored = await db.crmSendingBasis.findUniqueOrThrow({ where: { id: rec.basisId } });
+    assert.equal(stored.reviewStatus, "PENDING_REVIEW");
+    assert.equal(evaluateSendingBasis(await db.crmSendingBasis.findMany({ where: { contactId: contact.contactId } }), new Date()).valid, false, "the new pending row (newest) shadows the legacy one: no shortcut around approval");
+    const express: any = await inbox.recordSendingBasis(fd({ contactId: contact.contactId, kind: "EXPRESS_CONSENT", evidence: "Nia wrote to ask for our emails" }));
+    assert.equal((await db.crmSendingBasis.findUniqueOrThrow({ where: { id: express.basisId } })).reviewStatus, "NOT_REQUIRED");
+  });
+
+  test("legacy reclassification procedure: Super Admin only, preview with real policy impact, token-bound idempotent execute, audited, revertible, never touches other kinds' behaviour", async () => {
+    const legacy = { pub: ids.legacyPub, dis: ids.legacyDis, exp: ids.legacyExp };
+    // authorisation: nobody but a Super Admin
+    for (const who of ["MgrA", "FieldA"]) { as(users[who]); await assert.rejects(legacyActions.previewLegacyBasisReclassification(), /SALES_FORBIDDEN/, who); await assert.rejects(legacyActions.reclassifyLegacyBases(["EXEMPT"], "0".repeat(32)), /SALES_FORBIDDEN/, who); await assert.rejects(legacyActions.revertLegacyReclassification("x"), /SALES_FORBIDDEN/, who); }
+    as(users.Root);
+    const p: any = await legacyActions.previewLegacyBasisReclassification();
+    assert.equal(p.ok, true, JSON.stringify(p));
+    assert.deepEqual(p.kinds, ["IMPLIED_DISCLOSED_ADDRESS", "IMPLIED_PUBLISHED_ADDRESS"], "defaults to the address-based kinds only");
+    assert.ok(p.contactsLosingSendability >= 2 && p.batchRows >= 2);
+    assert.equal(p.ids, undefined, "ids are not exposed to the client");
+    assert.equal(await db.crmSendingBasis.count({ where: { reviewStatus: "LEGACY_UNREVIEWED", contactId: { in: [legacy.pub, legacy.dis] } } }), 0, "preview changes nothing");
+    assert.ok(await db.crmAuditEvent.count({ where: { action: "LEGACY_BASES_PREVIEWED" } }) >= 1);
+    assert.deepEqual(await legacyActions.previewLegacyBasisReclassification(["NOPE"]), { ok: false, error: "INVALID" });
+    // a wrong / stale token is refused and changes nothing
+    assert.deepEqual(await legacyActions.reclassifyLegacyBases(p.kinds, "f".repeat(32)), { ok: false, error: "LEGACY_PREVIEW_STALE" });
+    assert.equal(await db.crmSendingBasis.count({ where: { reviewStatus: "LEGACY_UNREVIEWED", contactId: { in: [legacy.pub, legacy.dis] } } }), 0);
+    // something changes after the preview (one more legacy row appears) → the preview is stale
+    const late = await db.crmContact.create({ data: { prospectId: ids.legacyProspect, name: "late", email: `late2-${run}@x.test`, emailNormalized: `late2-${run}@x.test` } });
+    await db.crmSendingBasis.create({ data: { contactId: late.id, kind: "IMPLIED_PUBLISHED_ADDRESS", evidence: "Self-attested basis written during the preview window", recordedByUserId: ids.root } });
+    assert.deepEqual(await legacyActions.reclassifyLegacyBases(p.kinds, p.token), { ok: false, error: "LEGACY_PREVIEW_STALE" });
+    // fresh preview → concurrent executes: exactly one applies
+    const p2: any = await legacyActions.previewLegacyBasisReclassification();
+    const res: any[] = await Promise.all([legacyActions.reclassifyLegacyBases(p2.kinds, p2.token), legacyActions.reclassifyLegacyBases(p2.kinds, p2.token)]);
+    const won = res.filter((r) => r.ok);
+    assert.equal(won.length, 1, JSON.stringify(res));
+    assert.equal(won[0].updated, p2.batchRows);
+    // effect: address-based legacy rows no longer authorise; express consent is untouched and still valid
+    const status = async (c: string) => (await db.crmSendingBasis.findMany({ where: { contactId: c } }));
+    for (const c of [legacy.pub, legacy.dis, late.id]) { const rows = await status(c); assert.equal(rows[0].reviewStatus, "LEGACY_UNREVIEWED"); assert.deepEqual(evaluateSendingBasis(rows, new Date()), { valid: false, reason: "UNREVIEWED" }); }
+    const exp = await status(legacy.exp); assert.equal(exp[0].reviewStatus, null); assert.equal(evaluateSendingBasis(exp, new Date()).valid, true);
+    // audited, with the ids that make it revertible
+    const ev = await db.crmAuditEvent.findUniqueOrThrow({ where: { id: won[0].auditId } });
+    assert.equal(ev.action, "LEGACY_BASES_RECLASSIFIED"); assert.equal(ev.actorUserId, users.Root); assert.equal((ev.metadata as any).count, p2.batchRows); assert.ok((ev.metadata as any).ids.includes((await status(legacy.pub))[0].id));
+    // idempotent: nothing left to do, a re-preview is empty and a re-execute is a no-op
+    const p3: any = await legacyActions.previewLegacyBasisReclassification();
+    assert.equal(p3.batchRows, 0);
+    assert.deepEqual(await legacyActions.reclassifyLegacyBases(p3.kinds, p3.token), { ok: true, updated: 0, auditId: null, remaining: 0 });
+    // a NEW approved basis restores sending after reclassification (the intended recovery path) — approved row is newest and APPROVED
+    await db.crmSendingBasis.create({ data: { contactId: legacy.pub, kind: "IMPLIED_PUBLISHED_ADDRESS", evidence: "Fresh evidence reviewed after the reclassification", recordedByUserId: ids.root, reviewStatus: "APPROVED" } });
+    assert.equal(evaluateSendingBasis(await status(legacy.pub), new Date()).valid, true);
+    // revert: restores the previous behaviour for rows still untouched; approved/other rows are not harmed; repeating is a no-op
+    const rv: any = await legacyActions.revertLegacyReclassification(won[0].auditId);
+    assert.equal(rv.ok, true); assert.equal(rv.reverted, p2.batchRows);
+    assert.equal((await status(legacy.dis))[0].reviewStatus, null); assert.equal(evaluateSendingBasis(await status(legacy.dis), new Date()).valid, true);
+    assert.deepEqual(await legacyActions.revertLegacyReclassification(won[0].auditId), { ok: true, reverted: 0 });
+    assert.equal(await db.crmAuditEvent.count({ where: { action: "LEGACY_BASES_REVERTED" } }), 1);
+    assert.deepEqual(await legacyActions.revertLegacyReclassification("nope"), { ok: false, error: "NOT_FOUND" });
   });
 
   const H = "Ref,Raison sociale,Adresse,Ville,Prov,CP,Tel,Site,Courriel,Contact,Courriel contact,Opt-out";

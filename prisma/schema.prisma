@@ -3280,10 +3280,11 @@ model CrmSendingBasis {
   recordedByUserId String
   revokedAt        DateTime?
   // ── Structured evidence + approval (Lead Engine). `evidence` stays the human summary.
-  /// NOT_REQUIRED: kinds that need no second pair of eyes (behaviour unchanged). Published/disclosed-address bases
-  /// start as PENDING_REVIEW and cannot authorise a send until APPROVED. Rows that existed before the Lead Engine are
-  /// LEGACY_UNREVIEWED: never treated as verified.
-  reviewStatus     CrmBasisReviewStatus @default(NOT_REQUIRED)
+  /// NULL = a row that pre-dates the Lead Engine and has not been classified: it keeps EXACTLY its previous validity (no
+  /// new permission, no lost permission) until a Super Admin runs the explicit legacy reclassification (LEGACY_UNREVIEWED).
+  /// New rows always carry an explicit status: NOT_REQUIRED (kinds that need no second review) or PENDING_REVIEW
+  /// (published/disclosed address: authorises nothing until APPROVED). The migration does NOT backfill this column.
+  reviewStatus     CrmBasisReviewStatus?
   evidenceType     CrmEvidenceType?
   sourceUrl        String?
   capturedAt       DateTime?

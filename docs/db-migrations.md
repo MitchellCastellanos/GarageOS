@@ -36,7 +36,7 @@ Other behavior:
 - Logs never contain connection strings or credentials.
 
 ## Recent migrations
-- `20261012100000_lead_engine_foundation` — Lead Engine: source observations, duplicate reviews, assignment runs, derived address/territory columns, structured CASL evidence + review status (existing bases stamped `LEGACY_UNREVIEWED`). Additive. See `docs/lead-engine-contracts.md`. Not applied to Production yet.
+- `20261012100000_lead_engine_foundation` — Lead Engine: source observations, duplicate reviews, assignment runs, derived address/territory columns, structured CASL evidence + a nullable review status (no backfill: existing bases stay `NULL` = unchanged behaviour; reclassification is a separate Super Admin procedure). Additive, modifies no existing row. See `docs/lead-engine-contracts.md`. Not applied to Production yet.
 - `20261012090000_field_route_planner` — Field Route Planner: visit-outcome/route/location enums, `CrmProspectLocation`, `CrmFieldRoute`, `CrmFieldRouteStop`, nullable `CrmActivity.fieldVisitOutcome/idempotencyKey`, CHECK constraints and a partial unique index. Additive only. See `docs/field-route-planner.md`. Not applied to Production yet.
 - `20261011090000_sales_video_attribution` — Sales video attribution: enum `CrmVideoEventType` + tables `CrmVideoLink`, `CrmVideoEvent`, `CrmVideoLinkMessage`. Additive only. See `docs/sales-video.md`. Not applied to Production yet.
 - `20261009100000_sales_crm_foundation` — Sales CRM foundation (Agent 1): additive enums/tables, partial unique indexes, seeded needs taxonomy, nullable `SalesDemo.crmOpportunityId`. See `docs/sales-crm-agent-1-handoff.md`. Not applied to Production yet.

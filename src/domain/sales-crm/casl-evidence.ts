@@ -64,7 +64,7 @@ export function evidenceGaps(e: EvidenceFacts): EvidenceGap[] {
 export type ReviewDenial = "NOT_AUTHORIZED" | "SELF_APPROVAL" | "OUT_OF_TEAM" | "NOT_PENDING";
 export type ReviewDecision = { allowed: true; selfApproved: boolean } | { allowed: false; code: ReviewDenial | "EVIDENCE_INCOMPLETE" };
 type ReviewActor = Pick<PlatformSalesActor, "capabilities" | "all" | "userId" | "scopeStaffIds">;
-type ReviewTarget = { reviewStatus: string; recordedByUserId: string };
+type ReviewTarget = { reviewStatus: string | null; recordedByUserId: string };
 
 /**
  * WHO may review (approve OR reject) this evidence right now: capability, still pending, team scope against the prospect's

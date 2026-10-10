@@ -24,6 +24,8 @@ function usableBasis(now: Date): Prisma.CrmSendingBasisWhereInput {
     AND: [
       { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
       { OR: [
+        // reviewStatus null = pre-Lead-Engine legacy row: valid exactly as before until explicitly reclassified.
+        { reviewStatus: null },
         { kind: { notIn: ["IMPLIED_PUBLISHED_ADDRESS", "IMPLIED_DISCLOSED_ADDRESS"] }, reviewStatus: { in: ["NOT_REQUIRED", "LEGACY_UNREVIEWED", "APPROVED"] } },
         { kind: { in: ["IMPLIED_PUBLISHED_ADDRESS", "IMPLIED_DISCLOSED_ADDRESS"] }, reviewStatus: "APPROVED" },
       ] },
@@ -46,7 +48,7 @@ export function queueWhere(queue: ProspectQueue, actor: PlatformSalesActor, ctx:
         ],
       };
     case "eligibility":
-      return { status: "ACTIVE", contacts: { some: { archivedAt: null, sendingBases: { some: { revokedAt: null, reviewStatus: { in: ["PENDING_REVIEW", "LEGACY_UNREVIEWED"] } } } } } };
+      return { status: "ACTIVE", contacts: { some: { archivedAt: null, sendingBases: { some: { revokedAt: null, OR: [{ reviewStatus: null }, { reviewStatus: { in: ["PENDING_REVIEW", "LEGACY_UNREVIEWED"] } }] } } } } };
     case "field":
       if (!actor.all && actor.kind === "SALES_REP" && actor.salesMode !== "FIELD") return NONE; // REMOTE sellers have no field work
       return ctx.fieldTerritoryKeys.length

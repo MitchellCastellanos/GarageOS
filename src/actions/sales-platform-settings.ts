@@ -147,7 +147,7 @@ export async function createTestRecipient(email: string) {
       const prospect = await tx.crmProspect.create({ data: { name: "[TEST] GarageOS internal test recipient", nameNormalized: `test garageos internal ${to}`, tags: ["internal-test"], preferredLanguage: "EN", source: "OTHER", sourceDetail: "Internal delivery test", assignedStaffId: actor.staffId, createdByUserId: actor.userId, email: to } });
       await tx.crmOpportunity.create({ data: { prospectId: prospect.id, assignedStaffId: actor.staffId, createdByUserId: actor.userId } });
       const contact = await tx.crmContact.create({ data: { prospectId: prospect.id, name: "Test Recipient", email: to, emailNormalized: to, isPrimary: true } });
-      await tx.crmSendingBasis.create({ data: { contactId: contact.id, kind: "EXPRESS_CONSENT", evidence: "Owner-authorised internal test recipient; every message is labelled as a test.", recordedByUserId: actor.userId } });
+      await tx.crmSendingBasis.create({ data: { contactId: contact.id, kind: "EXPRESS_CONSENT", evidence: "Owner-authorised internal test recipient; every message is labelled as a test.", recordedByUserId: actor.userId, reviewStatus: "NOT_REQUIRED" } });
       await writeCrmAudit({ actorUserId: actor.userId, action: "TEST_EMAIL_SENT", entityType: "CrmProspect", entityId: prospect.id, prospectId: prospect.id, metadata: { kind: "TEST_RECIPIENT_PREPARED" } }, tx);
       return { prospectId: prospect.id, contactId: contact.id };
     });
