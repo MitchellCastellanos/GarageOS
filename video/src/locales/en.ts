@@ -51,11 +51,9 @@ export const en: LocaleCopy = {
     retention: "Stay connected with customers through reminders and follow-up communication.",
     closing: "GarageOS. Your entire shop, connected.",
   },
-  teaserNarration: {
-    hook: "Running a repair shop is complicated.",
-    booking: "Organize your schedule and let customers book online.",
-    inspection: "Send clear inspections and estimates.",
-    invoice: "Invoice in one place.",
-    closing: "GarageOS. Your entire shop, connected.",
-  },
+  teaserNarration: [
+    { scene: "booking", script: "Appointments." },
+    { scene: "inspection", script: "Inspections." },
+    { scene: "invoice", script: "Invoices. All connected. Meet GarageOS, the smarter way to manage your repair shop." },
+  ],
 };

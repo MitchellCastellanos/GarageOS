@@ -1,8 +1,9 @@
 import React from "react";
-import { AbsoluteFill, Audio, Sequence } from "remotion";
-import { FPS, FULL_SCENES, OVERLAP, TEASER_SCENES, sceneStarts } from "../config/timing";
+import { AbsoluteFill, Audio, Sequence, useVideoConfig } from "remotion";
+import { FPS, FULL_SCENES, OVERLAP, TEASER_OVERLAP, TEASER_SCENES, sceneStarts } from "../config/timing";
 import { FontGate } from "../config/fonts";
-import { MUSIC, getSegments } from "../audio/manifest";
+import { getSegments } from "../audio/manifest";
+import { MIX, dbToLin, musicSrc, musicVolumeFn } from "../audio/music";
 import { cuesFor } from "../audio/subtitles";
 import type { Locale, SceneId, TeaserSceneId } from "../locales";
 import { SceneFade } from "../components/SceneFade";
@@ -31,6 +32,7 @@ export interface FilmProps {
 
 /** Shared timeline builder: scenes overlap by `overlap` frames for cross-fades; audio/subtitles from the manifest. */
 const Film: React.FC<FilmProps & { variant: "full" | "teaser"; overlap: number }> = ({ locale, subtitles = true, variant, overlap }) => {
+  const { durationInFrames } = useVideoConfig();
   const list = sceneStarts(variant === "full" ? FULL_SCENES : TEASER_SCENES);
   const segments = getSegments(locale, variant);
   const cues = segments.flatMap(cuesFor);
@@ -52,15 +54,15 @@ const Film: React.FC<FilmProps & { variant: "full" | "teaser"; overlap: number }
         {segments.map((seg) =>
           seg.staticPath ? (
             <Sequence key={seg.sceneId} from={Math.round(seg.startSec * FPS)} name={`narration-${seg.sceneId}`}>
-              <Audio src={seg.staticPath} />
+              <Audio src={seg.staticPath} volume={dbToLin(MIX.narrationGainDb[variant])} />
             </Sequence>
           ) : null,
         )}
-        {MUSIC.enabled ? <Audio src={MUSIC.file} volume={MUSIC.volume} loop /> : null}
+        <Audio src={musicSrc(variant)} volume={musicVolumeFn(segments, variant, durationInFrames)} name={`music-${variant}`} />
       </AbsoluteFill>
     </FontGate>
   );
 };
 
 export const Explainer: React.FC<FilmProps> = (p) => <Film {...p} variant="full" overlap={OVERLAP} />;
-export const Teaser: React.FC<FilmProps> = (p) => <Film {...p} variant="teaser" overlap={8} />;
+export const Teaser: React.FC<FilmProps> = (p) => <Film {...p} variant="teaser" overlap={TEASER_OVERLAP} />;

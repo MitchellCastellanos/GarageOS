@@ -1,0 +1,48 @@
+name: Render product videos
+
+# Renders the four GarageOS explainer/teaser MP4s and both thumbnails, validates them with
+# ffprobe, and uploads them as a downloadable workflow artifact. Nothing is committed.
+on:
+  pull_request:
+    paths:
+      - "video/**"
+      - ".github/workflows/video-render.yml"
+      - "docs/demo-journey/captures/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: video
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: video/package-lock.json
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+        working-directory: .
+      - run: npm ci
+      - run: npm run prepare:assets
+      - run: npm run typecheck
+      - name: Render all videos and thumbnails
+        run: npm run render:all
+      - name: Validate (ffprobe + static checks)
+        run: npm run validate | tee output/validation.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: garageos-videos
+          path: |
+            video/output/*.mp4
+            video/output/thumbnail-*.png
+            video/output/validation.txt
+          if-no-files-found: error
+          retention-days: 30

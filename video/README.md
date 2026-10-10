@@ -59,26 +59,28 @@ Rendering needs Node ≥ 22, FFmpeg/FFprobe (for `validate` and `audio:sync`) an
 * **Scene timing**: `src/config/timing.ts` (`FULL_SCENES`, `TEASER_SCENES`, seconds; totals must stay 60 s / 15 s, `validate` fails otherwise). Inside a scene, beats are frame numbers at the top of each scene file (`STARTS`, `Pop start/end`).
 * **Optional cinematic opening (Runway/Kling)**: render the clip to `video/public/opening/<locale>.mp4`, then in `scenes/Opening.tsx` add `<OffthreadVideo src={staticFile("opening/en.mp4")} />` as a first layer and lengthen the hook in `timing.ts`. Not required; nothing is generated here.
 
-## Narration (ElevenLabs-ready)
+## Narration (integrated, voice-only)
 
-The plan lives in `src/audio/manifest.ts`: for every scene and locale it exposes scene id, language, script, planned start/end, expected duration, target file path and status (`missing` | `ready`). Today every segment is `missing`; renders are silent and no synthetic voice is used. Subtitles (burned in, because email video usually autoplays muted) are timed provisionally from word counts; in Studio they are tagged "(provisional timing)".
+The four ElevenLabs recordings are in `src/audio/source/` exactly as supplied (named `.wav`, actually MP3 data). `npm run audio:align` (needs ffmpeg) turns them into the files the videos use:
 
-1. Generate each segment from the scripts in `src/locales/{en,fr}.ts` (`narration`, `teaserNarration`) with the chosen ElevenLabs voice (use a Québec French voice for FR).
-2. Save as WAV: `src/audio/<locale>/scene-01.wav … scene-06.wav` and `teaser-01.wav … teaser-05.wav`.
-3. `npm run audio:sync` (inside `video/`): copies to `public/audio/`, measures durations with ffprobe, updates `src/audio/status.json`. Narration windows and subtitle cues are recomputed from the real durations; no scene code changes.
-4. `npm run validate` flags any narration that would run past the end of its scene; adjust `timing.ts` seconds or shorten the script.
-5. Re-render.
+* **Full EN/FR**: 6 scene files `src/audio/<locale>/scene-01..06.wav`, cut in the middle of real pauses, so no word is touched.
+* **Teaser EN/FR**: the single take is cut at its pauses into 3 segments `teaser-01..03.wav` ("Appointments", "Inspections", "Invoices … repair shop"), each placed on its scene.
+* All masters: 48 kHz mono WAV, -16 LUFS integrated, -1.5 dBTP, 20 ms edge fades.
+* `npm run prepare:assets` copies them to `public/audio/`; `src/audio/alignment.json` holds cut points, durations and speech intervals; `npm run audio:report` regenerates `src/audio/ALIGNMENT.md` (every window, cue and fit/mismatch note).
+* Where each segment starts: `NARRATION_START` / `TEASER_NARRATION_START` in `src/config/timing.ts`. Subtitles are burned in and timed on the real speech (`src/audio/subtitles.ts`).
 
-Narration starts 0.4 s after its scene (`NARRATION_LEAD_SEC`) so the headline lands first.
+To replace a recording: overwrite the file in `src/audio/source/`, update the script text in `src/locales/*.ts` if it changed, then `npm run audio:align && npm run audio:report && npm run prepare:assets`, and re-render. If the pause structure changes, adjust `boundaryGaps` in `scripts/align-narration.ts` (it fails loudly when the words-per-second sanity check does not hold).
 
-**Music**: put a *licensed* track at `video/public/music/bed.mp3` and set `MUSIC.enabled = true` (and `volume`) in `src/audio/manifest.ts`. No music is bundled and none is required.
+## Music and final mix
+
+The approved music track lives in `src/audio/music/garageos-music.wav` (used whole, 60 s, for both full videos) and `src/audio/music/teaser-edit.wav` (15 s teaser edit built from it by `npm run audio:music`). Both languages share it. Levels, ducking and fades are in `MIX` (`src/audio/music.ts`); the track analysis, the teaser edit and the mix table are in `src/audio/MUSIC.md`. Narration stays primary: the music sits about 15 dB under the voice and rises in the gaps. Final masters are about -16.5 LUFS with true peak below -1 dBTP. To swap the track: replace the WAV, update `MUSIC_ANALYSIS` / `TEASER_EDIT` in `music.ts` (re-measure the beat grid), run `npm run audio:music`, `npm run prepare:assets`, then render. `npm run render -- audio` writes fast audio-only mix-downs to `output/audio/` for level checks.
 
 ## Known limitations
 
-* Subtitle timing is an estimate until real narration exists.
+* Segment boundaries come from pause detection (no speech-recognition model was reachable); the scripts were confirmed with the client, and every full-video segment passes a seconds-per-word check.
 * The English campaign editor, shop records and some product data are Québec French (the capture set is seeded in French; see `docs/demo-journey/validation.md`). The EN closing card says so. Capture 20 (campaign email) is not used because EN reuses a French example.
 * Dashboard captures show the product's real "-52.1 % vs last month" figure; it is untouched.
-* No audio is mixed yet; the draft MP4s have no audio track.
+* No sound effects. The music teaser edit was verified numerically (beat grid, splice alignment, levels) and by frame/loudness checks, not by ear: please listen to it.
 * The mark PNG in the brand kit has minor edge noise at full size (documented in the brand kit); it is only shown at ≤ 116 px height.
 
 ## Final production checklist

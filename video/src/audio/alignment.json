@@ -1,0 +1,564 @@
+{
+  "full-en": {
+    "source": "src/audio/source/full-en.wav",
+    "sourceDurationSec": 25.469,
+    "loudnormInput": {
+      "input_i": "-22.55",
+      "input_tp": "-3.00",
+      "input_lra": "2.20",
+      "input_thresh": "-32.87",
+      "output_i": "-16.56",
+      "output_tp": "-1.50",
+      "output_lra": "1.70",
+      "output_thresh": "-26.86",
+      "normalization_type": "dynamic",
+      "target_offset": "0.56"
+    },
+    "pauses": [
+      [
+        2.24,
+        2.56
+      ],
+      [
+        3.94,
+        4.31
+      ],
+      [
+        8,
+        8.33
+      ],
+      [
+        12.41,
+        12.76
+      ],
+      [
+        17.69,
+        18.03
+      ],
+      [
+        21.63,
+        22.04
+      ],
+      [
+        23.06,
+        23.34
+      ],
+      [
+        24.43,
+        24.71
+      ],
+      [
+        25.26,
+        25.47
+      ]
+    ],
+    "cutsSec": [
+      4.123,
+      8.167,
+      12.588,
+      17.861,
+      21.839
+    ],
+    "segments": [
+      {
+        "sceneId": "hook",
+        "file": "scene-01.wav",
+        "srcStartSec": 0,
+        "srcEndSec": 4.123,
+        "durationSec": 4.123,
+        "words": 10,
+        "spokenSec": 3.62,
+        "secPerWord": 0.362,
+        "speech": [
+          [
+            0,
+            2.239
+          ],
+          [
+            2.562,
+            3.94
+          ]
+        ]
+      },
+      {
+        "sceneId": "booking",
+        "file": "scene-02.wav",
+        "srcStartSec": 4.123,
+        "srcEndSec": 8.167,
+        "durationSec": 4.044,
+        "words": 12,
+        "spokenSec": 3.69,
+        "secPerWord": 0.308,
+        "speech": [
+          [
+            0.183,
+            3.876
+          ]
+        ]
+      },
+      {
+        "sceneId": "inspection",
+        "file": "scene-03.wav",
+        "srcStartSec": 8.167,
+        "srcEndSec": 12.588,
+        "durationSec": 4.421,
+        "words": 10,
+        "spokenSec": 4.08,
+        "secPerWord": 0.408,
+        "speech": [
+          [
+            0.168,
+            4.247
+          ]
+        ]
+      },
+      {
+        "sceneId": "work",
+        "file": "scene-04.wav",
+        "srcStartSec": 12.588,
+        "srcEndSec": 17.861,
+        "durationSec": 5.273,
+        "words": 14,
+        "spokenSec": 4.92,
+        "secPerWord": 0.352,
+        "speech": [
+          [
+            0.175,
+            5.099
+          ]
+        ]
+      },
+      {
+        "sceneId": "retention",
+        "file": "scene-05.wav",
+        "srcStartSec": 17.861,
+        "srcEndSec": 21.839,
+        "durationSec": 3.978,
+        "words": 9,
+        "spokenSec": 3.6,
+        "secPerWord": 0.4,
+        "speech": [
+          [
+            0.174,
+            3.773
+          ]
+        ]
+      },
+      {
+        "sceneId": "closing",
+        "file": "scene-06.wav",
+        "srcStartSec": 21.839,
+        "srcEndSec": 25.469,
+        "durationSec": 3.599,
+        "words": 5,
+        "spokenSec": 2.66,
+        "secPerWord": 0.532,
+        "speech": [
+          [
+            0.205,
+            1.224
+          ],
+          [
+            1.505,
+            2.595
+          ],
+          [
+            2.867,
+            3.42
+          ]
+        ]
+      }
+    ]
+  },
+  "teaser-en": {
+    "source": "src/audio/source/teaser-en.wav",
+    "sourceDurationSec": 8.516,
+    "loudnormInput": {
+      "input_i": "-22.52",
+      "input_tp": "-2.83",
+      "input_lra": "1.90",
+      "input_thresh": "-32.91",
+      "output_i": "-16.69",
+      "output_tp": "-1.50",
+      "output_lra": "0.60",
+      "output_thresh": "-26.95",
+      "normalization_type": "dynamic",
+      "target_offset": "0.69"
+    },
+    "pauses": [
+      [
+        0.84,
+        1.1
+      ],
+      [
+        1.98,
+        2.21
+      ],
+      [
+        2.98,
+        3.31
+      ],
+      [
+        4.17,
+        4.57
+      ],
+      [
+        5.92,
+        6.14
+      ],
+      [
+        8.35,
+        8.52
+      ]
+    ],
+    "cutsSec": [
+      0.973,
+      2.096
+    ],
+    "segments": [
+      {
+        "sceneId": "booking",
+        "file": "teaser-01.wav",
+        "srcStartSec": 0,
+        "srcEndSec": 0.973,
+        "durationSec": 0.973,
+        "words": 1,
+        "spokenSec": 0.84,
+        "secPerWord": 0.845,
+        "speech": [
+          [
+            0,
+            0.845
+          ]
+        ]
+      },
+      {
+        "sceneId": "inspection",
+        "file": "teaser-02.wav",
+        "srcStartSec": 0.973,
+        "srcEndSec": 2.096,
+        "durationSec": 1.123,
+        "words": 1,
+        "spokenSec": 0.88,
+        "secPerWord": 0.883,
+        "speech": [
+          [
+            0.128,
+            1.011
+          ]
+        ]
+      },
+      {
+        "sceneId": "invoice",
+        "file": "teaser-03.wav",
+        "srcStartSec": 2.096,
+        "srcEndSec": 8.516,
+        "durationSec": 6.336,
+        "words": 13,
+        "spokenSec": 5.19,
+        "secPerWord": 0.399,
+        "speech": [
+          [
+            0.113,
+            0.883
+          ],
+          [
+            1.216,
+            2.075
+          ],
+          [
+            2.472,
+            3.82
+          ],
+          [
+            4.041,
+            6.255
+          ]
+        ]
+      }
+    ]
+  },
+  "full-fr": {
+    "source": "src/audio/source/full-fr.wav",
+    "sourceDurationSec": 28.761,
+    "loudnormInput": {
+      "input_i": "-20.65",
+      "input_tp": "-1.05",
+      "input_lra": "1.90",
+      "input_thresh": "-31.12",
+      "output_i": "-16.80",
+      "output_tp": "-1.50",
+      "output_lra": "1.70",
+      "output_thresh": "-27.24",
+      "normalization_type": "dynamic",
+      "target_offset": "0.80"
+    },
+    "pauses": [
+      [
+        2.73,
+        3.13
+      ],
+      [
+        5.4,
+        5.89
+      ],
+      [
+        10.07,
+        10.43
+      ],
+      [
+        14.64,
+        14.99
+      ],
+      [
+        20.26,
+        20.57
+      ],
+      [
+        25,
+        25.42
+      ],
+      [
+        26.49,
+        26.83
+      ],
+      [
+        27.81,
+        28.06
+      ],
+      [
+        28.57,
+        28.76
+      ]
+    ],
+    "cutsSec": [
+      5.647,
+      10.251,
+      14.815,
+      20.415,
+      25.208
+    ],
+    "segments": [
+      {
+        "sceneId": "hook",
+        "file": "scene-01.wav",
+        "srcStartSec": 0,
+        "srcEndSec": 5.647,
+        "durationSec": 5.647,
+        "words": 14,
+        "spokenSec": 5,
+        "secPerWord": 0.357,
+        "speech": [
+          [
+            0,
+            2.73
+          ],
+          [
+            3.131,
+            5.401
+          ]
+        ]
+      },
+      {
+        "sceneId": "booking",
+        "file": "scene-02.wav",
+        "srcStartSec": 5.647,
+        "srcEndSec": 10.251,
+        "durationSec": 4.604,
+        "words": 13,
+        "spokenSec": 4.18,
+        "secPerWord": 0.321,
+        "speech": [
+          [
+            0.246,
+            4.421
+          ]
+        ]
+      },
+      {
+        "sceneId": "inspection",
+        "file": "scene-03.wav",
+        "srcStartSec": 10.251,
+        "srcEndSec": 14.815,
+        "durationSec": 4.564,
+        "words": 11,
+        "spokenSec": 4.21,
+        "secPerWord": 0.383,
+        "speech": [
+          [
+            0.182,
+            4.394
+          ]
+        ]
+      },
+      {
+        "sceneId": "work",
+        "file": "scene-04.wav",
+        "srcStartSec": 14.815,
+        "srcEndSec": 20.415,
+        "durationSec": 5.6,
+        "words": 18,
+        "spokenSec": 5.27,
+        "secPerWord": 0.293,
+        "speech": [
+          [
+            0.171,
+            5.444
+          ]
+        ]
+      },
+      {
+        "sceneId": "retention",
+        "file": "scene-05.wav",
+        "srcStartSec": 20.415,
+        "srcEndSec": 25.208,
+        "durationSec": 4.793,
+        "words": 15,
+        "spokenSec": 4.43,
+        "secPerWord": 0.295,
+        "speech": [
+          [
+            0.155,
+            4.586
+          ]
+        ]
+      },
+      {
+        "sceneId": "closing",
+        "file": "scene-06.wav",
+        "srcStartSec": 25.208,
+        "srcEndSec": 28.761,
+        "durationSec": 3.514,
+        "words": 5,
+        "spokenSec": 2.56,
+        "secPerWord": 0.513,
+        "speech": [
+          [
+            0.207,
+            1.282
+          ],
+          [
+            1.625,
+            2.604
+          ],
+          [
+            2.852,
+            3.363
+          ]
+        ]
+      }
+    ]
+  },
+  "teaser-fr": {
+    "source": "src/audio/source/teaser-fr.wav",
+    "sourceDurationSec": 8.594,
+    "loudnormInput": {
+      "input_i": "-22.61",
+      "input_tp": "-3.64",
+      "input_lra": "2.40",
+      "input_thresh": "-33.09",
+      "output_i": "-17.00",
+      "output_tp": "-1.50",
+      "output_lra": "1.10",
+      "output_thresh": "-27.55",
+      "normalization_type": "dynamic",
+      "target_offset": "1.00"
+    },
+    "pauses": [
+      [
+        0.66,
+        1.01
+      ],
+      [
+        1.75,
+        1.92
+      ],
+      [
+        2.65,
+        2.85
+      ],
+      [
+        2.85,
+        2.99
+      ],
+      [
+        3.88,
+        4.19
+      ],
+      [
+        5.82,
+        6.07
+      ],
+      [
+        8.41,
+        8.59
+      ]
+    ],
+    "cutsSec": [
+      0.835,
+      1.836
+    ],
+    "segments": [
+      {
+        "sceneId": "booking",
+        "file": "teaser-01.wav",
+        "srcStartSec": 0,
+        "srcEndSec": 0.835,
+        "durationSec": 0.835,
+        "words": 1,
+        "spokenSec": 0.66,
+        "secPerWord": 0.664,
+        "speech": [
+          [
+            0,
+            0.664
+          ]
+        ]
+      },
+      {
+        "sceneId": "inspection",
+        "file": "teaser-02.wav",
+        "srcStartSec": 0.835,
+        "srcEndSec": 1.836,
+        "durationSec": 1.001,
+        "words": 1,
+        "spokenSec": 0.74,
+        "secPerWord": 0.744,
+        "speech": [
+          [
+            0.171,
+            0.915
+          ]
+        ]
+      },
+      {
+        "sceneId": "invoice",
+        "file": "teaser-03.wav",
+        "srcStartSec": 1.836,
+        "srcEndSec": 8.594,
+        "durationSec": 6.752,
+        "words": 14,
+        "spokenSec": 5.58,
+        "secPerWord": 0.399,
+        "speech": [
+          [
+            0.086,
+            0.812
+          ],
+          [
+            1.157,
+            2.042
+          ],
+          [
+            2.359,
+            3.982
+          ],
+          [
+            4.231,
+            6.576
+          ]
+        ]
+      }
+    ]
+  }
+}

@@ -33,4 +33,23 @@ for (const w of ["500", "600"]) {
   if (!existsSync(p)) throw new Error(`Missing ${p}; run npm install in video/`);
   copyFileSync(p, join(out, "fonts", f));
 }
+// scene-aligned narration (mastered WAVs committed in src/audio/<locale>/) -> public/audio for Remotion
+let a = 0;
+for (const loc of ["en", "fr"]) {
+  const dir = join(here, "../src/audio", loc);
+  if (!existsSync(dir)) continue;
+  for (const f of readdirSync(dir).filter((f) => f.endsWith(".wav"))) {
+    mkdirSync(join(out, "../audio", loc), { recursive: true });
+    copyFileSync(join(dir, f), join(out, "../audio", loc, f));
+    a++;
+  }
+}
+// approved music: full-length track + the 15 s teaser edit (built by `npm run audio:music`)
+mkdirSync(join(out, "../music"), { recursive: true });
+for (const [src, dst] of [["garageos-music.wav", "garageos-music.wav"], ["teaser-edit.wav", "teaser-edit.wav"]]) {
+  const p = join(here, "../src/audio/music", src);
+  if (!existsSync(p)) throw new Error(`Missing ${p}; run npm run audio:music`);
+  copyFileSync(p, join(out, "../music", dst));
+}
+console.log(`prepared ${a} narration files + music;`);
 console.log(`prepared ${n} captures + brand mark + fonts in ${out}`);
