@@ -3,11 +3,13 @@ import { MarketingPageShell } from "@/components/marketing/MarketingPageShell";
 import { PageHero } from "@/components/marketing/PageHero";
 import { CTASection } from "@/components/marketing/CTASection";
 import { Bilingual } from "@/components/marketing/Bilingual";
+import { pageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
+  path: "/about",
   title: "About · À propos",
   description: "Why we built GarageOS. · Pourquoi nous avons créé GarageOS.",
-};
+});
 
 function Body({ lang }: { lang: "en" | "fr" }) {
   const fr = lang === "fr";

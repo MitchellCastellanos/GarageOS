@@ -3,11 +3,13 @@ import Link from "next/link";
 import { MarketingPageShell } from "@/components/marketing/MarketingPageShell";
 import { PageHero } from "@/components/marketing/PageHero";
 import { Bilingual } from "@/components/marketing/Bilingual";
+import { pageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
+  path: "/privacy",
   title: "Privacy Policy · Politique de confidentialité",
   description: "How GarageOS handles personal information. · Comment GarageOS traite les renseignements personnels.",
-};
+});
 
 const H = "text-base font-semibold text-slate-900 mb-2";
 const A = "font-semibold text-brand-blue hover:underline";

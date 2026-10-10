@@ -4,11 +4,13 @@ import Link from "next/link";
 import { MarketingPageShell } from "@/components/marketing/MarketingPageShell";
 import { PageHero } from "@/components/marketing/PageHero";
 import { Bilingual } from "@/components/marketing/Bilingual";
+import { pageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
+  path: "/contact",
   title: "Contact · Nous joindre",
   description: "Get in touch with the GarageOS team. · Communiquez avec l'équipe GarageOS.",
-};
+});
 
 // Configure the real support mailbox in Vercel (NEXT_PUBLIC_CONTACT_EMAIL) — see docs/launch-readiness.md.
 const CONTACT_EMAIL = process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() || "mcastellanos@garage-os.ca";

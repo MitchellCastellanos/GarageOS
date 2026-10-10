@@ -3,7 +3,8 @@ import Link from "next/link";
 import { MarketingPageShell } from "@/components/marketing/MarketingPageShell";
 import { PageHero } from "@/components/marketing/PageHero";
 import { Bilingual } from "@/components/marketing/Bilingual";
-export const metadata: Metadata={title:"Terms of Service · Conditions d'utilisation",description:"Terms governing GarageOS. · Conditions régissant GarageOS."};
+import { pageMetadata } from "@/lib/seo/metadata";
+export const metadata: Metadata = pageMetadata({ path: "/terms", title: "Terms of Service · Conditions d'utilisation", description: "Terms governing GarageOS. · Conditions régissant GarageOS." });
 const H="text-base font-semibold text-slate-900 mb-2"; const A="font-semibold text-brand-blue hover:underline";
 function English(){return <><PageHero eyebrow="Company" heading="Terms of Service" description="Last updated September 2026"/><section className="bg-white"><div className="max-w-2xl mx-auto px-4 sm:px-6 py-16 sm:py-24 space-y-8 text-slate-600 leading-relaxed text-sm">
 <div><h2 className={H}>Business service and acceptance</h2><p>GarageOS is a business-to-business shop-management service operated by Mitchell Jeussef Castellanos Fuentes, a sole proprietor carrying on business as GABAN Solutions (“GarageOS”, “we”). GABAN Solutions is a business name, not a separate legal entity. By creating or using an account on behalf of a shop, you represent that you are authorized to bind that business to these Terms. The French version of these Terms is available through the language control on this page.</p></div>

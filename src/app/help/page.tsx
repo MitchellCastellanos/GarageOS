@@ -5,11 +5,13 @@ import { PageHero } from "@/components/marketing/PageHero";
 import { GroupedResourceCards } from "@/components/marketing/ResourceArticles";
 import { GUIDES } from "@/lib/marketing-resources";
 import { Bilingual } from "@/components/marketing/Bilingual";
+import { pageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
+  path: "/help",
   title: "Help Center · Centre d'aide",
   description: "Answers to common questions about GarageOS.",
-};
+});
 
 const FAQS = [
   {

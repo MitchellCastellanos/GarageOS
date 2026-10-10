@@ -3,7 +3,8 @@ import Link from "next/link";
 import { MarketingPageShell } from "@/components/marketing/MarketingPageShell";
 import { PageHero } from "@/components/marketing/PageHero";
 import { Bilingual } from "@/components/marketing/Bilingual";
-export const metadata: Metadata = { title: "Changelog · Nouveautés", description: "A summary of the workflows and public resources implemented in GarageOS." };
+import { pageMetadata } from "@/lib/seo/metadata";
+export const metadata: Metadata = pageMetadata({ path: "/changelog", title: "Changelog · Nouveautés", description: "A summary of the workflows and public resources implemented in GarageOS." });
 const ENTRIES = [
   { tag: "Product", title: "The complete shop workflow", items: ["Online booking and front-desk appointments, customers and vehicles with full service history.", "Digital inspections (photos, templates and shareable reports on Pro), estimates with a customer approval trail, and Work Orders with job status and Ready for Pickup.", "Inventory that follows Work Orders and tire storage (Pro), invoices with GST/QST kept per invoice, payments and refunds.", "A customer portal on every plan."], href: "/product", label: "See the Product page" },
   { tag: "Growth & control", title: "Reports, books and reminders", items: ["Overview reports on every plan; advanced reports with CSV export, Accounting Light and QuickBooks Online sync on Pro and Complete.", "Automated maintenance reminders and campaigns, branded email and two-way SMS.", "Roles and permissions, and data import from CSV or Excel."], href: "/features", label: "Explore features" },
