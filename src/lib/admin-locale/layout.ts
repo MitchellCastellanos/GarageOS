@@ -152,7 +152,7 @@ export const LAYOUT_DICT: Record<AdminLocale, LayoutDictionary> = {
       inbox: "Boîte de réception",
       appointments: "Rendez-vous",
       clients: "Clients",
-      quotes: "Soumissions",
+      quotes: "Devis",
       workOrders: "Ordres de travail",
       inspections: "Inspections",
       invoices: "Factures",

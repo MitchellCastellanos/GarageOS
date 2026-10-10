@@ -1380,7 +1380,7 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
     },
     taxes: {
       title: "Taxes",
-      subtitle: "Définissez la ou les taxes appliquées sur vos factures et soumissions — une, plusieurs, ou aucune.",
+      subtitle: "Définissez la ou les taxes appliquées sur vos factures et devis — une, plusieurs, ou aucune.",
       presetLabel: "Préréglage par province (optionnel)",
       presetPlaceholder: "— Sélectionnez votre province —",
       presetHint: "Pour les garages au Canada seulement — préremplit les lignes ci-dessous, que vous pouvez modifier avant d'enregistrer. Confirmez les taux avec votre comptable, ils peuvent changer.",
@@ -1388,7 +1388,7 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       namePlaceholder: "Ex. TPS, TVQ, TVH",
       addLine: "Ajouter une taxe",
       remove: "Supprimer",
-      infoNote: "C'est le taux par défaut pour les nouvelles factures et soumissions — vous pouvez l'ajuster sur chaque document si un client est exonéré. Les changements ne touchent que les documents créés à partir de maintenant : les factures déjà émises gardent les taxes et numéros de taxes avec lesquels elles ont été émises.",
+      infoNote: "C'est le taux par défaut pour les nouvelles factures et les nouveaux devis — vous pouvez l'ajuster sur chaque document si un client est exonéré. Les changements ne touchent que les documents créés à partir de maintenant : les factures déjà émises gardent les taxes et numéros de taxes avec lesquels elles ont été émises.",
       save: "Enregistrer les changements",
       saving: "Enregistrement...",
       saved: "Taxes enregistrées",
@@ -1437,7 +1437,7 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
     },
     staffNotificationPreferences: {
       title: "Alertes internes de l'équipe",
-      subtitle: "Comment vous (pas vos clients) voulez être avisé d'une nouvelle réservation, d'une annulation, d'une soumission décidée et des avis SMS.",
+      subtitle: "Comment vous (pas vos clients) voulez être avisé d'une nouvelle réservation, d'une annulation, d'une décision sur un devis et des avis SMS.",
       columnInApp: "Dans l'application",
       columnEmail: "Par courriel",
       saved: "Préférence enregistrée",
@@ -1738,7 +1738,7 @@ export const SETTINGS_DICT: Record<AdminLocale, SettingsDictionary> = {
       email: {
         title: "Domaine propre pour vos courriels",
         description:
-          "Vérifiez votre domaine pour que les confirmations de rendez-vous, factures et soumissions soient envoyées depuis votre propre adresse (ex. rdv@votredomaine.com) au lieu de celle de GarageOS. Si vous ne le configurez pas, nous continuons à utiliser l'expéditeur partagé de GarageOS avec le nom de votre garage.",
+          "Vérifiez votre domaine pour que les confirmations de rendez-vous, factures et devis soient envoyés depuis votre propre adresse (ex. rdv@votredomaine.com) au lieu de celle de GarageOS. Si vous ne le configurez pas, nous continuons à utiliser l'expéditeur partagé de GarageOS avec le nom de votre garage.",
         upgradeTitle: "Domaine de courriel propre",
         upgradeDescription: "Disponible sur Pro et Complete.",
         domainPlaceholder: "votredomaine.com",

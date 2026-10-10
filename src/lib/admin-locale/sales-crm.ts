@@ -217,8 +217,8 @@ const fr: Dict = {
   taskViews: { open: "Ouvertes", overdue: "En retard", today: "Échéance aujourd’hui", upcoming: "À venir", done: "Terminées" },
   staffRoles: { SALES_REP: "Représentant", SALES_MANAGER: "Gestionnaire des ventes" },
   staffStatus: { INVITED: "Invité", ACTIVE: "Actif", INACTIVE: "Inactif" },
-  needCategories: { BOOKING: "Réservation", INVOICING: "Soumissions et factures", WORK_ORDERS: "Ordres de travail", INSPECTIONS: "Inspections", COMMUNICATIONS: "Communications", RETENTION: "Fidélisation", INVENTORY: "Inventaire", REPORTING: "Rapports", MULTI_LOCATION: "Multi-succursales" },
-  features: { booking: "Réservation en ligne", invoices: "Soumissions et factures", "work-orders": "Ordres de travail", dvi: "Inspections numériques", communications: "Communications clients", reminders: "Rappels et fidélisation", inventory: "Inventaire", reports: "Rapports", "multi-location": "Multi-succursales" },
+  needCategories: { BOOKING: "Réservation", INVOICING: "Devis et factures", WORK_ORDERS: "Ordres de travail", INSPECTIONS: "Inspections", COMMUNICATIONS: "Communications", RETENTION: "Fidélisation", INVENTORY: "Inventaire", REPORTING: "Rapports", MULTI_LOCATION: "Multi-succursales" },
+  features: { booking: "Réservation en ligne", invoices: "Devis et factures", "work-orders": "Ordres de travail", dvi: "Inspections numériques", communications: "Communications clients", reminders: "Rappels et fidélisation", inventory: "Inventaire", reports: "Rapports", "multi-location": "Multi-succursales" },
   demoStatus: { PREPARING: "En préparation", ACTIVE: "Active", ACTIVATION_SENT: "Activation envoyée", AWAITING_PAYMENT: "En attente de paiement", CONVERTED: "Converti", EXPIRED: "Expirée" },
   errors: {
     INVALID: "Certains champs ne sont pas valides. Vérifiez les valeurs.", NOT_FOUND: "Cet enregistrement est introuvable.", DUPLICATE: "Un prospect semblable existe déjà. Ouvrez-le, ou cochez « Créer quand même ».",

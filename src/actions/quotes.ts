@@ -32,37 +32,37 @@ import Decimal from "decimal.js";
 const QUOTE_NOT_EDITABLE: Record<AdminLocale, string> = {
   es: "Cotización no encontrada o no disponible para edición",
   en: "Quote not found or not available for editing",
-  fr: "Soumission introuvable ou non modifiable",
+  fr: "Devis introuvable ou non modifiable",
 };
 
 const QUOTE_NOT_FOUND: Record<AdminLocale, string> = {
   es: "Cotización no encontrada",
   en: "Quote not found",
-  fr: "Soumission introuvable",
+  fr: "Devis introuvable",
 };
 
 const QUOTE_NO_CLIENT_PHONE: Record<AdminLocale, string> = {
   es: "El cliente no tiene teléfono. Agrégalo en su ficha antes de enviar la cotización.",
   en: "The client has no phone number. Add one on their profile before sending the quote.",
-  fr: "Le client n'a pas de numéro de téléphone. Ajoutez-en un dans sa fiche avant d'envoyer la soumission.",
+  fr: "Le client n'a pas de numéro de téléphone. Ajoutez-en un dans sa fiche avant d'envoyer le devis.",
 };
 
 const QUOTE_CANNOT_SEND: Record<AdminLocale, string> = {
   es: "No se puede enviar esta cotización",
   en: "This quote cannot be sent",
-  fr: "Impossible d'envoyer cette soumission",
+  fr: "Impossible d'envoyer ce devis",
 };
 
 const QUOTE_NOT_EMAILABLE: Record<AdminLocale, string> = {
   es: "Esta cotización no se puede enviar por email",
   en: "This quote cannot be sent by email",
-  fr: "Cette soumission ne peut pas être envoyée par courriel",
+  fr: "Ce devis ne peut pas être envoyé par courriel",
 };
 
 const CLIENT_MISSING_EMAIL: Record<AdminLocale, string> = {
   es: "El cliente no tiene email. Agrégalo en su ficha antes de enviar la cotización.",
   en: "The client has no email on file. Add one to their profile before sending the quote.",
-  fr: "Le client n'a pas de courriel. Ajoutez-en un à sa fiche avant d'envoyer la soumission.",
+  fr: "Le client n'a pas de courriel. Ajoutez-en un à sa fiche avant d'envoyer le devis.",
 };
 
 const UNKNOWN_ERROR: Record<AdminLocale, string> = {
@@ -74,31 +74,31 @@ const UNKNOWN_ERROR: Record<AdminLocale, string> = {
 const QUOTE_CANNOT_ACCEPT: Record<AdminLocale, string> = {
   es: "No se puede marcar como aceptada",
   en: "Cannot mark as accepted",
-  fr: "Impossible de marquer comme acceptée",
+  fr: "Impossible de marquer comme accepté",
 };
 
 const QUOTE_CANNOT_REJECT: Record<AdminLocale, string> = {
   es: "No se puede marcar como rechazada",
   en: "Cannot mark as rejected",
-  fr: "Impossible de marquer comme refusée",
+  fr: "Impossible de marquer comme refusé",
 };
 
 const QUOTE_ALREADY_CONVERTED: Record<AdminLocale, string> = {
   es: "Esta cotización ya fue convertida a factura",
   en: "This quote has already been converted to an invoice",
-  fr: "Cette soumission a déjà été convertie en facture",
+  fr: "Ce devis a déjà été converti en facture",
 };
 
 const QUOTE_CANNOT_CONVERT: Record<AdminLocale, string> = {
   es: "No se puede convertir esta cotización",
   en: "This quote cannot be converted",
-  fr: "Impossible de convertir cette soumission",
+  fr: "Impossible de convertir ce devis",
 };
 
 const QUOTE_CANNOT_CANCEL: Record<AdminLocale, string> = {
   es: "No se puede anular esta cotización",
   en: "This quote cannot be voided",
-  fr: "Impossible d'annuler cette soumission",
+  fr: "Impossible d'annuler ce devis",
 };
 
 // ── READ ────────────────────────────────────────────────────
