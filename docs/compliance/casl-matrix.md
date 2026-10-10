@@ -18,3 +18,12 @@ For marketing, retain sufficient evidence of consent/basis: address/number, sour
 
 ## Product checks before GO
 Verify campaign UI cannot send to suppressed recipients; unsubscribe links work end-to-end; SMS STOP is reflected in sending eligibility; sender identification is present; and consent/basis records are adequate for the intended use cases.
+
+
+## GarageOS Lead Engine and field visits — decision update (2026-10-10)
+
+- The Lead Engine imports and validates business records independently of consent. **A public business email or CSV import is not itself permission to send a commercial electronic message.** Preserve source, capture date, applicable evidence and suppression status.
+- A recorded FIELD visit is **not** automatically a CASL basis. Failed contact, unavailable decision maker, closed/invalid business, rejection and DNC must never unlock automated outreach merely because a `FIELD_VISIT` activity exists. A qualifying conversation may satisfy a separate territory engagement gate, but commercial sending still requires valid CASL basis and all other send-policy checks.
+- Proposed published-address/other evidence requires structured support and review by an authorized Sales Manager **within their team** or Super Admin **globally**. Reps may not approve their own evidence. Previously self-attested bases must not be silently grandfathered as verified.
+- Before real outreach, validate the precise applicable CASL grounds and unsubscribe/identification requirements with qualified counsel; do not treat product policy as legal advice.
+- See [GarageOS Lead Engine and Field Planner roadmap](../garageos-lead-engine-field-planner-roadmap.md) for implementation gates. **These rules are approved requirements, not a claim that code has already implemented them.**
