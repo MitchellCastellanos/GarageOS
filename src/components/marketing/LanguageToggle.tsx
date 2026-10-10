@@ -5,6 +5,7 @@ import { Globe } from "lucide-react";
 import { storeLocalePreference, useMarketingLocale } from "@/components/marketing/MarketingLocaleProvider";
 import type { MarketingLocale } from "@/lib/marketing-locale";
 import { switchTarget } from "@/lib/seo/routes";
+import { carriedSearch } from "@/lib/seo/switch-params";
 
 const OPTIONS: ReadonlyArray<{ value: MarketingLocale; short: string; name: string }> = [
   { value: "en", short: "EN", name: "English" },
@@ -46,7 +47,12 @@ export function LanguageToggle({ variant = "light" }: { variant?: "light" | "dar
               lang={option.value}
               title={option.name}
               aria-label={option.name}
-              onClick={() => storeLocalePreference(option.value)}
+              onClick={(event) => {
+                storeLocalePreference(option.value);
+                // El href renderizado queda limpio (rastreable); al navegar se conservan solo los utm_* saneados.
+                const carried = carriedSearch(window.location.search);
+                if (carried) event.currentTarget.href = `${target.href}${carried}`;
+              }}
               className={`${base} ${inactive}`}
             >
               {option.short}

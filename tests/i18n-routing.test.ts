@@ -239,3 +239,11 @@ test("the language switcher is a real link on public pages, with accessible name
   assert.match(toggle, /aria-label="Language · Langue"/);
   assert.ok(!/NEXT_PUBLIC|navigator\./.test(toggle));
 });
+
+import { carriedSearch } from "../src/lib/seo/switch-params";
+
+test("language switch carries only sanitized utm_* params", () => {
+  assert.equal(carriedSearch("?utm_source=news&utm_medium=email&x=1&token=abc"), "?utm_source=news&utm_medium=email");
+  assert.equal(carriedSearch("?utm_campaign=" + "a".repeat(40)), "");
+  assert.equal(carriedSearch(""), "");
+});
