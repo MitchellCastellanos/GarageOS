@@ -16,7 +16,7 @@ Implements roadmap §P1/§P2/§D of [the Lead Engine roadmap](garageos-lead-engi
 | Auto-assignment (pure + server) | `domain/sales-crm/assignment.ts`, `lib/sales-crm/assignment.ts`, `actions/sales-assignment.ts`, `/platform/sales/prospects/assignment` |
 | Commercial queues | `src/lib/sales-crm/queues.ts` (drives `listProspects` and counts) |
 | CASL structured evidence + approval | `domain/sales-crm/casl-evidence.ts`, `domain/sales-comms/casl.ts`, `actions/sales-casl.ts`, `/platform/sales/prospects/evidence` |
-| Migration | `prisma/migrations/20261012090000_lead_engine_foundation` (additive) |
+| Migration | `prisma/migrations/20261012100000_lead_engine_foundation` (additive) |
 
 ### Import pipeline
 `inspectProspectImport` (headers + EN/FR suggested mapping, writes nothing) → `previewProspectImport` (mapping, source key/URL, **required** lawful-source note, observed date; plans every row, returns per-row outcome, territory + assignment preview, stores a 24 h batch) → `confirmProspectImport` (compare-and-set claim, re-plans against live data inside one transaction, writes prospects/opportunities/contacts/observations/reviews, clears stored rows).
@@ -44,6 +44,9 @@ Strong: same name + same civic address (or same compact postal). Name + city + a
 
 * **Migration policy.** Every existing row is stamped `LEGACY_UNREVIEWED` — never "verified". The change can only *reduce* what can be sent: legacy address-based bases stop authorising sends until a manager/Super Admin reviews fresh structured evidence. Express consent / existing relationship / exempt rows behave exactly as before (flagged "legacy" and listed in the *Eligibility review* queue).
 * **Authority.** `approve_casl_evidence`: Sales Manager → only prospects **owned inside their team** (unassigned pool = Super Admin only); Super Admin → global; reps never. No one but a Super Admin approves evidence they recorded (audited as `selfApproved`). Compare-and-set, audited (`SENDING_BASIS_RECORDED/APPROVED/REJECTED`, entity `CrmSendingBasis`).
+* **Concurrency.** Approve and reject run in one transaction that first takes a row lock on the prospect, re-reads the basis and the prospect's *current* owner, re-evaluates team authority, and writes with a compare-and-set that also matches that owner. A reassignment racing a decision either commits first (decision is refused as out-of-team) or waits for the decision to commit. Tested with a held reassignment transaction and a mutation check.
+* **Reject ≠ approve.** `reviewAuthority` (capability, pending, team, self-review) is shared; `canApproveEvidence` adds the completeness check; `canRejectEvidence` does not look at evidence content, so incomplete evidence can always be rejected by an entitled reviewer.
+* Impact of the legacy stamp on every basis kind through composer, enrollment, worker and dispatcher: see [lead-engine-legacy-basis-impact.md](lead-engine-legacy-basis-impact.md).
 * A FIELD visit or an imported email never creates a basis. (Separate P0: FIELD_VISIT engagement semantics are **not** changed here — see "Not in scope".)
 
 ## 2. Schema summary (all additive)
@@ -59,10 +62,10 @@ Rollback: all new columns are nullable/defaulted; dropping the new tables/column
 4. **Territory.** `territoryState` (`LOCAL`/`NATIONAL`/`UNRESOLVED`, null = not computed) and `territoryKey`, refreshed by every prospect create/update and import, and in bulk by `recomputeProspectDerived` (Super Admin, assignment screen) after rule changes. `classifyTerritory` / `requiredMode` / `evaluateAcquisition` are the rule functions.
 5. **Authorization.** Always scope by `assignedScopeWhere(actor)`/`requireScopedProspect`. Capabilities: `plan_field_routes`, `log_field_visits` (FIELD mode only). FIELD sellers may sell remotely; REMOTE sellers have no field capabilities. Eligible stop prospects: `status ACTIVE`, `doNotContact false`, `assignedStaffId` = the route owner, `isRoutableAddress`. The *FIELD visit candidates* queue (`queueWhere("field", …)`) is a ready-made starting list.
 6. **CASL separation.** A visit is not consent; do not create `CrmSendingBasis` rows from visits.
-7. **Migration ordering.** Agent 2's migration must sort after `20261012090000_lead_engine_foundation`.
+7. **Migration ordering.** Agent 2's `20261012090000_field_route_planner` is already on `main`; this migration (`20261012100000_…`) sorts after it and is independent of its tables (verified by replaying both on an empty database).
 
 ## 4. Not in scope / known limitations
-* **P0 visit-engagement semantics** (`FIELD_VISIT` currently counts as engagement in `loadEngagement` / `evaluateColdEmail`) is Agent 2/P0 and is untouched; assignment treats any touch as "touched" (conservative).
+* **P0 visit-engagement semantics** are now on `main` (`qualifiedVisit`). Assignment uses the same `Engagement` shape (`loadEngagements` mirrors `loadEngagement`): any touch still keeps an untouched-only release from happening (conservative); qualified visits are computed with `hasQualifiedVisit`.
 * No XLSX, no direct Airtable/GABAN connector, no historical merge engine, no geocoding.
 * "Ready for outreach" is a pre-check; any revoked basis anywhere in a contact's history disqualifies it there (conservative), and email suppressions are only enforced at send time.
 * Managers are not auto-assigned; availability is a pause switch and a cap (no calendar-based availability).

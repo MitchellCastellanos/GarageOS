@@ -1,6 +1,7 @@
 import "server-only";
 import type { Mode, TerritoryRule, Engagement, Location } from "@/domain/sales-crm/territory";
-import { evaluateAcquisition, resolveTerritory } from "@/domain/sales-crm/territory";
+import { evaluateAcquisition, NO_ENGAGEMENT, resolveTerritory } from "@/domain/sales-crm/territory";
+import { hasQualifiedVisit } from "@/domain/sales-crm/field-visit";
 import { db } from "@/lib/db";
 import { loadTerritoryRulesWith } from "@/lib/sales-crm/territory-rules";
 import { CrmError } from "@/lib/sales-crm/prospects";
@@ -17,12 +18,13 @@ export async function territoryOfLocation(loc: Location): Promise<TerritoryRule 
 
 /** Documented engagement facts of one prospect — what unlocks follow-up and keeps ownership with its current owner. */
 export async function loadEngagement(prospectId: string): Promise<Engagement> {
-  const [acts, opp] = await Promise.all([
+  const [acts, visits, opp] = await Promise.all([
     db.crmActivity.groupBy({ by: ["type"], where: { prospectId, type: { in: [...TOUCH_TYPES] } }, _count: true }),
+    db.crmActivity.findMany({ where: { prospectId, type: "FIELD_VISIT", fieldVisitOutcome: { not: null } }, select: { fieldVisitOutcome: true, occurredAt: true, createdAt: true } }),
     db.crmOpportunity.findFirst({ where: { prospectId, stage: { in: ["CONTACTED", "ENGAGED", "QUALIFIED", "DEMO_SCHEDULED", "DEMO_COMPLETED", "DECISION"] } }, select: { id: true } }),
   ]);
   const has = (t: string) => acts.some((a) => a.type === t);
-  return { touched: acts.length > 0, visited: has("FIELD_VISIT"), replied: has("EMAIL_RECEIVED"), activeOpportunity: !!opp };
+  return { touched: acts.length > 0, visited: has("FIELD_VISIT"), qualifiedVisit: hasQualifiedVisit(visits.map((v) => ({ outcome: v.fieldVisitOutcome!, at: v.occurredAt, createdAt: v.createdAt }))), replied: has("EMAIL_RECEIVED"), activeOpportunity: !!opp };
 }
 
 export interface AssigneeFacts { mode: Mode | null; coverageKeys: readonly string[] }
@@ -38,7 +40,7 @@ export async function staffAcquirerFacts(staffId: string): Promise<AssigneeFacts
  */
 export async function assertAcquisition(staffId: string, location: Location, prospect?: { id: string; assignedStaffId: string | null }, now = new Date()) {
   const [rule, facts] = await Promise.all([territoryOfLocation(location), staffAcquirerFacts(staffId)]);
-  const eng = prospect ? await loadEngagement(prospect.id) : { touched: false, visited: false, replied: false, activeOpportunity: false };
+  const eng = prospect ? await loadEngagement(prospect.id) : NO_ENGAGEMENT;
   const retains = !!prospect?.assignedStaffId && (eng.activeOpportunity || eng.touched);
   const d = evaluateAcquisition({ ...facts, isSuperAdmin: false }, rule, eng, now, retains);
   if (!d.allowed) throw new CrmError(d.code);
@@ -47,5 +49,5 @@ export async function assertAcquisition(staffId: string, location: Location, pro
 /** Same check without throwing (import rows, UI hints). */
 export async function canAcquire(staffId: string, location: Location, rules?: TerritoryRule[], now = new Date()): Promise<boolean> {
   const [rule, facts] = await Promise.all([rules ? resolveTerritory(rules, location) : territoryOfLocation(location), staffAcquirerFacts(staffId)]);
-  return evaluateAcquisition({ ...facts, isSuperAdmin: false }, rule, { touched: false, visited: false, replied: false, activeOpportunity: false }, now).allowed;
+  return evaluateAcquisition({ ...facts, isSuperAdmin: false }, rule, NO_ENGAGEMENT, now).allowed;
 }

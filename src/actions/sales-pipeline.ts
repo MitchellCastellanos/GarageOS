@@ -8,7 +8,8 @@ import { PIPELINE_STAGES, validateStageChange, type PipelineStage } from "@/doma
 import { opportunityUpdateSchema, scoreOverrideSchema, stageChangeSchema } from "@/domain/sales-crm/validation";
 import { requireCrmActor } from "@/lib/sales-crm/access";
 import { writeCrmAudit } from "@/lib/sales-crm/audit";
-import { CrmError, applyDoNotContact, recomputeOpportunityScores, requireScopedProspect, resolveAssignee, touchProspect } from "@/lib/sales-crm/prospects";
+import { CrmError, recomputeOpportunityScores, requireScopedProspect, resolveAssignee } from "@/lib/sales-crm/prospects";
+import { moveOpportunityStage } from "@/lib/sales-crm/pipeline-service";
 import { crmAction, mapUniqueViolation } from "@/lib/sales-crm/result";
 import { assertAcquisition } from "@/lib/sales-crm/territory";
 
@@ -43,27 +44,7 @@ export async function changeOpportunityStage(opportunityId: string, to: string, 
     const check = validateStageChange({ from: opp.stage as PipelineStage, to: target, lossReason, note, contactCount, assessedNeedCount });
     if (!check.ok) throw new CrmError(check.error);
 
-    const now = new Date();
-    await db.$transaction(async (tx) => {
-      const terminal = target === "LOST" || target === "UNQUALIFIED" || target === "DO_NOT_CONTACT";
-      // Compare-and-set on the current stage: two people moving the same card cannot both win.
-      const moved = await tx.crmOpportunity.updateMany({
-        where: { id: opportunityId, stage: opp.stage },
-        data: { stage: target, stageChangedAt: now, ...(terminal ? { closedAt: now, closeNote: note, lossReason: target === "LOST" ? (lossReason as never) : null } : {}) },
-      });
-      if (moved.count !== 1) throw new CrmError("STALE_STAGE");
-      await tx.crmStageEvent.create({ data: { opportunityId, fromStage: opp.stage, toStage: target, actorUserId: actor.userId, note } });
-      await tx.crmActivity.create({
-        data: { prospectId: opp.prospectId, opportunityId, type: "STAGE_CHANGE", authorUserId: actor.userId, body: note, metadata: { from: opp.stage, to: target, lossReason } },
-      });
-      if (target === "DO_NOT_CONTACT") await applyDoNotContact(tx, actor, opp.prospectId, note);
-      await writeCrmAudit({
-        actorUserId: actor.userId, action: "STAGE_CHANGED", entityType: "CrmOpportunity", entityId: opportunityId, prospectId: opp.prospectId,
-        before: { stage: opp.stage }, after: { stage: target, lossReason },
-      }, tx);
-      await touchProspect(tx, opp.prospectId, now);
-      await recomputeOpportunityScores(tx, opp.prospectId);
-    });
+    await db.$transaction((tx) => moveOpportunityStage(tx, { actor, opportunityId, prospectId: opp.prospectId, from: opp.stage, to: target, note, lossReason }));
     refresh(opp.prospectId);
     return {};
   });

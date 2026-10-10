@@ -361,6 +361,65 @@ if (!enabled) {
     assert.equal(await db.crmEmailMessage.count({ where: { prospectId: created.prospectId } }), 0);
   });
 
+  async function pendingBasis(owner: string, over: Record<string, unknown> = {}) {
+    const p = await db.crmProspect.create({ data: { name: `Race ${Math.random().toString(36).slice(2, 8)} ${run}`, nameNormalized: `race ${run}`, assignedStaffId: owner, createdByUserId: ids.root } });
+    const c = await db.crmContact.create({ data: { prospectId: p.id, name: "R", email: `r${Math.random().toString(36).slice(2, 8)}-${run}@x.test`, emailNormalized: `r-${Math.random()}-${run}@x.test` } });
+    const b = await db.crmSendingBasis.create({ data: { contactId: c.id, kind: "IMPLIED_PUBLISHED_ADDRESS", evidence: "Address published on the shop contact page", recordedByUserId: users.FieldA, reviewStatus: "PENDING_REVIEW", evidenceType: "WEBSITE_PUBLICATION", sourceUrl: "https://x.test/c", capturedAt: new Date(), supportingFacts: "Printed on the contact page, no refusal wording.", roleRelevance: "Owner decides on shop software", publishedConditionsConfirmed: true, ...over } });
+    return { p, c, b };
+  }
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+  test("CASL concurrency: team authority is re-checked against the CURRENT owner when the decision commits — a reassignment racing an approval/rejection wins; the stale decision cannot go through", async () => {
+    for (const action of ["approve", "reject"] as const) {
+      const { p, b } = await pendingBasis(staff.FieldA);
+      as(users.MgrA);
+      const decide = () => (action === "approve" ? caslActions.approveSendingBasis(b.id) : caslActions.rejectSendingBasis(b.id, "Not conspicuous publication"));
+      // Reassign to the OTHER team inside a transaction that is still open when the decision starts: the decision must wait on the prospect row lock
+      // and then see the new owner.
+      let racing: Promise<any> | null = null;
+      await db.$transaction(async (tx) => {
+        await tx.crmProspect.update({ where: { id: p.id }, data: { assignedStaffId: staff.RemoteB } });
+        racing = decide();
+        await sleep(600); // the decision is now blocked behind our row lock
+      });
+      assert.deepEqual(await racing, { ok: false, error: "NOT_FOUND" }, `${action}: stale team authorisation must fail`);
+      assert.equal((await db.crmSendingBasis.findUniqueOrThrow({ where: { id: b.id } })).reviewStatus, "PENDING_REVIEW", `${action}: nothing was decided`);
+      // the NEW owner's manager can decide; the old one cannot any more
+      as(users.MgrB);
+      assert.equal(((await (action === "approve" ? caslActions.approveSendingBasis(b.id) : caslActions.rejectSendingBasis(b.id, "Not conspicuous publication"))) as any).ok, true, `${action}: new team manager decides`);
+    }
+    // Opposite order: a decision that commits first is valid and a later reassignment does not undo or fail it.
+    const { p, b } = await pendingBasis(staff.FieldA);
+    as(users.MgrA);
+    assert.equal(((await caslActions.approveSendingBasis(b.id)) as any).ok, true);
+    await db.crmProspect.update({ where: { id: p.id }, data: { assignedStaffId: staff.RemoteB } });
+    assert.equal((await db.crmSendingBasis.findUniqueOrThrow({ where: { id: b.id } })).reviewStatus, "APPROVED");
+    // Concurrent double decision: exactly one wins
+    const two = await pendingBasis(staff.FieldA);
+    as(users.MgrA);
+    const res: any[] = await Promise.all([caslActions.approveSendingBasis(two.b.id), caslActions.rejectSendingBasis(two.b.id, "Changed my mind about it")]);
+    assert.equal(res.filter((r) => r.ok).length, 1, "one decision only");
+    assert.equal(await db.crmAuditEvent.count({ where: { entityType: "CrmSendingBasis", entityId: two.b.id, action: { in: ["SENDING_BASIS_APPROVED", "SENDING_BASIS_REJECTED"] } } }), 1);
+  });
+
+  test("CASL rejection is authorised separately from evidence completeness: incomplete evidence can be rejected (never approved) by the right reviewer; the wrong reviewer cannot do either", async () => {
+    const { b } = await pendingBasis(staff.FieldA, { evidenceType: null, capturedAt: null, supportingFacts: null, roleRelevance: null, sourceUrl: null, publishedConditionsConfirmed: false });
+    as(users.MgrA);
+    assert.deepEqual(await caslActions.approveSendingBasis(b.id), { ok: false, error: "CASL_EVIDENCE_INCOMPLETE" });
+    as(users.MgrB);
+    assert.deepEqual(await caslActions.rejectSendingBasis(b.id, "Not our team at all"), { ok: false, error: "NOT_FOUND" }, "out-of-team reviewers cannot reject either");
+    as(users.FieldA);
+    await assert.rejects(caslActions.rejectSendingBasis(b.id, "A rep cannot reject"), /SALES_FORBIDDEN/);
+    as(users.MgrA);
+    assert.deepEqual(await caslActions.rejectSendingBasis(b.id, "x"), { ok: false, error: "NOTE_REQUIRED" });
+    assert.equal(((await caslActions.rejectSendingBasis(b.id, "Evidence is empty, cannot be relied on")) as any).ok, true);
+    const row = await db.crmSendingBasis.findUniqueOrThrow({ where: { id: b.id } });
+    assert.equal(row.reviewStatus, "REJECTED"); assert.equal(row.reviewedByUserId, users.MgrA);
+    // self-review rule applies to rejection too
+    const mine = await pendingBasis(staff.FieldA, { recordedByUserId: users.MgrA });
+    assert.deepEqual(await caslActions.rejectSendingBasis(mine.b.id, "Rejecting my own evidence"), { ok: false, error: "CASL_SELF_APPROVAL" });
+  });
+
   test("tenant isolation: a user without an active platform sales profile (e.g. a shop owner) cannot use any Lead Engine action", async () => {
     const owner = await db.user.create({ data: { name: "Shop Owner", email: `owner-${run}@shop.test`, role: "OWNER" } });
     as(owner.id);

@@ -13,7 +13,7 @@ import { leadCopy } from "@/lib/admin-locale/sales-lead-engine";
 export interface EvidenceRow {
   id: string; kind: string; evidence: string; evidenceType: string | null; sourceUrl: string | null; capturedAt: string | null; supportingFacts: string | null; roleRelevance: string | null;
   publishedConditionsConfirmed: boolean; recordedAt: string; recordedBy: string; contact: { name: string; email: string | null }; prospect: { id: string; name: string };
-  canApprove: boolean; blocked: string | null; history: { action: string; at: string }[];
+  canApprove: boolean; canReject: boolean; blocked: string | null; history: { action: string; at: string }[];
 }
 
 export function EvidenceReviewList({ locale, rows }: { locale: "en" | "fr"; rows: EvidenceRow[] }) {
@@ -45,12 +45,12 @@ export function EvidenceReviewList({ locale, rows }: { locale: "en" | "fr"; rows
               {gaps.length > 0 && <p role="note" className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">{gaps.map((g) => E.gaps[g]).join(" · ")}</p>}
               {r.history.length > 0 && <details><summary className="min-h-11 cursor-pointer py-2 text-sm text-slate-700">{E.history}</summary><ul className="space-y-1 text-xs text-slate-600">{r.history.map((h, i) => <li key={i}>{formatDate(h.at, locale, true)} — {h.action}</li>)}</ul></details>}
               {r.blocked && r.blocked !== "NOT_PENDING" && <p role="note" className="text-sm text-slate-600">{L.errors[`CASL_${r.blocked}`] ?? ""}</p>}
-              {r.canApprove && (
+              {(r.canApprove || r.canReject) && (
                 <div className="space-y-2">
                   <label className={labelCls}><span className="sr-only">{E.notePlaceholder}</span><input className={inputCls} maxLength={500} placeholder={`${E.notePlaceholder} / ${E.reasonPlaceholder}`} value={text[r.id] ?? ""} onChange={(e) => setText({ ...text, [r.id]: e.target.value })} /></label>
                   <div className="flex flex-wrap gap-2">
-                    <button className={btnPrimary} disabled={pending || gaps.length > 0} onClick={() => run(() => approveSendingBasis(r.id, text[r.id]))}>{E.approve}</button>
-                    <button className={btnDanger} disabled={pending || (text[r.id] ?? "").trim().length < 5} onClick={() => run(() => rejectSendingBasis(r.id, text[r.id] ?? ""))}>{E.reject}</button>
+                    <button className={btnPrimary} disabled={pending || !r.canApprove || gaps.length > 0} onClick={() => run(() => approveSendingBasis(r.id, text[r.id]))}>{E.approve}</button>
+                    <button className={btnDanger} disabled={pending || !r.canReject || (text[r.id] ?? "").trim().length < 5} onClick={() => run(() => rejectSendingBasis(r.id, text[r.id] ?? ""))}>{E.reject}</button>
                   </div>
                 </div>
               )}

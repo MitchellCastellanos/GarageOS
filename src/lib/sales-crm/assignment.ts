@@ -3,7 +3,8 @@ import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { canAssignToStaff, type PlatformSalesActor } from "@/domain/sales-crm/access";
 import { planAssignments, type AssignableProspect, type AssignableSeller, type AssignmentProposal } from "@/domain/sales-crm/assignment";
-import { evaluateAcquisition, resolveTerritory, type Engagement, type TerritoryRule } from "@/domain/sales-crm/territory";
+import { hasQualifiedVisit } from "@/domain/sales-crm/field-visit";
+import { evaluateAcquisition, NO_ENGAGEMENT, resolveTerritory, type Engagement, type TerritoryRule } from "@/domain/sales-crm/territory";
 import { assignedScopeWhere } from "@/domain/sales-crm/access";
 import { loadTerritoryRulesWith } from "@/lib/sales-crm/territory-rules";
 
@@ -14,12 +15,16 @@ const ACTIVE_STAGES = ["CONTACTED", "ENGAGED", "QUALIFIED", "DEMO_SCHEDULED", "D
 
 /** Engagement facts for many prospects at once (same semantics as `loadEngagement`). */
 export async function loadEngagements(ids: string[], client: Prisma.TransactionClient | typeof db = db): Promise<Map<string, Engagement>> {
-  const [acts, opps] = await Promise.all([
+  const [acts, visits, opps] = await Promise.all([
     client.crmActivity.groupBy({ by: ["prospectId", "type"], where: { prospectId: { in: ids }, type: { in: [...TOUCH_TYPES] } }, _count: true }),
+    client.crmActivity.findMany({ where: { prospectId: { in: ids }, type: "FIELD_VISIT", fieldVisitOutcome: { not: null } }, select: { prospectId: true, fieldVisitOutcome: true, occurredAt: true, createdAt: true } }),
     client.crmOpportunity.findMany({ where: { prospectId: { in: ids }, stage: { in: [...ACTIVE_STAGES] } }, select: { prospectId: true } }),
   ]);
-  const out = new Map<string, Engagement>(ids.map((id) => [id, { touched: false, visited: false, replied: false, activeOpportunity: false }]));
+  const out = new Map<string, Engagement>(ids.map((id) => [id, { ...NO_ENGAGEMENT }]));
   for (const a of acts) { const e = out.get(a.prospectId)!; e.touched = true; if (a.type === "FIELD_VISIT") e.visited = true; if (a.type === "EMAIL_RECEIVED") e.replied = true; }
+  const byProspect = new Map<string, { outcome: NonNullable<(typeof visits)[number]["fieldVisitOutcome"]>; at: Date; createdAt: Date }[]>();
+  for (const v of visits) byProspect.set(v.prospectId, [...(byProspect.get(v.prospectId) ?? []), { outcome: v.fieldVisitOutcome!, at: v.occurredAt, createdAt: v.createdAt }]);
+  for (const [id, list] of byProspect) out.get(id)!.qualifiedVisit = hasQualifiedVisit(list);
   for (const o of opps) out.get(o.prospectId)!.activeOpportunity = true;
   return out;
 }

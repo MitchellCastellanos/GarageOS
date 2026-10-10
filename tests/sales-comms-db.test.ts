@@ -1078,5 +1078,65 @@ if (!enabled) {
     assert.equal(sends[sends.length - 1].body.text.includes("LEGACY SIG"), false);
   });
 
+  // ── LEGACY_UNREVIEWED impact (Lead Engine migration): every basis kind through composer, enrollment, worker and dispatcher ──
+  const KINDS = ["EXPRESS_CONSENT", "IMPLIED_EXISTING_RELATIONSHIP", "IMPLIED_PUBLISHED_ADDRESS", "IMPLIED_DISCLOSED_ADDRESS", "EXEMPT"] as const;
+  const needsApproval = (k: string) => k === "IMPLIED_PUBLISHED_ADDRESS" || k === "IMPLIED_DISCLOSED_ADDRESS";
+
+  test("LEGACY_UNREVIEWED impact: composer + enrollment — address-based legacy bases are blocked, other kinds behave exactly as before; APPROVED restores address-based sends; nothing is created or sent by the stamp itself", async () => {
+    const seq = await seqSetup();
+    for (const kind of KINDS) {
+      const { p, c, email } = await makeProspect(`Leg${kind.slice(0, 6)}${kind.length}`, staff.Alice, { basis: false });
+      const b = await db.crmSendingBasis.create({ data: { contactId: c.id, kind, evidence: "Pre-migration self-attested basis on file", recordedByUserId: ids.root, reviewStatus: "LEGACY_UNREVIEWED" } });
+      const before = sends.length;
+      // composer
+      const r = await send("Alice", { prospectId: p.id, contactId: c.id, to: email });
+      if (needsApproval(kind)) { assert.deepEqual([r.ok, r.error], [false, "NO_VALID_BASIS"], `composer ${kind}`); assert.equal(sends.length, before); }
+      else { assert.equal(r.ok, true, `composer ${kind}: ${JSON.stringify(r)}`); }
+      // enrollment (explicit human action; nothing is ever auto-enrolled)
+      as(ids.Alice);
+      const e: any = await seqActions.enrollProspect(fd({ sequenceId: seq, prospectId: p.id, contactId: c.id }));
+      if (needsApproval(kind)) { assert.equal(e.ok, false, `enroll ${kind}`); assert.equal(await db.crmSequenceEnrollment.count({ where: { contactId: c.id } }), 0); }
+      else assert.equal(e.ok, true, `enroll ${kind}: ${JSON.stringify(e)}`);
+      // approving the address-based legacy evidence (via a fresh reviewed row, like the review flow) restores sending
+      if (needsApproval(kind)) {
+        await db.crmSendingBasis.update({ where: { id: b.id }, data: { reviewStatus: "APPROVED" } });
+        const ok = await send("Alice", { prospectId: p.id, contactId: c.id, to: email });
+        assert.equal(ok.ok, true, `after approval ${kind}: ${JSON.stringify(ok)}`);
+      }
+    }
+  });
+
+  test("LEGACY_UNREVIEWED impact: an IN-FLIGHT enrollment and an already-queued commercial message that relied on an address-based basis are stopped/blocked at the next worker/dispatch run; other kinds keep running", async () => {
+    const seq = await seqSetup();
+    const results: Record<string, { enrollment: string; stopReason: string | null; messageSent: boolean }> = {};
+    for (const kind of KINDS) {
+      const { p, c } = await makeProspect(`Fly${kind.slice(0, 6)}${kind.length}`, staff.Alice, { basis: false });
+      await db.crmSendingBasis.create({ data: { contactId: c.id, kind, evidence: "Reviewed basis before the migration", recordedByUserId: ids.root, reviewStatus: "APPROVED" } });
+      as(ids.Alice);
+      const e: any = await seqActions.enrollProspect(fd({ sequenceId: seq, prospectId: p.id, contactId: c.id }));
+      assert.equal(e.ok, true, `${kind}: ${JSON.stringify(e)}`);
+      await seqLib.processDueEnrollments({ now: new Date(Date.now() + 7 * 86_400_000) }); // step 0 queued (date-independent: a week ahead is always inside a business window)
+      const msg = await db.crmEmailMessage.findFirstOrThrow({ where: { sequenceEnrollmentId: e.enrollmentId, sequenceStepIndex: 0 } });
+      // === the migration's UPDATE ===
+      await db.crmSendingBasis.updateMany({ where: { contactId: c.id }, data: { reviewStatus: "LEGACY_UNREVIEWED" } });
+      const n = sends.length;
+      const later = new Date(Date.now() + 8 * 86_400_000);
+      await dispatcher.dispatchDue({ now: later });
+      await seqLib.processDueEnrollments({ now: later });
+      await dispatcher.dispatchDue({ now: later });
+      const en = await db.crmSequenceEnrollment.findUniqueOrThrow({ where: { id: e.enrollmentId } });
+      const m = await db.crmEmailMessage.findUniqueOrThrow({ where: { id: msg.id } });
+      results[kind] = { enrollment: en.status, stopReason: en.stopReason, messageSent: m.status === "SENT" || m.status === "DELIVERED" };
+      if (needsApproval(kind)) {
+        assert.equal(en.status, "STOPPED", kind); assert.equal(en.stopReason, "NO_VALID_BASIS", kind);
+        assert.equal(m.status === "SENT" || m.status === "DELIVERED", false, `${kind}: the queued step-0 email must not leave`);
+        assert.equal(sends.length, n, `${kind}: nothing sent after the stamp`);
+      } else {
+        assert.notEqual(en.stopReason, "NO_VALID_BASIS", kind); // unchanged behaviour for self-attested kinds that need no second review
+      }
+    }
+    console.log("[legacy-impact]", JSON.stringify(results));
+  });
+
   test("teardown: restore global fetch", () => { globalThis.fetch = realFetch; });
 }

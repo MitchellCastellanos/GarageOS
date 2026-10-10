@@ -49,14 +49,19 @@ export function resolveTerritory(rules: TerritoryRule[], loc: Location): Territo
 export interface Engagement {
   /** Any documented outbound/inbound touch: call, meeting, visit, email sent/received, sequence step. */
   touched: boolean;
-  /** A documented in-person visit. */
+  /** A documented in-person visit ATTEMPT of any outcome. Informational only: it never unlocks email. */
   visited: boolean;
+  /**
+   * A visit whose structured outcome is a genuine conversation (see field-visit.ts) and that has not since been
+   * negated by a refusal/closure/DNC. This — not `visited` — satisfies the territory follow-up gate. It is never consent.
+   */
+  qualifiedVisit: boolean;
   /** The prospect replied (or wrote) to us. */
   replied: boolean;
   /** An open opportunity beyond NEW exists. */
   activeOpportunity: boolean;
 }
-export const NO_ENGAGEMENT: Engagement = { touched: false, visited: false, replied: false, activeOpportunity: false };
+export const NO_ENGAGEMENT: Engagement = { touched: false, visited: false, qualifiedVisit: false, replied: false, activeOpportunity: false };
 
 /** Which mode holds INITIAL acquisition of this prospect right now. */
 export function requiredMode(rule: TerritoryRule | null, eng: Engagement, now: Date): Mode {
@@ -88,12 +93,14 @@ export type ColdEmailDecision = { allowed: true } | { allowed: false; code: "TER
 
 /**
  * Commercial email rules for field-held prospects.
- *  - AUTOMATED (sequences): never a cold first contact in a field-held territory; allowed after a documented visit or a reply.
+ *  - AUTOMATED (sequences): never a cold first contact in a field-held territory; allowed after a QUALIFYING visit conversation or a reply.
+ *    A failed/no-contact/rejected visit (or a legacy visit without a structured outcome) never counts. This gate is territory
+ *    policy only: the CASL sending basis, DNC, suppression and language checks are evaluated separately and still apply.
  *  - MANUAL one-off: a FIELD agent may write; a REMOTE agent may not make first contact on a field-held prospect.
  */
 export function evaluateColdEmail(i: { required: Mode; eng: Engagement; automated: boolean; senderMode: Mode | null; senderIsSuperAdmin?: boolean }): ColdEmailDecision {
   if (i.required !== "FIELD") return { allowed: true };
-  if (i.eng.visited || i.eng.replied || i.eng.activeOpportunity) return { allowed: true };
+  if (i.eng.qualifiedVisit || i.eng.replied || i.eng.activeOpportunity) return { allowed: true };
   if (i.automated) return { allowed: false, code: "TERRITORY_FIELD_FIRST_CONTACT" };
   if (i.senderMode === "FIELD" || i.senderIsSuperAdmin) return { allowed: true };
   return { allowed: false, code: "TERRITORY_FIELD_ONLY" };

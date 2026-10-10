@@ -20,7 +20,7 @@ export default async function EvidencePage() {
         <EvidenceReviewList locale={locale} rows={rows.map((r) => ({
           id: r.id, kind: r.kind, evidence: r.evidence, evidenceType: r.evidenceType, sourceUrl: r.sourceUrl, capturedAt: r.capturedAt?.toISOString() ?? null, supportingFacts: r.supportingFacts, roleRelevance: r.roleRelevance,
           publishedConditionsConfirmed: r.publishedConditionsConfirmed, recordedAt: r.recordedAt.toISOString(), recordedBy: r.recordedBy, contact: { name: r.contact.name, email: r.contact.email }, prospect: { id: r.prospect.id, name: r.prospect.name },
-          canApprove: r.canApprove, blocked: r.blocked, history: r.history.map((h) => ({ action: h.action, at: h.at.toISOString() })),
+          canApprove: r.canApprove, canReject: r.canReject, blocked: r.blocked, history: r.history.map((h) => ({ action: h.action, at: h.at.toISOString() })),
         }))} />
       )}
     </div>

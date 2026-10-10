@@ -61,21 +61,35 @@ export function evidenceGaps(e: EvidenceFacts): EvidenceGap[] {
   return gaps;
 }
 
-export type ReviewDecision =
-  | { allowed: true; selfApproved: boolean }
-  | { allowed: false; code: "NOT_AUTHORIZED" | "SELF_APPROVAL" | "OUT_OF_TEAM" | "NOT_PENDING" | "EVIDENCE_INCOMPLETE" };
+export type ReviewDenial = "NOT_AUTHORIZED" | "SELF_APPROVAL" | "OUT_OF_TEAM" | "NOT_PENDING";
+export type ReviewDecision = { allowed: true; selfApproved: boolean } | { allowed: false; code: ReviewDenial | "EVIDENCE_INCOMPLETE" };
+type ReviewActor = Pick<PlatformSalesActor, "capabilities" | "all" | "userId" | "scopeStaffIds">;
+type ReviewTarget = { reviewStatus: string; recordedByUserId: string };
 
-/** May `actor` approve/reject this evidence? `prospectOwnerStaffId` is the prospect's current owner (null = unassigned pool). */
-export function canReviewEvidence(
-  actor: Pick<PlatformSalesActor, "capabilities" | "all" | "userId" | "scopeStaffIds">,
-  basis: { reviewStatus: string; recordedByUserId: string } & EvidenceFacts,
-  prospectOwnerStaffId: string | null,
-): ReviewDecision {
+/**
+ * WHO may review (approve OR reject) this evidence right now: capability, still pending, team scope against the prospect's
+ * CURRENT owner (null = unassigned pool, Super Admin only), and no self-review except by a Super Admin.
+ * Deliberately knows nothing about the evidence content: rejection must not depend on completeness.
+ */
+export function reviewAuthority(actor: ReviewActor, basis: ReviewTarget, prospectOwnerStaffId: string | null): { allowed: true; selfReviewed: boolean } | { allowed: false; code: ReviewDenial } {
   if (!can(actor as PlatformSalesActor, "approve_casl_evidence")) return { allowed: false, code: "NOT_AUTHORIZED" };
   if (basis.reviewStatus !== "PENDING_REVIEW") return { allowed: false, code: "NOT_PENDING" };
   if (!actor.all && (!prospectOwnerStaffId || !actor.scopeStaffIds.includes(prospectOwnerStaffId))) return { allowed: false, code: "OUT_OF_TEAM" };
   const own = basis.recordedByUserId === actor.userId;
   if (own && !actor.all) return { allowed: false, code: "SELF_APPROVAL" };
+  return { allowed: true, selfReviewed: own };
+}
+
+/** Approval = review authority AND complete evidence. */
+export function canApproveEvidence(actor: ReviewActor, basis: ReviewTarget & EvidenceFacts, prospectOwnerStaffId: string | null): ReviewDecision {
+  const a = reviewAuthority(actor, basis, prospectOwnerStaffId);
+  if (!a.allowed) return a;
   if (evidenceGaps(basis).length) return { allowed: false, code: "EVIDENCE_INCOMPLETE" };
-  return { allowed: true, selfApproved: own };
+  return { allowed: true, selfApproved: a.selfReviewed };
+}
+
+/** Rejection = review authority only (incomplete or even absent evidence can always be rejected by someone entitled to review it). */
+export function canRejectEvidence(actor: ReviewActor, basis: ReviewTarget, prospectOwnerStaffId: string | null): { allowed: true; selfRejected: boolean } | { allowed: false; code: ReviewDenial } {
+  const a = reviewAuthority(actor, basis, prospectOwnerStaffId);
+  return a.allowed ? { allowed: true, selfRejected: a.selfReviewed } : a;
 }

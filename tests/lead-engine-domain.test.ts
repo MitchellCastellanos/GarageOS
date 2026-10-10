@@ -7,7 +7,7 @@ import { classifyAgainstPool, type MatchKey, type PoolEntry } from "../src/domai
 import { ALIAS_FIELDS, IMPORT_FIELDS, fingerprintOf, inspectCsv, parseProspectCsv, planImport, recordKeyOf, sanitizeMapping, snapshotOf, suggestMapping } from "../src/domain/sales-crm/import";
 import { classifyTerritory, type TerritoryRule } from "../src/domain/sales-crm/territory";
 import { planAssignments, type AssignableProspect, type AssignableSeller } from "../src/domain/sales-crm/assignment";
-import { canReviewEvidence, evidenceGaps, requiresApproval } from "../src/domain/sales-crm/casl-evidence";
+import { canApproveEvidence, canRejectEvidence, evidenceGaps, requiresApproval } from "../src/domain/sales-crm/casl-evidence";
 import { capabilitiesFor } from "../src/domain/sales-crm/access";
 import { leadEn, leadFr } from "../src/lib/admin-locale/sales-lead-engine";
 
@@ -170,7 +170,7 @@ test("territory classification: local match, positively national, and honest UNR
 
 // ── assignment ───────────────────────────────────────────────────────────────────────────────────────────────
 const NOW = new Date("2026-03-01T12:00:00Z");
-const noEng = { touched: false, visited: false, replied: false, activeOpportunity: false };
+const noEng = { touched: false, visited: false, qualifiedVisit: false, replied: false, activeOpportunity: false };
 const prospect = (id: string, o: Partial<AssignableProspect> = {}): AssignableProspect => ({ id, status: "ACTIVE", doNotContact: false, assignedStaffId: null, territoryState: "NATIONAL", rule: CA, engagement: noEng, ...o });
 const seller = (id: string, o: Partial<AssignableSeller> = {}): AssignableSeller => ({ id, mode: "REMOTE", coverageKeys: [], active: true, acceptsAutoAssignment: true, maxActiveLeads: null, workload: 0, ...o });
 
@@ -222,15 +222,27 @@ test("CASL evidence: completeness rules per basis kind", () => {
 });
 
 test("CASL approval authority: manager only inside their team, Super Admin globally, reps never, nobody (but Super Admin) approves their own", () => {
-  assert.deepEqual(canReviewEvidence(actorOf("SALES_REP", "u1", ["s1"]), basis(), "s1"), { allowed: false, code: "NOT_AUTHORIZED" });
-  assert.deepEqual(canReviewEvidence(actorOf("SALES_MANAGER", "mgr", ["m", "s1"]), basis(), "s1"), { allowed: true, selfApproved: false });
-  assert.deepEqual(canReviewEvidence(actorOf("SALES_MANAGER", "mgr", ["m", "s1"]), basis(), "other-team"), { allowed: false, code: "OUT_OF_TEAM" });
-  assert.deepEqual(canReviewEvidence(actorOf("SALES_MANAGER", "mgr", ["m", "s1"]), basis(), null), { allowed: false, code: "OUT_OF_TEAM" }, "unassigned pool is Super Admin only");
-  assert.deepEqual(canReviewEvidence(actorOf("SALES_MANAGER", "rep-user", ["m", "s1"]), basis(), "s1"), { allowed: false, code: "SELF_APPROVAL" });
-  assert.deepEqual(canReviewEvidence(actorOf("SUPER_ADMIN", "root"), basis(), "anyone"), { allowed: true, selfApproved: false });
-  assert.deepEqual(canReviewEvidence(actorOf("SUPER_ADMIN", "rep-user"), basis(), null), { allowed: true, selfApproved: true });
-  assert.deepEqual(canReviewEvidence(actorOf("SUPER_ADMIN", "root"), basis({ reviewStatus: "APPROVED" }), "s1"), { allowed: false, code: "NOT_PENDING" });
-  assert.deepEqual(canReviewEvidence(actorOf("SUPER_ADMIN", "root"), basis({ supportingFacts: null }), "s1"), { allowed: false, code: "EVIDENCE_INCOMPLETE" });
+  assert.deepEqual(canApproveEvidence(actorOf("SALES_REP", "u1", ["s1"]), basis(), "s1"), { allowed: false, code: "NOT_AUTHORIZED" });
+  assert.deepEqual(canApproveEvidence(actorOf("SALES_MANAGER", "mgr", ["m", "s1"]), basis(), "s1"), { allowed: true, selfApproved: false });
+  assert.deepEqual(canApproveEvidence(actorOf("SALES_MANAGER", "mgr", ["m", "s1"]), basis(), "other-team"), { allowed: false, code: "OUT_OF_TEAM" });
+  assert.deepEqual(canApproveEvidence(actorOf("SALES_MANAGER", "mgr", ["m", "s1"]), basis(), null), { allowed: false, code: "OUT_OF_TEAM" }, "unassigned pool is Super Admin only");
+  assert.deepEqual(canApproveEvidence(actorOf("SALES_MANAGER", "rep-user", ["m", "s1"]), basis(), "s1"), { allowed: false, code: "SELF_APPROVAL" });
+  assert.deepEqual(canApproveEvidence(actorOf("SUPER_ADMIN", "root"), basis(), "anyone"), { allowed: true, selfApproved: false });
+  assert.deepEqual(canApproveEvidence(actorOf("SUPER_ADMIN", "rep-user"), basis(), null), { allowed: true, selfApproved: true });
+  assert.deepEqual(canApproveEvidence(actorOf("SUPER_ADMIN", "root"), basis({ reviewStatus: "APPROVED" }), "s1"), { allowed: false, code: "NOT_PENDING" });
+  assert.deepEqual(canApproveEvidence(actorOf("SUPER_ADMIN", "root"), basis({ supportingFacts: null }), "s1"), { allowed: false, code: "EVIDENCE_INCOMPLETE" });
+});
+
+test("CASL rejection authority is independent of evidence completeness: incomplete evidence can be rejected, authority rules still apply", () => {
+  const empty = basis({ evidenceType: null, capturedAt: null, supportingFacts: null, roleRelevance: null, sourceUrl: null, publishedConditionsConfirmed: false });
+  assert.equal(canApproveEvidence(actorOf("SALES_MANAGER", "mgr", ["s1"]), empty, "s1").allowed, false, "cannot approve incomplete evidence");
+  assert.deepEqual(canRejectEvidence(actorOf("SALES_MANAGER", "mgr", ["s1"]), empty, "s1"), { allowed: true, selfRejected: false });
+  assert.deepEqual(canRejectEvidence(actorOf("SALES_REP", "u1", ["s1"]), empty, "s1"), { allowed: false, code: "NOT_AUTHORIZED" });
+  assert.deepEqual(canRejectEvidence(actorOf("SALES_MANAGER", "mgr", ["s1"]), empty, "other"), { allowed: false, code: "OUT_OF_TEAM" });
+  assert.deepEqual(canRejectEvidence(actorOf("SALES_MANAGER", "rep-user", ["s1"]), empty, "s1"), { allowed: false, code: "SELF_APPROVAL" });
+  assert.deepEqual(canRejectEvidence(actorOf("SUPER_ADMIN", "root"), basis({ reviewStatus: "APPROVED" }), "s1"), { allowed: false, code: "NOT_PENDING" });
+  // the rejection check takes no content at all: it works on a bare {status, recorder} pair
+  assert.equal(canRejectEvidence(actorOf("SUPER_ADMIN", "root"), { reviewStatus: "PENDING_REVIEW", recordedByUserId: "x" }, null).allowed, true);
 });
 
 // ── copy parity ──────────────────────────────────────────────────────────────────────────────────────────────

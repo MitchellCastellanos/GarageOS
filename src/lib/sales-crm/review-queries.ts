@@ -3,7 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { assignedScopeWhere, canAccessAssignedStaff, type PlatformSalesActor } from "@/domain/sales-crm/access";
 import type { ImportCandidate } from "@/domain/sales-crm/import";
-import { canReviewEvidence } from "@/domain/sales-crm/casl-evidence";
+import { canApproveEvidence, canRejectEvidence } from "@/domain/sales-crm/casl-evidence";
 
 export const REVIEW_PAGE_SIZE = 20;
 
@@ -68,10 +68,10 @@ export async function listPendingEvidence(actor: PlatformSalesActor) {
   ]);
   const names = new Map(users.map((u) => [u.id, u.name]));
   return rows.map((r) => {
-    const d = canReviewEvidence(actor, r, r.contact.prospect.assignedStaffId);
+    const d = canApproveEvidence(actor, r, r.contact.prospect.assignedStaffId), rej = canRejectEvidence(actor, r, r.contact.prospect.assignedStaffId);
     return {
       ...r, recordedBy: names.get(r.recordedByUserId) ?? "—", prospect: r.contact.prospect,
-      canApprove: d.allowed, blocked: d.allowed ? null : d.code,
+      canApprove: d.allowed, canReject: rej.allowed, blocked: d.allowed ? null : d.code,
       history: history.filter((h) => h.entityId === r.id).map((h) => ({ action: h.action, at: h.createdAt })),
     };
   });
