@@ -2,6 +2,7 @@ import "server-only";
 import crypto from "node:crypto";
 import { db } from "@/lib/db";
 import { getAppUrl } from "@/config/app";
+import { isTrackablePath } from "@/lib/privacy/private-paths";
 
 /**
  * Analytics de visitas de primera parte, sin cookies — mismo enfoque que
@@ -49,7 +50,9 @@ export interface TrackPageViewInput {
 
 export async function trackPageView(input: TrackPageViewInput): Promise<void> {
   if (BOT_UA.test(input.userAgent)) return;
-  if (input.path.startsWith("/admin") || input.path.startsWith("/platform")) return;
+  // Defensa en profundidad: un cliente antiguo (o uno malicioso) podría enviar una ruta con token. Esas rutas
+  // nunca se guardan.
+  if (!isTrackablePath(input.path)) return;
 
   let referrerHost = "";
   if (input.referrer) {
