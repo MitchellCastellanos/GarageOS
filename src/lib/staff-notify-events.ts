@@ -17,7 +17,7 @@ export type StaffEventKey = (typeof STAFF_EVENT_KEYS)[number];
 export const STAFF_EVENT_LABELS: Record<StaffEventKey, { EN: string; FR: string }> = {
   STAFF_NEW_WEB_BOOKING: { EN: "New online booking", FR: "Nouveau rendez-vous en ligne" },
   STAFF_CLIENT_CANCELLED_APPOINTMENT: { EN: "Client cancelled an appointment", FR: "Client a annulé un rendez-vous" },
-  STAFF_QUOTE_DECIDED: { EN: "Quote accepted or declined", FR: "Soumission acceptée ou refusée" },
+  STAFF_QUOTE_DECIDED: { EN: "Quote accepted or declined", FR: "Devis accepté ou refusé" },
   STAFF_SMS_USAGE: { EN: "SMS usage (80% / 100%)", FR: "Utilisation des SMS (80 % / 100 %)" },
   STAFF_SMS_NUMBER_RELEASE_SCHEDULED: { EN: "SMS number release scheduled", FR: "Libération du numéro SMS programmée" },
   STAFF_SMS_NUMBER_ACTIVATED: { EN: "SMS number activated", FR: "Numéro SMS activé" },
