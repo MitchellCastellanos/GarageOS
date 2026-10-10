@@ -39,6 +39,11 @@ Legend: ☐ pending · ☑ done · ⏸ waiting on a PR
 
 ## F. Content and compliance (later stages)
 
+- ☐ **Québec contextual terminology review — required BEFORE publishing French commercial content (PR 4).** Do not impose France terminology: validate with shop owners / a Québec reviewer what Québec garages actually say. Decision so far: **"Devis"** is the official module name; **"Soumission"** may be used as a commercial/educational synonym where natural (e.g. "devis (soumission)" in marketing and help text); "ordre de travail" with "bon de travail" as a synonym. Also check the Québec Consumer Protection Act wording for the written repair estimate.
+- ☐ French videos (`video/src/locales/fr.ts`, narration alignment) still use the old terms: **not regenerated automatically**; decide later if it is really necessary.
+- ☐ Existing data: the sales CRM seed row 'Soumissions et factures' lives in an already-applied migration. Never edit applied migrations; correct existing data only through a new, safe, reviewed procedure (new migration or controlled data update with backup).
+- ☐ Privacy / terms FR pages: legal review of the terminology swap (meaning unchanged).
+
 - ☐ Native French review of all FR content (Québec).
 - ☐ Legal review: CASL / Law 25 articles; comparison pages; terminology change (Devis).
 - ☐ Competitor facts re-verified on official sites on the publication date (this environment cannot open external sites).

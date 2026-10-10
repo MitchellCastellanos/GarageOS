@@ -76,6 +76,14 @@ Plan **aprobado**; implementación por tandas, revisando cada una antes de autor
 - **Pendientes no bloqueantes:** variable `NEXT_PUBLIC_APP_URL` de Preview; click-tracking de Resend (paso final de configuración externa); confirmar con `curl -I https://www.garage-os.ca/help` que no hay `x-robots-tag` en el dominio público (Vercel lo añade en URLs `*.vercel.app`); Search Console y Bing al final.
 - Plan técnico de la tanda 2: `docs/seo-round-2-plan.md`.
 
+### Estado de la tanda 2 (2026-10-10)
+
+- ✅ PR #102 (terminología francesa, Devis / Ordre de travail) y PR #101 (infraestructura EN/FR, layouts raíz separados, `lang="en-CA"` / `fr-CA`, selector con fallback) — **mergeados y verificados en producción** (EN/FR, html lang, canonical, `/fr` noindex, rutas privadas con noindex y `Referrer-Policy: same-origin`, login).
+- Decisión de arquitectura: `docs/seo-i18n-architecture-decision.md`.
+- Incidencia de rendimiento independiente: issue #103 (`/?_rsc` lento; preexistente).
+- Pendiente antes del contenido comercial francés: revisión contextual de Québec (ver checklist F). "Devis" nombre oficial; "Soumission" sinónimo comercial/educativo permitido.
+- Siguiente: PR 3 (sitemap + hreflang + SEO multilingüe), luego PR 4 y PR 5 (esperan autorización).
+
 ### Hallazgos de la tanda 1 que ajustan este plan
 
 - **Canonical confirmado en producción** (HTML de `main` @ `23a129c`): `/help` declaraba `canonical` y `og:url` = home. Era el problema que sospechábamos en §1.2.
