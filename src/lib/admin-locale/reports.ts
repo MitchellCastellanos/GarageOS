@@ -103,7 +103,7 @@ const fr: ReportsDictionary = {
     customer: "Client", issued: "Émise", due: "Échéance", late: "Jours de retard", status: "Statut", name: "Nom", onHand: "En stock", threshold: "Seuil de commande",
     bucket: "Âge", sales: "Ventes", byMethod: "Par mode de paiement", byType: "Main-d'œuvre / pièces / autre", top: "Articles principaux", aging: "Âge des comptes à recevoir",
     oldest: "Plus anciennes factures impayées", wo: "Ordres de travail", quotes: "Devis", topCustomers: "Meilleurs clients", lowStock: "Stock bas", seriesTitle: "Ventes dans le temps",
-    location: "Emplacement", byLocation: "Ventes par emplacement", comparison: "Comparaison des emplacements", refundsCol: "Remboursements", netCol: "Net", avgCol: "Facture moyenne", woOpenCol: "Ordres ouverts", newCustomersCol: "Nouveaux clients", woCreatedCol: "Bons créés", total: "Total",
+    location: "Emplacement", byLocation: "Ventes par emplacement", comparison: "Comparaison des emplacements", refundsCol: "Remboursements", netCol: "Net", avgCol: "Facture moyenne", woOpenCol: "Ordres ouverts", newCustomersCol: "Nouveaux clients", woCreatedCol: "Ordres créés", total: "Total",
   },
   aging: { current: "Non échu", d1_30: "1–30 jours", d31_60: "31–60 jours", d61_90: "61–90 jours", d90plus: "90+ jours" },
   itemTypes: { LABOUR: "Main-d'œuvre", PART: "Pièces", OTHER: "Autre" },
@@ -114,7 +114,7 @@ const fr: ReportsDictionary = {
   },
   notes: {
     aro: "Facture moyenne = revenus encaissés ÷ factures payées dans la période (taxes incluses).",
-    days: "Les jours se mesurent de l'ouverture à la dernière mise à jour des bons terminés ou facturés.",
+    days: "Les jours se mesurent de l'ouverture à la dernière mise à jour des ordres de travail terminés ou facturés.",
     basis: "Les revenus sont comptés à la date où la facture a été marquée payée; les remboursements à la date du versement.",
     retention: "Récurrent = client ayant payé dans la période et ayant déjà une facture payée avant.",
   },

@@ -27,7 +27,8 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-const FILES = walk(SRC).map((abs) => ({ rel: path.relative(ROOT, abs), text: fs.readFileSync(abs, "utf8") }));
+const PUBLIC_DEMO = path.join(ROOT, "public", "demo");
+const FILES = [...walk(SRC), ...(fs.existsSync(PUBLIC_DEMO) ? walk(PUBLIC_DEMO) : [])].map((abs) => ({ rel: path.relative(ROOT, abs), text: fs.readFileSync(abs, "utf8") }));
 
 /**
  * Explicit allowlist for "soumission" (any case, accents or not). Each entry needs a reason.
@@ -68,7 +69,7 @@ test("French user-facing text does not say 'soumission' (outside the commented a
 });
 
 test("French text uses 'ordre de travail', never 'bon de travail'", () => {
-  const hits = findAll(/bons?\s+de\s+travail/i);
+  const hits = [...findAll(/bons?\s+de\s+travail/i), ...findAll(/\bbons?\s+(créés?|ouverts?|terminés?|facturés?)\b/i)];
   assert.deepEqual(hits, [], `Replace with "ordre(s) de travail":\n${hits.join("\n")}`);
 });
 

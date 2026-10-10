@@ -66,3 +66,22 @@ None. `tests/fr-terminology.test.ts` has an empty, documented allowlist.
 | Inbox | Boîte de réception | |
 | Cash drawer | Caisse | |
 | Tire storage | Entreposage de pneus | |
+
+## Second review pass (independent agent) — fixes applied
+
+- `reports.ts`: "Bons créés" -> "Ordres créés"; "des bons terminés ou facturés" -> "des ordres de travail terminés ou facturés".
+- `public/demo/garage-laurent/messages.json`: demo SMS "soumission ... Consultez-la" -> "devis ... Consultez-le".
+- Changelog: « Prêt pour ramassage » -> « Prêt à récupérer » (same wording as the portal and marketing pages).
+- Guard test now also scans `public/demo` and catches "bons créés/ouverts/terminés/facturés".
+
+## FLAGGED — needs legal / professional review (does not block the rest of the interface)
+
+1. `src/app/privacy/page.tsx` (« Renseignements traités ») and `src/app/terms/page.tsx` (« Service »): terminology swap only ("devis et approbations; ordres de travail"). Have a Québec lawyer confirm the categories still match the EN version.
+2. Québec Consumer Protection Act (automobile repair) uses its own wording for the written estimate / repair contract (« évaluation / estimation écrite »). If the app presents the document as the legal estimate, wording may need to align. Not changed; to be checked by a lawyer or OPC guidance.
+3. Product judgement: in Québec garages « soumission » and « bon de travail » remain very common. « Devis » / « ordre de travail » follow the owner's decision; a native Québec reviewer should confirm.
+
+## Follow-ups outside this PR (tracked, not changed here)
+
+- `video/src/locales/fr.ts` (+ `video/src/audio/ALIGNMENT.md`): FR video copy still says Soumission / Bon de travail. Changing text requires regenerating voice-over audio and timings.
+- `prisma/migrations/20261009100000_sales_crm_foundation/migration.sql:500`: seed row 'Soumissions et factures' (FR). An applied migration must not be edited; needs a data update/new migration if the DB text should change.
+- SMS wording « ordre N » (bare) could read « ordre de travail N » for customers (style).
