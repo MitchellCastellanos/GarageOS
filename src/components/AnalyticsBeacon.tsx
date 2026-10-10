@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { isTrackablePath } from "@/lib/privacy/private-paths";
+import { isFrenchPath } from "@/lib/seo/routes";
 
 /**
  * Dispara un beacon de pageview de primera parte al montar y en cada cambio
@@ -26,7 +27,7 @@ export default function AnalyticsBeacon() {
 
     const payload = {
       path: pathname,
-      locale: "en",
+      locale: isFrenchPath(pathname) ? "fr" : "en",
       referrer: document.referrer || "",
       utmSource: searchParams.get("utm_source") || "",
       utmMedium: searchParams.get("utm_medium") || "",

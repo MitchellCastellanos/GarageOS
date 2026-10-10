@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import { LocaleLink as Link } from "@/components/marketing/LocaleLink";
 import { Check } from "lucide-react";
 import { useMarketingLocale } from "@/components/marketing/MarketingLocaleProvider";
 import { MARKETING_PRICING } from "@/lib/marketing-pricing";

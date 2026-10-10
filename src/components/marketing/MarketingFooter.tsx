@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { LocaleLink as Link } from "@/components/marketing/LocaleLink";
 import { useMarketingLocale } from "@/components/marketing/MarketingLocaleProvider";
 import { LanguageToggle } from "@/components/marketing/LanguageToggle";
 import { GarageOSLogo } from "@/components/marketing/GarageOSLogo";

@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { LocaleLink as Link } from "@/components/marketing/LocaleLink";
 import { ArrowRight, Smartphone } from "lucide-react";
 import { useMarketingLocale } from "@/components/marketing/MarketingLocaleProvider";
 import { PageHero } from "@/components/marketing/PageHero";

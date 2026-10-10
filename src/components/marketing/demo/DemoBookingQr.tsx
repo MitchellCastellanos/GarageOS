@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import Link from "next/link";
+import { LocaleLink as Link } from "@/components/marketing/LocaleLink";
 import { ArrowRight } from "lucide-react";
 import { useMarketingLocale } from "@/components/marketing/MarketingLocaleProvider";
 import { drawBookingQr, QR_SIZE } from "@/lib/booking-qr-canvas";

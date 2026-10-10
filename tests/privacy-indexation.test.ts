@@ -141,7 +141,7 @@ test("next.config sets Referrer-Policy same-origin (never no-referrer) on token 
   // `no-referrer` makes browsers send `Origin: null` on same-origin POSTs, which would break the Server Actions
   // used by quote approval and the appointment link. Guard the config and the metadata we control.
   for (const r of rules) for (const h of r.headers) assert.notEqual(h.value, "no-referrer");
-  for (const file of ["src/app/quote/[token]/page.tsx", "src/app/book/[slug]/manage/[token]/page.tsx", "src/app/inspection/[token]/page.tsx"]) {
+  for (const file of ["src/app/(site)/quote/[token]/page.tsx", "src/app/(site)/book/[slug]/manage/[token]/page.tsx", "src/app/(site)/inspection/[token]/page.tsx"]) {
     assert.ok(!/referrer:\s*"no-referrer"/.test(read(file)), `${file} must not use no-referrer`);
   }
 });
@@ -154,18 +154,18 @@ test("existing public headers are preserved", async () => {
 
 test("every token or app page group declares noindex in its metadata", () => {
   const FILES = [
-    "src/app/admin/layout.tsx",
-    "src/app/platform/layout.tsx",
-    "src/app/portal/layout.tsx",
-    "src/app/quote/[token]/page.tsx",
-    "src/app/inspection/[token]/page.tsx",
-    "src/app/book/[slug]/manage/[token]/page.tsx",
+    "src/app/(site)/admin/layout.tsx",
+    "src/app/(site)/platform/layout.tsx",
+    "src/app/(site)/portal/layout.tsx",
+    "src/app/(site)/quote/[token]/page.tsx",
+    "src/app/(site)/inspection/[token]/page.tsx",
+    "src/app/(site)/book/[slug]/manage/[token]/page.tsx",
   ];
   for (const file of FILES) assert.match(read(file), /robots:\s*\{\s*index:\s*false/, `${file} must declare robots noindex`);
 });
 
 test("the admin layout is a pass-through (no behavior change for login, signup or the panel)", () => {
-  const src = read("src/app/admin/layout.tsx");
+  const src = read("src/app/(site)/admin/layout.tsx");
   assert.match(src, /return children;/);
   assert.ok(!/redirect|auth\(/.test(src));
 });
@@ -272,8 +272,8 @@ test("the shop slug is derived from the stored path, validated, and never taken 
 
 test("no sitemap or public metadata exposes private routes", () => {
   // No sitemap exists yet; when one is added it must filter with the shared rule.
-  if (fs.existsSync(path.join(root, "src/app/sitemap.ts"))) {
-    assert.match(read("src/app/sitemap.ts"), /isPrivatePath/, "sitemap.ts must filter URLs with isPrivatePath");
+  if (fs.existsSync(path.join(root, "src/app/(site)/sitemap.ts"))) {
+    assert.match(read("src/app/(site)/sitemap.ts"), /isPrivatePath/, "sitemap.ts must filter URLs with isPrivatePath");
   }
   // The video page canonicalizes the clean URL; the attribution token travels in the query and is never in metadata.
   const watch = read("src/lib/watch-page.tsx");
