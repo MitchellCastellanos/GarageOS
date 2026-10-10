@@ -2461,6 +2461,7 @@ model PlatformSalesStaff {
   enrollments   CrmSequenceEnrollment[]
   availabilityExceptions CrmAvailabilityException[]
   bookingLinks  CrmBookingLink[]
+  videoLinks    CrmVideoLink[]
   meetings      CrmMeeting[]
 
   @@index([status, role])
@@ -3395,5 +3396,74 @@ model PlatformVideo {
   updatedAt      DateTime      @updatedAt
 
   @@unique([key, language])
+  @@schema("garageos")
+}
+
+// ── Sales video attribution ──────────────────────────────────────────────────────────────────────────────────────
+/// Kinds of measurable video interaction. PAGE_VIEW is a client-confirmed view of the video page (NOT the same as a link
+/// click: scanners and prefetchers fetch HTML but do not run the page script). PLAY needs a real user-initiated play.
+enum CrmVideoEventType {
+  PAGE_VIEW
+  PLAY
+  PROGRESS_25
+  PROGRESS_50
+  PROGRESS_75
+  COMPLETE
+  CTA_DEMO
+  CTA_TRIAL
+
+  @@schema("garageos")
+}
+
+/// Opaque, expiring, revocable attribution token for ONE (seller, prospect, contact, video, language). It is the only thing in a
+/// public URL: no ids, no email, no name. Re-used when a seller inserts the same video twice.
+model CrmVideoLink {
+  id              String    @id @default(cuid())
+  token           String    @unique
+  staffId         String
+  staff           PlatformSalesStaff @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  prospectId      String
+  contactId       String?
+  /// "commercial" (60 s) or "teaser" (15 s) — a PlatformVideo key.
+  videoKey        String
+  language        CrmLanguage
+  createdByUserId String
+  createdAt       DateTime  @default(now())
+  expiresAt       DateTime
+  revokedAt       DateTime?
+
+  events   CrmVideoEvent[]
+  messages CrmVideoLinkMessage[]
+
+  @@index([prospectId])
+  @@index([staffId])
+  @@schema("garageos")
+}
+
+/// One row per (link, event type): first/last time, how many DISTINCT page views reported it. This is the dedupe: reloads,
+/// retries and scanner re-fetches cannot inflate it.
+model CrmVideoEvent {
+  id          String            @id @default(cuid())
+  linkId      String
+  link        CrmVideoLink      @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  type        CrmVideoEventType
+  count       Int               @default(1)
+  firstAt     DateTime          @default(now())
+  lastAt      DateTime          @default(now())
+  lastViewKey String?
+
+  @@unique([linkId, type])
+  @@schema("garageos")
+}
+
+/// Which sent email carried which link (written when the message is queued), so activity can name the email/sequence.
+model CrmVideoLinkMessage {
+  linkId    String
+  link      CrmVideoLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  messageId String
+  createdAt DateTime     @default(now())
+
+  @@id([linkId, messageId])
+  @@index([messageId])
   @@schema("garageos")
 }

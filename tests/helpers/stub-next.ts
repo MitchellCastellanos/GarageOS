@@ -9,6 +9,8 @@ export function redirect(url: string): never {
 }
 export function revalidatePath() {}
 export function revalidateTag() {}
+// Outside Next there is no data cache: run the function every time.
+export function unstable_cache<T extends (...a: never[]) => unknown>(fn: T): T { return fn; }
 export class NotFoundError extends Error {
   constructor() {
     super("NEXT_NOT_FOUND");

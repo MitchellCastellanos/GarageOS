@@ -2,6 +2,8 @@ import "server-only";
 import type { CrmLanguage } from "@prisma/client";
 import { db } from "@/lib/db";
 import { videoVars } from "@/lib/platform-video";
+import { templateVideoLink } from "@/lib/sales-video";
+import { videoCtaText } from "@/domain/platform-video";
 import { builtinTemplate, categoryOfTemplate, greetingFor, renderTemplate, type TemplateKey, type TemplateLanguage, type TemplateVars } from "@/domain/sales-comms/templates";
 
 export interface ResolvedTemplate { key: TemplateKey; language: TemplateLanguage; version: number; subject: string; body: string; category: "COMMERCIAL" | "TRANSACTIONAL"; source: "approved" | "builtin" }
@@ -35,7 +37,12 @@ export function baseVars(args: { language: TemplateLanguage; contactName: string
 }
 
 /** Adds the PUBLISHED outreach video variables for the message language (nothing when unpublished — never a placeholder). */
-export async function withVideoVars(vars: TemplateVars, language: TemplateLanguage): Promise<TemplateVars> {
+export async function withVideoVars(vars: TemplateVars, language: TemplateLanguage, ctx?: { staffId: string; userId: string; prospectId: string; contactId: string | null }): Promise<TemplateVars> {
+  // With a recipient context the link is the attributed landing page of the 60-second commercial (the CRM can then tell who watched).
+  if (ctx) {
+    const v = await templateVideoLink({ ...ctx, language });
+    if (v) return { ...vars, "video.link": v.url, "video.title": v.title, "video.cta": videoCtaText(language, v.title, v.url) };
+  }
   return { ...vars, ...(await videoVars(language)) };
 }
 

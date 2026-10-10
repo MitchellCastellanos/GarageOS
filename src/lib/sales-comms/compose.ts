@@ -15,6 +15,7 @@ import { getCommsSettings, unsubscribeSecret } from "@/lib/sales-comms/settings"
 import { createThread, requireScopedThread, threadingFor } from "@/lib/sales-comms/threads";
 import { bookingUrl, ensureGeneralLink, ensureProspectLink } from "@/lib/sales-comms/booking-links";
 import { dispatchMessage } from "@/lib/sales-comms/dispatcher";
+import { linkMessageToVideos } from "@/lib/sales-video";
 import type { SendDecision } from "@/domain/sales-comms/casl";
 
 const PLACEHOLDER = /\{\{[^}]*\}\}/;
@@ -80,7 +81,7 @@ export async function applyTemplate(actor: PlatformSalesActor, args: { templateK
     const l = await ensureProspectLink({ staffId: identity.staffId, prospectId: prospect.id, contactId: contact?.id ?? null, opportunityId: args.templateKey ? null : null, language: tl, actorUserId: actor.userId });
     link = bookingUrl(l.token, tl);
   }
-  const vars = await withVideoVars(baseVars({ language: tl, contactName: contact?.name ?? null, prospectName: full.name, sellerName: identity.fromName, sellerTitle: identity.jobTitle, bookingUrl: link }), tl);
+  const vars = await withVideoVars(baseVars({ language: tl, contactName: contact?.name ?? null, prospectName: full.name, sellerName: identity.fromName, sellerTitle: identity.jobTitle, bookingUrl: link }), tl, { staffId: identity.staffId, userId: actor.userId, prospectId: prospect.id, contactId: contact?.id ?? null });
   const r = await renderResolved(tpl, vars);
   return { ok: true as const, subject: r.subject, body: r.body, language: tl, languageSource: lang.source, templateVersion: tpl.version, templateKey: args.templateKey, missing: r.missing };
 }
@@ -233,6 +234,7 @@ export async function queueDraft(actor: PlatformSalesActor, messageId: string, o
   if (updated.count !== 1) return { ok: false as const, error: "ALREADY_QUEUED" };
   await db.crmEmailThread.update({ where: { id: msg.threadId }, data: { subject: msg.thread.subject === "(draft)" ? content.subject : undefined, counterpartyEmail: msg.toAddresses[0], language: prep.language } });
   await writeCrmAudit({ actorUserId: actor.userId, action: "EMAIL_QUEUED", entityType: "CrmEmailMessage", entityId: msg.id, prospectId: msg.prospectId, metadata: { category: prep.category, scheduled: !!scheduledFor, language: prep.language } });
+  await linkMessageToVideos(msg.id, content.text);
   if (scheduledFor) return { ok: true as const, status: "SCHEDULED" as const, messageId: msg.id, threadId: msg.threadId };
   const outcome = await dispatchMessage(msg.id, new Date());
   const fresh = await db.crmEmailMessage.findUnique({ where: { id: msg.id }, select: { status: true, errorCode: true } });
