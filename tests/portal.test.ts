@@ -254,7 +254,7 @@ test("invoice isolation: scoped lookup; drafts never sent and cancelled invoices
 test("PDF route: 404 for bad/other-customer tokens and invoices, PDF only through the scoped lookup", async (t) => {
   portalWorld(t);
   const good = await mint();
-  const route = await import("../src/app/portal/[token]/invoices/[invoiceId]/pdf/route");
+  const route = await import("../src/app/(site)/portal/[token]/invoices/[invoiceId]/pdf/route");
   const call = (token: string, id: string) => route.GET(new Request("http://x"), { params: Promise.resolve({ token, invoiceId: id }) });
   patchDb(t, "invoice", "findFirst", (async ({ where }: { where: Record<string, unknown> }) => (where.clientId === "cA1" ? null : { id: "leak" })) as never);
   assert.equal((await call(generatePortalToken(), "inv1")).status, 404);
@@ -421,9 +421,9 @@ test("portal pages are mobile-first: viewport-safe shell, touch-size actions, no
   assert.match(shell, /max-w-2xl/);
   assert.match(shell, /min-h-11/, "buttons meet the 44px touch target");
   assert.doesNotMatch(shell, /w-\[(\d{3,})px\]|min-w-\[\d{3,}px\]/, "no fixed pixel widths that overflow phones");
-  const home = await fs.readFile(new URL("../src/app/portal/[token]/page.tsx", import.meta.url), "utf8");
+  const home = await fs.readFile(new URL("../src/app/(site)/portal/[token]/page.tsx", import.meta.url), "utf8");
   assert.doesNotMatch(home, /<table/, "lists, not wide tables");
-  const layout = await fs.readFile(new URL("../src/app/portal/layout.tsx", import.meta.url), "utf8");
+  const layout = await fs.readFile(new URL("../src/app/(site)/portal/layout.tsx", import.meta.url), "utf8");
   assert.match(layout, /no-referrer/);
   assert.match(layout, /index: false/);
 });

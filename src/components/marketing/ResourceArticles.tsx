@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { LocaleLink as Link } from "@/components/marketing/LocaleLink";
 import { ArrowRight } from "lucide-react";
 import { PageHero } from "./PageHero";
 import { GUIDES, type ResourceArticle } from "@/lib/marketing-resources";

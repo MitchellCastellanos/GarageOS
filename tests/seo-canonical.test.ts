@@ -56,33 +56,37 @@ test("pageMetadata gives each page its own canonical and og:url, and keeps the s
   });
 });
 
-test("root layout must not declare a canonical or og:url (Next inherits both into every child page)", () => {
-  const layout = read("src/app/layout.tsx");
-  const code = layout.replace(/\/\/.*$/gm, "");
-  assert.ok(!/canonical\s*:/.test(code), "layout.tsx declares alternates.canonical");
+test("root metadata must not declare a canonical or og:url (Next inherits both into every child page)", () => {
+  for (const layoutFile of ["src/app/(site)/layout.tsx", "src/app/(fr)/layout.tsx"]) {
+    assert.match(read(layoutFile), /rootMetadata\(/, `${layoutFile} must use the shared root metadata`);
+    assert.ok(!/canonical|openGraph/.test(read(layoutFile).replace(/\/\/.*$/gm, "")), `${layoutFile} must not define its own canonical/openGraph`);
+  }
+  const layout = read("src/lib/seo/root-metadata.ts");
+  const code = layout.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.ok(!/canonical\s*:/.test(code), "root-metadata declares alternates.canonical");
   const og = code.slice(code.indexOf("openGraph"), code.indexOf("twitter"));
   // Direct child `url:` of openGraph (4-space indent); the nested images[].url is fine.
-  assert.ok(!/\n {4}url\s*:/.test(og), "layout.tsx declares openGraph.url");
+  assert.ok(!/\n {6}url\s*:/.test(og), "root-metadata declares openGraph.url");
 });
 
 // Public, indexable pages and the path each must declare as canonical.
 const PUBLIC_PAGES: Array<[string, string]> = [
-  ["src/app/page.tsx", "/"],
-  ["src/app/about/page.tsx", "/about"],
-  ["src/app/blog/page.tsx", "/blog"],
-  ["src/app/changelog/page.tsx", "/changelog"],
-  ["src/app/contact/page.tsx", "/contact"],
-  ["src/app/demo/page.tsx", "/demo"],
-  ["src/app/features/page.tsx", "/features"],
-  ["src/app/get-started/page.tsx", "/get-started"],
-  ["src/app/guides/page.tsx", "/guides"],
-  ["src/app/help/page.tsx", "/help"],
-  ["src/app/integrations/page.tsx", "/integrations"],
-  ["src/app/pricing/page.tsx", "/pricing"],
-  ["src/app/privacy/page.tsx", "/privacy"],
-  ["src/app/product/page.tsx", "/product"],
-  ["src/app/quick-start/page.tsx", "/quick-start"],
-  ["src/app/terms/page.tsx", "/terms"],
+  ["src/app/(site)/page.tsx", "/"],
+  ["src/app/(site)/about/page.tsx", "/about"],
+  ["src/app/(site)/blog/page.tsx", "/blog"],
+  ["src/app/(site)/changelog/page.tsx", "/changelog"],
+  ["src/app/(site)/contact/page.tsx", "/contact"],
+  ["src/app/(site)/demo/page.tsx", "/demo"],
+  ["src/app/(site)/features/page.tsx", "/features"],
+  ["src/app/(site)/get-started/page.tsx", "/get-started"],
+  ["src/app/(site)/guides/page.tsx", "/guides"],
+  ["src/app/(site)/help/page.tsx", "/help"],
+  ["src/app/(site)/integrations/page.tsx", "/integrations"],
+  ["src/app/(site)/pricing/page.tsx", "/pricing"],
+  ["src/app/(site)/privacy/page.tsx", "/privacy"],
+  ["src/app/(site)/product/page.tsx", "/product"],
+  ["src/app/(site)/quick-start/page.tsx", "/quick-start"],
+  ["src/app/(site)/terms/page.tsx", "/terms"],
 ];
 
 for (const [file, route] of PUBLIC_PAGES) {
@@ -95,12 +99,12 @@ for (const [file, route] of PUBLIC_PAGES) {
 
 test("dynamic Resources pages build their canonical from the slug", () => {
   for (const base of ["guides", "blog"]) {
-    const src = read(`src/app/${base}/[slug]/page.tsx`);
+    const src = read(`src/app/(site)/${base}/[slug]/page.tsx`);
     assert.ok(src.includes("pageMetadata({ path: `/" + base + "/${slug}`"), `${base}/[slug] must canonicalize /${base}/<slug>`);
   }
 });
 
 test("pages that set their own canonical elsewhere keep doing so (watch, shop booking)", () => {
   assert.match(read("src/lib/watch-page.tsx"), /canonical:/);
-  assert.match(read("src/app/book/[slug]/page.tsx"), /canonical:/);
+  assert.match(read("src/app/(site)/book/[slug]/page.tsx"), /canonical:/);
 });

@@ -195,8 +195,8 @@ function walk(dir: string, out: string[] = []): string[] {
 }
 
 const PUBLIC_FILES = [
-  "src/app/page.tsx",
-  ...["about", "blog", "changelog", "contact", "demo", "features", "get-started", "guides", "help", "integrations", "pricing", "privacy", "product", "quick-start", "terms"].map((d) => `src/app/${d}`),
+  "src/app/(site)/page.tsx",
+  ...["about", "blog", "changelog", "contact", "demo", "features", "get-started", "guides", "help", "integrations", "pricing", "privacy", "product", "quick-start", "terms"].map((d) => `src/app/(site)/${d}`),
   "src/components/marketing",
   ...fs.readdirSync(path.join(ROOT, "src/lib")).filter((f) => /^marketing-.*\.ts$/.test(f)).map((f) => `src/lib/${f}`),
 ].flatMap((rel) => {
