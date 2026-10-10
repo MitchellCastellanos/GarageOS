@@ -200,7 +200,7 @@ test("the pilot French home stays out of search engines until the sitemap and hr
 // ── Root layouts ───────────────────────────────────────────────────────────────────────────────────────────────
 
 test("two root layouts, one <html lang> each; nothing at the top of src/app can need a root layout", () => {
-  assert.equal(HTML_LANG.en, "en");
+  assert.equal(HTML_LANG.en, "en-CA");
   assert.equal(HTML_LANG.fr, "fr-CA");
   assert.ok(!exists("src/app/layout.tsx"), "a top-level layout would nest the two root layouts");
   assert.ok(!exists("src/app/page.tsx"), "pages must live inside a route group with a root layout");

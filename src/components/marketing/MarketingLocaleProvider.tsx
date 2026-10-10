@@ -9,6 +9,7 @@ import {
   type MarketingLocale,
 } from "@/lib/marketing-locale";
 import { fixedLocaleForPath } from "@/lib/seo/routes";
+import { HTML_LANG } from "@/lib/seo/html-lang";
 
 export const MARKETING_LOCALE_STORAGE_KEY = "marketing-locale";
 
@@ -70,7 +71,7 @@ export function MarketingLocaleProvider({ children }: { children: React.ReactNod
 
   useEffect(() => {
     // En rutas con idioma fijo, el layout raíz ya fija <html lang>. Solo las pantallas de preferencia lo ajustan.
-    if (!fixed) document.documentElement.lang = locale === "fr" ? "fr-CA" : "en";
+    if (!fixed) document.documentElement.lang = HTML_LANG[locale];
   }, [fixed, locale]);
 
   function setLocale(next: MarketingLocale) {

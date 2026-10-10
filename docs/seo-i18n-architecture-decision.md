@@ -49,3 +49,9 @@ Tracked separately; not a blocker for this PR.
 
 French pages remain `noindex` until PR 3 (sitemap/hreflang) and PR 4 (French
 commercial pages) land.
+
+## Document language values
+
+English public pages use `lang="en-CA"` and French pages `lang="fr-CA"` (owner decision). The `(site)` root layout also wraps the
+dashboard and other internal routes, so those documents now carry `en-CA` instead of `en`; this is a valid English tag, has no
+functional effect, and does not touch any user's stored language preference (dashboard language is a separate mechanism).
