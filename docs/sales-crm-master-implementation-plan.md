@@ -256,3 +256,41 @@ Super Admin can create a sales rep and approved sender identity; rep signs in wi
 
 **Open items for the owner (do not block Agent 2):** final video URLs; whether to pay for geocoding; Airtable plan limit; the DNS/provider steps in `docs/sales-email-launch-readiness.md`.
 
+
+
+---
+
+## D. Approved direction — GarageOS Lead Engine and Field Route Planner (October 10, 2026)
+
+**Status: architecture and operating decisions approved; implementation NOT yet authorized.** This section supersedes the GABAN-first assumptions and conflicting territory/visit instructions in §C. Keep historical §C for context; use this section and [the expansion roadmap](garageos-lead-engine-field-planner-roadmap.md) as the current source of truth. Agents must audit latest `main` before changes, then execute approved implementation work independently, safely, and end-to-end rather than requesting approval after each step. Stop and report only on genuine blockers, security/compliance uncertainty, irreversible operations, or material scope changes.
+
+### Product ownership and sources
+
+- Build a **GarageOS-native Lead Engine**, separate from CRM and independent of GABAN, Airtable, or any single vendor. Design pluggable source adapters, staging/validation, normalized candidate identity, source observations/provenance, review and promotion into existing `CrmProspect` records. Do not duplicate the existing CRM.
+- **Immediate input:** a one-time, owner-authorized static CSV export of existing mechanic-shop records from Airtable **Lead Radar**. The Airtable API is over monthly quota (429). No direct Airtable integration is required for MVP, and no invented Airtable schema. Never scrape or export data without authorization. Keep original source metadata and the ability to import future files idempotently.
+- **Later:** native discovery/enrichment by lawful provider APIs or other permitted sources, with modular adapters, cost controls, source terms, and no dependence on GABAN's data model. Automatic discovery is not a prerequisite for route testing.
+
+### Approved commercial rules
+
+1. Greater Montréal, Laval and Rive-Sud: **FIELD_PRIORITY** rather than FIELD_EXCLUSIVE. Priority window duration remains configurable and requires owner approval before choosing a default or changing seeded production rules. Do not silently alter existing production territories.
+2. Elsewhere in Canada: **automatic assignment to both FIELD and REMOTE** sellers, respecting authorized coverage, workload, availability, ownership and existing acquisition rules. FIELD may sell remotely; REMOTE cannot perform FIELD actions.
+3. **CASL evidence and duplicate reviews:** Sales Managers approve within their authorized team; Super Admin approves globally. A rep cannot approve their own evidence. Existing self-attested bases must not be silently grandfathered as verified; plan a safe review/backfill policy.
+4. **Pilot:** 100 existing mechanic-shop records, staged and reviewed before any real import; no campaign activation or bulk enrollment without a separate explicit authorization. Importing an email does not grant sending permission.
+
+### Critical route/communications safety dependency
+
+- Existing `FIELD_VISIT` activity is currently used by territory policy as engagement for automated first contact. **A failed attempt, closed shop, decision maker unavailable, rejection or DNC must never unlock automated email.** Define verified qualifying engagement separately from generic visit logging, with explicit outcomes and tests. A conversation also does not automatically create a CASL basis; sending policy still requires independently valid evidence.
+- Reuse `CrmActivity`, `CrmTask`, `CrmOpportunity`, `CrmSendingBasis`, suppression and send policy. Preserve transactional shop messaging, provider wiring, and existing dispatch idempotency.
+- Route planner is FIELD-only for creation/execution, with strict owner/prospect assignment checks; authorized managers may view team routes read-only even if their own mode is REMOTE. Coordinate normalized addresses/prospect lifecycle with Lead Engine. Prefer a separate prospect-location model, subject to migration review.
+
+### Execution sequencing and agent coordination
+
+- **P0:** address visit-engagement safety and establish test coverage before any real field visits.
+- **P1:** shared prospect identity, source observations, dedupe/branch rules, address quality and location contracts. Agent 1 owns canonical lead/address validation; Agent 2 owns geocoding and routing coordinates. Agree on shared schema/migration ordering.
+- **P2:** static CSV import, territory classification/assignment, review queues and CASL approval workflow.
+- **P3:** saved field routes, mapping, ordered stops, navigation and outcome logging, responsive on 390px/tablet/desktop. Geocoding provider selection and spend require owner approval; test accuracy on 50 authorized addresses first.
+- **P4:** commercial readiness, permissions, suppression, templates/sequences and controlled operational verification.
+- **P5:** explicitly authorized pilot of 100 shops; staged validation before import, and separately approved sends.
+- **Future:** provider-neutral automated discovery and scheduled enrichment; direct Airtable API integration only if ever useful, not mandatory.
+
+**Implementation authorization:** This documentation approval does NOT authorize schema migrations, production writes, provider spend, imports, outreach, or code changes. Separate implementation prompts may authorize safe code work; production-affecting actions still require explicit owner approval.
