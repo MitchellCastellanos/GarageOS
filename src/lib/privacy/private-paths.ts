@@ -47,27 +47,104 @@ function matchesPrefix(pathname: string, prefix: string): boolean {
   return pathname === prefix || pathname.startsWith(`${prefix}/`);
 }
 
-function stripQuery(pathname: string): string {
-  return pathname.split(/[?#]/)[0] || "/";
+const MAX_PATH_LENGTH = 2048;
+const CONTROL_CHARS = /[\u0000-\u001f\u007f]/g;
+
+function collapseSegments(path: string): string {
+  const out: string[] = [];
+  for (const segment of path.replace(/\\/g, "/").split("/")) {
+    if (segment === "" || segment === ".") continue;
+    if (segment === "..") out.pop();
+    else out.push(segment);
+  }
+  return `/${out.join("/")}`;
+}
+
+/**
+ * Forma comparable de una ruta recibida (del cliente, de un log, de una fila antigua): decodifica el porcentaje
+ * (hasta 3 pasadas, para `%2571uote`), quita query y hash, unifica `\` y `//`, resuelve `.`/`..`, quita la barra final y
+ * pasa a minúsculas. Devuelve `null` si no es una ruta analizable (vacía, demasiado larga o con codificación inválida):
+ * quien llama debe tratarla como privada.
+ */
+export function normalizeForMatching(raw: string): string | null {
+  if (typeof raw !== "string" || raw.length === 0 || raw.length > MAX_PATH_LENGTH) return null;
+  let value = raw;
+  for (let pass = 0; pass < 3; pass++) {
+    // Query y hash fuera en cada pasada: `%3F` o `%23` decodificados también los abren.
+    value = value.split(/[?#]/)[0];
+    if (!value.includes("%")) break;
+    try {
+      const decoded = decodeURIComponent(value);
+      if (decoded === value) break;
+      value = decoded;
+    } catch {
+      return null;
+    }
+  }
+  value = value.split(/[?#]/)[0].replace(CONTROL_CHARS, "");
+  if (value.includes("%")) return null; // sigue codificado tras 3 pasadas: no es una ruta normal
+  return collapseSegments(value).toLowerCase();
+}
+
+/**
+ * Forma que se guarda en la analítica: sin query ni hash, sin caracteres de control, con `//` y `..` resueltos y sin
+ * barra final. Conserva mayúsculas y codificación (no se altera lo que ve el panel). `null` si no es analizable.
+ */
+export function normalizeForStorage(raw: string): string | null {
+  if (typeof raw !== "string" || raw.length === 0 || raw.length > MAX_PATH_LENGTH) return null;
+  const value = raw.split(/[?#]/)[0].replace(CONTROL_CHARS, "");
+  if (!value.startsWith("/")) return null;
+  return collapseSegments(value);
 }
 
 export function isPrivatePath(pathname: string): boolean {
-  const path = stripQuery(pathname);
+  const path = normalizeForMatching(pathname);
+  if (path === null) return true; // ante la duda, privada
   return MANAGE_PATH.test(path) || PRIVATE_ROUTE_PREFIXES.some((prefix) => matchesPrefix(path, prefix));
 }
 
 export function isTokenPath(pathname: string): boolean {
-  const path = stripQuery(pathname);
+  const path = normalizeForMatching(pathname);
+  if (path === null) return true;
   return MANAGE_PATH.test(path) || TOKEN_ROUTE_PREFIXES.some((prefix) => matchesPrefix(path, prefix));
 }
 
 /** Páginas públicas que no deben contarse como visitas (réplicas locales sin escrituras). */
 const UNTRACKED_PUBLIC_PREFIXES = ["/demo/booking"] as const;
 
-/** ¿Puede registrarse esta ruta en la analítica de visitas? Nunca una ruta privada ni con token. */
+/** ¿Puede registrarse esta ruta en la analítica de visitas? Nunca una ruta privada, con token, ni una ruta no analizable. */
 export function isTrackablePath(pathname: string): boolean {
-  const path = stripQuery(pathname);
+  const path = normalizeForMatching(pathname);
+  if (path === null) return false;
   return !isPrivatePath(path) && !UNTRACKED_PUBLIC_PREFIXES.some((prefix) => matchesPrefix(path, prefix));
+}
+
+// ── Campos de analítica distintos de la ruta ─────────────────────────────────────────────────────────────────
+
+/** Una cadena tipo token: 24+ caracteres url-safe seguidos (los tokens de GarageOS son hex/base64url largos). */
+const TOKEN_LIKE = /[A-Za-z0-9_-]{24,}/;
+
+export function looksLikeToken(value: string): boolean {
+  return TOKEN_LIKE.test(value);
+}
+
+/** utm_* viene del query de la página visitada (lo controla quien enlaza): nunca se guarda algo con forma de token. */
+export function sanitizeCampaignValue(value: unknown): string {
+  if (typeof value !== "string") return "";
+  const clean = value.replace(CONTROL_CHARS, "").trim().slice(0, 100);
+  return looksLikeToken(clean) ? "" : clean;
+}
+
+const SHOP_SLUG = /^[a-z0-9][a-z0-9-]{0,98}$/;
+
+/**
+ * El slug del taller se deriva SIEMPRE de la ruta ya normalizada, no del cuerpo de la petición (el cliente podría
+ * enviar cualquier cosa, incluido un token).
+ */
+export function shopSlugFromPath(storagePath: string): string {
+  const match = /^\/book\/([^/]+)(?:\/|$)/.exec(storagePath);
+  const slug = match?.[1]?.toLowerCase() ?? "";
+  return SHOP_SLUG.test(slug) && !looksLikeToken(slug) ? slug : "";
 }
 
 /** Patrones de `source` de Next (`headers()`) para las familias anteriores. */

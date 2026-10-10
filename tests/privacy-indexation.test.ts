@@ -11,7 +11,12 @@ import {
   isPrivatePath,
   isTokenPath,
   isTrackablePath,
+  looksLikeToken,
+  normalizeForMatching,
+  normalizeForStorage,
   privatePathRegexSources,
+  sanitizeCampaignValue,
+  shopSlugFromPath,
 } from "../src/lib/privacy/private-paths";
 
 const root = process.cwd();
@@ -163,4 +168,118 @@ test("the admin layout is a pass-through (no behavior change for login, signup o
   const src = read("src/app/admin/layout.tsx");
   assert.match(src, /return children;/);
   assert.ok(!/redirect|auth\(/.test(src));
+});
+
+// ── Variants: the same private route written differently must be classified the same way ──────────────────────
+
+const PRIVATE_VARIANTS = [
+  "/PORTAL/tokenvalue", // case
+  "/Quote/tokenvalue",
+  "/portal/tokenvalue/", // trailing slash
+  "//portal/tokenvalue", // repeated slashes
+  "/portal//tokenvalue",
+  "///quote///tokenvalue",
+  "\\portal\\tokenvalue", // backslashes
+  "/%70ortal/tokenvalue", // percent-encoded letter
+  "/%51uote/tokenvalue",
+  "/%2570ortal/tokenvalue", // double-encoded
+  "/%252570ortal/tokenvalue", // triple-encoded
+  "/portal%2Ftokenvalue", // encoded slash
+  "/portal%2ftokenvalue",
+  "/x/../portal/tokenvalue", // dot segments
+  "/./portal/tokenvalue",
+  "/portal/./tokenvalue",
+  "/portal/tokenvalue?utm_source=x", // query
+  "/portal/tokenvalue#frag", // hash
+  "/portal%3Ftokenvalue", // encoded ?
+  "/portal%23tokenvalue", // encoded #
+  "/quote/tokenvalue\u0000", // control chars
+  "/book/shop/manage/tokenvalue/",
+  "/BOOK/shop/MANAGE/tokenvalue",
+  "/book/shop//manage//tokenvalue",
+  "/book/sh%6Fp/manage/tokenvalue",
+  "/book/shop/%6Danage/tokenvalue",
+  "/api/track?x=1",
+  "/admin/../admin/dashboard",
+  "/ADMIN/login",
+  "/sales-invite/staff1/",
+  "/%73ales/book/tokenvalue",
+];
+
+test("variants of private routes (case, encoding, slashes, dot segments, query) are all private and untracked", () => {
+  for (const p of PRIVATE_VARIANTS) {
+    assert.equal(isPrivatePath(p), true, `${JSON.stringify(p)} must be private`);
+    assert.equal(isTrackablePath(p), false, `${JSON.stringify(p)} must not be tracked`);
+  }
+});
+
+test("token-bearing variants are token paths (Referer policy family)", () => {
+  for (const p of ["/PORTAL/t", "/%70ortal/t", "//quote/t", "/x/../inspection/t", "/book/s/MANAGE/t"]) {
+    assert.equal(isTokenPath(p), true, p);
+  }
+});
+
+test("unparseable paths are treated as private and never tracked", () => {
+  for (const p of ["", "%E0%A4%A", "/portal/%E0%A4%A", "/a/%zz", "/" + "a".repeat(3000), "/%25%25%25%25%25"]) {
+    assert.equal(isPrivatePath(p), true, `${JSON.stringify(p.slice(0, 20))} must be treated as private`);
+    assert.equal(isTrackablePath(p), false);
+  }
+  assert.equal(normalizeForMatching("%E0%A4%A"), null);
+});
+
+test("public look-alikes survive normalization", () => {
+  for (const p of ["/help", "/HELP", "/help/", "/help?q=%70ortal", "/guides/set-up-your-shop#portal", "/book/some-shop", "/book/some-shop/?embed=1", "/watch/en?t=tokenvalue", "/quote-software", "/portal-features", "/%71uote-software"]) {
+    assert.equal(isPrivatePath(p), false, `${p} must stay public`);
+  }
+  // A token in the query of a public page is never part of the path that is classified or stored.
+  assert.equal(normalizeForStorage("/watch/en?t=tokenvalue"), "/watch/en");
+});
+
+test("stored paths carry no query, hash, control characters, repeated slashes or dot segments", () => {
+  assert.equal(normalizeForStorage("/help?x=1#y"), "/help");
+  assert.equal(normalizeForStorage("//help//"), "/help");
+  assert.equal(normalizeForStorage("/a/../help"), "/help");
+  assert.equal(normalizeForStorage("/he\u0000lp"), "/help");
+  assert.equal(normalizeForStorage("help"), null);
+  assert.equal(normalizeForStorage(""), null);
+  assert.equal(normalizeForStorage("/Pricing"), "/Pricing", "case is preserved for display");
+});
+
+test("campaign fields never keep a token-shaped value", () => {
+  assert.equal(sanitizeCampaignValue("newsletter"), "newsletter");
+  assert.equal(sanitizeCampaignValue("fall-2026_promo"), "fall-2026_promo");
+  assert.equal(sanitizeCampaignValue("a".repeat(24)), "");
+  assert.equal(sanitizeCampaignValue("spring AbCdEfGhIjKlMnOpQrStUvWxYz012345 sale"), "");
+  assert.equal(sanitizeCampaignValue(undefined), "");
+  assert.equal(sanitizeCampaignValue(42), "");
+  assert.equal(sanitizeCampaignValue("x".repeat(500)).length, 0, "500 url-safe characters is token-shaped");
+  assert.ok(looksLikeToken("0123456789abcdef0123456789abcdef"));
+  assert.ok(!looksLikeToken("garage-laurent-demo"));
+});
+
+test("the shop slug is derived from the stored path, validated, and never taken from the request body", () => {
+  assert.equal(shopSlugFromPath("/book/garage-laurent-demo"), "garage-laurent-demo");
+  assert.equal(shopSlugFromPath("/book/garage-laurent-demo/anything"), "garage-laurent-demo");
+  assert.equal(shopSlugFromPath("/help"), "");
+  assert.equal(shopSlugFromPath("/book/" + "a".repeat(40)), "", "token-shaped slugs are dropped");
+  assert.equal(shopSlugFromPath("/book/Bad_Slug!"), "");
+  const server = read("src/lib/platform/analytics.ts");
+  assert.ok(!/input\.shopSlug/.test(server), "trackPageView must not trust input.shopSlug");
+  assert.ok(!/input\.utm(Source|Medium|Campaign)\.slice/.test(server), "utm_* must go through sanitizeCampaignValue");
+  assert.match(server, /path:\s*path\.slice\(0, 300\)/, "the normalized path is what gets stored");
+  assert.ok(!/input\.path\.slice/.test(server), "the raw client path must not be stored");
+});
+
+test("no sitemap or public metadata exposes private routes", () => {
+  // No sitemap exists yet; when one is added it must filter with the shared rule.
+  if (fs.existsSync(path.join(root, "src/app/sitemap.ts"))) {
+    assert.match(read("src/app/sitemap.ts"), /isPrivatePath/, "sitemap.ts must filter URLs with isPrivatePath");
+  }
+  // The video page canonicalizes the clean URL; the attribution token travels in the query and is never in metadata.
+  const watch = read("src/lib/watch-page.tsx");
+  assert.match(watch, /robots: token \? \{ index: false, follow: false \}/);
+  assert.ok(!/canonical:[^\n]*\?t=/.test(watch));
+  // Public pages that set canonical/OG go through the helper, which only ever receives literal public paths.
+  const helper = read("src/lib/seo/metadata.ts");
+  assert.ok(!/token/i.test(helper.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "")));
 });

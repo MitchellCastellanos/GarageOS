@@ -2,7 +2,7 @@ import "server-only";
 import crypto from "node:crypto";
 import { db } from "@/lib/db";
 import { getAppUrl } from "@/config/app";
-import { isTrackablePath } from "@/lib/privacy/private-paths";
+import { isTrackablePath, normalizeForStorage, sanitizeCampaignValue, shopSlugFromPath } from "@/lib/privacy/private-paths";
 
 /**
  * Analytics de visitas de primera parte, sin cookies — mismo enfoque que
@@ -50,9 +50,13 @@ export interface TrackPageViewInput {
 
 export async function trackPageView(input: TrackPageViewInput): Promise<void> {
   if (BOT_UA.test(input.userAgent)) return;
-  // Defensa en profundidad: un cliente antiguo (o uno malicioso) podría enviar una ruta con token. Esas rutas
-  // nunca se guardan.
+  // Defensa en profundidad: un cliente antiguo (o uno malicioso) podría enviar una ruta con token, con variantes
+  // (`/%71uote/…`, `//portal/…`, mayúsculas, `..`) o con query. Esas rutas nunca se guardan, y la que se guarda sale
+  // normalizada (sin query ni hash).
   if (!isTrackablePath(input.path)) return;
+  const path = normalizeForStorage(input.path);
+  if (!path) return;
+  const shopSlug = shopSlugFromPath(path);
 
   let referrerHost = "";
   if (input.referrer) {
@@ -67,19 +71,19 @@ export async function trackPageView(input: TrackPageViewInput): Promise<void> {
   }
 
   try {
-    const shop = input.shopSlug ? await db.shop.findUnique({ where: { slug: input.shopSlug }, select: { id: true } }) : null;
+    const shop = shopSlug ? await db.shop.findUnique({ where: { slug: shopSlug }, select: { id: true } }) : null;
     await db.pageView.create({
       data: {
-        path: input.path.slice(0, 300),
+        path: path.slice(0, 300),
         locale: input.locale === "fr" ? "fr" : "en",
         referrerHost: referrerHost.slice(0, 200),
-        utmSource: input.utmSource.slice(0, 100),
-        utmMedium: input.utmMedium.slice(0, 100),
-        utmCampaign: input.utmCampaign.slice(0, 100),
+        utmSource: sanitizeCampaignValue(input.utmSource),
+        utmMedium: sanitizeCampaignValue(input.utmMedium),
+        utmCampaign: sanitizeCampaignValue(input.utmCampaign),
         device: deviceFromUA(input.userAgent),
         browser: browserFromUA(input.userAgent),
         country: /^[A-Za-z]{2}$/.test(input.country) ? input.country.toUpperCase() : "",
-        shopSlug: input.shopSlug.slice(0, 100),
+        shopSlug,
         shopId: shop?.id,
         visitorHash: hashVisitor(input.ip, input.userAgent),
       },
