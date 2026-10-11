@@ -40,7 +40,7 @@ No merge or production deploy without the owner's authorization (the owner expli
 | #101 | EN/FR routing infrastructure (route groups, `RootShell`, route table, switcher, `lang` en-CA/fr-CA, utm carry-over) | `843e304` | merged |
 | issue #103 | Perf: `GET /?_rsc=…` hangs 7–30 s on revisits of `/` (pre-existing, reproduced on old `main`) | — | open, separate |
 
-**PR #3 (sitemap+hreflang): implemented on branch `claude/seo-sitemap-hreflang`, PR open, awaiting owner authorization to merge** (tsc clean, ESLint 0 errors, 843 tests: 836 pass/0 fail/7 skipped, `next build` OK; local build emits `/sitemap.xml` and `robots.txt` with the `Sitemap:` line; Preview verification: see PR). Update this line with the merge commit once merged and production is verified.
+**PR #3 (sitemap+hreflang): implemented on branch `claude/seo-sitemap-hreflang`, PR open, awaiting owner authorization to merge** (tsc clean, ESLint 0 errors, 843 tests: 836 pass/0 fail/7 skipped, `next build` OK; local build emits `/sitemap.xml` and `robots.txt` with the `Sitemap:` line; Preview READY on commit `701a0b9`: `/sitemap.xml` (32 URLs, no /fr, /book, private or query URLs) and `/robots.txt` (all Disallow + `Sitemap:` line) verified; both use the stale Preview `NEXT_PUBLIC_APP_URL` host as expected, production uses the www host). Update this line with the merge commit once merged and production is verified.
 
 **Not started:** PR #4 (French commercial pages), PR #5 (four Features pages). No branches for them exist.
 
