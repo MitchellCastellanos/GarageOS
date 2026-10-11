@@ -30,7 +30,7 @@ No merge or production deploy without the owner's authorization (the owner expli
 
 ## 4. Exact implementation state (verified against git/GitHub/Vercel)
 
-`main` HEAD at the time of writing: **`843e304`** (merge of PR #101). The documentation PR that adds this file lands on top of it (see the PR/merge commit in the final report).
+`main` HEAD after PR #3: **`f10a221`** (merge of PR #105, 2026-10-11). Previous reference points: `843e304` (PR #101), `2a68d9e` (docs PR #104).
 
 | PR | Title | Merge commit on main | State |
 |---|---|---|---|
@@ -38,9 +38,16 @@ No merge or production deploy without the owner's authorization (the owner expli
 | #100 | Private/token routes: robots, noindex + `X-Robots-Tag`, `Referrer-Policy: same-origin`, analytics path normalisation (`src/lib/privacy/private-paths.ts`) | `007e5fe` | merged, verified in production |
 | #102 | French terminology (Soumission→Devis, Bon→Ordre de travail) + guard test `tests/fr-terminology.test.ts` + `fr-terminology-review.md` | `81ff14a` | merged |
 | #101 | EN/FR routing infrastructure (route groups, `RootShell`, route table, switcher, `lang` en-CA/fr-CA, utm carry-over) | `843e304` | merged |
+| #105 | PR #3: sitemap.xml, hreflang helper (`alternatesFor`), robots `Sitemap:` line, home JSON-LD | `f10a221` | merged 2026-10-11, production verified (see below) |
 | issue #103 | Perf: `GET /?_rsc=…` hangs 7–30 s on revisits of `/` (pre-existing, reproduced on old `main`) | — | open, separate |
 
-**PR #3 (sitemap+hreflang): implemented on branch `claude/seo-sitemap-hreflang`, PR open, awaiting owner authorization to merge** (tsc clean, ESLint 0 errors, 843 tests: 836 pass/0 fail/7 skipped, `next build` OK; local build emits `/sitemap.xml` and `robots.txt` with the `Sitemap:` line; Preview READY on commit `701a0b9`: `/sitemap.xml` (32 URLs, no /fr, /book, private or query URLs) and `/robots.txt` (all Disallow + `Sitemap:` line) verified; both use the stale Preview `NEXT_PUBLIC_APP_URL` host as expected, production uses the www host). Update this line with the merge commit once merged and production is verified.
+**PR #3 (sitemap + hreflang + robots `Sitemap:` + home JSON-LD): MERGED** as [#105](https://github.com/MitchellCastellanos/GarageOS/pull/105), merge commit **`f10a221`**, owner-authorized 2026-10-11. Pre-merge: tsc clean, ESLint 0 errors, 843 tests (836 pass / 0 fail / 7 skipped), `next build` OK, Preview READY, PR `clean`. **Production verified** (deployment `dpl_2XXKJ8NaAcN78YwZBGK8USpDCBbJ`, READY, aliased to `www.garage-os.ca`, via Vercel fetch tool):
+- `https://www.garage-os.ca/sitemap.xml` → 200, 32 URLs, **all exactly `https://www.garage-os.ca/...`** (16 EN pages + 13 guides + 3 blog posts); no `/fr`, `/book`, `/watch`, private/token routes or query strings; no `hreflang` (no real FR pair exists yet).
+- `robots.txt` → 200, all previous `Disallow` rules intact + `Sitemap: https://www.garage-os.ca/sitemap.xml`.
+- Canonical and `og:url` correct for `/`, `/pricing`, `/help`, `/blog` (host `www.garage-os.ca`, `lang="en-CA"`, no robots meta). Home canonical is serialized by Next as `https://www.garage-os.ca` (no trailing slash) while the sitemap lists `https://www.garage-os.ca/`; these are the same URL (root path), not a contradiction. `/` carries JSON-LD (Organization + WebSite).
+- `/fr` → `lang="fr-CA"`, `noindex, follow`, canonical `https://www.garage-os.ca/fr`, absent from sitemap.
+- `/quote/<invalid>` and `/portal/<invalid>` → 404 with `X-Robots-Tag: noindex, nofollow, noarchive`, `Referrer-Policy: same-origin`, robots meta `noindex, nofollow, nocache`.
+- **Not verified live:** canonical/robots meta of every one of the 32 sitemap URLs individually (only the 4 above fetched; the rest rely on `tests/seo-sitemap.test.ts`, which asserts each sitemap URL is indexable and not private); real quote/portal flows with valid tokens; Search Console/Bing (manual, owner).
 
 **Not started:** PR #4 (French commercial pages), PR #5 (four Features pages). No branches for them exist.
 
@@ -81,7 +88,7 @@ PR #3 (sitemap/hreflang) depends on #101 (done). PR #4 (FR commercial pages) dep
 
 ## 8. Backlog (do not lose the national bilingual objective)
 
-1. **PR #3 (implemented, awaiting merge)** — sitemap, hreflang, multilingual SEO. Spec: [`seo-pr3-proposal.md`](./seo-pr3-proposal.md). Decisions fixed: no `/book/[slug]` in sitemap; `/fr` stays noindex; hreflang only real, indexable, self-canonical equivalents; en-CA/fr-CA/x-default→EN.
+1. **PR #3 (merged `f10a221`, production verified)** — sitemap, hreflang, multilingual SEO. Spec: [`seo-pr3-proposal.md`](./seo-pr3-proposal.md). Decisions fixed: no `/book/[slug]` in sitemap; `/fr` stays noindex; hreflang only real, indexable, self-canonical equivalents; en-CA/fr-CA/x-default→EN.
 2. **PR #4** — French commercial pages for the 12 existing pages (master plan PR-05b/07/09 parts): `/fr/produit`, `fonctionnalites`, `tarifs`, `integrations`, `demo`, `commencer`, `demarrage-rapide`, `a-propos`, `contact`, `confidentialite`, `conditions`, `nouveautes` (+ `aide` later). Original French copy, Québec review first, flip route table flags, page-level links via `LocaleLink`.
 3. **PR #5** — first four Features pages EN/FR: Online Booking / Réservation en ligne; Digital Vehicle Inspections / Inspections numériques de véhicules; Quotes & Approvals / Devis et approbations; SMS & Email Communications / Communications SMS et courriel. Original content, verifiable claims only, metadata, internal links, CTA to Demo/Signup, plan gates derived from entitlements.
 4. Full Resources renovation + bilingual Help Center (PR-12…PR-20: content platform, search, ≈63 articles, redirects from `/guides`, contextual `HelpLink`, real dated changelog).
@@ -98,6 +105,7 @@ PR #3 (sitemap/hreflang) depends on #101 (done). PR #4 (FR commercial pages) dep
 
 **SEO / product**
 - PR #3 sitemap + hreflang; French indexation (after approval); Québec contextual terminology review before FR commercial content; legal review of FR privacy/terms terminology and Québec consumer-protection wording for the repair estimate.
+- **Technical pending — Preview `NEXT_PUBLIC_APP_URL`:** the Vercel Preview environment has a stale fixed `NEXT_PUBLIC_APP_URL` (points to an old branch Preview host). Because canonicals, `og:url`, sitemap and `robots.txt` Sitemap line all derive from `getSiteUrl()`, every Preview emits that wrong host (confirmed on the PR #105 Preview). Production is correct. Fix is an owner env-var change in Vercel (not done here; env vars out of scope); until then do not judge hosts from Previews. Optional code-side alternative: derive the host from `VERCEL_URL` only when `VERCEL_ENV=preview`.
 - Issue #103 performance (`/?_rsc` revisits) — keep separate.
 - Follow-ups from the terminology PR: FR videos (`video/src/locales/fr.ts`, narration alignment) still use old terms — **do not regenerate automatically**; seed row 'Soumissions et factures' in applied migration `20261009100000_sales_crm_foundation` — fix only with a new safe procedure; SMS "ordre N" could read "ordre de travail N".
 - Other findings: `/pricing` SSR has no `<h1>`; sales-video CDN/deployment status unverified; comment in `entitlements.ts` says SMS values are provisional (stale).
@@ -117,8 +125,9 @@ PR #3 (sitemap/hreflang) depends on #101 (done). PR #4 (FR commercial pages) dep
 ## 11. Instructions for the next agent
 
 1. Read this file, then `seo-pr3-proposal.md`, `seo-master-plan.md` (sections 5, 6, 12, 13), `seo-manual-checklist.md`, `seo-i18n-architecture-decision.md`.
-2. `git fetch origin && git checkout -b claude/seo-sitemap-hreflang origin/main` (never work from `claude/resources-renovation`).
-3. Implement **only** PR #3 per the spec; do not start #4/#5; no DNS/Search Console/Bing/Resend/PageView actions.
+2. PR #3 is done. Next step is PR #4 (only when the owner asks): `git fetch origin && git checkout -b <new-branch> origin/main` (never from `claude/resources-renovation`).
+3. When PR #4 flips a FR page to `frStatus: "live"` + indexable, the sitemap and hreflang (en-CA/fr-CA/x-default→EN) pick it up automatically; add the FR page and flip the flags together, and check reciprocity (`tests/seo-sitemap.test.ts`).
+   Keep the standing constraints: no DNS/Search Console/Bing/Resend/PageView actions in code sessions.
 4. Run `tsc`, ESLint, full tests, build; open the PR (follow `.github` PR template if present); verify the Preview (`/sitemap.xml`, `/robots.txt`, hreflang on pages); report; **wait for owner authorization before merging** unless the owner has said otherwise.
 5. After merge, verify production using the Vercel fetch tool, then update `seo-master-plan.md` status and this file's §4 table.
 6. Keep this handoff current at the end of every session.
