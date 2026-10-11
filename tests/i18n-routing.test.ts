@@ -211,7 +211,7 @@ test("two root layouts, one <html lang> each; nothing at the top of src/app can 
   assert.match(read("src/components/root/RootShell.tsx"), /<html lang=\{HTML_LANG\[locale\]\}/);
   // Only route handlers and metadata files stay outside the groups.
   const top = fs.readdirSync(path.join(root, "src/app"));
-  assert.deepEqual(top.sort(), ["(fr)", "(site)", "api", "apple-icon.png", "globals.css", "icon.png", "robots.ts"].sort());
+  assert.deepEqual(top.sort(), ["(fr)", "(site)", "api", "apple-icon.png", "globals.css", "icon.png", "robots.ts", "sitemap.ts"].sort());
   for (const f of walk("src/app/api")) assert.ok(!/\/(page|layout)\.tsx$/.test(f), `${f}: api must hold route handlers only`);
 });
 

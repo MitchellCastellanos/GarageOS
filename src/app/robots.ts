@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { PRIVATE_ROUTE_PREFIXES } from "@/lib/privacy/private-paths";
+import { getSiteUrl } from "@/lib/seo/site";
 
 /**
  * Lo público (marketing, Resources, /watch, páginas de reserva de cada taller) queda rastreable. Se bloquean
@@ -19,5 +20,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: [...PRIVATE_ROUTE_PREFIXES.flatMap((prefix) => [`${prefix}/`, `${prefix}$`]), "/book/*/manage/"],
       },
     ],
+    sitemap: `${getSiteUrl()}/sitemap.xml`,
   };
 }

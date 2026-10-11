@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { APP_NAME } from "@/config/app";
 import type { MarketingLocale } from "@/lib/marketing-locale";
 import { isFrenchPath, isIndexablePath } from "@/lib/seo/routes";
-import { canonicalUrl } from "@/lib/seo/site";
+import { alternatesFor, canonicalUrl } from "@/lib/seo/site";
 
 const OG_IMAGE = { url: "/og-image.png", width: 1200, height: 630, alt: APP_NAME };
 const OG_LOCALE: Record<MarketingLocale, { locale: string; alternate: string }> = {
@@ -19,11 +19,12 @@ const OG_LOCALE: Record<MarketingLocale, { locale: string; alternate: string }> 
  */
 export function pageMetadata({ path, title, description }: { path: string; title: string; description: string }): Metadata {
   const url = canonicalUrl(path);
+  const languages = alternatesFor(path);
   const og = OG_LOCALE[isFrenchPath(path) ? "fr" : "en"];
   return {
     title,
     description,
-    alternates: { canonical: url },
+    alternates: { canonical: url, ...(languages ? { languages } : {}) },
     ...(isIndexablePath(path) ? {} : { robots: { index: false, follow: true } }),
     openGraph: {
       type: "website",
