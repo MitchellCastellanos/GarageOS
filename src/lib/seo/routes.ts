@@ -162,7 +162,20 @@ export function createRouter(routes: readonly PublicRoute[], families: readonly 
     return match.route.frStatus === "live" && match.route.frIndexable !== false;
   }
 
-  return { matchRoute, fixedLocaleForPath, switchTarget, localizeHref, isIndexablePath, getRoute: (id: string) => byId.get(id) };
+  /**
+   * Pares hreflang (rutas relativas) de una página pública. Solo si AMBOS idiomas tienen equivalente real
+   * (`frStatus: "live"`), son indexables y cada uno tiene su propia canonical. Nunca se deriva de `switchTarget`
+   * (que devuelve fallbacks a propósito). `x-default` = la versión inglesa. Sin par real → `undefined`.
+   */
+  function hreflangPaths(pathname: string): { "en-CA": string; "fr-CA": string; "x-default": string } | undefined {
+    const match = matchRoute(pathname);
+    if (!match || match.child) return undefined;
+    const { route } = match;
+    if (route.frStatus !== "live" || !route.fr || route.frIndexable === false) return undefined;
+    return { "en-CA": route.en, "fr-CA": route.fr, "x-default": route.en };
+  }
+
+  return { matchRoute, fixedLocaleForPath, switchTarget, localizeHref, isIndexablePath, hreflangPaths, getRoute: (id: string) => byId.get(id) };
 }
 
 /** Familias dinámicas (páginas hijas de una ruta registrada): `/guides/<slug>` hereda el fallback de `guides`. */
@@ -172,4 +185,4 @@ export const ROUTE_FAMILIES: readonly RouteFamily[] = [
 ];
 
 const router = createRouter(PUBLIC_ROUTES, ROUTE_FAMILIES);
-export const { matchRoute, fixedLocaleForPath, switchTarget, localizeHref, isIndexablePath, getRoute } = router;
+export const { matchRoute, fixedLocaleForPath, switchTarget, localizeHref, isIndexablePath, hreflangPaths, getRoute } = router;

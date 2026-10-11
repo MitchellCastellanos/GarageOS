@@ -1,4 +1,5 @@
 import { getAppUrl } from "@/config/app";
+import { hreflangPaths } from "@/lib/seo/routes";
 
 /**
  * Host autoritativo del sitio público (decisión D10). `garage-os.ca` redirige (308) a este host en Vercel, así
@@ -23,4 +24,15 @@ export function canonicalUrl(path: string): string {
   const clean = path.split(/[?#]/)[0] || "/";
   const normalized = clean.length > 1 ? clean.replace(/\/+$/, "") : "/";
   return new URL(normalized.startsWith("/") ? normalized : `/${normalized}`, `${getSiteUrl()}/`).toString();
+}
+
+/** Pares hreflang absolutos (`en-CA`, `fr-CA`, `x-default`) de una ruta, o `undefined` si no hay equivalente real e indexable. */
+export function alternatesFor(path: string): { "en-CA": string; "fr-CA": string; "x-default": string } | undefined {
+  const paths = hreflangPaths(path);
+  if (!paths) return undefined;
+  return {
+    "en-CA": canonicalUrl(paths["en-CA"]),
+    "fr-CA": canonicalUrl(paths["fr-CA"]),
+    "x-default": canonicalUrl(paths["x-default"]),
+  };
 }

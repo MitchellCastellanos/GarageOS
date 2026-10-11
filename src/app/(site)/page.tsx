@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { HomeView } from "@/components/marketing/HomeView";
+import { jsonLdString, organizationJsonLd, webSiteJsonLd } from "@/lib/seo/json-ld";
 import { pageMetadata } from "@/lib/seo/metadata";
 
 // The published video list is cached for 5 minutes; this keeps the (otherwise static) page in step with it.
@@ -13,5 +14,10 @@ export const metadata: Metadata = pageMetadata({
 });
 
 export default function HomePage() {
-  return <HomeView />;
+  return (
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString([organizationJsonLd(), webSiteJsonLd("en")]) }} />
+      <HomeView />
+    </>
+  );
 }
