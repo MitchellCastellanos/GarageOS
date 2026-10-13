@@ -28,3 +28,12 @@ export function webSiteJsonLd(locale: MarketingLocale) {
 export function jsonLdString(data: unknown): string {
   return JSON.stringify(data).replace(/</g, "\\u003c");
 }
+
+/** BreadcrumbList del Centro de ayuda (hechos verificables: la jerarquía de URLs). `crumbs` con href relativo. */
+export function breadcrumbJsonLd(crumbs: { label: string; href: string }[]) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: crumbs.map((c, i) => ({ "@type": "ListItem", position: i + 1, name: c.label, item: canonicalUrl(c.href) })),
+  };
+}

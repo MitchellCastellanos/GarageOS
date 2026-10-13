@@ -85,7 +85,7 @@ Plan **aprobado**; implementación por tandas, revisando cada una antes de autor
 - Incidencia de rendimiento independiente: issue #103 (`/?_rsc` lento; preexistente).
 - Pendiente antes del contenido comercial francés: revisión contextual de Québec (ver checklist F). "Devis" nombre oficial; "Soumission" sinónimo comercial/educativo permitido.
 - ✅ PR #3 (sitemap + hreflang + SEO multilingüe) = PR #105, merge `f10a221`, verificado en producción (ver `SEO_HANDOFF.md` §4). Handoff cerrado en PR #106 (`0ffeebb`).
-- Siguiente: ver `docs/seo-gap-audit-2026-10-13.md` (auditoría aprobada 2026-10-13). En curso: PR #108 (CI SEO + metadata), PR #109 (FR oleada 1, noindex), contrato de analítica v2 (`docs/analytics-v2-contract.md`, pendiente de aprobación) e instrucciones de dry-run de PageView (runbook §6).
+- Siguiente: ver `docs/seo-gap-audit-2026-10-13.md` (auditoría aprobada 2026-10-13). Hecho: PR #108 (CI SEO + metadata, `c43bda9`), PR #109 (FR oleada 1 noindex, `0987c2b`) y PR #110 (docs, `83b69ce`), verificados en producción. En curso: plataforma del Help Center (PR abierto), contrato de analítica v2 (`docs/analytics-v2-contract.md`, pendiente de aprobación) e instrucciones de dry-run de PageView (runbook §6).
 
 ### Hallazgos de la tanda 1 que ajustan este plan
 
