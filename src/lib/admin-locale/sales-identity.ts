@@ -30,7 +30,7 @@ const en = {
   territories: {
     title: "Territories", help: "Who may do the INITIAL acquisition of a prospect. Existing active opportunities keep their owner. FIELD priority releases untouched prospects to REMOTE after the priority window.",
     acq: { FIELD_EXCLUSIVE: "Field-exclusive", FIELD_PRIORITY: "Field priority, then remote", REMOTE_DEFAULT: "Remote by default" } as Record<string, string>,
-    cities: "Cities", postal: "Postal prefixes", days: "Priority days", start: "Priority start", save: "Save territory", saved: "Territory saved.", active: "Active", order: "Order (lower = more specific)", key: "Key (a-z, 0-9, -)", nameEn: "Name (EN)", nameFr: "Name (FR)", provinces: "Provinces (e.g. QC)", add: "Add territory", csvHelp: "Comma-separated.",
+    cities: "Cities", postal: "Postal prefixes", days: "FIELD priority days (per prospect)", daysHelp: "Only for FIELD priority. Each prospect gets its own window of this many days when it first enters the territory; after it ends, untouched unowned prospects open to REMOTE sellers.", save: "Save territory", saved: "Territory saved.", active: "Active", order: "Order (lower = more specific)", key: "Key (a-z, 0-9, -)", nameEn: "Name (EN)", nameFr: "Name (FR)", provinces: "Provinces (e.g. QC)", add: "Add territory", csvHelp: "Comma-separated.",
   },
   videos: {
     title: "Videos", help: "Reusable website and outreach videos. Use the keys “commercial” (60 s) and “teaser” (15 s), one row per language; the URL is the CDN link of the MP4. Only PUBLISHED videos are ever shown or sent. Emails link to the GarageOS video page (with a tracked, expiring link), never to the MP4 itself.",
@@ -76,7 +76,7 @@ const fr: Dict = {
   territories: {
     title: "Territoires", help: "Qui peut faire l’acquisition INITIALE d’un prospect. Les occasions actives existantes gardent leur propriétaire. La priorité terrain libère les prospects non touchés vers l’équipe à distance après la période.",
     acq: { FIELD_EXCLUSIVE: "Exclusif terrain", FIELD_PRIORITY: "Priorité terrain, puis à distance", REMOTE_DEFAULT: "À distance par défaut" },
-    cities: "Villes", postal: "Préfixes postaux", days: "Jours de priorité", start: "Début de la priorité", save: "Enregistrer le territoire", saved: "Territoire enregistré.", active: "Actif", order: "Ordre (plus bas = plus précis)", key: "Clé (a-z, 0-9, -)", nameEn: "Nom (EN)", nameFr: "Nom (FR)", provinces: "Provinces (ex. QC)", add: "Ajouter un territoire", csvHelp: "Séparés par des virgules.",
+    cities: "Villes", postal: "Préfixes postaux", days: "Jours de priorité TERRAIN (par prospect)", daysHelp: "Seulement pour la priorité TERRAIN. Chaque prospect reçoit sa propre fenêtre de ce nombre de jours dès qu’il entre dans le territoire ; ensuite, les prospects non assignés et sans contact s’ouvrent aux vendeurs À DISTANCE.", save: "Enregistrer le territoire", saved: "Territoire enregistré.", active: "Actif", order: "Ordre (plus bas = plus précis)", key: "Clé (a-z, 0-9, -)", nameEn: "Nom (EN)", nameFr: "Nom (FR)", provinces: "Provinces (ex. QC)", add: "Ajouter un territoire", csvHelp: "Séparés par des virgules.",
   },
   videos: {
     title: "Vidéos", help: "Vidéos réutilisables pour le site et les courriels. Utilisez les clés « commercial » (60 s) et « teaser » (15 s), une ligne par langue; l’URL est le lien CDN du fichier MP4. Seules les vidéos PUBLIÉES sont affichées ou envoyées. Les courriels renvoient à la page vidéo de GarageOS (lien suivi et à durée limitée), jamais directement au MP4.",

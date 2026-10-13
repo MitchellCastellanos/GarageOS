@@ -2621,6 +2621,14 @@ model CrmProspect {
   territoryKey       String?
   territoryState     CrmTerritoryState?
   territoryResolvedAt DateTime?
+  /// Per-prospect FIELD priority window start (database clock). NULL = no window started: the prospect is held by FIELD
+  /// exactly as before. Stamped ONCE, when the prospect first enters a FIELD_PRIORITY territory (creation, or an address
+  /// that newly places it there) and by an explicit manual "return to FIELD priority". Never backfilled, never reset by
+  /// reimports, duplicate processing, assignment retries or jobs.
+  fieldPriorityStartedAt DateTime?
+  /// Manual release of FIELD acquisition to REMOTE by a manager/Super Admin (acquisition eligibility only — never an
+  /// ownership transfer). Cleared by "return to FIELD priority". NULL = not released.
+  remoteReleasedAt   DateTime?
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
 
@@ -2645,6 +2653,7 @@ model CrmProspect {
   @@index([addressKey])
   @@index([postalKey])
   @@index([territoryState, territoryKey])
+  @@index([territoryKey, fieldPriorityStartedAt])
   @@schema("garageos")
 }
 

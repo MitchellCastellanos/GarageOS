@@ -59,7 +59,7 @@ export async function listProspects(actor: PlatformSalesActor, f: ProspectFilter
       where, orderBy, skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE,
       select: {
         id: true, name: true, city: true, province: true, preferredLanguage: true, source: true, industry: true, status: true, doNotContact: true, lastActivityAt: true, createdAt: true,
-        territoryKey: true, territoryState: true, addressQuality: true, assignedStaffId: true,
+        territoryKey: true, territoryState: true, addressQuality: true, assignedStaffId: true, fieldPriorityStartedAt: true, remoteReleasedAt: true,
         duplicateReviews: { where: { status: "PENDING" }, take: 1, select: { id: true } },
         assignedStaff: { select: { id: true, status: true, user: { select: { name: true } } } },
         contacts: { where: { archivedAt: null, isPrimary: true }, take: 1, select: { name: true } },

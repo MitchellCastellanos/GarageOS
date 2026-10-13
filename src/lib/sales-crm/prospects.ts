@@ -7,7 +7,7 @@ import {
 import { canonicalAddress } from "@/domain/sales-crm/address";
 import { classifyAgainstPool, type MatchKey } from "@/domain/sales-crm/dedupe";
 import { normalizeBusinessName, normalizeEmail, phoneDigits, websiteDomain } from "@/domain/sales-crm/normalize";
-import { cityKey, classifyTerritory, type TerritoryRule } from "@/domain/sales-crm/territory";
+import { cityKey, classifyTerritory, type Location, type TerritoryRule } from "@/domain/sales-crm/territory";
 import type { ProspectInput } from "@/domain/sales-crm/validation";
 import { writeCrmAudit } from "@/lib/sales-crm/audit";
 import { recomputeOpportunityScores } from "@/lib/sales-crm/scoring";
@@ -55,6 +55,42 @@ export function addressColumns(loc: { address?: string | null; city?: string | n
 export function territoryColumns(rules: TerritoryRule[], loc: { city?: string | null; province?: string | null; postalCode?: string | null }, now = new Date()) {
   const c = classifyTerritory(rules, loc);
   return { territoryKey: c.state === "UNRESOLVED" ? null : (c.rule?.key ?? null), territoryState: c.state, territoryResolvedAt: now };
+}
+
+/** The DATABASE clock (UTC), so priority windows never depend on an app server's clock. Pass the transaction client. */
+export async function dbNow(client: Tx | typeof db = db): Promise<Date> {
+  const r = await client.$queryRaw<{ now: Date }[]>`SELECT (now() AT TIME ZONE 'UTC') AS now`;
+  return new Date(r[0].now);
+}
+
+/** Does this location put a prospect into a FIELD_PRIORITY territory (the FIELD acquisition queue with a window)? */
+export function entersFieldPriority(rules: TerritoryRule[], loc: Location): { enters: boolean; key: string | null } {
+  const c = classifyTerritory(rules, loc);
+  const enters = c.state === "LOCAL" && c.rule?.acquisition === "FIELD_PRIORITY" && !!c.rule.priorityDays;
+  return { enters, key: enters ? c.rule!.key : null };
+}
+
+/**
+ * START EVENT of a prospect's own FIELD priority window — the single, documented definition:
+ *   the moment the prospect FIRST enters a FIELD_PRIORITY territory, i.e. (a) it is created already located there, or
+ *   (b) its address is first completed/changed so that it now falls there and it had no window before.
+ * Columns for a NEW prospect (database clock). Existing prospects are never touched by this.
+ */
+export function fieldPriorityColumns(rules: TerritoryRule[], loc: Location, dbClock: Date) {
+  return entersFieldPriority(rules, loc).enters ? { fieldPriorityStartedAt: dbClock } : {};
+}
+
+/**
+ * Stamp-once for an EXISTING prospect whose address just changed (case b). Compare-and-set on `IS NULL` with the database
+ * clock, so concurrent writers, reimports, duplicate handling and retries can never reset or move a window. Does nothing if
+ * the prospect was already in this territory before the change (e.g. imported under FIELD_EXCLUSIVE: no invented date).
+ */
+export async function stampFieldPriorityOnEntry(tx: Tx, prospectId: string, rules: TerritoryRule[], loc: Location, before: { territoryState: string | null; territoryKey: string | null; fieldPriorityStartedAt: Date | null }): Promise<boolean> {
+  if (before.fieldPriorityStartedAt) return false;
+  const now = entersFieldPriority(rules, loc);
+  if (!now.enters || (before.territoryState === "LOCAL" && before.territoryKey === now.key)) return false;
+  const n = await tx.$executeRaw`UPDATE "garageos"."CrmProspect" SET "fieldPriorityStartedAt" = (now() AT TIME ZONE 'UTC') WHERE id = ${prospectId} AND "fieldPriorityStartedAt" IS NULL`;
+  return n === 1;
 }
 
 export function prospectColumns(input: Omit<ProspectInput, "assignedStaffId" | "tags" | "notes"> & { tags?: string[]; notes?: string | null }) {
@@ -106,9 +142,10 @@ export async function findDuplicateProspects(
 export async function createProspectRecord(tx: Tx, actor: PlatformSalesActor, input: ProspectInput, assignedStaffId: string | null, extra: { importBatchId?: string; doNotContact?: boolean } = {}) {
   const now = new Date();
   const rules = await loadTerritoryRulesWith(tx);
+  const clock = await dbNow(tx);
   const prospect = await tx.crmProspect.create({
     data: {
-      ...prospectColumns(input), ...territoryColumns(rules, input, now), assignedStaffId, createdByUserId: actor.userId, importBatchId: extra.importBatchId ?? null,
+      ...prospectColumns(input), ...territoryColumns(rules, input, now), ...fieldPriorityColumns(rules, input, clock), assignedStaffId, createdByUserId: actor.userId, importBatchId: extra.importBatchId ?? null,
       doNotContact: !!extra.doNotContact, doNotContactAt: extra.doNotContact ? now : null, lastActivityAt: now,
     },
     select: { id: true },

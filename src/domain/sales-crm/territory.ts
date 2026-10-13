@@ -8,7 +8,11 @@ export type Mode = "FIELD" | "REMOTE";
 
 export interface TerritoryRule {
   key: string; nameEn?: string; nameFr?: string; acquisition: AcquisitionKind; provinces: string[]; cities: string[]; postalPrefixes: string[];
-  priorityDays: number | null; priorityStartedAt: Date | null; active: boolean; sortOrder: number;
+  /** FIELD_PRIORITY: length of EACH prospect's own priority window, in days. */
+  priorityDays: number | null;
+  /** @deprecated Territory-wide start date from the first design. Kept for compatibility and IGNORED: windows are per prospect. */
+  priorityStartedAt: Date | null;
+  active: boolean; sortOrder: number;
 }
 export interface Location { province?: string | null; city?: string | null; postalCode?: string | null }
 
@@ -51,6 +55,8 @@ export interface Engagement {
   touched: boolean;
   /** A documented in-person visit ATTEMPT of any outcome. Informational only: it never unlocks email. */
   visited: boolean;
+  /** Any documented touch OTHER than a field-visit attempt (call, meeting, email, sequence step, demo). */
+  otherTouch: boolean;
   /**
    * A visit whose structured outcome is a genuine conversation (see field-visit.ts) and that has not since been
    * negated by a refusal/closure/DNC. This — not `visited` — satisfies the territory follow-up gate. It is never consent.
@@ -61,17 +67,53 @@ export interface Engagement {
   /** An open opportunity beyond NEW exists. */
   activeOpportunity: boolean;
 }
-export const NO_ENGAGEMENT: Engagement = { touched: false, visited: false, qualifiedVisit: false, replied: false, activeOpportunity: false };
+export const NO_ENGAGEMENT: Engagement = { touched: false, visited: false, otherTouch: false, qualifiedVisit: false, replied: false, activeOpportunity: false };
+
+/** Per-prospect acquisition timing (CrmProspect columns). Both NULL = no window started, not released. */
+export interface AcquisitionTiming { fieldPriorityStartedAt?: Date | null; remoteReleasedAt?: Date | null }
+export const NO_TIMING: AcquisitionTiming = { fieldPriorityStartedAt: null, remoteReleasedAt: null };
+
+/** Territory where FIELD sellers hold initial acquisition (exclusive, or priority for a window). */
+export const isFieldHeld = (rule: TerritoryRule | null): boolean => !!rule && rule.acquisition !== "REMOTE_DEFAULT";
+
+/**
+ * Engagement that keeps a prospect with FIELD after its window ends: a qualifying visit conversation, a reply, an active
+ * opportunity, or a non-visit touch. A failed / no-answer / rejected / unavailable visit is NOT meaningful engagement.
+ */
+export const meaningfulEngagement = (e: Engagement): boolean => e.qualifiedVisit || e.replied || e.activeOpportunity || e.otherTouch;
+
+/** End of THIS prospect's FIELD priority window: its own start + the territory's days. null when no window was started. */
+export function priorityDeadline(rule: TerritoryRule | null, timing: AcquisitionTiming): Date | null {
+  if (!rule || rule.acquisition !== "FIELD_PRIORITY" || !rule.priorityDays || !timing.fieldPriorityStartedAt) return null;
+  return new Date(timing.fieldPriorityStartedAt.getTime() + rule.priorityDays * 86_400_000);
+}
+
+export type AcquisitionReason = "NOT_FIELD_HELD" | "MANUALLY_RELEASED" | "FIELD_EXCLUSIVE" | "WINDOW_NOT_STARTED" | "WINDOW_OPEN" | "EXPIRED_ENGAGED" | "EXPIRED_RELEASED";
+export interface AcquisitionState { mode: Mode; reason: AcquisitionReason; deadline: Date | null }
+
+/**
+ * Which mode holds INITIAL acquisition of this prospect right now (never about who OWNS it: an owner is kept until a human
+ * transfers it explicitly).
+ *  · REMOTE_DEFAULT / no territory  → REMOTE
+ *  · manually released               → REMOTE
+ *  · FIELD_EXCLUSIVE                 → FIELD
+ *  · FIELD_PRIORITY                  → FIELD while the prospect's OWN window is open or was never started (old prospects are
+ *    not given invented dates); after it ends FIELD keeps only prospects with meaningful engagement, the rest become REMOTE.
+ * Pure function of (rule, engagement, now, timing): nothing to schedule, so there is no job that could race or reset a window.
+ */
+export function acquisitionState(rule: TerritoryRule | null, eng: Engagement, now: Date, timing: AcquisitionTiming = NO_TIMING): AcquisitionState {
+  if (!isFieldHeld(rule)) return { mode: "REMOTE", reason: "NOT_FIELD_HELD", deadline: null };
+  if (timing.remoteReleasedAt) return { mode: "REMOTE", reason: "MANUALLY_RELEASED", deadline: null };
+  if (rule!.acquisition === "FIELD_EXCLUSIVE") return { mode: "FIELD", reason: "FIELD_EXCLUSIVE", deadline: null };
+  const deadline = priorityDeadline(rule, timing);
+  if (!deadline) return { mode: "FIELD", reason: "WINDOW_NOT_STARTED", deadline: null };
+  if (now.getTime() < deadline.getTime()) return { mode: "FIELD", reason: "WINDOW_OPEN", deadline };
+  return meaningfulEngagement(eng) ? { mode: "FIELD", reason: "EXPIRED_ENGAGED", deadline } : { mode: "REMOTE", reason: "EXPIRED_RELEASED", deadline };
+}
 
 /** Which mode holds INITIAL acquisition of this prospect right now. */
-export function requiredMode(rule: TerritoryRule | null, eng: Engagement, now: Date): Mode {
-  if (!rule) return "REMOTE";
-  if (rule.acquisition === "REMOTE_DEFAULT") return "REMOTE";
-  if (rule.acquisition === "FIELD_EXCLUSIVE") return "FIELD";
-  // FIELD_PRIORITY: FIELD during the window, and afterwards only for prospects a FIELD agent already touched.
-  const end = rule.priorityStartedAt && rule.priorityDays ? rule.priorityStartedAt.getTime() + rule.priorityDays * 86_400_000 : null;
-  if (end === null || now.getTime() < end) return "FIELD";
-  return eng.touched || eng.activeOpportunity ? "FIELD" : "REMOTE";
+export function requiredMode(rule: TerritoryRule | null, eng: Engagement, now: Date, timing: AcquisitionTiming = NO_TIMING): Mode {
+  return acquisitionState(rule, eng, now, timing).mode;
 }
 
 export interface AcquirerFacts { mode: Mode | null; coverageKeys: readonly string[]; isSuperAdmin: boolean }
@@ -81,11 +123,11 @@ export type AcquisitionDecision = { allowed: true } | { allowed: false; code: "F
  * May this actor take INITIAL ownership of the prospect? Existing active opportunities retain their owner
  * (`retainsOwnership`) and explicit transfers by a manager/Super Admin are decided elsewhere — neither goes through here.
  */
-export function evaluateAcquisition(a: AcquirerFacts, rule: TerritoryRule | null, eng: Engagement, now: Date, retainsOwnership = false): AcquisitionDecision {
+export function evaluateAcquisition(a: AcquirerFacts, rule: TerritoryRule | null, eng: Engagement, now: Date, retainsOwnership = false, timing: AcquisitionTiming = NO_TIMING): AcquisitionDecision {
   if (a.isSuperAdmin || retainsOwnership) return { allowed: true };
   if (!a.mode) return { allowed: false, code: "NO_SALES_MODE" };
   if (a.coverageKeys.length && rule && !a.coverageKeys.includes(rule.key)) return { allowed: false, code: "OUTSIDE_COVERAGE" };
-  if (requiredMode(rule, eng, now) === "FIELD" && a.mode !== "FIELD") return { allowed: false, code: "FIELD_MODE_REQUIRED" };
+  if (requiredMode(rule, eng, now, timing) === "FIELD" && a.mode !== "FIELD") return { allowed: false, code: "FIELD_MODE_REQUIRED" };
   return { allowed: true };
 }
 

@@ -5,7 +5,9 @@ import { effectiveScore } from "@/domain/sales-crm/scoring";
 import { PLATFORM } from "@/lib/routes";
 import { leadCopy } from "@/lib/admin-locale/sales-lead-engine";
 import { isProspectQueue, loadQueueContext, queueCounts, PROSPECT_QUEUES } from "@/lib/sales-crm/queues";
-import { loadTerritoryRules } from "@/lib/sales-crm/territory";
+import { loadEngagements, loadTerritoryRules } from "@/lib/sales-crm/territory";
+import { acquisitionState, resolveTerritory } from "@/domain/sales-crm/territory";
+import { AcquisitionBar } from "@/components/sales-crm/AcquisitionBar";
 import { can } from "@/domain/sales-crm/access";
 import { CollapsibleFilters } from "@/components/sales-crm/CollapsibleFilters";
 import { Badge, EmptyState, LanguageBadge, PageHeader, Pager, PermissionDenied, ScorePill, StageBadge, btnPrimary, btnSecondary, cardCls, formatDate, inputCls, labelCls } from "@/components/sales-crm/ui";
@@ -28,6 +30,19 @@ export default async function ProspectsPage({ searchParams }: { searchParams: Pr
   const ctx = await loadQueueContext();
   const [result, staff, counts, rules] = await Promise.all([listProspects(actor, filters), listAssignableStaff(actor), queueCounts(actor, ctx), loadTerritoryRules()]);
   const p = t.prospects;
+  const canAcquire = can(actor, "reassign_prospects");
+  // Acquisition badge per row: own priority deadline / manual release / open to REMOTE (only FIELD-held territories get one).
+  const engs = await loadEngagements(result.rows.map((r) => r.id));
+  const A = L.acquisition;
+  const acqBadge = (r: (typeof result.rows)[number]) => {
+    const rule = resolveTerritory(rules, r);
+    if (!rule || rule.acquisition === "REMOTE_DEFAULT") return null;
+    const st = acquisitionState(rule, engs.get(r.id)!, new Date(), r);
+    if (st.reason === "MANUALLY_RELEASED") return { tone: "bg-sky-100 text-sky-800", text: A.badge.released };
+    if (st.reason === "WINDOW_OPEN") return { tone: "bg-violet-100 text-violet-800", text: A.badge.until.replace("{date}", formatDate(st.deadline, locale)) };
+    if (st.reason === "EXPIRED_RELEASED") return { tone: "bg-sky-100 text-sky-800", text: A.badge.open };
+    return { tone: "bg-violet-100 text-violet-800", text: A.badge.field };
+  };
   const qs = (over: Record<string, string | number | undefined>) => {
     const params = new URLSearchParams();
     const base: Record<string, string | undefined> = { q: filters.q, status: filters.status === "ARCHIVED" ? "ARCHIVED" : undefined, stage: filters.stage, owner: filters.owner, language: filters.language, source: filters.source, industry: filters.industry, dnc: filters.dnc ? "1" : undefined, queue: filters.queue, territory: filters.territory, sort: filters.sort, dir: filters.dir };
@@ -101,6 +116,8 @@ export default async function ProspectsPage({ searchParams }: { searchParams: Pr
       </form>
       </CollapsibleFilters>
 
+      {canAcquire && result.rows.length > 0 && <AcquisitionBar locale={locale} />}
+
       {result.rows.length === 0 ? (
         <EmptyState title={hasFilters ? p.emptyFiltered : t.states.emptyProspects} hint={hasFilters ? undefined : t.states.emptyProspectsHint}
           action={hasFilters ? undefined : <Link href={PLATFORM.salesProspectNew} className={btnPrimary}>{p.new}</Link>} />
@@ -109,6 +126,7 @@ export default async function ProspectsPage({ searchParams }: { searchParams: Pr
           <table className="w-full min-w-[56rem] text-left text-sm">
             <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
+                {canAcquire && <th scope="col" className="w-10 px-3 py-3"><span className="sr-only">{A.selected.replace("{n}", "")}</span></th>}
                 <th scope="col" className="px-4 py-3">{sortLink("name", p.sort.name)}</th>
                 <th scope="col" className="px-3 py-3">{p.contact}</th>
                 <th scope="col" className="px-3 py-3">{t.common.stage}</th>
@@ -123,6 +141,7 @@ export default async function ProspectsPage({ searchParams }: { searchParams: Pr
                 const fit = o ? effectiveScore(o.fitScore, o.fitScoreOverride) : null, intent = o ? effectiveScore(o.intentScore, o.intentScoreOverride) : null;
                 return (
                   <tr key={r.id} className="align-top hover:bg-slate-50">
+                    {canAcquire && <td className="px-3 py-3"><input type="checkbox" name="ids" value={r.id} form="acq-form" className="size-5" aria-label={r.name} /></td>}
                     <td className="px-4 py-3">
                       <Link href={PLATFORM.salesProspect(r.id)} className="break-words font-medium text-blue-700 hover:underline">{r.name}</Link>
                       <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
@@ -130,6 +149,7 @@ export default async function ProspectsPage({ searchParams }: { searchParams: Pr
                         {r.doNotContact && <Badge tone="bg-red-100 text-red-800">{t.prospects.detail.doNotContactBanner}</Badge>}
                         {r.overdue && <Badge tone="bg-rose-100 text-rose-800">{p.overdue}</Badge>}
                         {r.reviewPending && <Badge tone="bg-amber-100 text-amber-800">{L.indicators.reviewPending}</Badge>}
+                        {(() => { const b = acqBadge(r); return b ? <Badge tone={b.tone}>{b.text}</Badge> : null; })()}
                       </div>
                       <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
                         <Badge tone={r.territoryState === "LOCAL" ? "bg-indigo-100 text-indigo-800" : r.territoryState === "UNRESOLVED" ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-700"}>{r.territoryState === "LOCAL" ? (rules.find((x) => x.key === r.territoryKey)?.[locale === "fr" ? "nameFr" : "nameEn"] ?? r.territoryKey) : L.indicators.territory[r.territoryState ?? "NONE"]}</Badge>
@@ -154,7 +174,10 @@ export default async function ProspectsPage({ searchParams }: { searchParams: Pr
             const fit = o ? effectiveScore(o.fitScore, o.fitScoreOverride) : null, intent = o ? effectiveScore(o.intentScore, o.intentScoreOverride) : null;
             return (
               <li key={r.id} className={cardCls}>
-                <Link href={PLATFORM.salesProspect(r.id)} className="break-words text-base font-semibold text-blue-700">{r.name}</Link>
+                <div className="flex items-start gap-3">
+                  {canAcquire && <input type="checkbox" name="ids" value={r.id} form="acq-form" className="mt-1 size-6 shrink-0" aria-label={r.name} />}
+                  <Link href={PLATFORM.salesProspect(r.id)} className="min-w-0 break-words text-base font-semibold text-blue-700">{r.name}</Link>
+                </div>
                 <p className="mt-0.5 text-sm text-slate-500">{[r.city, r.province].filter(Boolean).join(", ") || t.common.none} · {r.contacts[0]?.name ?? t.common.none}</p>
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
                   {o && <StageBadge stage={o.stage} t={t} />}<LanguageBadge language={r.preferredLanguage} t={t} />
@@ -165,6 +188,7 @@ export default async function ProspectsPage({ searchParams }: { searchParams: Pr
                   <Badge tone={r.territoryState === "LOCAL" ? "bg-indigo-100 text-indigo-800" : r.territoryState === "UNRESOLVED" ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-700"}>{r.territoryState === "LOCAL" ? (rules.find((x) => x.key === r.territoryKey)?.[locale === "fr" ? "nameFr" : "nameEn"] ?? r.territoryKey) : L.indicators.territory[r.territoryState ?? "NONE"]}</Badge>
                   {(r.addressQuality === "UNKNOWN" || r.addressQuality === "INCOMPLETE") && <Badge tone="bg-amber-100 text-amber-800">{L.indicators.quality[r.addressQuality]}</Badge>}
                   {r.reviewPending && <Badge tone="bg-amber-100 text-amber-800">{L.indicators.reviewPending}</Badge>}
+                  {(() => { const b = acqBadge(r); return b ? <Badge tone={b.tone}>{b.text}</Badge> : null; })()}
                 </div>
                 <p className="mt-2 text-xs text-slate-500">{r.assignedStaff?.user.name ?? t.common.unassigned} · {formatDate(r.lastActivityAt, locale)}</p>
                 <p className={`text-xs ${r.overdue ? "text-rose-700" : "text-slate-500"}`}>{r.nextTask ? `${L.indicators.nextAction}: ${formatDate(r.nextTask.dueAt, locale)}${r.overdue ? ` (${L.indicators.overdueBy})` : ""}` : L.indicators.none}</p>

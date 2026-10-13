@@ -12,7 +12,7 @@ export default async function TerritoriesPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-5">
       <PageHeader title={c.title} subtitle={c.help} />
-      <TerritoryAdmin locale={locale} rows={rows.map((r) => ({ key: r.key, nameEn: r.nameEn, nameFr: r.nameFr, acquisition: r.acquisition, provinces: r.provinces, cities: r.cities, postalPrefixes: r.postalPrefixes, priorityDays: r.priorityDays, priorityStartedAt: r.priorityStartedAt ? r.priorityStartedAt.toISOString().slice(0, 10) : null, active: r.active, sortOrder: r.sortOrder }))} />
+      <TerritoryAdmin locale={locale} rows={rows.map((r) => ({ key: r.key, nameEn: r.nameEn, nameFr: r.nameFr, acquisition: r.acquisition, provinces: r.provinces, cities: r.cities, postalPrefixes: r.postalPrefixes, priorityDays: r.priorityDays, active: r.active, sortOrder: r.sortOrder }))} />
     </div>
   );
 }

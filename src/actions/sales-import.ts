@@ -18,7 +18,7 @@ import { requireCrmActor } from "@/lib/sales-crm/access";
 import { writeCrmAudit } from "@/lib/sales-crm/audit";
 import { enrichFromCandidate, observationData } from "@/lib/sales-crm/lead-engine";
 import { loadMatchPool } from "@/lib/sales-crm/lead-pool";
-import { CrmError, prospectColumns, resolveAssignee, territoryColumns } from "@/lib/sales-crm/prospects";
+import { CrmError, dbNow, fieldPriorityColumns, prospectColumns, resolveAssignee, territoryColumns } from "@/lib/sales-crm/prospects";
 import { crmAction } from "@/lib/sales-crm/result";
 import { scoreBreakdownJson } from "@/lib/sales-crm/scoring";
 import { staffAcquirerFacts } from "@/lib/sales-crm/territory";
@@ -215,6 +215,7 @@ export async function confirmProspectImport(batchId: string) {
         const plans = planImport(candidates, inputs.recordKeys, inputs.fingerprints, inputs.pool, inputs.sources);
         const byRow = new Map(candidates.map((c) => [c.rowNumber, c]));
         const rules = await loadTerritoryRulesWith(tx);
+        const clock = await dbNow(tx); // database clock: start of each NEW prospect's own FIELD priority window (when it lands in a FIELD_PRIORITY territory)
         const canPool = actor.all || actor.kind === "SALES_MANAGER";
         const ownerFacts = assignedStaffId ? await staffAcquirerFacts(assignedStaffId) : null;
         const definitions = await tx.crmNeedDefinition.findMany({ where: { active: true }, select: { weight: true } });
@@ -252,7 +253,7 @@ export async function confirmProspectImport(batchId: string) {
             });
             const intent = computeIntentScore({ stage, urgency: null, meaningfulTouches30d: 0, linkedDemoCount: 0, daysSinceLastActivity: 0 });
             prospects.push({
-              id: prospectId, ...prospectColumns({ ...p, tags: p.tags, notes: p.notes }), ...territoryColumns(rules, p, now), assignedStaffId: ownerFor.get(c.rowNumber) ?? null,
+              id: prospectId, ...prospectColumns({ ...p, tags: p.tags, notes: p.notes }), ...territoryColumns(rules, p, now), ...fieldPriorityColumns(rules, p, clock), assignedStaffId: ownerFor.get(c.rowNumber) ?? null,
               createdByUserId: actor.userId, importBatchId: batchId, doNotContact: c.doNotContact, doNotContactAt: c.doNotContact ? now : null, lastActivityAt: now,
             });
             opps.push({

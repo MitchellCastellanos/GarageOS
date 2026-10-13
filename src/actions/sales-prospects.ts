@@ -7,7 +7,7 @@ import { requireCrmActor } from "@/lib/sales-crm/access";
 import { writeCrmAudit } from "@/lib/sales-crm/audit";
 import {
   CrmError, applyDoNotContact, createProspectRecord, findDuplicateProspects, prospectColumns, recomputeOpportunityScores,
-  requireScopedProspect, resolveAssignee, territoryColumns, touchProspect,
+  requireScopedProspect, resolveAssignee, stampFieldPriorityOnEntry, territoryColumns, touchProspect,
 } from "@/lib/sales-crm/prospects";
 import { crmAction, mapUniqueViolation } from "@/lib/sales-crm/result";
 import { contactInputSchema, prospectInputSchema } from "@/domain/sales-crm/validation";
@@ -55,6 +55,8 @@ export async function updateProspect(prospectId: string, form: FormData) {
       // Address (or territory rules) may have changed: re-resolve the territory snapshot with the same write.
       const rules = await loadTerritoryRulesWith(tx);
       await tx.crmProspect.update({ where: { id: prospectId }, data: { ...cols, ...territoryColumns(rules, data) } });
+      // Entering a FIELD_PRIORITY territory for the first time starts that prospect's own window (never reset afterwards).
+      await stampFieldPriorityOnEntry(tx, prospectId, rules, data, before);
       const changed = Object.keys(cols).filter((k) => JSON.stringify((before as Record<string, unknown>)[k]) !== JSON.stringify((cols as Record<string, unknown>)[k]) && !["nameNormalized", "websiteDomain", "phoneDigits", "addressKey", "postalKey", "addressQuality", "addressFingerprint"].includes(k));
       if (changed.length) {
         await tx.crmActivity.create({ data: { prospectId, type: "SYSTEM", authorUserId: actor.userId, metadata: { event: "PROSPECT_UPDATED", fields: changed } } });
