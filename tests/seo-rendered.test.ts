@@ -48,7 +48,7 @@ test("every public EN route has a page that calls pageMetadata() with its own pa
     assert.ok(fs.existsSync(file), `${routePath}: missing ${file}`);
     const src = fs.readFileSync(file, "utf8");
     assert.match(src, /pageMetadata\(/, `${routePath}: page does not use pageMetadata()`);
-    if (!routePath.startsWith("/guides/") && !routePath.startsWith("/blog/") && !routePath.startsWith("/help/")) {
+    if (!routePath.startsWith("/guides/") && !routePath.startsWith("/blog/") && !routePath.startsWith("/help/") && !routePath.startsWith("/features/")) {
       assert.ok(src.includes(`path: "${routePath}"`), `${routePath}: pageMetadata path must be "${routePath}"`);
     }
   }
@@ -105,7 +105,7 @@ test("rendered HTML: metadata, single H1, canonical, indexability, JSON-LD", { s
     assert.ok(!/<meta name="robots" content="[^"]*noindex/.test(html), `${routePath}: indexable page is noindex`);
 
     const blocks = [...html.matchAll(/<script type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g)];
-    const isHelp = routePath.startsWith("/help/");
+    const isHelp = routePath.startsWith("/help/") || routePath.startsWith("/features/"); // BreadcrumbList pages
     if (routePath !== "/" && !isHelp) assert.equal(blocks.length, 0, `${routePath}: unexpected JSON-LD`);
     if (isHelp) assert.equal(blocks.length, 1, `${routePath}: expected one BreadcrumbList`);
     for (const b of blocks) {

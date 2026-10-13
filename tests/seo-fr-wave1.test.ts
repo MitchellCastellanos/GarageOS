@@ -14,7 +14,7 @@ import { alternatesFor } from "../src/lib/seo/site";
 import { PRICING_PAGE_COPY } from "../src/lib/marketing-plans";
 import { PLAN_PRICING_CAD } from "../src/config/entitlements";
 
-const WAVE1 = ["/fr/produit", "/fr/fonctionnalites", "/fr/tarifs", "/fr/integrations"] as const;
+const WAVE1 = ["/fr/produit", "/fr/fonctionnalites", "/fr/tarifs", "/fr/integrations", "/fr/demo", "/fr/commencer", "/fr/contact"] as const;
 /** Pages françaises dont la publication (index + sitemap + hreflang) a été approuvée par le propriétaire. */
 const APPROVED: readonly string[] = [];
 
