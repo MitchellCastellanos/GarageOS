@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { trackPageView } from "@/lib/platform/analytics";
+import { isTrackingOptOut } from "@/lib/privacy/opt-out";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,6 +12,8 @@ export const dynamic = "force-dynamic";
  */
 export async function POST(req: Request) {
   try {
+    // DNT / GPC: no se registra nada (comprobado en el servidor, así vale aunque cambie el script del cliente).
+    if (isTrackingOptOut(req.headers)) return new NextResponse(null, { status: 204 });
     const body = await req.json();
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "0.0.0.0";
     const userAgent = req.headers.get("user-agent") || "";

@@ -18,6 +18,7 @@ import {
   sanitizeCampaignValue,
   shopSlugFromPath,
 } from "../src/lib/privacy/private-paths";
+import { isTrackingOptOut } from "../src/lib/privacy/opt-out";
 
 const root = process.cwd();
 const read = (rel: string) => fs.readFileSync(path.join(root, rel), "utf8");
@@ -282,4 +283,20 @@ test("no sitemap or public metadata exposes private routes", () => {
   // Public pages that set canonical/OG go through the helper, which only ever receives literal public paths.
   const helper = read("src/lib/seo/metadata.ts");
   assert.ok(!/token/i.test(helper.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "")));
+});
+
+test("campaign values: legitimate UTM pass, tokens and personal-looking values are dropped", () => {
+  for (const ok of ["google", "newsletter", "fall-2026_promo", "spring sale", "fr-CA", "cpc", "2026-10-13"]) assert.equal(sanitizeCampaignValue(ok), ok, ok);
+  for (const bad of ["user@example.com", "https://evil.example/x", "514-555-0199", "5145550199", "a%40b.com", "a".repeat(30), "token_" + "A1b2C3d4".repeat(4)]) assert.equal(sanitizeCampaignValue(bad), "", bad);
+});
+
+test("DNT and GPC opt-out is honoured by the tracking endpoint (server-side)", () => {
+  const h = (init: Record<string, string>) => ({ get: (k: string) => init[k.toLowerCase()] ?? null });
+  assert.equal(isTrackingOptOut(h({ dnt: "1" })), true);
+  assert.equal(isTrackingOptOut(h({ "sec-gpc": "1" })), true);
+  assert.equal(isTrackingOptOut(h({ dnt: "0" })), false);
+  assert.equal(isTrackingOptOut(h({})), false);
+  const route = read("src/app/api/track/route.ts");
+  assert.match(route, /isTrackingOptOut\(req\.headers\)/);
+  assert.ok(route.indexOf("isTrackingOptOut") < route.indexOf("trackPageView("), "opt-out checked before anything is recorded");
 });
