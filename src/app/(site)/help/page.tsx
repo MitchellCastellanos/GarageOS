@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { MarketingPageShell } from "@/components/marketing/MarketingPageShell";
 import { PageHero } from "@/components/marketing/PageHero";
-import { GroupedResourceCards } from "@/components/marketing/ResourceArticles";
-import { GUIDES } from "@/lib/marketing-resources";
+import { HelpCategoryGrid } from "@/components/help/HelpViews";
 import { Bilingual } from "@/components/marketing/Bilingual";
 import { pageMetadata } from "@/lib/seo/metadata";
 
@@ -123,7 +122,7 @@ export default function HelpPage() {
             </Link>
             .
           </p>
-          <GroupedResourceCards articles={GUIDES} basePath="/guides" />
+          <HelpCategoryGrid locale="en" showHeading={false} />
           <Bilingual
             en={<h2 className="mb-3 mt-16 text-2xl font-bold text-slate-900">Common questions</h2>}
             fr={<h2 className="mb-3 mt-16 text-2xl font-bold text-slate-900">Questions fréquentes</h2>}

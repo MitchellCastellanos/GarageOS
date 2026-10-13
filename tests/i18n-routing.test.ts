@@ -95,7 +95,9 @@ test("route files exist: every EN page, and every FR page marked live", () => {
   // Conversely: a page file under (fr) must be registered in PUBLIC_ROUTES. "live" = linked from the language switcher;
   // "planned" with a file = a draft that renders (noindex, not linked, not in the sitemap) until it is approved.
   const registered = new Set(PUBLIC_ROUTES.filter((r) => r.fr && r.frStatus !== "none").map((r) => `src/app/(fr)${r.fr}/page.tsx`));
-  for (const f of walk("src/app/(fr)").filter((f) => f.endsWith("/page.tsx"))) assert.ok(registered.has(f), `${f} is not registered in PUBLIC_ROUTES`);
+  // Dynamic Help Center pages (/fr/aide/[category]/…) are a registered family: they 404 until an FR article exists and
+  // are never indexable unless registered (isIndexablePath).
+  for (const f of walk("src/app/(fr)").filter((f) => f.endsWith("/page.tsx") && !f.startsWith("src/app/(fr)/fr/aide/[category]"))) assert.ok(registered.has(f), `${f} is not registered in PUBLIC_ROUTES`);
 });
 
 // ── Matching, switching, fallback ───────────────────────────────────────────────────────────────────────────────

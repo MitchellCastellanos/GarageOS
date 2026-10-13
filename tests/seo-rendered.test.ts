@@ -11,6 +11,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { BLOG_POSTS, GUIDES } from "../src/lib/marketing-resources";
+import { HELP_ARTICLES, articlePath, categoriesFor, categoryPath, helpPathForGuide } from "../src/lib/help";
 import { PUBLIC_ROUTES } from "../src/lib/seo/routes";
 
 const root = process.cwd();
@@ -21,9 +22,17 @@ const enPaths = [
   ...PUBLIC_ROUTES.map((r) => r.en),
   ...GUIDES.map((g) => `/guides/${g.slug}`),
   ...BLOG_POSTS.map((b) => `/blog/${b.slug}`),
+  ...categoriesFor("en").map((c) => categoryPath("en", c)),
+  ...HELP_ARTICLES.map((a) => articlePath("en", a)!),
 ];
+/** Páginas que existen pero cuyo original (canonical) es otra URL: /guides/<slug> → artículo de ayuda, hasta los 301. */
+const canonicalOf = (p: string): string => (p.startsWith("/guides/") ? helpPathForGuide(p.slice("/guides/".length)) ?? p : p);
 
 function pageFile(routePath: string): string {
+  if (routePath.startsWith("/help/")) {
+    const depth = routePath.split("/").length - 2; // /help/<c> = 1, /help/<c>/<s> = 2
+    return path.join(PAGES, "help", depth === 1 ? "[category]" : "[category]/[slug]", "page.tsx");
+  }
   const dir = routePath === "/" ? "" : routePath.replace(/^\//, "");
   const direct = path.join(PAGES, dir, "page.tsx");
   if (fs.existsSync(direct)) return direct;
@@ -39,7 +48,7 @@ test("every public EN route has a page that calls pageMetadata() with its own pa
     assert.ok(fs.existsSync(file), `${routePath}: missing ${file}`);
     const src = fs.readFileSync(file, "utf8");
     assert.match(src, /pageMetadata\(/, `${routePath}: page does not use pageMetadata()`);
-    if (!routePath.startsWith("/guides/") && !routePath.startsWith("/blog/")) {
+    if (!routePath.startsWith("/guides/") && !routePath.startsWith("/blog/") && !routePath.startsWith("/help/")) {
       assert.ok(src.includes(`path: "${routePath}"`), `${routePath}: pageMetadata path must be "${routePath}"`);
     }
   }
@@ -75,10 +84,13 @@ test("rendered HTML: metadata, single H1, canonical, indexability, JSON-LD", { s
     const description = decode(first(html, /<meta name="description" content="([^"]*)"/));
     assert.ok(title.length >= 8 && title.length <= 70, `${routePath}: title length ${title.length} ("${title}")`);
     assert.ok(description.length >= 50 && description.length <= 160, `${routePath}: description length ${description.length}`);
-    assert.ok(!titles.has(title), `${routePath}: duplicate title with ${titles.get(title)}`);
-    assert.ok(!descriptions.has(description), `${routePath}: duplicate description with ${descriptions.get(description)}`);
-    titles.set(title, routePath);
-    descriptions.set(description, routePath);
+    // Una página no canónica (guía → artículo de ayuda) comparte metadata con su original por diseño.
+    if (canonicalOf(routePath) === routePath) {
+      assert.ok(!titles.has(title), `${routePath}: duplicate title with ${titles.get(title)}`);
+      assert.ok(!descriptions.has(description), `${routePath}: duplicate description with ${descriptions.get(description)}`);
+      titles.set(title, routePath);
+      descriptions.set(description, routePath);
+    }
 
     const h1s = [...html.matchAll(/<h1[\s>][\s\S]*?<\/h1>/g)];
     assert.equal(h1s.length, 1, `${routePath}: expected exactly one <h1>, found ${h1s.length}`);
@@ -87,18 +99,20 @@ test("rendered HTML: metadata, single H1, canonical, indexability, JSON-LD", { s
     const canonical = first(html, /<link rel="canonical" href="([^"]*)"/);
     assert.ok(canonical, `${routePath}: no canonical`);
     const canonicalPath = new URL(canonical).pathname;
-    assert.equal(canonicalPath.replace(/\/$/, "") || "/", routePath, `${routePath}: canonical points elsewhere (${canonical})`);
+    assert.equal(canonicalPath.replace(/\/$/, "") || "/", canonicalOf(routePath), `${routePath}: canonical points elsewhere (${canonical})`);
     assert.equal(first(html, /<meta property="og:url" content="([^"]*)"/), canonical, `${routePath}: og:url != canonical`);
 
     assert.ok(!/<meta name="robots" content="[^"]*noindex/.test(html), `${routePath}: indexable page is noindex`);
 
     const blocks = [...html.matchAll(/<script type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g)];
-    if (routePath !== "/") assert.equal(blocks.length, 0, `${routePath}: unexpected JSON-LD`);
+    const isHelp = routePath.startsWith("/help/");
+    if (routePath !== "/" && !isHelp) assert.equal(blocks.length, 0, `${routePath}: unexpected JSON-LD`);
+    if (isHelp) assert.equal(blocks.length, 1, `${routePath}: expected one BreadcrumbList`);
     for (const b of blocks) {
       const data = JSON.parse(b[1].replace(/\\u003c/g, "<"));
       for (const item of Array.isArray(data) ? data : [data]) {
         assert.equal(item["@context"], "https://schema.org");
-        assert.ok(["Organization", "WebSite"].includes(item["@type"]), `${routePath}: JSON-LD type ${item["@type"]} not allowed yet`);
+        assert.ok((isHelp ? ["BreadcrumbList"] : ["Organization", "WebSite"]).includes(item["@type"]), `${routePath}: JSON-LD type ${item["@type"]} not allowed yet`);
         assert.ok(!("aggregateRating" in item) && !("review" in item) && !("offers" in item), "JSON-LD must not claim ratings, reviews or offers");
       }
     }

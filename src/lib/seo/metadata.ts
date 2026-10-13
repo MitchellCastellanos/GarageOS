@@ -17,9 +17,10 @@ const OG_LOCALE: Record<MarketingLocale, { locale: string; alternate: string }> 
  * global le dice a Google que cada página es un duplicado de la home. Toda página pública que deba indexarse llama a
  * este helper con su propia ruta. Una página francesa aún no indexable (ver `isIndexablePath`) sale con noindex.
  */
-export function pageMetadata({ path, title, description }: { path: string; title: string; description: string }): Metadata {
-  const url = canonicalUrl(path);
-  const languages = alternatesFor(path);
+export function pageMetadata({ path, title, description, canonicalPath }: { path: string; title: string; description: string; canonicalPath?: string }): Metadata {
+  // `canonicalPath`: la página existe en `path` pero su original es otra URL (p. ej. /guides/<slug> → artículo de ayuda).
+  const url = canonicalUrl(canonicalPath ?? path);
+  const languages = canonicalPath ? undefined : alternatesFor(path);
   const og = OG_LOCALE[isFrenchPath(path) ? "fr" : "en"];
   return {
     title,

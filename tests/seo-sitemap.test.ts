@@ -48,7 +48,8 @@ test("sitemap includes EN pages and guide/blog children but no French URL today 
   const urls = withEnv(HOST, buildSitemapEntries).map((e) => e.url);
   assert.ok(urls.includes(`${HOST}/`));
   assert.ok(urls.includes(`${HOST}/pricing`));
-  assert.ok(urls.some((u) => u.startsWith(`${HOST}/guides/`)));
+  assert.ok(urls.some((u) => u.startsWith(`${HOST}/help/`) && u.split("/").length === 6), "Help articles are listed");
+  assert.ok(!urls.some((u) => u.startsWith(`${HOST}/guides/`)), "guides canonicalise to Help articles");
   assert.ok(urls.some((u) => u.startsWith(`${HOST}/blog/`)));
   assert.ok(!urls.some((u) => new URL(u).pathname === "/fr" || new URL(u).pathname.startsWith("/fr/")));
 });

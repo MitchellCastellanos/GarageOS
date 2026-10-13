@@ -1,4 +1,5 @@
-import { BLOG_POSTS, GUIDES } from "@/lib/marketing-resources";
+import { articlePath, articlesFor, categoriesFor, categoryPath } from "@/lib/help";
+import { BLOG_POSTS } from "@/lib/marketing-resources";
 import { isPrivatePath } from "@/lib/privacy/private-paths";
 import { isIndexablePath, PUBLIC_ROUTES } from "@/lib/seo/routes";
 import { alternatesFor, canonicalUrl } from "@/lib/seo/site";
@@ -19,7 +20,9 @@ export function buildSitemapEntries(): SitemapEntry[] {
     paths.push(route.en);
     if (route.frStatus === "live" && route.fr && route.frIndexable !== false) paths.push(route.fr);
   }
-  for (const guide of GUIDES) paths.push(`/guides/${guide.slug}`);
+  // /guides/<slug> ya no entra: su canonical es el artículo de ayuda equivalente (que sí entra) hasta que lleguen los 301.
+  for (const category of categoriesFor("en")) paths.push(categoryPath("en", category));
+  for (const article of articlesFor("en")) paths.push(articlePath("en", article)!);
   for (const post of BLOG_POSTS) paths.push(`/blog/${post.slug}`);
 
   const seen = new Set<string>();

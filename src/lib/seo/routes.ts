@@ -158,7 +158,9 @@ export function createRouter(routes: readonly PublicRoute[], families: readonly 
    */
   function isIndexablePath(pathname: string): boolean {
     const match = matchRoute(pathname);
-    if (!match || match.locale === "en") return true;
+    // Una página francesa no registrada (p. ej. /fr/aide/<categoría>/<slug>) nunca es indexable por defecto.
+    if (!match) return !isFrenchPath(pathname);
+    if (match.locale === "en") return true;
     return match.route.frStatus === "live" && match.route.frIndexable !== false;
   }
 
@@ -182,6 +184,7 @@ export function createRouter(routes: readonly PublicRoute[], families: readonly 
 export const ROUTE_FAMILIES: readonly RouteFamily[] = [
   { prefix: "/guides/", routeId: "guides" },
   { prefix: "/blog/", routeId: "blog" },
+  { prefix: "/help/", routeId: "help" },
 ];
 
 const router = createRouter(PUBLIC_ROUTES, ROUTE_FAMILIES);
