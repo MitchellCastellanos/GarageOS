@@ -6,7 +6,9 @@ import { Check } from "lucide-react";
 import { useMarketingLocale } from "@/components/marketing/MarketingLocaleProvider";
 import { MARKETING_PRICING } from "@/lib/marketing-pricing";
 
-export function PricingSection() {
+/** `asPageHeading`: en /pricing el encabezado es el único <h1> de la página; en la home sigue siendo un <h2>. */
+export function PricingSection({ asPageHeading = false }: { asPageHeading?: boolean } = {}) {
+  const Heading = asPageHeading ? "h1" : "h2";
   const { locale } = useMarketingLocale();
   const [yearly, setYearly] = useState(false);
   const pricing = MARKETING_PRICING[locale];
@@ -19,7 +21,7 @@ export function PricingSection() {
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-brand-blue mb-3">
               {pricing.eyebrow}
             </p>
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900">{pricing.heading}</h2>
+            <Heading className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900">{pricing.heading}</Heading>
             <p className="mt-4 text-slate-600 leading-relaxed">{pricing.subheading}</p>
           </div>
 

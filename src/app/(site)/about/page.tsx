@@ -7,8 +7,8 @@ import { pageMetadata } from "@/lib/seo/metadata";
 
 export const metadata: Metadata = pageMetadata({
   path: "/about",
-  title: "About · À propos",
-  description: "Why we built GarageOS. · Pourquoi nous avons créé GarageOS.",
+  title: "About GarageOS",
+  description: "Why we built GarageOS: practical software for independent auto repair shops, built around the way a shop day really works.",
 });
 
 function Body({ lang }: { lang: "en" | "fr" }) {

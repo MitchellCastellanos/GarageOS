@@ -8,8 +8,8 @@ import { pageMetadata } from "@/lib/seo/metadata";
 
 export const metadata: Metadata = pageMetadata({
   path: "/contact",
-  title: "Contact · Nous joindre",
-  description: "Get in touch with the GarageOS team. · Communiquez avec l'équipe GarageOS.",
+  title: "Contact GarageOS",
+  description: "Get in touch with the GarageOS team for questions about plans, setup or a demo for your auto repair shop.",
 });
 
 // Configure the real support mailbox in Vercel (NEXT_PUBLIC_CONTACT_EMAIL) — see docs/launch-readiness.md.

@@ -9,8 +9,8 @@ import { pageMetadata } from "@/lib/seo/metadata";
 
 export const metadata: Metadata = pageMetadata({
   path: "/help",
-  title: "Help Center · Centre d'aide",
-  description: "Answers to common questions about GarageOS.",
+  title: "Help Center",
+  description: "Answers to common questions about GarageOS, from setting up your shop to booking, estimates, invoicing and reminders.",
 });
 
 const FAQS = [
