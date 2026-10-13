@@ -54,3 +54,25 @@ Per-customer revocation exists on the customer's portal card; a quote link is re
 ## 5. Recovery
 Restore from the Neon branch / PITR (within the window) or from the R2 dump into an isolated scratch database
 (`scripts/restore-drill.sh` refuses non-empty targets). Only `PageView` is touched; no business data.
+
+## 6. Concrete read-only dry-run (aggregate counts only)
+Nothing here deletes, revokes or reads credentials on your behalf; **you** run it with your own authorised access and paste back only the printed counts.
+
+**Option A — the script (recommended, includes variant matching):**
+1. In a shell on a trusted machine: `export DATABASE_URL='<Neon read-only role URL (backup_ro) — do not paste it anywhere>'`.
+2. `npx tsx scripts/redact-pageview-private-paths.ts --report --allow-remote`
+3. Copy the printed report (counts per private family, odd forms, date range, distinct paths/visitors, referrer counts, token-shaped values in other columns, tokens still usable). It never prints paths, tokens, referrer hosts or personal data.
+
+**Option B — SQL console, counts only (plain forms; the script also catches encoded/mixed-case variants):**
+```sql
+SELECT count(*) AS total, min("createdAt") AS first_row, max("createdAt") AS last_row FROM "garageos"."PageView";
+
+SELECT split_part(lower(path), '/', 2) AS family, count(*) AS rows
+FROM "garageos"."PageView"
+WHERE lower(path) ~ '^/(portal|quote|inspection|sales|sales-invite|sales-recover|sales-recovery-email|account-recovery|activate-demo|admin|platform)(/|$)'
+   OR lower(path) ~ '^/book/[^/]+/manage(/|$)'
+GROUP BY 1 ORDER BY 2 DESC;
+```
+Do **not** `SELECT path` for those rows (that would display tokens).
+
+**What to send back:** the counts. With them I can classify the exposure using the §3 table and prepare the exact `--apply` plan (Neon branch + PITR check first). `--apply`, token revocation and any targeted `UPDATE` need your separate, explicit authorisation.
