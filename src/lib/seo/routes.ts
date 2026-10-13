@@ -46,6 +46,7 @@ export const PUBLIC_ROUTES: readonly PublicRoute[] = [
   { id: "changelog", en: "/changelog", fr: "/fr/nouveautes", frStatus: "planned", parent: "help" },
   { id: "help", en: "/help", fr: "/fr/aide", frStatus: "planned", parent: "home" },
   // Sin equivalente francés hasta la tanda de Resources: caen en su ancestro.
+  { id: "resources", en: "/resources", frStatus: "none", parent: "home" },
   { id: "guides", en: "/guides", frStatus: "none", parent: "help", redirectTo: "/help" },
   { id: "blog", en: "/blog", frStatus: "none", parent: "home" },
 ];
