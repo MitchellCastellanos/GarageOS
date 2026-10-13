@@ -16,7 +16,7 @@ export const metadata: Metadata = pageMetadata({
 export default function PricingPage() {
   return (
     <MarketingPageShell>
-      <PricingSection />
+      <PricingSection asPageHeading />
       <PlanComparison />
       <PricingExtras />
       <CTASection />
