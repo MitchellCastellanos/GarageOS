@@ -1,6 +1,6 @@
-# PR #3 — Sitemap, hreflang and multilingual SEO (implementable spec, NOT started)
+# PR #3 — Sitemap, hreflang and multilingual SEO (spec; DONE — see status)
 
-Entry point for context: [`SEO_HANDOFF.md`](./SEO_HANDOFF.md). Status: **specification only; no code written.**
+Entry point for context: [`SEO_HANDOFF.md`](./SEO_HANDOFF.md). Status: **IMPLEMENTED and merged as PR #105 (`f10a221`), verified in production 2026-10-11.** Kept as the historical spec.
 (Naming: "PR #3" is the program step; the master plan calls the sitemap work PR-03 and the FR route/hreflang work PR-05b. GitHub PR numbers are assigned when opened.)
 
 Base: `main` (EN/FR routing from PR #101 is merged; route table in `src/lib/seo/routes.ts`).
