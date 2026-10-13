@@ -69,8 +69,8 @@ export async function evaluatePolicy(t: PolicyTarget, now = new Date()): Promise
 
 /** Sales mode + territory rules for commercial email, evaluated from live data at the moment of the decision. */
 export async function evaluateTerritoryPolicy(prospectId: string, who: { automated: boolean; senderMode: "FIELD" | "REMOTE"; senderUserId: string }, now: Date) {
-  const p = await db.crmProspect.findUnique({ where: { id: prospectId }, select: { province: true, city: true, postalCode: true } });
+  const p = await db.crmProspect.findUnique({ where: { id: prospectId }, select: { province: true, city: true, postalCode: true, fieldPriorityStartedAt: true, remoteReleasedAt: true } });
   if (!p) return { allowed: true } as const;
   const [rule, eng, sender] = await Promise.all([territoryOfLocation(p), loadEngagement(prospectId), db.user.findUnique({ where: { id: who.senderUserId }, select: { role: true } })]);
-  return evaluateColdEmail({ required: requiredMode(rule, eng, now), eng, automated: who.automated, senderMode: who.senderMode, senderIsSuperAdmin: sender?.role === "SUPER_ADMIN" });
+  return evaluateColdEmail({ required: requiredMode(rule, eng, now, p), eng, automated: who.automated, senderMode: who.senderMode, senderIsSuperAdmin: sender?.role === "SUPER_ADMIN" });
 }

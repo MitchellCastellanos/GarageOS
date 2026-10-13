@@ -11,6 +11,21 @@ export const leadEn = {
     } as Record<string, string>,
     territoryFilter: "Territory", anyTerritory: "Any territory", national: "Rest of Canada", unresolved: "Unresolved address",
   },
+  acquisition: {
+    title: "FIELD / REMOTE acquisition", help: "Decides which kind of seller may take an UNOWNED prospect. It never changes the owner of a prospect that already has one; owners are only changed with “Assign” (separate, audited).",
+    release: "Release to REMOTE…", returnField: "Return to FIELD priority…", selected: "{n} selected", pickSome: "Tick prospects in the list first.", preview: "Preview", previewing: "Checking…",
+    confirmRelease: "Release {n} to REMOTE", confirmReturn: "Return {n} to FIELD priority", confirming: "Applying…", discard: "Cancel",
+    ownerKept: "Owners are kept. This changes who may acquire the prospect, not who owns it.", returnNote: "Under FIELD priority, returning starts a NEW window for each prospect.",
+    eligibleCount: "{n} can be changed", inaccessible: "{n} not available to you (ignored)", applied: "{n} updated.", alreadyApplied: "Nothing left to change: already applied.",
+    colProspect: "Prospect", colOwner: "Owner (kept)", colNow: "Acquisition now", colDeadline: "FIELD priority until", colResult: "Result", noOwner: "Unassigned", eligible: "Will change", activeOpp: "Active opportunity",
+    mode: { FIELD: "FIELD", REMOTE: "REMOTE" } as Record<string, string>,
+    reason: { NOT_FIELD_HELD: "Not a FIELD territory", MANUALLY_RELEASED: "Released to REMOTE", FIELD_EXCLUSIVE: "FIELD only", WINDOW_NOT_STARTED: "FIELD (no window started)", WINDOW_OPEN: "FIELD priority window open", EXPIRED_ENGAGED: "FIELD (engaged after window)", EXPIRED_RELEASED: "Open to REMOTE (window ended)" } as Record<string, string>,
+    conflict: {
+      ARCHIVED: "Archived", DNC: "Do not contact", NOT_FIELD_HELD: "Not in a FIELD territory", ALREADY_RELEASED: "Already released", ALREADY_REMOTE: "Already open to REMOTE", NOTHING_TO_RETURN: "Already held by FIELD",
+      ACTIVE_OPPORTUNITY: "Active opportunity", MEANINGFUL_ENGAGEMENT: "Already engaged",
+    } as Record<string, string>,
+    badge: { until: "FIELD until {date}", released: "Released to REMOTE", open: "Open to REMOTE", field: "FIELD" },
+  },
   indicators: {
     territory: { LOCAL: "Local", NATIONAL: "National", UNRESOLVED: "Territory unknown", NONE: "Not computed" } as Record<string, string>,
     quality: { COMPLETE: "Full address", PARTIAL: "Partial address", INCOMPLETE: "Incomplete address", UNKNOWN: "No address" } as Record<string, string>,
@@ -80,7 +95,7 @@ export const leadEn = {
     SOURCE_URL_INVALID: "The source URL must start with http:// or https://.", OBSERVED_AT_INVALID: "The collection date is not valid.", MAPPING_INVALID: "The column mapping is not valid.", IMPORT_CONFLICT: "Another import just wrote the same records. Nothing was saved; upload the file again.",
     REVIEW_NOT_DECIDABLE: "This review cannot be decided any more.", RUN_NOT_CONFIRMABLE: "This assignment preview can no longer be confirmed.", ASSIGNMENT_FAILED: "The assignment failed and nothing was changed.",
     EVIDENCE_INCOMPLETE: "The evidence is incomplete. Fill in every required item.", CASL_NOT_AUTHORIZED: "You are not allowed to review evidence.", CASL_SELF_APPROVAL: "You cannot approve evidence you recorded yourself.",
-    LEGACY_PREVIEW_STALE: "The data changed since the preview. Preview again before applying.", CASL_NOT_PENDING: "This evidence is no longer awaiting review.", CASL_EVIDENCE_INCOMPLETE: "The evidence is incomplete and cannot be approved.", INVALID_DATE: "The date is not valid.", INVALID_URL: "The URL is not valid.",
+    ACQUISITION_PREVIEW_STALE: "The prospects changed since the preview. Preview again before applying.", LEGACY_PREVIEW_STALE: "The data changed since the preview. Preview again before applying.", CASL_NOT_PENDING: "This evidence is no longer awaiting review.", CASL_EVIDENCE_INCOMPLETE: "The evidence is incomplete and cannot be approved.", INVALID_DATE: "The date is not valid.", INVALID_URL: "The URL is not valid.",
   } as Record<string, string>,
 };
 
@@ -96,6 +111,21 @@ export const leadFr: Dict = {
       followup: "Une tâche de suivi ouverte est en retard.", duplicates: "Doublon ou succursale possible en attente de décision.", missing: "Pas d’adresse utilisable, ni téléphone ni courriel, ou langue inconnue.", dnc: "Désabonnements permanents. Jamais contactés.",
     },
     territoryFilter: "Territoire", anyTerritory: "Tout territoire", national: "Reste du Canada", unresolved: "Adresse non résolue",
+  },
+  acquisition: {
+    title: "Acquisition TERRAIN / À DISTANCE", help: "Détermine quel type de vendeur peut prendre un prospect NON ASSIGNÉ. Ne change jamais le responsable d’un prospect qui en a déjà un ; les responsables ne changent qu’avec « Assigner » (séparé, audité).",
+    release: "Libérer à DISTANCE…", returnField: "Remettre en priorité TERRAIN…", selected: "{n} sélectionné(s)", pickSome: "Cochez d’abord des prospects dans la liste.", preview: "Aperçu", previewing: "Vérification…",
+    confirmRelease: "Libérer {n} à DISTANCE", confirmReturn: "Remettre {n} en priorité TERRAIN", confirming: "Application…", discard: "Annuler",
+    ownerKept: "Les responsables sont conservés. Cela change qui peut acquérir le prospect, pas qui en est responsable.", returnNote: "En priorité TERRAIN, la remise en priorité démarre une NOUVELLE fenêtre pour chaque prospect.",
+    eligibleCount: "{n} modifiable(s)", inaccessible: "{n} non accessible(s) pour vous (ignoré(s))", applied: "{n} mis à jour.", alreadyApplied: "Rien à modifier : déjà appliqué.",
+    colProspect: "Prospect", colOwner: "Responsable (conservé)", colNow: "Acquisition actuelle", colDeadline: "Priorité TERRAIN jusqu’au", colResult: "Résultat", noOwner: "Non assigné", eligible: "Sera modifié", activeOpp: "Opportunité active",
+    mode: { FIELD: "TERRAIN", REMOTE: "À DISTANCE" },
+    reason: { NOT_FIELD_HELD: "Pas un territoire TERRAIN", MANUALLY_RELEASED: "Libéré à DISTANCE", FIELD_EXCLUSIVE: "TERRAIN seulement", WINDOW_NOT_STARTED: "TERRAIN (aucune fenêtre démarrée)", WINDOW_OPEN: "Fenêtre de priorité TERRAIN ouverte", EXPIRED_ENGAGED: "TERRAIN (engagé après la fenêtre)", EXPIRED_RELEASED: "Ouvert à DISTANCE (fenêtre terminée)" },
+    conflict: {
+      ARCHIVED: "Archivé", DNC: "Ne pas contacter", NOT_FIELD_HELD: "Pas dans un territoire TERRAIN", ALREADY_RELEASED: "Déjà libéré", ALREADY_REMOTE: "Déjà ouvert à DISTANCE", NOTHING_TO_RETURN: "Déjà détenu par le TERRAIN",
+      ACTIVE_OPPORTUNITY: "Opportunité active", MEANINGFUL_ENGAGEMENT: "Déjà engagé",
+    },
+    badge: { until: "TERRAIN jusqu’au {date}", released: "Libéré à DISTANCE", open: "Ouvert à DISTANCE", field: "TERRAIN" },
   },
   indicators: {
     territory: { LOCAL: "Local", NATIONAL: "National", UNRESOLVED: "Territoire inconnu", NONE: "Non calculé" },
@@ -166,7 +196,7 @@ export const leadFr: Dict = {
     SOURCE_URL_INVALID: "L’URL de la source doit commencer par http:// ou https://.", OBSERVED_AT_INVALID: "La date de collecte n’est pas valide.", MAPPING_INVALID: "L’association des colonnes n’est pas valide.", IMPORT_CONFLICT: "Une autre importation vient d’écrire les mêmes enregistrements. Rien n’a été enregistré ; téléversez de nouveau le fichier.",
     REVIEW_NOT_DECIDABLE: "Cette vérification ne peut plus être décidée.", RUN_NOT_CONFIRMABLE: "Cet aperçu d’assignation ne peut plus être confirmé.", ASSIGNMENT_FAILED: "L’assignation a échoué et rien n’a été modifié.",
     EVIDENCE_INCOMPLETE: "La preuve est incomplète. Remplissez tous les éléments requis.", CASL_NOT_AUTHORIZED: "Vous n’avez pas le droit de vérifier les preuves.", CASL_SELF_APPROVAL: "Vous ne pouvez pas approuver une preuve que vous avez consignée.",
-    LEGACY_PREVIEW_STALE: "Les données ont changé depuis l’aperçu. Refaites l’aperçu avant d’appliquer.", CASL_NOT_PENDING: "Cette preuve n’attend plus de vérification.", CASL_EVIDENCE_INCOMPLETE: "La preuve est incomplète et ne peut pas être approuvée.", INVALID_DATE: "La date n’est pas valide.", INVALID_URL: "L’URL n’est pas valide.",
+    ACQUISITION_PREVIEW_STALE: "Les prospects ont changé depuis l’aperçu. Refaites l’aperçu avant d’appliquer.", LEGACY_PREVIEW_STALE: "Les données ont changé depuis l’aperçu. Refaites l’aperçu avant d’appliquer.", CASL_NOT_PENDING: "Cette preuve n’attend plus de vérification.", CASL_EVIDENCE_INCOMPLETE: "La preuve est incomplète et ne peut pas être approuvée.", INVALID_DATE: "La date n’est pas valide.", INVALID_URL: "L’URL n’est pas valide.",
   },
 };
 

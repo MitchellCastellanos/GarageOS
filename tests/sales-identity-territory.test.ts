@@ -89,14 +89,17 @@ test("initial acquisition: Greater Montréal is FIELD-exclusive, the rest of Can
   assert.deepEqual(evaluateAcquisition({ ...field, coverageKeys: ["canada"] }, montreal, NO_ENGAGEMENT, now), { allowed: false, code: "OUTSIDE_COVERAGE" });
 });
 
-test("future FIELD territory: priority window, then untouched prospects are released to REMOTE", () => {
-  const ottawa: TerritoryRule = { key: "ottawa", acquisition: "FIELD_PRIORITY", provinces: ["ON"], cities: ["ottawa"], postalPrefixes: [], priorityDays: 90, priorityStartedAt: new Date("2026-11-01T00:00:00Z"), active: true, sortOrder: 20 };
+test("FIELD_PRIORITY is per prospect: each prospect's OWN window, then untouched ones are released to REMOTE; a territory-wide start date is ignored; no window started = FIELD (nothing invented)", () => {
+  const ottawa: TerritoryRule = { key: "ottawa", acquisition: "FIELD_PRIORITY", provinces: ["ON"], cities: ["ottawa"], postalPrefixes: [], priorityDays: 90, priorityStartedAt: new Date("2020-01-01T00:00:00Z") /* deprecated, ignored */, active: true, sortOrder: 20 };
+  const own = { fieldPriorityStartedAt: new Date("2026-11-01T00:00:00Z") };
   const inside = new Date("2026-12-15T00:00:00Z"), after = new Date("2027-02-15T00:00:00Z");
-  assert.equal(requiredMode(ottawa, NO_ENGAGEMENT, inside), "FIELD");
-  assert.equal(requiredMode(ottawa, NO_ENGAGEMENT, after), "REMOTE", "untouched → released");
-  assert.equal(requiredMode(ottawa, { ...NO_ENGAGEMENT, touched: true }, after), "FIELD", "touched by the field team → stays");
-  assert.equal(requiredMode({ ...ottawa, priorityStartedAt: null }, NO_ENGAGEMENT, after), "FIELD", "an unconfigured window never silently releases");
+  assert.equal(requiredMode(ottawa, NO_ENGAGEMENT, inside, own), "FIELD");
+  assert.equal(requiredMode(ottawa, NO_ENGAGEMENT, after, own), "REMOTE", "untouched → released");
+  assert.equal(requiredMode(ottawa, { ...NO_ENGAGEMENT, touched: true, otherTouch: true }, after, own), "FIELD", "engaged by the field team → stays");
+  assert.equal(requiredMode(ottawa, NO_ENGAGEMENT, after), "FIELD", "no per-prospect window started (e.g. old prospects): the ignored territory-wide date never releases anything");
+  assert.equal(requiredMode(ottawa, { ...NO_ENGAGEMENT, touched: true, visited: true }, after, own), "REMOTE", "a failed/no-answer visit attempt is not engagement");
 });
+
 
 test("cold email: never automated first contact in a field-held territory; follow-up is allowed after a documented visit or reply", () => {
   const base = { required: "FIELD" as const, eng: NO_ENGAGEMENT, automated: true, senderMode: "FIELD" as const };

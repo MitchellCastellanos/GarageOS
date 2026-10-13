@@ -5,7 +5,7 @@ import { identityCopy } from "@/lib/admin-locale/sales-identity";
 import { Badge, btnPrimary, cardCls, inputCls, labelCls } from "@/components/sales-crm/ui";
 import { FormMessage, useCrmAction } from "@/components/sales-crm/useCrmAction";
 
-export interface TerritoryRow { key: string; nameEn: string; nameFr: string; acquisition: string; provinces: string[]; cities: string[]; postalPrefixes: string[]; priorityDays: number | null; priorityStartedAt: string | null; active: boolean; sortOrder: number }
+export interface TerritoryRow { key: string; nameEn: string; nameFr: string; acquisition: string; provinces: string[]; cities: string[]; postalPrefixes: string[]; priorityDays: number | null; active: boolean; sortOrder: number }
 
 function TerritoryForm({ locale, row }: { locale: "en" | "fr"; row?: TerritoryRow }) {
   const c = identityCopy(locale).territories;
@@ -20,8 +20,7 @@ function TerritoryForm({ locale, row }: { locale: "en" | "fr"; row?: TerritoryRo
       <label className={labelCls}>{c.provinces}<input className={inputCls} name="provinces" defaultValue={row?.provinces.join(", ")} disabled={pending} /></label>
       <label className={labelCls}>{c.postal}<input className={inputCls} name="postalPrefixes" defaultValue={row?.postalPrefixes.join(", ")} disabled={pending} /></label>
       <label className={`${labelCls} sm:col-span-2`}>{c.cities} ({c.csvHelp})<textarea className={`${inputCls} py-2`} rows={3} name="cities" defaultValue={row?.cities.join(", ")} disabled={pending} /></label>
-      <label className={labelCls}>{c.days}<input className={inputCls} type="number" min={1} max={730} name="priorityDays" defaultValue={row?.priorityDays ?? ""} disabled={pending} /></label>
-      <label className={labelCls}>{c.start}<input className={inputCls} type="date" name="priorityStartedAt" defaultValue={row?.priorityStartedAt ?? ""} disabled={pending} /></label>
+      <label className={labelCls}>{c.days}<input className={inputCls} type="number" min={1} max={730} name="priorityDays" placeholder="7" defaultValue={row?.priorityDays ?? ""} disabled={pending} /><span className="text-xs font-normal text-slate-500">{c.daysHelp}</span></label>
       <label className={labelCls}>{c.order}<input className={inputCls} type="number" min={0} name="sortOrder" defaultValue={row?.sortOrder ?? 100} disabled={pending} /></label>
       <label className="flex min-h-11 items-center gap-2 text-sm text-slate-700"><input type="checkbox" name="active" defaultChecked={row?.active ?? true} disabled={pending} className="size-5" />{c.active}</label>
       <div className="sm:col-span-2"><FormMessage error={error} notice={notice ?? null} /></div>

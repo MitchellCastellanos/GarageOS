@@ -37,7 +37,7 @@ Strong: same name + same civic address (or same compact postal). Name + city + a
 * `classifyTerritory` → `LOCAL` | `NATIONAL` | `UNRESOLVED`. Québec without city/postal is `UNRESOLVED` (could be Greater Montréal) and is **never auto-assigned**.
 * Auto-assignment only considers **unassigned, active, non-DNC** prospects with a resolved territory. Candidate sellers: active **reps** of the actor's team (Super Admin: all reps), `acceptsAutoAssignment`, optional `maxActiveLeads`, coverage, and `evaluateAcquisition` (so FIELD territories go to FIELD sellers while FIELD holds acquisition; elsewhere FIELD and REMOTE share, least-loaded first, deterministic). Managers are not auto-assigned (assign manually).
 * Preview creates a `CrmAssignmentRun`; confirm re-validates each proposal (still unassigned, seller still allowed), is compare-and-set, audited per prospect, and skips anything that changed.
-* **FIELD_PRIORITY** already existed (`priorityDays`, `priorityStartedAt`). It is configurable per territory; with no duration set FIELD never releases. **The seeded Greater Montréal rule is still `FIELD_EXCLUSIVE`; no duration was chosen.** Release to REMOTE only applies to *untouched* prospects (a FIELD agent's earlier touch keeps it with FIELD).
+* **FIELD_PRIORITY** is now a per-prospect window — see §5. **The seeded Greater Montréal rule is still `FIELD_EXCLUSIVE`.**
 
 ### CASL evidence
 `CrmSendingBasis` gains a nullable `reviewStatus` (`NULL` legacy, `NOT_REQUIRED`, `LEGACY_UNREVIEWED`, `PENDING_REVIEW`, `APPROVED`, `REJECTED`), evidence type, source URL, capture date, supporting facts, role relevance, published-address confirmation, reviewer/time/note. `evaluateSendingBasis` (single policy function used by composer, sequences and dispatcher — unchanged transport) requires `APPROVED` for NEW `IMPLIED_PUBLISHED_ADDRESS` / `IMPLIED_DISCLOSED_ADDRESS` rows; pending/rejected evidence authorises nothing for any kind; `NULL` (legacy) keeps its previous validity; `LEGACY_UNREVIEWED` address-based rows are not valid.
@@ -70,3 +70,31 @@ Rollback: all new columns are nullable/defaulted; dropping the new tables/column
 * "Ready for outreach" is a pre-check; any revoked basis anywhere in a contact's history disqualifies it there (conservative), and email suppressions are only enforced at send time.
 * Managers are not auto-assigned; availability is a pause switch and a cap (no calendar-based availability).
 * Existing prospects have no derived columns until `recomputeProspectDerived` runs (queues treat them as territory "not computed").
+
+## 5. Per-prospect FIELD priority and manual FIELD ↔ REMOTE release (migration `20261013090000_per_prospect_field_priority`)
+
+The first design used a territory-wide `priorityStartedAt`; that cannot work with ongoing imports. Windows are now **per prospect**.
+
+### Data (additive, nothing backfilled)
+`CrmProspect.fieldPriorityStartedAt` (nullable, DB clock) and `CrmProspect.remoteReleasedAt` (nullable). `CrmTerritory.priorityDays` is the window length (configure it in *Settings → Territories*; FIELD_PRIORITY needs only the number of days). `CrmTerritory.priorityStartedAt` is **deprecated and ignored** (column kept, no longer shown, validated or written). The migration modifies no row: existing prospects keep `NULL`/`NULL` = *no window started, not released* = held by FIELD exactly as today. **No invented dates.**
+
+### The start event (single, explicit definition)
+A prospect's window starts **once**, with the database clock, when it **first enters a FIELD_PRIORITY territory**:
+1. it is **created** already located there (CSV import, manual create, duplicate-review "distinct branch"), or
+2. its **address is first completed or changed** so that it now falls there and it had no window (`stampFieldPriorityOnEntry`: compare-and-set `… WHERE fieldPriorityStartedAt IS NULL`; skipped if the prospect was already in that territory, e.g. imported under FIELD_EXCLUSIVE), or
+3. a manager/Super Admin explicitly **returns it to FIELD priority** (the only way a window is ever restarted; audited).
+
+It is **never** set or reset by re-imports, duplicate/linked rows, changed source records, assignment runs and retries, address edits inside the same territory, `recomputeProspectDerived`, or any job. There is no scheduled job at all: expiry is derived (`acquisitionState`, a pure function of rule + engagement + now + the two columns), so nothing can race.
+
+### Who holds acquisition (`acquisitionState` / `requiredMode(rule, eng, now, timing)`)
+REMOTE_DEFAULT/no territory → REMOTE · **manually released → REMOTE** · FIELD_EXCLUSIVE → FIELD · FIELD_PRIORITY: window not started → FIELD; window open (start + `priorityDays`) → FIELD; after it ends → FIELD **only with meaningful engagement** (qualifying visit conversation, reply, active opportunity, or a non-visit touch), otherwise REMOTE. A failed / no-answer / rejected / unavailable visit is **not** engagement (the `qualifiedVisit` safety rule is unchanged and still alone satisfies the cold-email territory gate; CASL, DNC and suppression remain separate checks). Expiry **never transfers an owner**: it only decides who may *acquire an unowned* prospect (assignment runs, import owner checks, `assertAcquisition`, the territory email gate and the prospect page all use the same function with the prospect's timing).
+
+### Manual release / return (`src/actions/sales-acquisition.ts`, `src/domain/sales-crm/acquisition.ts`)
+Tick prospects in the existing prospects list (or open one prospect) → **Release to REMOTE…** / **Return to FIELD priority…** → **preview** (per prospect: owner kept, current acquisition state, deadline, active opportunity, eligibility or conflict codes) → **confirm**. Capability `reassign_prospects` (Sales Manager within their team + the unassigned pool; Super Admin everywhere); sellers cannot. Max 200 per batch. It changes **acquisition eligibility only**: `assignedStaffId` is never touched (transfers stay in the explicit, audited *Assign* actions). Release works in FIELD_EXCLUSIVE too (today's production Greater Montréal). Return clears the release and, under FIELD_PRIORITY, starts a **new** window. Eligibility: release needs a FIELD-held prospect with no meaningful engagement/active opportunity that REMOTE cannot yet take; return needs a released/expired prospect (or one with no window yet) with no engagement/opportunity; archived and do-not-contact are always conflicts.
+Safety: confirm runs in one transaction that locks the rows (`FOR UPDATE`, id order), recomputes the evaluation and must match the preview token (ids, eligibility, owner, status, timing) — anything changed ⇒ `ACQUISITION_PREVIEW_STALE`, nothing written; a retry of an applied batch is a no-op (`alreadyApplied`); concurrent confirms apply once. Audited (`PROSPECT_ACQUISITION_RELEASED/RETURNED`, per prospect, with before/after and "owner unchanged") and a timeline entry is added.
+
+### Queues
+*FIELD visit candidates* now excludes released prospects and, under FIELD_PRIORITY, prospects whose own window ended without engagement (SQL approximation of `acquisitionState`).
+
+### Owner configuration to enable it
+Settings → Territories → Greater Montréal: acquisition `FIELD_PRIORITY`, **days = 7**. Until then nothing changes. Prospects that already exist stay FIELD-held (no window); to give existing untouched prospects a window use **Return to FIELD priority** on them (preview first).

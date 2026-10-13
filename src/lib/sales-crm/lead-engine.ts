@@ -7,7 +7,7 @@ import { snapshotOf, type ImportCandidate } from "@/domain/sales-crm/import";
 import { normalizeBusinessName, normalizeEmail, phoneDigits, websiteDomain } from "@/domain/sales-crm/normalize";
 import type { TerritoryRule } from "@/domain/sales-crm/territory";
 import { writeCrmAudit } from "@/lib/sales-crm/audit";
-import { addressColumns, applyDoNotContact, territoryColumns, type Tx } from "@/lib/sales-crm/prospects";
+import { addressColumns, applyDoNotContact, stampFieldPriorityOnEntry, territoryColumns, type Tx } from "@/lib/sales-crm/prospects";
 
 /**
  * Source data may ENRICH an existing prospect but never overwrites it: only fields that are currently empty are filled
@@ -20,6 +20,7 @@ export async function enrichFromCandidate(tx: Tx, actor: PlatformSalesActor, pro
   if (!p) return { conflicts: [], enriched: [] };
   const conflicts: string[] = [], enriched: string[] = [];
   const data: Prisma.CrmProspectUpdateInput = {};
+  let addressFilled = false;
   const src = c.prospect;
   const canWrite = canAccessAssignedStaff(actor, p.assignedStaffId);
 
@@ -45,12 +46,15 @@ export async function enrichFromCandidate(tx: Tx, actor: PlatformSalesActor, pro
     if (!hasAddress && (src.address || src.city || src.province || src.postalCode)) {
       Object.assign(data, { address: src.address, city: src.city, province: src.province, postalCode: src.postalCode, ...addressColumns(src), ...territoryColumns(rules, src) });
       enriched.push("address");
+      addressFilled = true;
     }
     if (!p.industry && src.industry) { data.industry = src.industry; enriched.push("industry"); }
     if (!p.shopSize && src.shopSize) { data.shopSize = src.shopSize; enriched.push("shopSize"); }
     if (p.preferredLanguage === "UNKNOWN" && src.preferredLanguage !== "UNKNOWN") { data.preferredLanguage = src.preferredLanguage; enriched.push("preferredLanguage"); }
     if (enriched.length) {
       await tx.crmProspect.update({ where: { id: prospectId }, data });
+      // A newly completed address may place the prospect in a FIELD_PRIORITY territory for the first time → start its own window once.
+      if (addressFilled) await stampFieldPriorityOnEntry(tx, prospectId, rules, src, p);
       await writeCrmAudit({ actorUserId: actor.userId, action: "PROSPECT_ENRICHED", entityType: "CrmProspect", entityId: prospectId, prospectId, metadata: { fields: enriched, conflicts } }, tx);
     }
   }
