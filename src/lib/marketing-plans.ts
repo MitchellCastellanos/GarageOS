@@ -334,7 +334,7 @@ export const PRICING_PAGE_COPY: Record<MarketingLocale, {
   multiShopTitle: string; multiShopBody: string; contact: string;
 }> = {
   en: {
-    meta: { title: "Pricing", description: "GarageOS plans: Core $199, Pro $299 and Complete $449 CAD per month. Start with a 14-day free trial." },
+    meta: { title: "Pricing", description: `GarageOS plans: Core $${PLAN_PRICING_CAD.CORE.monthly}, Pro $${PLAN_PRICING_CAD.PRO.monthly} and Complete $${PLAN_PRICING_CAD.COMPLETE.monthly} CAD per month. Start with a ${TRIAL_DAYS}-day free trial.` },
     eyebrow: "Pricing",
     heading: "Pick the plan your shop runs on.",
     description: `Every plan includes the full job workflow — booking to invoice, with a customer portal. Start with a ${TRIAL_DAYS}-day free trial, $0 today.`,
@@ -346,7 +346,7 @@ export const PRICING_PAGE_COPY: Record<MarketingLocale, {
     contact: "Talk to us about multiple locations",
   },
   fr: {
-    meta: { title: "Tarifs", description: "Forfaits GarageOS : Core 199 $, Pro 299 $ et Complete 449 $ CAD par mois. Commencez avec un essai gratuit de 14 jours." },
+    meta: { title: "Tarifs", description: `Forfaits GarageOS : Core ${PLAN_PRICING_CAD.CORE.monthly} $, Pro ${PLAN_PRICING_CAD.PRO.monthly} $ et Complete ${PLAN_PRICING_CAD.COMPLETE.monthly} $ CAD par mois. Commencez avec un essai gratuit de ${TRIAL_DAYS} jours.` },
     eyebrow: "Tarifs",
     heading: "Choisissez le forfait qui convient à votre atelier.",
     description: `Chaque forfait inclut tout le flux de travail — de la réservation à la facture, avec un portail client. Commencez par un essai gratuit de ${TRIAL_DAYS} jours, 0 $ aujourd'hui.`,

@@ -92,9 +92,10 @@ test("route files exist: every EN page, and every FR page marked live", () => {
       assert.ok(exists(fr), `${r.id}: marked live but missing ${fr}`);
     }
   }
-  // Conversely: a page file under (fr) must be registered as live, so the language switcher can find it.
-  const registered = new Set(PUBLIC_ROUTES.filter((r) => r.frStatus === "live").map((r) => `src/app/(fr)${r.fr}/page.tsx`));
-  for (const f of walk("src/app/(fr)").filter((f) => f.endsWith("/page.tsx"))) assert.ok(registered.has(f), `${f} is not registered as live in PUBLIC_ROUTES`);
+  // Conversely: a page file under (fr) must be registered in PUBLIC_ROUTES. "live" = linked from the language switcher;
+  // "planned" with a file = a draft that renders (noindex, not linked, not in the sitemap) until it is approved.
+  const registered = new Set(PUBLIC_ROUTES.filter((r) => r.fr && r.frStatus !== "none").map((r) => `src/app/(fr)${r.fr}/page.tsx`));
+  for (const f of walk("src/app/(fr)").filter((f) => f.endsWith("/page.tsx"))) assert.ok(registered.has(f), `${f} is not registered in PUBLIC_ROUTES`);
 });
 
 // ── Matching, switching, fallback ───────────────────────────────────────────────────────────────────────────────
