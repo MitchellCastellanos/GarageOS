@@ -1,6 +1,7 @@
 import "server-only";
-import type { Mode, TerritoryRule, Engagement, Location } from "@/domain/sales-crm/territory";
-import { evaluateAcquisition, NO_ENGAGEMENT, resolveTerritory } from "@/domain/sales-crm/territory";
+import type { Prisma } from "@prisma/client";
+import type { Mode, TerritoryRule, Engagement, Location, AcquisitionTiming } from "@/domain/sales-crm/territory";
+import { evaluateAcquisition, NO_ENGAGEMENT, NO_TIMING, resolveTerritory } from "@/domain/sales-crm/territory";
 import { hasQualifiedVisit } from "@/domain/sales-crm/field-visit";
 import { db } from "@/lib/db";
 import { loadTerritoryRulesWith } from "@/lib/sales-crm/territory-rules";
@@ -16,15 +17,43 @@ export async function territoryOfLocation(loc: Location): Promise<TerritoryRule 
   return resolveTerritory(await loadTerritoryRules(), loc);
 }
 
+const ACTIVE_STAGES = ["CONTACTED", "ENGAGED", "QUALIFIED", "DEMO_SCHEDULED", "DEMO_COMPLETED", "DECISION"] as const;
+
+/**
+ * Documented engagement facts of many prospects at once — the ONE implementation (single-prospect callers use
+ * `loadEngagement`). `visited` is any visit attempt; `qualifiedVisit` only a genuine conversation; `otherTouch` any
+ * non-visit touch. A failed/no-answer/rejected visit never becomes meaningful engagement.
+ */
+export async function loadEngagements(ids: string[], client: Prisma.TransactionClient | typeof db = db): Promise<Map<string, Engagement>> {
+  const out = new Map<string, Engagement>(ids.map((id) => [id, { ...NO_ENGAGEMENT }]));
+  if (!ids.length) return out;
+  const [acts, visits, opps] = await Promise.all([
+    client.crmActivity.groupBy({ by: ["prospectId", "type"], where: { prospectId: { in: ids }, type: { in: [...TOUCH_TYPES] } }, _count: true }),
+    client.crmActivity.findMany({ where: { prospectId: { in: ids }, type: "FIELD_VISIT", fieldVisitOutcome: { not: null } }, select: { prospectId: true, fieldVisitOutcome: true, occurredAt: true, createdAt: true } }),
+    client.crmOpportunity.findMany({ where: { prospectId: { in: ids }, stage: { in: [...ACTIVE_STAGES] } }, select: { prospectId: true } }),
+  ]);
+  for (const a of acts) {
+    const e = out.get(a.prospectId)!;
+    e.touched = true;
+    if (a.type === "FIELD_VISIT") e.visited = true; else e.otherTouch = true;
+    if (a.type === "EMAIL_RECEIVED") e.replied = true;
+  }
+  const byProspect = new Map<string, { outcome: string; at: Date; createdAt: Date }[]>();
+  for (const v of visits) byProspect.set(v.prospectId, [...(byProspect.get(v.prospectId) ?? []), { outcome: v.fieldVisitOutcome!, at: v.occurredAt, createdAt: v.createdAt }]);
+  for (const [id, list] of byProspect) out.get(id)!.qualifiedVisit = hasQualifiedVisit(list);
+  for (const o of opps) out.get(o.prospectId)!.activeOpportunity = true;
+  return out;
+}
+
 /** Documented engagement facts of one prospect — what unlocks follow-up and keeps ownership with its current owner. */
 export async function loadEngagement(prospectId: string): Promise<Engagement> {
-  const [acts, visits, opp] = await Promise.all([
-    db.crmActivity.groupBy({ by: ["type"], where: { prospectId, type: { in: [...TOUCH_TYPES] } }, _count: true }),
-    db.crmActivity.findMany({ where: { prospectId, type: "FIELD_VISIT", fieldVisitOutcome: { not: null } }, select: { fieldVisitOutcome: true, occurredAt: true, createdAt: true } }),
-    db.crmOpportunity.findFirst({ where: { prospectId, stage: { in: ["CONTACTED", "ENGAGED", "QUALIFIED", "DEMO_SCHEDULED", "DEMO_COMPLETED", "DECISION"] } }, select: { id: true } }),
-  ]);
-  const has = (t: string) => acts.some((a) => a.type === t);
-  return { touched: acts.length > 0, visited: has("FIELD_VISIT"), qualifiedVisit: hasQualifiedVisit(visits.map((v) => ({ outcome: v.fieldVisitOutcome!, at: v.occurredAt, createdAt: v.createdAt }))), replied: has("EMAIL_RECEIVED"), activeOpportunity: !!opp };
+  return (await loadEngagements([prospectId])).get(prospectId)!;
+}
+
+/** Per-prospect acquisition timing (window start, manual release). Missing prospect → no timing. */
+export async function loadTiming(prospectId: string, client: Prisma.TransactionClient | typeof db = db): Promise<AcquisitionTiming> {
+  const p = await client.crmProspect.findUnique({ where: { id: prospectId }, select: { fieldPriorityStartedAt: true, remoteReleasedAt: true } });
+  return p ?? NO_TIMING;
 }
 
 export interface AssigneeFacts { mode: Mode | null; coverageKeys: readonly string[] }
@@ -40,9 +69,9 @@ export async function staffAcquirerFacts(staffId: string): Promise<AssigneeFacts
  */
 export async function assertAcquisition(staffId: string, location: Location, prospect?: { id: string; assignedStaffId: string | null }, now = new Date()) {
   const [rule, facts] = await Promise.all([territoryOfLocation(location), staffAcquirerFacts(staffId)]);
-  const eng = prospect ? await loadEngagement(prospect.id) : NO_ENGAGEMENT;
+  const [eng, timing] = prospect ? await Promise.all([loadEngagement(prospect.id), loadTiming(prospect.id)]) : [NO_ENGAGEMENT, NO_TIMING];
   const retains = !!prospect?.assignedStaffId && (eng.activeOpportunity || eng.touched);
-  const d = evaluateAcquisition({ ...facts, isSuperAdmin: false }, rule, eng, now, retains);
+  const d = evaluateAcquisition({ ...facts, isSuperAdmin: false }, rule, eng, now, retains, timing);
   if (!d.allowed) throw new CrmError(d.code);
 }
 

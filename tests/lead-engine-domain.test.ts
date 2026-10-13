@@ -170,7 +170,7 @@ test("territory classification: local match, positively national, and honest UNR
 
 // ── assignment ───────────────────────────────────────────────────────────────────────────────────────────────
 const NOW = new Date("2026-03-01T12:00:00Z");
-const noEng = { touched: false, visited: false, qualifiedVisit: false, replied: false, activeOpportunity: false };
+const noEng = { touched: false, visited: false, otherTouch: false, qualifiedVisit: false, replied: false, activeOpportunity: false };
 const prospect = (id: string, o: Partial<AssignableProspect> = {}): AssignableProspect => ({ id, status: "ACTIVE", doNotContact: false, assignedStaffId: null, territoryState: "NATIONAL", rule: CA, engagement: noEng, ...o });
 const seller = (id: string, o: Partial<AssignableSeller> = {}): AssignableSeller => ({ id, mode: "REMOTE", coverageKeys: [], active: true, acceptsAutoAssignment: true, maxActiveLeads: null, workload: 0, ...o });
 
@@ -180,14 +180,21 @@ test("assignment: national leads are shared by FIELD and REMOTE sellers, least l
 });
 
 test("assignment: during the FIELD priority window REMOTE sellers get nothing locally; after release they may; FIELD can always sell remotely", () => {
-  const during = planAssignments([prospect("p", { territoryState: "LOCAL", rule: MTL })], [seller("r"), seller("f", { mode: "FIELD" })], new Date("2026-01-05"));
+  const win = { fieldPriorityStartedAt: new Date("2026-01-01") }; // MTL: 14-day window per prospect
+  const during = planAssignments([prospect("p", { territoryState: "LOCAL", rule: MTL, timing: win })], [seller("r"), seller("f", { mode: "FIELD" })], new Date("2026-01-05"));
   assert.equal(during[0].staffId, "f"); assert.equal(during[0].requiredMode, "FIELD");
-  const onlyRemote = planAssignments([prospect("p", { territoryState: "LOCAL", rule: MTL })], [seller("r")], new Date("2026-01-05"));
+  const onlyRemote = planAssignments([prospect("p", { territoryState: "LOCAL", rule: MTL, timing: win })], [seller("r")], new Date("2026-01-05"));
   assert.equal(onlyRemote[0].skip, "NO_ELIGIBLE_SELLER");
-  const after = planAssignments([prospect("p", { territoryState: "LOCAL", rule: MTL })], [seller("r")], new Date("2026-02-01"));
+  const after = planAssignments([prospect("p", { territoryState: "LOCAL", rule: MTL, timing: win })], [seller("r")], new Date("2026-02-01"));
   assert.equal(after[0].staffId, "r", "untouched prospect released to REMOTE after the window");
-  const touched = planAssignments([prospect("p", { territoryState: "LOCAL", rule: MTL, engagement: { ...noEng, touched: true } })], [seller("r")], new Date("2026-02-01"));
-  assert.equal(touched[0].skip, "NO_ELIGIBLE_SELLER", "a prospect a FIELD agent already touched stays with FIELD");
+  const touched = planAssignments([prospect("p", { territoryState: "LOCAL", rule: MTL, timing: win, engagement: { ...noEng, touched: true, otherTouch: true } })], [seller("r")], new Date("2026-02-01"));
+  assert.equal(touched[0].skip, "NO_ELIGIBLE_SELLER", "a prospect the field team engaged with stays with FIELD");
+  const failedVisit = planAssignments([prospect("p", { territoryState: "LOCAL", rule: MTL, timing: win, engagement: { ...noEng, touched: true, visited: true } })], [seller("r")], new Date("2026-02-01"));
+  assert.equal(failedVisit[0].staffId, "r", "a failed/no-answer visit does not hold the prospect after the window");
+  const released = planAssignments([prospect("p", { territoryState: "LOCAL", rule: MTL, timing: { ...win, remoteReleasedAt: new Date("2026-01-02") } })], [seller("r")], new Date("2026-01-05"));
+  assert.equal(released[0].staffId, "r", "a manual release opens it to REMOTE inside the window");
+  const notStarted = planAssignments([prospect("p", { territoryState: "LOCAL", rule: MTL })], [seller("r")], new Date("2030-01-01"));
+  assert.equal(notStarted[0].skip, "NO_ELIGIBLE_SELLER", "no window started (old prospect): stays FIELD, nothing invented");
 });
 
 test("assignment: the window never ends when no duration is configured (nothing is invented)", () => {

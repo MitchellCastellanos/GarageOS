@@ -28,7 +28,7 @@ Out of scope for the initial implementation: new shop-tenant messaging, replacin
 | Decision | Rule |
 |---|---|
 | Montréal island, Laval, Rive-Sud | `FIELD_PRIORITY`; FIELD gets first opportunity, REMOTE may participate after configured release conditions |
-| FIELD priority duration | **Not yet approved**. Keep configurable; do not silently pick 7 days or alter live seed |
+| FIELD priority duration | Owner direction (2026-10-13): **7 days, per prospect**, configurable via `CrmTerritory.priorityDays`; implemented as a per-prospect window (see `lead-engine-contracts.md` §5). The live seed is **not** changed: Greater Montréal stays `FIELD_EXCLUSIVE` until the owner sets `FIELD_PRIORITY` + 7 days in Settings → Territories |
 | National assignment | Automatically distribute eligible remote-market leads among **FIELD and REMOTE** reps according to coverage, workload, availability and server-side authorization |
 | FIELD capability | FIELD can sell remotely; REMOTE cannot plan/execute FIELD visits |
 | CASL and duplicate approvals | Sales Manager within team; Super Admin globally; seller cannot approve own evidence |
@@ -146,7 +146,7 @@ Pilot is a **target, not authorization**. Required gates:
 
 ## 13. Unresolved choices and hard stops
 
-- FIELD_PRIORITY release duration and any production territory rule changes.
+- Switching Greater Montréal to `FIELD_PRIORITY` (7 days) in production — an owner configuration step; the mechanism is implemented.
 - Geocoding provider, pricing/terms, storage rights and owner-approved budget.
 - Real CSV export and source lawful-use verification.
 - Live import destination, batch authorization and rollout timing.

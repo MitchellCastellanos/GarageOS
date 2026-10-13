@@ -20,7 +20,9 @@ import type { CrmCopy } from "@/lib/admin-locale/sales-crm";
 import { FieldVisitForm } from "@/components/sales-crm/FieldVisitForm";
 import { identityCopy } from "@/lib/admin-locale/sales-identity";
 import { loadEngagement, territoryOfLocation } from "@/lib/sales-crm/territory";
-import { requiredMode } from "@/domain/sales-crm/territory";
+import { acquisitionState } from "@/domain/sales-crm/territory";
+import { AcquisitionBar } from "@/components/sales-crm/AcquisitionBar";
+import { leadCopy } from "@/lib/admin-locale/sales-lead-engine";
 import { ProspectCommsPanel } from "@/components/sales-comms/ProspectCommsPanel";
 import { VideoEngagement } from "@/components/sales-crm/VideoEngagement";
 import { videoSummaryForProspect } from "@/lib/sales-video";
@@ -54,7 +56,9 @@ export default async function ProspectDetailPage({ params }: { params: Promise<{
   const owner = p.assignedStaff;
   const ic = identityCopy(locale);
   const [territory, engagement] = await Promise.all([territoryOfLocation(p), loadEngagement(p.id)]);
-  const heldBy = requiredMode(territory, engagement, now);
+  const acq = acquisitionState(territory, engagement, now, p);
+  const heldBy = acq.mode;
+  const AL = leadCopy(locale).acquisition;
 
   return (
     <div className="mx-auto max-w-6xl space-y-5">
@@ -70,8 +74,11 @@ export default async function ProspectDetailPage({ params }: { params: Promise<{
         <section className="flex flex-wrap items-center gap-2 text-sm" aria-label={ic.territories.title}>
           <Badge tone={heldBy === "FIELD" ? "bg-violet-100 text-violet-800" : "bg-sky-100 text-sky-800"}>{ic.territoryBadge[heldBy]}</Badge>
           <span className="text-slate-600">{locale === "fr" ? territory.nameFr : territory.nameEn}</span>
+          {territory.acquisition !== "REMOTE_DEFAULT" && <span className="text-slate-600">· {AL.reason[acq.reason]}{acq.deadline ? ` · ${formatDate(acq.deadline, locale)}` : ""}</span>}
         </section>
       )}
+
+      {canReassign && territory && territory.acquisition !== "REMOTE_DEFAULT" && p.status === "ACTIVE" && <AcquisitionBar locale={locale} ids={[p.id]} />}
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">

@@ -26,19 +26,19 @@ const territorySchema = z.object({
   cities: z.string().optional().transform((v) => csv(v, 400, cityKey)),
   postalPrefixes: z.string().optional().transform((v) => csv(v, 100, (s) => s.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 3))),
   priorityDays: z.union([z.literal(""), z.coerce.number().int().min(1).max(730)]).optional().transform((v) => (v === "" || v === undefined ? null : v)),
-  priorityStartedAt: z.string().optional().transform((v) => (v ? new Date(`${v}T00:00:00Z`) : null)),
   sortOrder: z.coerce.number().int().min(0).max(10_000).default(100),
   active: z.union([z.boolean(), z.string()]).optional().transform((v) => v === true || v === "on" || v === "true"),
 });
 
-/** Super Admin: create or update a territory (keyed). FIELD_PRIORITY needs a window; the catch-all must stay active. */
+/** Super Admin: create or update a territory (keyed). FIELD_PRIORITY needs a window length (days); the catch-all must stay active. */
 export async function saveTerritory(form: FormData) {
   const actor = await requireCrmActor("manage_team");
   return crmAction(async () => {
     const v = territorySchema.parse(Object.fromEntries(form));
-    if (v.acquisition === "FIELD_PRIORITY" && (!v.priorityDays || !v.priorityStartedAt || Number.isNaN(v.priorityStartedAt.getTime()))) throw new CrmError("INVALID");
-    if (v.priorityStartedAt && Number.isNaN(v.priorityStartedAt.getTime())) throw new CrmError("INVALID");
-    const data = { nameEn: v.nameEn, nameFr: v.nameFr, acquisition: v.acquisition, provinces: v.provinces, cities: v.cities, postalPrefixes: v.postalPrefixes, priorityDays: v.acquisition === "FIELD_PRIORITY" ? v.priorityDays : null, priorityStartedAt: v.acquisition === "FIELD_PRIORITY" ? v.priorityStartedAt : null, sortOrder: v.sortOrder, active: v.active };
+    // FIELD_PRIORITY needs only the window LENGTH: every prospect gets its own window when it enters the territory
+    // (docs/lead-engine-contracts.md §Per-prospect FIELD priority). There is no territory-wide start date any more.
+    if (v.acquisition === "FIELD_PRIORITY" && !v.priorityDays) throw new CrmError("INVALID");
+    const data = { nameEn: v.nameEn, nameFr: v.nameFr, acquisition: v.acquisition, provinces: v.provinces, cities: v.cities, postalPrefixes: v.postalPrefixes, priorityDays: v.acquisition === "FIELD_PRIORITY" ? v.priorityDays : null, sortOrder: v.sortOrder, active: v.active };
     const row = await db.crmTerritory.upsert({ where: { key: v.key }, create: { key: v.key, ...data }, update: data });
     await writeCrmAudit({ actorUserId: actor.userId, action: "TERRITORY_SAVED", entityType: "CrmTerritory", entityId: row.id, metadata: { key: v.key, acquisition: v.acquisition, active: v.active } });
     revalidatePath(PLATFORM.salesTerritories);

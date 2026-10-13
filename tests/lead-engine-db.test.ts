@@ -333,32 +333,32 @@ if (!enabled) {
     assert.equal(((await assignment.cancelAssignmentRun(prev2.runId)) as any).ok, true);
   });
 
-  test("territory release: FIELD_PRIORITY lets REMOTE sellers take UNTOUCHED local leads after the configured window, never before, and the seeded rule is restored", async () => {
+  test("territory release: FIELD_PRIORITY lets REMOTE sellers take UNTOUCHED local leads after the prospect's own window, never before; engagement keeps FIELD; the seeded rule is restored", async () => {
     const original = await db.crmTerritory.findUniqueOrThrow({ where: { key: "greater-montreal" } });
     try {
       await importAs("Root", ["name,address,city,province,postal code", `Rel ${run} 0,1 rue R,Laval,QC,H7A 2C1`].join("\n"), { sourceKey: `rel-${run}`, assignedStaffId: "" });
       const rel = await db.crmProspect.findFirstOrThrow({ where: { name: `Rel ${run} 0` } });
       await db.platformSalesStaff.update({ where: { id: staff.FieldA }, data: { acceptsAutoAssignment: false } });
-      const inWindow = new Date(Date.now() - 2 * 86400_000);
-      await db.crmTerritory.update({ where: { key: "greater-montreal" }, data: { acquisition: "FIELD_PRIORITY", priorityDays: 7, priorityStartedAt: inWindow } });
+      await db.crmTerritory.update({ where: { key: "greater-montreal" }, data: { acquisition: "FIELD_PRIORITY", priorityDays: 7 } });
+      await db.crmProspect.update({ where: { id: rel.id }, data: { fieldPriorityStartedAt: new Date(Date.now() - 2 * 86400_000) } }); // this prospect's OWN window
       as(users.MgrA);
       let p: any = await assignment.previewAssignmentRun(fd({ territoryKey: "greater-montreal" }));
       let row = (await db.crmAssignmentRun.findUniqueOrThrow({ where: { id: p.runId } })).proposals as any[];
       assert.equal(row.find((x) => x.prospectId === rel.id).staffId, null, "inside the window REMOTE cannot take it (and FIELD is paused)");
       await assignment.cancelAssignmentRun(p.runId);
-      await db.crmTerritory.update({ where: { key: "greater-montreal" }, data: { priorityStartedAt: new Date(Date.now() - 30 * 86400_000) } });
+      await db.crmProspect.update({ where: { id: rel.id }, data: { fieldPriorityStartedAt: new Date(Date.now() - 30 * 86400_000) } });
       p = await assignment.previewAssignmentRun(fd({ territoryKey: "greater-montreal" }));
       row = (await db.crmAssignmentRun.findUniqueOrThrow({ where: { id: p.runId } })).proposals as any[];
       assert.equal(row.find((x) => x.prospectId === rel.id).staffId, staff.RemoteA, "released to REMOTE after the window");
       await assignment.cancelAssignmentRun(p.runId);
-      // a prospect a FIELD agent already touched is not released
-      await db.crmActivity.create({ data: { prospectId: rel.id, type: "FIELD_VISIT", authorUserId: users.FieldA } });
+      // a prospect the field team genuinely engaged with (a call) is not released; a bare visit attempt would not hold it
+      await db.crmActivity.create({ data: { prospectId: rel.id, type: "CALL", authorUserId: users.FieldA } });
       p = await assignment.previewAssignmentRun(fd({ territoryKey: "greater-montreal" }));
       row = (await db.crmAssignmentRun.findUniqueOrThrow({ where: { id: p.runId } })).proposals as any[];
       assert.equal(row.find((x) => x.prospectId === rel.id).staffId, null);
       await assignment.cancelAssignmentRun(p.runId);
     } finally {
-      await db.crmTerritory.update({ where: { key: "greater-montreal" }, data: { acquisition: original.acquisition, priorityDays: original.priorityDays, priorityStartedAt: original.priorityStartedAt } });
+      await db.crmTerritory.update({ where: { key: "greater-montreal" }, data: { acquisition: original.acquisition, priorityDays: original.priorityDays } });
       await db.platformSalesStaff.update({ where: { id: staff.FieldA }, data: { acceptsAutoAssignment: true } });
     }
     assert.equal((await db.crmTerritory.findUniqueOrThrow({ where: { key: "greater-montreal" } })).acquisition, "FIELD_EXCLUSIVE");
