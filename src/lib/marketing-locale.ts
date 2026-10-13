@@ -208,7 +208,6 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
     resourcesMenu: [
       { label: "Help Center", href: "/help" },
       { label: "Quick Start", href: "/quick-start" },
-      { label: "Guides", href: "/guides" },
       { label: "Blog", href: "/blog" },
       { label: "Changelog", href: "/changelog" },
     ],
@@ -454,7 +453,6 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
           links: [
             { label: "Quick Start", href: "/quick-start" },
             { label: "Help Center", href: "/help" },
-            { label: "Guides", href: "/guides" },
             { label: "Blog", href: "/blog" },
             { label: "Changelog", href: "/changelog" },
           ],
@@ -560,7 +558,6 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
     resourcesMenu: [
       { label: "Centre d'aide", href: "/help" },
       { label: "Démarrage rapide", href: "/quick-start" },
-      { label: "Guides", href: "/guides" },
       { label: "Blogue", href: "/blog" },
       { label: "Nouveautés", href: "/changelog" },
     ],
@@ -806,7 +803,6 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
           links: [
             { label: "Démarrage rapide", href: "/quick-start" },
             { label: "Centre d'aide", href: "/help" },
-            { label: "Guides", href: "/guides" },
             { label: "Blogue", href: "/blog" },
             { label: "Nouveautés", href: "/changelog" },
           ],

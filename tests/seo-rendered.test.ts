@@ -10,8 +10,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { BLOG_POSTS, GUIDES } from "../src/lib/marketing-resources";
-import { HELP_ARTICLES, articlePath, categoriesFor, categoryPath, helpPathForGuide } from "../src/lib/help";
+import { BLOG_POSTS } from "../src/lib/marketing-resources";
+import { HELP_ARTICLES, articlePath, categoriesFor, categoryPath } from "../src/lib/help";
 import { PUBLIC_ROUTES } from "../src/lib/seo/routes";
 
 const root = process.cwd();
@@ -19,14 +19,12 @@ const PAGES = path.join(root, "src/app/(site)");
 const BUILT = path.join(root, ".next/server/app");
 
 const enPaths = [
-  ...PUBLIC_ROUTES.map((r) => r.en),
-  ...GUIDES.map((g) => `/guides/${g.slug}`),
+  ...PUBLIC_ROUTES.filter((r) => !r.redirectTo).map((r) => r.en),
   ...BLOG_POSTS.map((b) => `/blog/${b.slug}`),
   ...categoriesFor("en").map((c) => categoryPath("en", c)),
   ...HELP_ARTICLES.map((a) => articlePath("en", a)!),
 ];
-/** Páginas que existen pero cuyo original (canonical) es otra URL: /guides/<slug> → artículo de ayuda, hasta los 301. */
-const canonicalOf = (p: string): string => (p.startsWith("/guides/") ? helpPathForGuide(p.slice("/guides/".length)) ?? p : p);
+const canonicalOf = (p: string): string => p;
 
 function pageFile(routePath: string): string {
   if (routePath.startsWith("/help/")) {
@@ -48,7 +46,7 @@ test("every public EN route has a page that calls pageMetadata() with its own pa
     assert.ok(fs.existsSync(file), `${routePath}: missing ${file}`);
     const src = fs.readFileSync(file, "utf8");
     assert.match(src, /pageMetadata\(/, `${routePath}: page does not use pageMetadata()`);
-    if (!routePath.startsWith("/guides/") && !routePath.startsWith("/blog/") && !routePath.startsWith("/help/")) {
+    if (!routePath.startsWith("/blog/") && !routePath.startsWith("/help/")) {
       assert.ok(src.includes(`path: "${routePath}"`), `${routePath}: pageMetadata path must be "${routePath}"`);
     }
   }

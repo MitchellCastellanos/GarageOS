@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import { PRIVATE_HEADER_SOURCES, TOKEN_HEADER_SOURCES } from "./src/lib/privacy/private-paths";
+import { LEGACY_GUIDE_REDIRECTS } from "./src/lib/help/legacy-redirects";
 
 const nextConfig: NextConfig = {
   experimental: {
@@ -7,6 +8,10 @@ const nextConfig: NextConfig = {
       // Allow a 4 MiB logo plus multipart overhead; Vercel caps requests at 4.5 MB.
       bodySizeLimit: "4.5mb",
     },
+  },
+  // 301 permanentes: las guías históricas viven ahora en el Centro de ayuda (mapa en src/lib/help/legacy-map.ts).
+  async redirects() {
+    return LEGACY_GUIDE_REDIRECTS.map((r) => ({ ...r, statusCode: 301 }));
   },
   async headers() {
     return [

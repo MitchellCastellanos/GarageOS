@@ -17,10 +17,11 @@ export interface SitemapEntry {
 export function buildSitemapEntries(): SitemapEntry[] {
   const paths: string[] = [];
   for (const route of PUBLIC_ROUTES) {
+    if (route.redirectTo) continue; // 301: no es una URL canónica
     paths.push(route.en);
     if (route.frStatus === "live" && route.fr && route.frIndexable !== false) paths.push(route.fr);
   }
-  // /guides/<slug> ya no entra: su canonical es el artículo de ayuda equivalente (que sí entra) hasta que lleguen los 301.
+  // /guides y /guides/<slug> son 301 hacia el Centro de ayuda: no entran; sí entran sus destinos.
   for (const category of categoriesFor("en")) paths.push(categoryPath("en", category));
   for (const article of articlesFor("en")) paths.push(articlePath("en", article)!);
   for (const post of BLOG_POSTS) paths.push(`/blog/${post.slug}`);

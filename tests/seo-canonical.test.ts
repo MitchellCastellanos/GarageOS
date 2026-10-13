@@ -79,7 +79,6 @@ const PUBLIC_PAGES: Array<[string, string]> = [
   ["src/app/(site)/demo/page.tsx", "/demo"],
   ["src/app/(site)/features/page.tsx", "/features"],
   ["src/app/(site)/get-started/page.tsx", "/get-started"],
-  ["src/app/(site)/guides/page.tsx", "/guides"],
   ["src/app/(site)/help/page.tsx", "/help"],
   ["src/app/(site)/integrations/page.tsx", "/integrations"],
   ["src/app/(site)/pricing/page.tsx", "/pricing"],
@@ -98,7 +97,7 @@ for (const [file, route] of PUBLIC_PAGES) {
 }
 
 test("dynamic Resources pages build their canonical from the slug", () => {
-  for (const base of ["guides", "blog"]) {
+  for (const base of ["blog"]) {
     const src = read(`src/app/(site)/${base}/[slug]/page.tsx`);
     assert.ok(src.includes("pageMetadata({ path: `/" + base + "/${slug}`"), `${base}/[slug] must canonicalize /${base}/<slug>`);
   }
