@@ -7,8 +7,8 @@ import { pageMetadata } from "@/lib/seo/metadata";
 
 export const metadata: Metadata = pageMetadata({
   path: "/privacy",
-  title: "Privacy Policy · Politique de confidentialité",
-  description: "How GarageOS handles personal information. · Comment GarageOS traite les renseignements personnels.",
+  title: "Privacy Policy",
+  description: "How GarageOS collects, uses and protects personal information on its website and in the shop management product.",
 });
 
 const H = "text-base font-semibold text-slate-900 mb-2";

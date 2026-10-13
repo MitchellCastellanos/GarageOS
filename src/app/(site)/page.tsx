@@ -10,7 +10,7 @@ export const metadata: Metadata = pageMetadata({
   path: "/",
   title: "Auto shop management software",
   description:
-    "Run the whole job in one place — from booking and estimates to customer approval, invoicing and the next service reminder. Built for independent garages, by people who get it.",
+    "Run the whole job in one place, from booking and estimates to customer approval, invoicing and the next service reminder. Built for independent garages.",
 });
 
 export default function HomePage() {
