@@ -60,7 +60,7 @@ Plan **aprobado**; implementación por tandas, revisando cada una antes de autor
 | Tanda | Contenido | Estado |
 |---|---|---|
 | 1 | PR A canonical · PR B privacidad e indexación | **Cerrada (2026-10-10)** — PR #99 (`625c7ab`) y PR #100 (`007e5fe`) mergeados y verificados en producción |
-| 2 | Terminología francesa · enrutamiento EN/FR · SEO técnico multilingüe · páginas comerciales prioritarias | Plan técnico listo: `docs/seo-round-2-plan.md`; **pendiente de autorización** |
+| 2 | Terminología francesa · enrutamiento EN/FR · SEO técnico multilingüe · páginas comerciales prioritarias | PR #102, #101 y #105 (sitemap + hreflang) **mergeados y verificados en producción** (2026-10-11). Falta: páginas comerciales francesas (PR #4) y Features (PR #5) |
 | 3 | Renovación de Resources · Help Center bilingüe · documentación P0/P1 · videos y ayuda contextual | Pendiente |
 | 4 | Contenido educativo · comparativas verificadas · analítica y conversiones · optimización · validaciones finales | Pendiente |
 
@@ -84,7 +84,8 @@ Plan **aprobado**; implementación por tandas, revisando cada una antes de autor
 - Decisión de arquitectura: `docs/seo-i18n-architecture-decision.md`.
 - Incidencia de rendimiento independiente: issue #103 (`/?_rsc` lento; preexistente).
 - Pendiente antes del contenido comercial francés: revisión contextual de Québec (ver checklist F). "Devis" nombre oficial; "Soumission" sinónimo comercial/educativo permitido.
-- Siguiente: PR 3 (sitemap + hreflang + SEO multilingüe), luego PR 4 y PR 5 (esperan autorización).
+- ✅ PR #3 (sitemap + hreflang + SEO multilingüe) = PR #105, merge `f10a221`, verificado en producción (ver `SEO_HANDOFF.md` §4). Handoff cerrado en PR #106 (`0ffeebb`).
+- Siguiente: ver `docs/seo-gap-audit-2026-10-13.md` (auditoría de diferencias y orden de PRs propuesto).
 
 ### Hallazgos de la tanda 1 que ajustan este plan
 
@@ -92,7 +93,7 @@ Plan **aprobado**; implementación por tandas, revisando cada una antes de autor
 - **Host de producción confirmado**: `garage-os.ca` → 308 → `www.garage-os.ca`; `NEXT_PUBLIC_APP_URL` de producción rinde `https://www.garage-os.ca`. La variable de **Preview** es un valor fijo antiguo: los canonicals de Preview llevan ese host (inofensivo, pero solo las rutas son verificables en Preview).
 - **Fuga de tokens en la analítica propia** (nuevo, más grave que lo indexable): el beacon enviaba cualquier ruta y `PageView.path` guardaba los tokens de portal, cotización, inspección, gestión de cita y páginas de ventas. Corregido en PR B; las filas históricas requieren el script de limpieza (checklist §C).
 - **`Referrer-Policy`**: se usa `same-origin`, no `no-referrer`, porque este último hace que los navegadores envíen `Origin: null` en POST del mismo origen y rompería los Server Actions (aprobación de cotización, enlace de cita).
-- **robots.txt ya existe en PR B** (adelantado desde PR-02); el sitemap sigue en PR-03.
+- **robots.txt existe desde PR B** (adelantado desde PR-02); el sitemap llegó con PR #105 (PR-03).
 
 ## 1. Diagnóstico SEO actual de todo GarageOS
 
