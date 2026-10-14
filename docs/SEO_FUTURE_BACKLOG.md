@@ -14,7 +14,7 @@ Practical gotchas: `next build` needs placeholder env (`DATABASE_URL`, `NEXTAUTH
 
 ## Recommended execution order
 1. **SEC-01 → SEC-03 → SEC-02** (PageView/Neon) and **INF-02** (Resend) — owner-driven, independent of SEO.
-2. Merge the V1 PRs #113 → #114 → #115 → #116 and verify production, then **SEO-01** (Search Console) and **SEO-02**.
+2. (V1 PRs #113 → #116 merged and production-verified on 2026-10-14.) Next: **SEO-01** (Search Console) and **SEO-02**.
 3. **LANG-01** and **LANG-02** in parallel; **DOC-01** (CI); **QA-04**; **QA-02**.
 4. **FR-01** (pair publication), **PERF-01/02**, **CNT-01/02**, **PRD-01** (+PRD-02/03/04/08, SEC-04), **INF-05**.
 5. P2/P3 content and optimisation as data arrives.
@@ -333,7 +333,7 @@ Practical gotchas: `next build` needs placeholder env (`DATABASE_URL`, `NEXTAUTH
 
 - **Problem:** Current analytics lacks channel classification, CTA events, signup attribution and conversion panels; a funnel cannot be measured.
 - **Objective:** Implement `docs/analytics-v2-contract.md` as approved: `channel`/`pageType` columns, `AnalyticsEvent`, `SignupAttribution`→`Shop`, 8 CTA ids, DNT/GPC everywhere, role-limited reads, UTM allowlist, idempotent attribution, 13-month purge.
-- **Verified current state:** DESIGN APPROVED IN CONCEPT; NOTHING BUILT. PR #116 already hardens UTM and DNT/GPC on the existing pipeline.
+- **Verified current state:** DESIGN APPROVED IN CONCEPT; NOTHING BUILT. PR #116 (merged 2026-10-14) already hardens UTM and DNT/GPC on the existing pipeline.
 - **Files / modules:** `docs/analytics-v2-contract.md`, `src/components/AnalyticsBeacon.tsx`, `src/app/api/track/route.ts`, `src/lib/platform/analytics.ts`, `src/lib/privacy/{private-paths,opt-out}.ts`, `prisma/schema.prisma` (`PageView`), `/platform/analytics`.
 - **Dependencies:** Owner approval of the migration PR; LANG-02/PRD-08 for policy text; SEC-04.
 - **Technical scope:** Split into: (1) additive schema migration only (new timestamp; never edit applied migrations) → (2) server classification + event endpoint + rate limit → (3) CTA instrumentation → (4) signup attribution in the shop-creation transaction → (5) panels + purge job.
@@ -452,7 +452,7 @@ Practical gotchas: `next build` needs placeholder env (`DATABASE_URL`, `NEXTAUTH
 - **Legal approval:** No.
 - **External services:** PostgreSQL / Preview DB.
 - **Related PRs / issues:** —
-- **Recommended order:** After merging #113–#116.
+- **Recommended order:** #113–#116 are merged; proceed after the P0 items.
 
 ## SEC-04
 **Retention policy for first-party analytics (13 months) with verifiable purge** — priority **P1**
@@ -716,7 +716,7 @@ Practical gotchas: `next build` needs placeholder env (`DATABASE_URL`, `NEXTAUTH
 
 - **Problem:** After #113 the old guide URLs redirect; search engines need time.
 - **Objective:** No traffic loss; Help URLs indexed.
-- **Verified current state:** PENDING the #113 merge.
+- **Verified current state:** #113 merged 2026-10-14; redirects live (destination of `/guides/set-up-your-shop` observed 200 in production). Monitoring has not started (needs SEO-01).
 - **Files / modules:** `src/lib/help/legacy-redirects.ts`.
 - **Dependencies:** SEO-01; #113.
 - **Technical scope:** Weekly Search Console checks for 4 weeks; keep the redirects permanently.
@@ -881,7 +881,7 @@ Practical gotchas: `next build` needs placeholder env (`DATABASE_URL`, `NEXTAUTH
 ---
 
 # Do NOT re-implement (already done and verified)
-Canonical per page · `robots.txt` + `Sitemap:` · sitemap generation from the route table · private/token `noindex` + `Referrer-Policy` · EN/FR routing with separate root layouts and `lang` · French terminology guard · SEO CI guard (`tests/seo-*.test.ts`) · Pricing single `<h1>` · Help Center platform (typed content, categories, breadcrumbs, TOC, related; search and 301s from `/guides/*` pending #113) · four feature pages (pending #114) · `/resources` hub (pending #115) · analytics UTM/DNT/GPC hardening (pending #116). If a task overlaps one of these, extend it — do not rebuild it.
+Canonical per page · `robots.txt` + `Sitemap:` · sitemap generation from the route table · private/token `noindex` + `Referrer-Policy` · EN/FR routing with separate root layouts and `lang` · French terminology guard · SEO CI guard (`tests/seo-*.test.ts`) · Pricing single `<h1>` · Help Center platform (typed content, categories, breadcrumbs, TOC, related, search, 301s from `/guides/*` — #111/#113) · four feature pages (#114) · `/resources` hub (#115) · analytics UTM/DNT/GPC hardening (#116) — all merged and in production since 2026-10-14. If a task overlaps one of these, extend it — do not rebuild it.
 
 # Prompt to resume this backlog
 See the last section of [`SEO_HANDOFF.md`](./SEO_HANDOFF.md).
