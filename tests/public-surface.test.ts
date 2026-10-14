@@ -37,6 +37,7 @@ import {
 import { DEMO_STEPS, GET_STARTED_STEPS, QUICK_START_STEPS } from "../src/lib/marketing-flow";
 import { GUIDES } from "../src/lib/marketing-resources";
 import { IMPORT_LIMITS } from "../src/domain/import";
+import { helpPathForGuide } from "../src/lib/help";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
 
@@ -196,7 +197,7 @@ function walk(dir: string, out: string[] = []): string[] {
 
 const PUBLIC_FILES = [
   "src/app/(site)/page.tsx",
-  ...["about", "blog", "changelog", "contact", "demo", "features", "get-started", "guides", "help", "integrations", "pricing", "privacy", "product", "quick-start", "terms"].map((d) => `src/app/(site)/${d}`),
+  ...["about", "blog", "changelog", "contact", "demo", "features", "get-started", "help", "integrations", "pricing", "privacy", "product", "quick-start", "terms"].map((d) => `src/app/(site)/${d}`),
   "src/components/marketing",
   ...fs.readdirSync(path.join(ROOT, "src/lib")).filter((f) => /^marketing-.*\.ts$/.test(f)).map((f) => `src/lib/${f}`),
 ].flatMap((rel) => {
@@ -231,11 +232,11 @@ test("public copy has no stale pricing, Founding offers, VIN, Kanban/Work Board,
   assert.deepEqual(offenders, []);
 });
 
-test("the demo and pricing link only to guides that exist", () => {
-  const slugs = new Set(GUIDES.map((g) => g.slug));
+test("the demo links only to Help articles that exist (the old /guides URLs are 301s now)", () => {
+  const targets = new Set(GUIDES.map((g) => helpPathForGuide(g.slug)));
   for (const step of DEMO_STEPS) {
-    const m = step.href.match(/^\/guides\/(.+)$/);
-    if (m) assert.ok(slugs.has(m[1]), `missing guide ${m[1]}`);
+    assert.ok(!step.href.startsWith("/guides"), `${step.href} should point to the Help Center`);
+    if (step.href.startsWith("/help/")) assert.ok(targets.has(step.href), `missing Help article ${step.href}`);
   }
 });
 

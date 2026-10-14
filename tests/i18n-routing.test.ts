@@ -85,6 +85,7 @@ test("every parent exists and parent chains end (no cycles)", () => {
 
 test("route files exist: every EN page, and every FR page marked live", () => {
   for (const r of PUBLIC_ROUTES) {
+    if (r.redirectTo) continue; // 301 in next.config.ts, no page file
     const en = r.en === "/" ? "src/app/(site)/page.tsx" : `src/app/(site)${r.en}/page.tsx`;
     assert.ok(exists(en), `${r.id}: missing ${en}`);
     if (r.frStatus === "live") {

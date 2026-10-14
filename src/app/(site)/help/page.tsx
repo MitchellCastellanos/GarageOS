@@ -3,6 +3,8 @@ import Link from "next/link";
 import { MarketingPageShell } from "@/components/marketing/MarketingPageShell";
 import { PageHero } from "@/components/marketing/PageHero";
 import { HelpCategoryGrid } from "@/components/help/HelpViews";
+import { HelpSearch } from "@/components/help/HelpSearch";
+import { buildSearchIndex } from "@/lib/help";
 import { Bilingual } from "@/components/marketing/Bilingual";
 import { pageMetadata } from "@/lib/seo/metadata";
 
@@ -122,6 +124,7 @@ export default function HelpPage() {
             </Link>
             .
           </p>
+          <HelpSearch entries={buildSearchIndex("en")} />
           <HelpCategoryGrid locale="en" showHeading={false} />
           <Bilingual
             en={<h2 className="mb-3 mt-16 text-2xl font-bold text-slate-900">Common questions</h2>}

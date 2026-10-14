@@ -7,6 +7,8 @@ import {
   HELP_ARTICLES, HELP_CATEGORIES, articlePath, articlesFor, breadcrumbsFor, buildSearchIndex, categoriesFor, categoryPath,
   findArticle, findCategory, helpPathForGuide, relatedFor, type HelpArticle,
 } from "../src/lib/help";
+import { LEGACY_GUIDE_REDIRECTS } from "../src/lib/help/legacy-redirects";
+import { normalizeText, searchHelp } from "../src/lib/help/search";
 import { isIndexablePath } from "../src/lib/seo/routes";
 import { buildSitemapEntries } from "../src/lib/seo/sitemap-entries";
 import { breadcrumbJsonLd, jsonLdString } from "../src/lib/seo/json-ld";
@@ -93,24 +95,57 @@ test("a French article fixture gets /fr/aide/<categorie>/<slug>, FR breadcrumbs,
   assert.deepEqual(pageMetadata({ path: "/fr/aide/premiers-pas/exemple", title: "t", description: "d" }).robots, { index: false, follow: true });
 });
 
-test("sitemap lists Help categories and articles (canonical) and no longer lists /guides/<slug>", () => {
+test("sitemap lists Help categories and articles and no /guides URLs (they are 301s)", () => {
   const urls = withEnv(() => buildSitemapEntries()).map((e) => new URL(e.url).pathname);
   for (const c of categoriesFor("en")) assert.ok(urls.includes(categoryPath("en", c)), c.id);
   for (const a of HELP_ARTICLES) assert.ok(urls.includes(articlePath("en", a)!), a.id);
-  assert.ok(urls.includes("/guides"));
-  assert.ok(!urls.some((u) => u.startsWith("/guides/")));
+  assert.ok(!urls.some((u) => u === "/guides" || u.startsWith("/guides/")));
   assert.equal(new Set(urls).size, urls.length);
 });
 
-test("/guides/<slug> canonicalises to its Help article (no redirect yet) and the Help hub links to Help, not guides", () => {
+test("legacy /guides/* URLs 301 to their Help article: complete, 301, matches the equivalence map", () => {
+  assert.equal(LEGACY_GUIDE_REDIRECTS.length, GUIDES.length + 1);
+  for (const guide of GUIDES) {
+    const r = LEGACY_GUIDE_REDIRECTS.find((x) => x.source === `/guides/${guide.slug}`);
+    assert.ok(r, guide.slug);
+    assert.equal(r.destination, helpPathForGuide(guide.slug));
+  }
+  assert.deepEqual(LEGACY_GUIDE_REDIRECTS.find((x) => x.source === "/guides"), { source: "/guides", destination: "/help" });
+  const next = fs.readFileSync(path.join(process.cwd(), "next.config.ts"), "utf8");
+  assert.match(next, /LEGACY_GUIDE_REDIRECTS\.map\(\(r\) => \(\{ \.\.\.r, statusCode: 301 \}\)\)/);
+  // no redirect chain or loop: destinations are never sources
+  const sources = new Set(LEGACY_GUIDE_REDIRECTS.map((r) => r.source));
+  for (const r of LEGACY_GUIDE_REDIRECTS) assert.ok(!sources.has(r.destination), `${r.source} chains`);
+});
+
+test("old guide pages are gone and nothing in src links to /guides/ any more", () => {
   const root = process.cwd();
-  const guidePage = fs.readFileSync(path.join(root, "src/app/(site)/guides/[slug]/page.tsx"), "utf8");
-  assert.match(guidePage, /canonicalPath: helpPathForGuide\(slug\)/);
-  const md = withEnv(() => pageMetadata({ path: "/guides/work-orders", title: "t", description: "d", canonicalPath: helpPathForGuide("work-orders")! }));
-  assert.equal(md.alternates?.canonical, `${HOST}/help/run-the-shop/work-orders`);
+  assert.ok(!fs.existsSync(path.join(root, "src/app/(site)/guides")));
   const hub = fs.readFileSync(path.join(root, "src/app/(site)/help/page.tsx"), "utf8");
   assert.match(hub, /HelpCategoryGrid/);
-  assert.ok(!/basePath="\/guides"/.test(hub));
-  const next = fs.readFileSync(path.join(root, "next.config.ts"), "utf8");
-  assert.ok(!/\/guides/.test(next), "no redirects for /guides yet");
+  assert.match(hub, /HelpSearch/);
+  const offenders: string[] = [];
+  const walk = (dir: string) => {
+    for (const f of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, f.name);
+      if (f.isDirectory()) walk(full);
+      else if (/\.(ts|tsx)$/.test(f.name) && !/legacy-(map|redirects)\.ts$|routes\.ts$|sitemap-entries\.ts$|metadata\.ts$|types\.ts$/.test(f.name) && /["'`]\/guides[/"'`]/.test(fs.readFileSync(full, "utf8"))) offenders.push(full);
+    }
+  };
+  walk(path.join(root, "src"));
+  assert.deepEqual(offenders, []);
+});
+
+test("help search: accents, AND terms, ranking, short queries and empty results", () => {
+  const index = buildSearchIndex("en");
+  const hits = searchHelp(index, "online booking");
+  assert.ok(hits.length > 0);
+  assert.equal(hits[0].entry.id, "configure-online-booking");
+  assert.deepEqual(searchHelp(index, "x"), [], "too short");
+  assert.deepEqual(searchHelp(index, "zzzqqq nonsense"), [], "no results");
+  assert.deepEqual(searchHelp(index, "booking zzzqqq"), [], "all terms must match");
+  assert.equal(normalizeText("Réservation  à l'atelier!"), "reservation a l atelier");
+  const fr = [{ id: "a", locale: "fr" as const, url: "/fr/aide/x/y", title: "Réservation en ligne", summary: "Résumé", category: "Rendez-vous", text: "page de réservation" }];
+  assert.equal(searchHelp(fr, "reservation").length, 1, "accent-insensitive");
+  assert.equal(searchHelp(fr, "RÉSERVATION").length, 1);
 });
