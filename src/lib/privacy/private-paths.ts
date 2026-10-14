@@ -128,11 +128,17 @@ export function looksLikeToken(value: string): boolean {
   return TOKEN_LIKE.test(value);
 }
 
-/** utm_* viene del query de la página visitada (lo controla quien enlaza): nunca se guarda algo con forma de token. */
+/** Forma de dato personal: correo (`@`), URL (`://`), secuencias con `%` (codificadas) o números tipo teléfono (7+ dígitos). */
+const PERSONAL_LIKE = /@|:\/\/|%[0-9a-f]{2}|\d{7,}|\d{3}[\s.-]\d{3}[\s.-]\d{4}/i;
+
+/**
+ * utm_* viene del query de la página visitada (lo controla quien enlaza): nunca se guarda algo con forma de token ni de
+ * dato personal (correo, teléfono, URL). Los valores legítimos (`newsletter`, `fall-2026_promo`, `google`) pasan intactos.
+ */
 export function sanitizeCampaignValue(value: unknown): string {
   if (typeof value !== "string") return "";
   const clean = value.replace(CONTROL_CHARS, "").trim().slice(0, 100);
-  return looksLikeToken(clean) ? "" : clean;
+  return looksLikeToken(clean) || PERSONAL_LIKE.test(clean) ? "" : clean;
 }
 
 const SHOP_SLUG = /^[a-z0-9][a-z0-9-]{0,98}$/;
