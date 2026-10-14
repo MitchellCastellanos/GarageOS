@@ -56,6 +56,7 @@ export const PLATFORM = {
   salesComms: "/platform/sales/settings/communications",
   salesAccount: "/platform/sales/account",
   salesTerritories: "/platform/sales/settings/territories",
+  salesGeocoding: "/platform/sales/settings/geocoding",
   salesVideos: "/platform/sales/settings/videos",
   home: "/platform",
   shop: (id: string) => `/platform/shops/${id}`,

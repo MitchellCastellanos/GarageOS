@@ -34,7 +34,7 @@ export type GeocodeMatch = { lat: number; lng: number; accuracy: GeocodeAccuracy
 export type GeocodeResult =
   | { kind: "OK"; matches: GeocodeMatch[] }
   | { kind: "NOT_FOUND" }
-  | { kind: "ERROR"; code: "RATE_LIMITED" | "PROVIDER_ERROR" | "TIMEOUT" | "DISABLED"; retryAfterMs?: number };
+  | { kind: "ERROR"; code: "RATE_LIMITED" | "PROVIDER_ERROR" | "TIMEOUT" | "DISABLED" | "AUTH"; retryAfterMs?: number };
 
 export const MIN_CONFIDENCE = 0.7;
 /** Accuracy coarser than a street is not good enough to navigate to a shop door. */

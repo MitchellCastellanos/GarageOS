@@ -25,7 +25,7 @@ export default async function FieldPlannerPage() {
     <div className="mx-auto max-w-6xl space-y-5">
       <PageHeader title={f.title} subtitle={f.subtitle} actions={planner ? <Link className={btnPrimary} href={`${PLATFORM.salesField}/new`}>{f.newRoute}</Link> : undefined} />
       {!planner && <p role="note" className="rounded-lg bg-slate-100 px-4 py-3 text-sm text-slate-700">{f.readOnly}</p>}
-      {planner && gc.mode !== "SYNTHETIC" && <p role="note" className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900"><strong>{f.geocoding.title}: </strong>{f.geocoding[gc.mode]} {f.geocoding[gc.reason]}</p>}
+      {planner && gc.mode !== "SYNTHETIC" && <p role="note" className={`rounded-lg px-4 py-3 text-sm ${gc.mode === "LIVE" ? "bg-slate-100 text-slate-700" : "bg-amber-50 text-amber-900"}`}><strong>{f.geocoding.title}: </strong>{f.geocoding[gc.mode]} {f.geocoding[gc.reason]}</p>}
       <section className={cardCls} aria-labelledby="m-h">
         <h2 id="m-h" className="mb-3 font-semibold text-slate-900">{f.metrics.title}</h2>
         <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">

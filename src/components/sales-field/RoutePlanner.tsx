@@ -59,11 +59,12 @@ export function RoutePlanner({ locale, candidates, territories, geocoding, mapCo
       setInfo(`${p.located} ${[...counts].map(([k, v]) => `${v} ${t.geocoding.outcomes[k] ?? k}`).join(", ")}`);
     });
   }
+  const background = shown.flatMap((c) => (c.location.usable && !selected.includes(c.id) ? [{ id: c.id, label: c.name, lat: c.location.lat, lng: c.location.lng }] : []));
   const mapPoints = selectedRows.flatMap((c, i) => (c.location.usable ? [{ id: c.id, n: i + 1, label: c.name, lat: c.location.lat, lng: c.location.lng }] : []));
 
   return (
     <div className="space-y-4 pb-24 lg:pb-0">
-      <div role="note" className={`rounded-lg px-3 py-2 text-sm ${geocoding.mode === "SYNTHETIC" ? "bg-violet-50 text-violet-900" : "bg-amber-50 text-amber-900"}`}>
+      <div role="note" className={`rounded-lg px-3 py-2 text-sm ${geocoding.mode === "SYNTHETIC" ? "bg-violet-50 text-violet-900" : geocoding.mode === "LIVE" ? "bg-slate-100 text-slate-700" : "bg-amber-50 text-amber-900"}`}>
         <strong>{t.geocoding.title}: </strong>{t.geocoding[geocoding.mode as "DISABLED"]} {t.geocoding[geocoding.reason as "NO_PROVIDER_CONFIGURED"]}
       </div>
 
@@ -130,7 +131,7 @@ export function RoutePlanner({ locale, candidates, territories, geocoding, mapCo
           {points.length > 1 && (
             <p className="text-sm text-slate-700"><strong>{p.distance}:</strong> {formatKm(distanceM)} <span className="block text-xs text-slate-500">{p.distanceNote}</span></p>
           )}
-          <RouteMap points={mapPoints} config={mapConfig} t={t.map} />
+          <RouteMap points={mapPoints} background={background} onPick={toggle} config={mapConfig} t={t.map} />
         </section>
       </div>
 

@@ -67,11 +67,11 @@ export async function geocodeOwnProspects(actor: PlatformSalesActor, prospectIds
   return out;
 }
 
-type LocationWrite = {
+export type LocationWrite = {
   status: "GEOCODED" | "AMBIGUOUS" | "INVALID" | "MISSING_ADDRESS" | "ERROR"; provider: string; addressFingerprint: string;
   latitude?: number; longitude?: number; accuracy?: "ROOFTOP" | "RANGE" | "STREET" | "POSTAL_CODE" | "CITY"; confidence?: number | null; geocodedAt?: Date; failureCode?: string | null;
 };
-async function upsertLocation(prospectId: string, w: LocationWrite, now: Date) {
+export async function upsertLocation(prospectId: string, w: LocationWrite, now: Date) {
   // Coordinates are replaced wholesale: any non-success clears the previous position so a stale one can never survive an address change.
   const data = {
     status: w.status, provider: w.provider, addressFingerprint: w.addressFingerprint,
