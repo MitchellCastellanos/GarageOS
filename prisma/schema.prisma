@@ -3779,6 +3779,23 @@ model CrmProspectLocation {
   @@schema("garageos")
 }
 
+/// Singleton (id = "default") owner controls for LIVE geocoding. Nothing is geocoded unless `enabled` AND requestsUsed < maxRequests.
+/// `requestsUsed` is incremented atomically BEFORE each provider request (a request that fails still counts: the budget is a hard ceiling).
+model CrmGeocodingSettings {
+  id              String    @id @default("default")
+  enabled         Boolean   @default(false)
+  /// Owner-controlled ceiling on provider requests (also bounded by the GEOCODING_MAX_REQUESTS_HARD_CAP environment variable).
+  maxRequests     Int       @default(0)
+  requestsUsed    Int       @default(0)
+  /// Run lease: only one admin batch at a time (prevents double-spend from concurrent clicks). Expires on its own.
+  runLeaseUntil   DateTime?
+  updatedByUserId String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@schema("garageos")
+}
+
 model CrmFieldRoute {
   id              String              @id @default(cuid())
   ownerStaffId    String

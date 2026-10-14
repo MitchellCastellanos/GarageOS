@@ -11,10 +11,8 @@ Implements §P0/P3 of [the Lead Engine + Field Planner roadmap](garageos-lead-en
 ## Data model (migration `20261012090000_field_route_planner`, additive)
 `CrmProspectLocation` (coords only for GEOCODED/VERIFIED, CHECK-enforced; address fingerprint), `CrmFieldRoute` (version CAS, `clientRequestId` idempotency, one IN_PROGRESS per seller via partial unique index), `CrmFieldRouteStop` (unique route+prospect and route+position; snapshot name/address/coords; unique `activityId`). Not applied to Production.
 
-## Geocoding / maps — owner decisions pending
-- `GEOCODING_PROVIDER` unset: geocoding is **disabled**; no coordinates are invented. `synthetic` is a dev/test adapter (refused in production). Any other value shows "pending". Needed: provider choice, terms permitting storage/caching, budget, a test on 50 authorized addresses, then an adapter implementing `GeocodeProvider` (`src/lib/sales-crm/geocoder.ts`). Until then **no prospect can be placed on a real route**.
-- Map: `maplibre-gl` is lazy-loaded only if `MAP_STYLE_URL` (https) **and** `MAP_ATTRIBUTION` are set (public values, no secrets). It has not been exercised against any tile provider. Otherwise the planner is list-first with a labelled schematic plot.
-- Distances are straight-line estimates; no ETA/traffic. Navigation opens one destination (coordinates only) in Google/Apple/Waze.
+## Geocoding / maps — Mapbox (Geocoding API v6, Permanent Geocoding)
+Full runbook: `docs/mapbox-geocoding.md`. Summary: server-side requests with `permanent=true` only (the sole mode whose results may be stored); the Super Admin page `/platform/sales/settings/geocoding` previews, runs a 5-prospect test batch, then 25-prospect batches within an owner-set request ceiling; ambiguous/low-confidence/incomplete addresses go to manual review and never become coordinates. Sellers' "locate" button never reaches Mapbox. Map: MapLibre draws Mapbox raster tiles with a URL-restricted public `pk.` token; located prospects appear as grey markers on the planner (tap = add to route). Distances stay straight-line and labelled as such: no routing service is integrated.
 
 ## Rollout checklist
 1. Review/merge; the migration applies through the normal Vercel Production build.

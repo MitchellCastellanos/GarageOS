@@ -58,11 +58,11 @@ test("route lifecycle, stop eligibility and dates", () => {
   for (const bad of ["2026-02-30", "2026-10-1", "2020-01-01", "2030-01-01", "x"]) assert.equal(parsePlannedDate(bad, today), null, bad);
 });
 
-test("geocoding is OFF by default, synthetic is test-only, and any named live provider stays pending", () => {
+test("geocoding is OFF by default, synthetic is test-only, and any unimplemented provider stays pending", () => {
   assert.deepEqual(geocodingStatus({} as never, false), { mode: "DISABLED", live: false, reason: "NO_PROVIDER_CONFIGURED" });
   assert.equal(geocodingStatus({ GEOCODING_PROVIDER: "synthetic" } as never, false).mode, "SYNTHETIC");
   assert.deepEqual(geocodingStatus({ GEOCODING_PROVIDER: "synthetic" } as never, true), { mode: "DISABLED", live: false, reason: "SYNTHETIC_FORBIDDEN_IN_PRODUCTION" });
-  for (const p of ["google", "mapbox", "nominatim"]) assert.deepEqual(geocodingStatus({ GEOCODING_PROVIDER: p } as never, true), { mode: "PENDING_CONFIGURATION", live: false, reason: "PROVIDER_NOT_IMPLEMENTED" });
+  for (const p of ["google", "nominatim"]) assert.deepEqual(geocodingStatus({ GEOCODING_PROVIDER: p } as never, true), { mode: "PENDING_CONFIGURATION", live: false, reason: "PROVIDER_NOT_IMPLEMENTED" });
 });
 
 test("every exported field server action resolves the actor through requireCrmActor with a capability (no unguarded entry point)", () => {

@@ -29,6 +29,8 @@ export const SALES_CAPABILITIES = [
   "log_field_visits",
   // Lead Engine: approve/reject structured CASL evidence (manager: own team only; Super Admin: global).
   "approve_casl_evidence",
+  // Live (paid) geocoding of existing prospects: Super Admin only (never in the REP/MANAGER sets).
+  "manage_geocoding",
 ] as const;
 export type SalesCapability = (typeof SALES_CAPABILITIES)[number];
 
