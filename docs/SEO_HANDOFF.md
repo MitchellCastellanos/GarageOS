@@ -1,9 +1,9 @@
 # SEO + Resources program — HANDOFF (entry point)
 
-> **Executive summary (2026-10-13).** SEO + Resources **V1 is closed conditionally (CONDITIONAL GO)** — see [`SEO_V1_FINAL_REPORT.md`](./SEO_V1_FINAL_REPORT.md). Everything not done, with priorities, acceptance criteria and dependencies, is in [`SEO_FUTURE_BACKLOG.md`](./SEO_FUTURE_BACKLOG.md). **Read those two files before anything else; this file is the map.**
+> **Executive summary (2026-10-14).** SEO + Resources **V1 is closed conditionally (CONDITIONAL GO)** — see [`SEO_V1_FINAL_REPORT.md`](./SEO_V1_FINAL_REPORT.md). Everything not done, with priorities, acceptance criteria and dependencies, is in [`SEO_FUTURE_BACKLOG.md`](./SEO_FUTURE_BACKLOG.md). **Read those two files before anything else; this file is the map.**
 >
 > - **Works in production** (verified on www.garage-os.ca): per-page canonicals; `robots.txt` with all private-route rules and the `Sitemap:` line; sitemap on the authority host; private/token routes `noindex` + `Referrer-Policy: same-origin`; EN/FR routing with `lang` `en-CA`/`fr-CA`; Pricing single H1; four French draft pages (`noindex`); Help Center platform (7 categories, 13 articles, breadcrumbs, TOC, related); `/guides/<slug>` canonical → Help article.
-> - **Built, Preview READY, awaiting owner authorization to merge:** [#113](https://github.com/MitchellCastellanos/GarageOS/pull/113) Help search + real 301s from `/guides/*`; [#114](https://github.com/MitchellCastellanos/GarageOS/pull/114) four feature pages (EN indexable, FR `noindex`) + FR drafts demo/commencer/contact; [#115](https://github.com/MitchellCastellanos/GarageOS/pull/115) `/resources` hub (**stacked on #113/#114**); [#116](https://github.com/MitchellCastellanos/GarageOS/pull/116) analytics hardening (personal-looking UTM dropped, DNT/GPC). **Merge order: #113 → #114 → #115 → #116**, then run the "After merging" checklist below and update the report/backlog statuses.
+> - **Merged 2026-10-14 (in order) and production deployments READY:** [#113](https://github.com/MitchellCastellanos/GarageOS/pull/113) `101e722` Help search + real 301s from `/guides/*`; [#114](https://github.com/MitchellCastellanos/GarageOS/pull/114) `e6b1527` four feature pages (EN indexable, FR `noindex`) + FR drafts demo/commencer/contact; [#115](https://github.com/MitchellCastellanos/GarageOS/pull/115) `a71c852` `/resources` hub; [#116](https://github.com/MitchellCastellanos/GarageOS/pull/116) `3a94b5e` analytics hardening (personal-looking UTM dropped, DNT/GPC). Production checklist run; see the report §5 for what was and was not observable.
 > - **Not done (P0/P1 headline):** PageView historical cleanup in Neon (**security, separate from SEO**: SEC-01…03), Resend click-tracking OFF (INF-02), Search Console/Bing (SEO-01/02), native Québec review and legal review (LANG-01/02), French publication pair by pair (FR-01), Analytics v2 (PRD-01…04, SEC-04), CI for tests (DOC-01), issue #103 (PERF-01), Lighthouse/CWV (PERF-02), Help expansion and French Help (CNT-01/02), DB-backed regression run (QA-04), Help claim verification (QA-02).
 > - **French indexation is OFF.** Every `/fr/**` page is `noindex, follow`, out of the sitemap, with no hreflang. Do not enable it without LANG-01/LANG-02 and the pair-by-pair procedure in FR-01.
 > - **How to resume:** open `SEO_FUTURE_BACKLOG.md`, take tasks in the "Recommended execution order", and use the prompt at the end of this file.
@@ -39,13 +39,13 @@ No merge or production deploy without the owner's authorization (the owner expli
 
 ## 4. State of the work (verified against git/GitHub/Vercel on 2026-10-13)
 
-`main` includes everything through PR #111 (`5121346`). Merge commits: #99 `625c7ab` · #100 `007e5fe` · #102 `81ff14a` · #101 `843e304` · #104 `2a68d9e` · #105 `f10a221` · #106 `0ffeebb` · #107 `8c7d206` · #108 `c43bda9` · #109 `0987c2b` · #110 `83b69ce` · #111 `5121346`. Full table and verification evidence: [`SEO_V1_FINAL_REPORT.md`](./SEO_V1_FINAL_REPORT.md) §2, §5.
+`main` includes everything through PR #116 (`3a94b5e`) plus the close-out docs PR. Merge commits: #99 `625c7ab` · #100 `007e5fe` · #102 `81ff14a` · #101 `843e304` · #104 `2a68d9e` · #105 `f10a221` · #106 `0ffeebb` · #107 `8c7d206` · #108 `c43bda9` · #109 `0987c2b` · #110 `83b69ce` · #111 `5121346` · #113 `101e722` · #114 `e6b1527` · #115 `a71c852` · #116 `3a94b5e`. Full table and verification evidence: [`SEO_V1_FINAL_REPORT.md`](./SEO_V1_FINAL_REPORT.md) §2, §5.
 
-Open PRs of this front (see summary): #113, #114, #115, #116 — **not merged**. Open PRs *not* part of this front: #86 (sales playbook docs), #82 (demo-journey handoff), #47 (SMS overage checkout), #42 (Google sign-in fix). Open issues of this front: #103 (RSC prefetch performance), #117 (admin login/signup a11y).
+No PRs of this front remain open. Open PRs *not* part of this front: #86 (sales playbook docs), #82 (demo-journey handoff), #47 (SMS overage checkout), #42 (Google sign-in fix). Open issues of this front: #103 (RSC prefetch performance), #117 (admin login/signup a11y).
 
 Production notes: `curl` from the agent sandbox to the public domain is blocked by the proxy — use the Vercel fetch tool (`web_fetch_vercel_url`); Preview deployments carry a stale canonical host (INF-01) and Vercel's own `noindex`, so only paths are verifiable there.
 
-### After merging #113–#116 (verification checklist)
+### After merging #113–#116 (verification checklist — executed 2026-10-14; items 3, 5 (search typing), and the DNT/GPC/UTM behaviour were only partially observable in production, see report §5)
 1. Production deployment READY on the merge commit (Vercel project `prj_fliI0WW7l5wBmrAwfKyMNe3f24ZF`, team `team_ZCF5BCM7w7eiMpAFtvIXKNf0`).
 2. `https://www.garage-os.ca/sitemap.xml` → 200, all URLs on `https://www.garage-os.ca`, includes `/resources`, `/features/*`, Help URLs; no `/guides*`, no `/fr*`.
 3. `/guides` and `/guides/work-orders` → 301 to `/help` and `/help/run-the-shop/work-orders`; destinations 200.
@@ -80,7 +80,7 @@ Production notes: `curl` from the agent sandbox to the public domain is blocked 
 | `seo-pr3-proposal.md`, `seo-round-2-plan.md` | Historical specs (implemented) |
 Branch `claude/resources-renovation` is obsolete and based on an older `main`: **never merge it**.
 
-## 7. Owner decisions on record (2026-10-13)
+## 7. Owner decisions on record (2026-10-14)
 Help URLs `/help/<category>/<slug>` and `/fr/aide/<categorie>/<slug>`, typed TS content, 301 from `/guides/*`; changelog starts at the first Git-verifiable release; comparisons start with spreadsheets/paper/manual (named vendors need current official sources + review); `/watch/*` stays out of the sitemap; reuse the existing R2 videos/thumbnails (no new infrastructure or DNS); Preview host: a code fix may be proposed but never `VERCEL_URL` as a production canonical, and Preview stays `noindex`; blog priorities: online booking, digital inspections, quotes/estimates/approvals, maintenance reminders, customers and work orders, Excel vs shop software, SMS/email communication, shop productivity (EN/FR national, no invented volumes or capabilities); Analytics v2 approved in concept (columns `channel`/`pageType`, `AnalyticsEvent`, `SignupAttribution`→Shop, 8 CTA ids, DNT/GPC, ≤13-month retention with verifiable purge) but **no migration/storage authorised yet**; French review is preliminary only — no claim of native or legal review.
 
 ## 8. Risks
