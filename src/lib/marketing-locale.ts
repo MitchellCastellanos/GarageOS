@@ -206,6 +206,7 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
       getStarted: "Start Free Trial",
     },
     resourcesMenu: [
+      { label: "All resources", href: "/resources" },
       { label: "Help Center", href: "/help" },
       { label: "Quick Start", href: "/quick-start" },
       { label: "Blog", href: "/blog" },
@@ -451,6 +452,7 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
         resources: {
           title: "Resources",
           links: [
+            { label: "All resources", href: "/resources" },
             { label: "Quick Start", href: "/quick-start" },
             { label: "Help Center", href: "/help" },
             { label: "Blog", href: "/blog" },
@@ -556,6 +558,7 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
       getStarted: "Essai gratuit",
     },
     resourcesMenu: [
+      { label: "Toutes les ressources", href: "/resources" },
       { label: "Centre d'aide", href: "/help" },
       { label: "Démarrage rapide", href: "/quick-start" },
       { label: "Blogue", href: "/blog" },
@@ -801,6 +804,7 @@ export const MARKETING_DICTIONARIES: Record<MarketingLocale, MarketingDictionary
         resources: {
           title: "Ressources",
           links: [
+            { label: "Toutes les ressources", href: "/resources" },
             { label: "Démarrage rapide", href: "/quick-start" },
             { label: "Centre d'aide", href: "/help" },
             { label: "Blogue", href: "/blog" },
