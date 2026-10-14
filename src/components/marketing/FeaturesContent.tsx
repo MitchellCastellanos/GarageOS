@@ -4,7 +4,11 @@ import { Check } from "lucide-react";
 import { useMarketingLocale } from "@/components/marketing/MarketingLocaleProvider";
 import { PageHero } from "@/components/marketing/PageHero";
 import { marketingIcon } from "@/components/marketing/marketing-icons";
+import { LocaleLink as Link } from "@/components/marketing/LocaleLink";
+import { FEATURE_PAGES, featurePath } from "@/lib/feature-pages";
 import { FEATURES_HERO, FEATURE_GROUPS, PLAN_BADGE, itemMinPlan } from "@/lib/marketing-pages";
+
+const DEEP_DIVE: Record<"en" | "fr", string> = { en: "Explore in depth", fr: "Explorer en détail" };
 
 const BRANDING: Record<"en" | "fr", { eyebrow: string; heading: string; body: string; bullets: string[] }> = {
   en: {
@@ -28,6 +32,22 @@ export function FeaturesContent() {
   return (
     <>
       <PageHero eyebrow={hero.eyebrow} heading={hero.heading} description={hero.description} />
+
+      <section aria-labelledby="features-deep-dive" className="bg-white">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-14 sm:pt-16">
+          <h2 id="features-deep-dive" className="text-xl font-bold text-slate-900">{DEEP_DIVE[locale]}</h2>
+          <ul className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {FEATURE_PAGES.map((page) => (
+              <li key={page.id}>
+                <Link href={featurePath(locale, page)} className="block h-full rounded-2xl border border-slate-200 p-5 transition-colors hover:border-brand-blue focus-visible:outline-2 focus-visible:outline-brand-blue">
+                  <span className="font-semibold text-slate-900">{page.hero[locale].h1}</span>
+                  <span className="mt-2 block text-sm leading-relaxed text-slate-600">{page.hero[locale].intro}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
 
       {FEATURE_GROUPS.map((group) => (
         <section key={group.id} className="bg-white even:bg-slate-50/60">

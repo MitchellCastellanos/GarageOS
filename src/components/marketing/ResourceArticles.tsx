@@ -2,6 +2,7 @@ import { LocaleLink as Link } from "@/components/marketing/LocaleLink";
 import { ArrowRight } from "lucide-react";
 import { PageHero } from "./PageHero";
 import { GUIDES, type ResourceArticle } from "@/lib/marketing-resources";
+import { helpPathForGuide } from "@/lib/help";
 
 export function ResourceCards({ articles, basePath }: { articles: ResourceArticle[]; basePath: string }) {
   return <div className="grid gap-6 sm:grid-cols-2">
@@ -42,7 +43,7 @@ export function ResourceArticleBody({ article, basePath, label }: { article: Res
         {section.steps && <ol className="mt-4 list-decimal space-y-3 pl-6 text-slate-600">{section.steps.map((step) => <li key={step} className="pl-1 leading-7">{step}</li>)}</ol>}
       </section>)}</div>
       <aside className="mt-14 border-t border-slate-200 pt-8">
-        {related && <Link href={`/guides/${related.slug}`} className="mb-5 block font-semibold text-brand-blue">Step-by-step guide: {related.title} →</Link>}
+        {related && <Link href={helpPathForGuide(related.slug) ?? "/help"} className="mb-5 block font-semibold text-brand-blue">Step-by-step guide: {related.title} →</Link>}
         <p className="text-sm text-slate-600">Need help with your shop? <Link href="/help" className="font-semibold text-brand-blue">Visit the Help Center</Link> or <Link href="/contact" className="font-semibold text-brand-blue">contact us</Link>.</p>
       </aside>
     </article>

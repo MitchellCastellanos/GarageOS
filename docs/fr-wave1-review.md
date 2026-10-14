@@ -29,3 +29,9 @@
 
 ## To publish (explicit owner approval required)
 Set `frStatus: "live"` and keep `frIndexable` unset for the approved routes, add them to `APPROVED` in `tests/seo-fr-wave1.test.ts`, add the FR/EN counterparts so hreflang is reciprocal, rebuild, check the sitemap in Preview and production.
+
+## Addendum (V1 close-out): feature detail pages and three more drafts
+- New FR drafts, also `noindex, follow` / `planned` / not in the sitemap / no hreflang: `/fr/fonctionnalites/{reservation-en-ligne, inspections-numeriques, devis-et-approbations, communications-sms-courriel}`, `/fr/demo`, `/fr/commencer`, `/fr/contact`.
+- The FR feature-page copy (`src/lib/feature-pages.ts`) was **written by the engineering assistant** (not machine-translated from a vendor tool) from the EN copy, the Help guides and the product's own FR strings (inspection condition labels "Bon / À surveiller / Service requis" match the app). It is **not** native-reviewed or legally reviewed. Flags for the reviewer: "texto" vs "SMS" usage, "ordre de travail" consistency, "avisez/avis" wording, tone of imperatives ("Notez", "Envoyez").
+- Texts needing professional approval before indexation: statements about STOP handling, "GarageOS ne traite pas les paiements par carte", and the monthly SMS allowance wording.
+- SMS overage pricing is deliberately **not** mentioned (overage billing PR #47 is not merged; do not publish until verified).

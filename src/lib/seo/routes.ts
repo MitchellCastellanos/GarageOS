@@ -22,6 +22,8 @@ export interface PublicRoute {
   frIndexable?: boolean;
   /** Id de la página "ancestro" usada como fallback cuando no hay equivalente exacto. */
   parent?: string;
+  /** La URL ya no es una página: responde con un 301 permanente a esta ruta (next.config.ts). No entra al sitemap. */
+  redirectTo?: string;
 }
 
 export const PUBLIC_ROUTES: readonly PublicRoute[] = [
@@ -29,6 +31,10 @@ export const PUBLIC_ROUTES: readonly PublicRoute[] = [
   { id: "product", en: "/product", fr: "/fr/produit", frStatus: "planned", parent: "home" },
   { id: "features", en: "/features", fr: "/fr/fonctionnalites", frStatus: "planned", parent: "home" },
   { id: "pricing", en: "/pricing", fr: "/fr/tarifs", frStatus: "planned", parent: "home" },
+  { id: "featureBooking", en: "/features/online-booking", fr: "/fr/fonctionnalites/reservation-en-ligne", frStatus: "planned", parent: "features" },
+  { id: "featureInspections", en: "/features/digital-vehicle-inspections", fr: "/fr/fonctionnalites/inspections-numeriques", frStatus: "planned", parent: "features" },
+  { id: "featureQuotes", en: "/features/quotes-and-approvals", fr: "/fr/fonctionnalites/devis-et-approbations", frStatus: "planned", parent: "features" },
+  { id: "featureCommunications", en: "/features/sms-and-email", fr: "/fr/fonctionnalites/communications-sms-courriel", frStatus: "planned", parent: "features" },
   { id: "integrations", en: "/integrations", fr: "/fr/integrations", frStatus: "planned", parent: "home" },
   { id: "demo", en: "/demo", fr: "/fr/demo", frStatus: "planned", parent: "home" },
   { id: "getStarted", en: "/get-started", fr: "/fr/commencer", frStatus: "planned", parent: "home" },
@@ -40,7 +46,7 @@ export const PUBLIC_ROUTES: readonly PublicRoute[] = [
   { id: "changelog", en: "/changelog", fr: "/fr/nouveautes", frStatus: "planned", parent: "help" },
   { id: "help", en: "/help", fr: "/fr/aide", frStatus: "planned", parent: "home" },
   // Sin equivalente francés hasta la tanda de Resources: caen en su ancestro.
-  { id: "guides", en: "/guides", frStatus: "none", parent: "help" },
+  { id: "guides", en: "/guides", frStatus: "none", parent: "help", redirectTo: "/help" },
   { id: "blog", en: "/blog", frStatus: "none", parent: "home" },
 ];
 

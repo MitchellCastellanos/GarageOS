@@ -100,15 +100,24 @@ export function helpPathForGuide(guideSlug: string): string | null {
 export const HELP_UI: Record<HelpLocale, {
   home: string; helpCenter: string; breadcrumb: string; onThisPage: string; related: string; articlesIn: (n: number) => string;
   browseByTopic: string; backTo: (name: string) => string; stillNeedHelp: string; contactUs: string; topicHeading: string; steps: string;
+  searchLabel: string; searchPlaceholder: string; searchResults: (n: number) => string; searchTooShort: string;
+  noResults: (q: string) => string; noResultsHelp: string; englishOnly: string; clear: string;
 }> = {
   en: {
     home: "Home", helpCenter: "Help Center", breadcrumb: "Breadcrumb", onThisPage: "In this article", related: "Related articles",
     articlesIn: (n) => (n === 1 ? "1 article" : `${n} articles`), browseByTopic: "Browse by topic", backTo: (name) => `Back to ${name}`,
     stillNeedHelp: "Still need help?", contactUs: "Contact us", topicHeading: "Help topic", steps: "Steps",
+    searchLabel: "Search the Help Center", searchPlaceholder: "Search help articles", searchResults: (n) => (n === 1 ? "1 result" : `${n} results`),
+    searchTooShort: "Type at least 2 letters to search.", noResults: (q) => `No articles match "${q}".`,
+    noResultsHelp: "Try different words, browse the topics below, or contact us.", englishOnly: "", clear: "Clear search",
   },
   fr: {
     home: "Accueil", helpCenter: "Centre d'aide", breadcrumb: "Fil d'Ariane", onThisPage: "Dans cet article", related: "Articles connexes",
     articlesIn: (n) => (n === 1 ? "1 article" : `${n} articles`), browseByTopic: "Parcourir par sujet", backTo: (name) => `Retour à ${name}`,
     stillNeedHelp: "Besoin d'aide?", contactUs: "Communiquez avec nous", topicHeading: "Sujet d'aide", steps: "Étapes",
+    searchLabel: "Rechercher dans le Centre d'aide", searchPlaceholder: "Rechercher des articles d'aide", searchResults: (n) => (n === 1 ? "1 résultat" : `${n} résultats`),
+    searchTooShort: "Entrez au moins 2 lettres pour rechercher.", noResults: (q) => `Aucun article ne correspond à « ${q} ».`,
+    noResultsHelp: "Essayez d'autres mots, parcourez les sujets ci-dessous ou communiquez avec nous.",
+    englishOnly: "Les articles d'aide ne sont pour l'instant disponibles qu'en anglais.", clear: "Effacer la recherche",
   },
 };
