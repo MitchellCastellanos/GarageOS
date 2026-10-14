@@ -1,5 +1,7 @@
 # GarageOS — Plan maestro SEO + Resources Renovation
 
+> **Estado (2026-10-13):** documento histórico del plan. La V1 se cerró (ver [`SEO_V1_FINAL_REPORT.md`](./SEO_V1_FINAL_REPORT.md)) y todo lo pendiente vive en [`SEO_FUTURE_BACKLOG.md`](./SEO_FUTURE_BACKLOG.md), que sustituye a la matriz de PRs de §12 y a las decisiones pendientes de §13. PR-01…PR-05, PR-08 (parcial), PR-12/13 (plataforma y búsqueda de Help), PR-15 (redirects) y PR-22 (guard SEO) están implementados o en PR abierto; ver el reporte.
+
 > Punto de entrada para continuar el programa: [`SEO_HANDOFF.md`](./SEO_HANDOFF.md) (estado real, mapa de documentos, backlog y pendientes).
 
 Estado: **PROPUESTA PARA APROBACIÓN. No se ha implementado ningún cambio funcional.**

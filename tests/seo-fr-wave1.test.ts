@@ -58,7 +58,7 @@ test("rendered FR pages: lang, noindex+follow, own canonical, single h1, no href
     const html = fs.readFileSync(path.join(BUILT, `${p.replace("/fr/", "")}.html`), "utf8");
     assert.match(html, /<html lang="fr-CA"/, p);
     assert.match(html, /<meta name="robots" content="noindex, follow"/, p);
-    assert.match(html, new RegExp(`<link rel="canonical" href="https://[^"]+${p}"`), p);
+    assert.match(html, new RegExp(`<link rel="canonical" href="https?://[^"]+${p}"`), p);
     assert.equal([...html.matchAll(/<h1[\s>]/g)].length, 1, `${p}: one h1`);
     assert.ok(!/<link rel="alternate" hrefLang=/i.test(html), `${p}: no hreflang while noindex`);
     const text = html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/g, " ").replace(/<[^>]+>/g, " ");

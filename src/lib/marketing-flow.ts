@@ -5,6 +5,7 @@
 import type { MarketingLocale } from "@/lib/marketing-locale";
 import { ADMIN } from "@/lib/routes";
 import { TRIAL_DAYS, type Localized } from "@/lib/marketing-plans";
+import { helpPathForGuide } from "@/lib/help";
 
 const L = (en: string, fr: string): Localized => ({ en, fr });
 
@@ -73,35 +74,35 @@ export const DEMO_STEPS: { chip: Localized; title: Localized; example: Localized
   { chip: L("Booked", "Réservé"), title: L("Book the visit", "Réserver la visite"),
     example: L("A returning customer requests a seasonal tire change.", "Un client fidèle demande un changement de pneus saisonnier."),
     body: L("The customer picks a time on your branded booking page, or your front desk finds the customer and vehicle and books it. Online times follow your hours and mechanics' availability.", "Le client choisit une heure sur votre page de réservation, ou la réception trouve le client et le véhicule et réserve. Les heures en ligne suivent vos horaires et la disponibilité des mécaniciens."),
-    href: "/guides/configure-online-booking", label: L("See booking setup", "Voir la configuration de la réservation") },
+    href: helpPathForGuide("configure-online-booking")!, label: L("See booking setup", "Voir la configuration de la réservation") },
   { chip: L("Checked in", "Reçu"), title: L("Check in and inspect", "Accueillir et inspecter"),
     example: L("The vehicle arrives and the mechanic walks around it.", "Le véhicule arrive et le mécanicien en fait le tour."),
     body: L("Open the customer and vehicle, confirm the concern and mileage, then record the condition on a digital inspection. On Pro, add photos to each finding.", "Ouvrez le client et le véhicule, confirmez la demande et le kilométrage, puis notez l'état dans une inspection numérique. Avec Pro, ajoutez des photos à chaque constat."),
-    href: "/guides/digital-vehicle-inspections", label: L("See inspections", "Voir les inspections") },
+    href: helpPathForGuide("digital-vehicle-inspections")!, label: L("See inspections", "Voir les inspections") },
   { chip: L("Estimating", "Devis"), title: L("Prepare the estimate", "Préparer le devis"),
     example: L("The findings become a priced list of work and parts.", "Les constats deviennent une liste de travaux et de pièces avec prix."),
     body: L("Create the estimate from the findings, review quantities, prices and taxes, then send it to the customer by email or text.", "Créez le devis à partir des constats, vérifiez quantités, prix et taxes, puis envoyez-le au client par courriel ou texto."),
-    href: "/guides/estimate-to-invoice", label: L("See the estimate workflow", "Voir le flux de devis") },
+    href: helpPathForGuide("estimate-to-invoice")!, label: L("See the estimate workflow", "Voir le flux de devis") },
   { chip: L("Approved", "Approuvé"), title: L("Capture the approval", "Obtenir l'approbation"),
     example: L("The customer reviews the estimate on their phone and accepts.", "Le client examine le devis sur son téléphone et accepte."),
     body: L("The decision is recorded with a snapshot of exactly what the customer saw and when — and your team is notified.", "La décision est consignée avec une copie de ce que le client a vu et quand — et votre équipe est avisée."),
-    href: "/guides/approval-history", label: L("See the approval record", "Voir le suivi d'approbation") },
+    href: helpPathForGuide("approval-history")!, label: L("See the approval record", "Voir le suivi d'approbation") },
   { chip: L("In service", "En cours"), title: L("Do the work", "Faire le travail"),
     example: L("The mechanic works from the approved Work Order.", "Le mécanicien travaille à partir de l'ordre de travail approuvé."),
     body: L("The Work Order carries the approved lines and a job status the front desk can see. On Pro, parts used come off inventory automatically.", "L'ordre de travail reprend les lignes approuvées et un statut visible à la réception. Avec Pro, les pièces utilisées sortent automatiquement de l'inventaire."),
-    href: "/guides/work-orders", label: L("See Work Orders", "Voir les ordres de travail") },
+    href: helpPathForGuide("work-orders")!, label: L("See Work Orders", "Voir les ordres de travail") },
   { chip: L("Ready for pickup", "Prêt à récupérer"), title: L("Tell the customer", "Aviser le client"),
     example: L("The job is finished and the vehicle is ready.", "Le travail est terminé et le véhicule est prêt."),
     body: L("Mark the job Ready for Pickup and the customer gets a branded email or text. They can also see it in their customer portal.", "Marquez le travail « Prêt à récupérer » et le client reçoit un courriel ou un texto à votre image. Il peut aussi le voir dans son portail client."),
-    href: "/guides/customer-portal", label: L("See the customer portal", "Voir le portail client") },
+    href: helpPathForGuide("customer-portal")!, label: L("See the customer portal", "Voir le portail client") },
   { chip: L("Paid", "Payé"), title: L("Invoice and record payment", "Facturer et consigner le paiement"),
     example: L("The completed job is invoiced with GST and QST.", "Le travail terminé est facturé avec TPS et TVQ."),
     body: L("Create the invoice from the Work Order, send it, and record the payment your shop collected (card, cash, e-Transfer or cheque). Taxes are fixed on the invoice for your books.", "Créez la facture à partir de l'ordre de travail, envoyez-la et consignez le paiement encaissé par votre atelier (carte, comptant, virement ou chèque). Les taxes sont figées sur la facture pour votre comptabilité."),
-    href: "/guides/estimate-to-invoice", label: L("See invoicing", "Voir la facturation") },
+    href: helpPathForGuide("estimate-to-invoice")!, label: L("See invoicing", "Voir la facturation") },
   { chip: L("Reminder set", "Rappel créé"), title: L("Bring them back", "Les ramener"),
     example: L("The service done today has a natural next visit.", "Le service d'aujourd'hui a une prochaine visite naturelle."),
     body: L("A maintenance reminder is tied to the vehicle — created automatically from the work you completed on Pro — and sent when it's due.", "Un rappel d'entretien est lié au véhicule — créé automatiquement à partir du travail terminé avec Pro — et envoyé à l'échéance."),
-    href: "/guides/maintenance-reminders", label: L("See reminders", "Voir les rappels") },
+    href: helpPathForGuide("maintenance-reminders")!, label: L("See reminders", "Voir les rappels") },
 ];
 
 // ── Quick Start ─────────────────────────────────────────────

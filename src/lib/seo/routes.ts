@@ -22,6 +22,8 @@ export interface PublicRoute {
   frIndexable?: boolean;
   /** Id de la página "ancestro" usada como fallback cuando no hay equivalente exacto. */
   parent?: string;
+  /** La URL ya no es una página: responde con un 301 permanente a esta ruta (next.config.ts). No entra al sitemap. */
+  redirectTo?: string;
 }
 
 export const PUBLIC_ROUTES: readonly PublicRoute[] = [
@@ -44,7 +46,7 @@ export const PUBLIC_ROUTES: readonly PublicRoute[] = [
   { id: "changelog", en: "/changelog", fr: "/fr/nouveautes", frStatus: "planned", parent: "help" },
   { id: "help", en: "/help", fr: "/fr/aide", frStatus: "planned", parent: "home" },
   // Sin equivalente francés hasta la tanda de Resources: caen en su ancestro.
-  { id: "guides", en: "/guides", frStatus: "none", parent: "help" },
+  { id: "guides", en: "/guides", frStatus: "none", parent: "help", redirectTo: "/help" },
   { id: "blog", en: "/blog", frStatus: "none", parent: "home" },
 ];
 
