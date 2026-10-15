@@ -3,7 +3,11 @@
 // active, non-DNC prospects with a resolved territory are considered.
 import { evaluateAcquisition, requiredMode, type AcquisitionTiming, type Engagement, type Mode, type TerritoryRule } from "@/domain/sales-crm/territory";
 
-export type AssignmentSkip = "DNC" | "ARCHIVED" | "ALREADY_OWNED" | "UNRESOLVED_TERRITORY" | "NO_ELIGIBLE_SELLER";
+export type AssignmentSkip = "DNC" | "ARCHIVED" | "ALREADY_OWNED" | "UNRESOLVED_TERRITORY" | "NO_ELIGIBLE_SELLER"
+  /** Every otherwise-eligible seller is at their total or per-lane cap. Distinct from NO_ELIGIBLE_SELLER so capacity problems are visible. */
+  | "CAPACITY_EXHAUSTED"
+  /** Sellers are eligible by territory/mode/capacity, but none works in the prospect's language. */
+  | "LANGUAGE_MISMATCH";
 
 export interface AssignableProspect {
   id: string;
@@ -16,6 +20,8 @@ export interface AssignableProspect {
   engagement: Engagement;
   /** Per-prospect FIELD window start / manual release; absent = never started, not released. */
   timing?: AcquisitionTiming;
+  /** Business language. UNKNOWN / absent is compatible with every seller (a human still resolves it before any email). */
+  language?: "FR" | "EN" | "UNKNOWN" | null;
 }
 export interface AssignableSeller {
   id: string;
@@ -26,6 +32,11 @@ export interface AssignableSeller {
   maxActiveLeads: number | null;
   /** Current active owned prospects (the caller counts them once; the plan adds its own proposals on top). */
   workload: number;
+  /** Optional per-lane workload (prospects assigned automatically as FIELD / REMOTE) and caps. Absent = no lane accounting. */
+  laneWorkload?: { FIELD: number; REMOTE: number };
+  laneCaps?: { FIELD: number | null; REMOTE: number | null };
+  /** Languages the seller works in. Empty/absent = any. */
+  languages?: readonly string[];
 }
 export interface AssignmentProposal { prospectId: string; staffId: string | null; skip: AssignmentSkip | null; territoryKey: string | null; requiredMode: Mode | null }
 
@@ -36,6 +47,10 @@ export interface AssignmentProposal { prospectId: string; staffId: string | null
  */
 export function planAssignments(prospects: readonly AssignableProspect[], sellers: readonly AssignableSeller[], now: Date): AssignmentProposal[] {
   const load = new Map(sellers.map((s) => [s.id, s.workload]));
+  const laneLoad = new Map<Mode, Map<string, number>>([
+    ["FIELD", new Map(sellers.map((s) => [s.id, s.laneWorkload?.FIELD ?? 0]))],
+    ["REMOTE", new Map(sellers.map((s) => [s.id, s.laneWorkload?.REMOTE ?? 0]))],
+  ]);
   const out: AssignmentProposal[] = [];
   for (const p of prospects) {
     const base = { prospectId: p.id, staffId: null, territoryKey: p.rule?.key ?? null, requiredMode: null as Mode | null };
@@ -44,14 +59,26 @@ export function planAssignments(prospects: readonly AssignableProspect[], seller
     if (p.assignedStaffId) { out.push({ ...base, skip: "ALREADY_OWNED" }); continue; }
     if (p.territoryState !== "LOCAL" && p.territoryState !== "NATIONAL") { out.push({ ...base, skip: "UNRESOLVED_TERRITORY" }); continue; }
     const required = requiredMode(p.rule, p.engagement, now, p.timing);
-    const eligible = sellers
-      .filter((s) => s.active && s.acceptsAutoAssignment && s.mode !== null
-        && (s.maxActiveLeads === null || (load.get(s.id) ?? 0) < s.maxActiveLeads)
-        && evaluateAcquisition({ mode: s.mode, coverageKeys: s.coverageKeys, isSuperAdmin: false }, p.rule, p.engagement, now, false, p.timing).allowed)
-      .sort((a, b) => (load.get(a.id)! - load.get(b.id)!) || a.id.localeCompare(b.id));
-    if (!eligible.length) { out.push({ ...base, requiredMode: required, skip: "NO_ELIGIBLE_SELLER" }); continue; }
-    load.set(eligible[0].id, load.get(eligible[0].id)! + 1);
-    out.push({ ...base, requiredMode: required, staffId: eligible[0].id, skip: null });
+    // 1) hard compatibility: availability switch, working mode + territory coverage (the existing acquisition rules).
+    const compatible = sellers.filter((s) => s.active && s.acceptsAutoAssignment && s.mode !== null
+      && evaluateAcquisition({ mode: s.mode, coverageKeys: s.coverageKeys, isSuperAdmin: false }, p.rule, p.engagement, now, false, p.timing).allowed);
+    // 2) language: an UNKNOWN business language fits everyone; a known one needs a seller who works in it (empty list = any).
+    const lang = p.language === "FR" || p.language === "EN" ? p.language : null;
+    const spoken = lang ? compatible.filter((s) => !s.languages?.length || s.languages.includes(lang)) : compatible;
+    // 3) capacity: total cap, then the cap of the lane this prospect is acquired under (the plan's own proposals count).
+    const lane = laneLoad.get(required);
+    const withRoom = spoken.filter((s) => (s.maxActiveLeads === null || (load.get(s.id) ?? 0) < s.maxActiveLeads)
+      && (s.laneCaps?.[required] == null || (lane?.get(s.id) ?? 0) < s.laneCaps[required]!));
+    if (!withRoom.length) {
+      const skip: AssignmentSkip = !compatible.length ? "NO_ELIGIBLE_SELLER" : !spoken.length ? "LANGUAGE_MISMATCH" : "CAPACITY_EXHAUSTED";
+      out.push({ ...base, requiredMode: required, skip });
+      continue;
+    }
+    // Fair distribution: least-loaded first (total active workload), ties by id so the plan is deterministic.
+    const pick = withRoom.sort((a, b) => (load.get(a.id)! - load.get(b.id)!) || a.id.localeCompare(b.id))[0];
+    load.set(pick.id, load.get(pick.id)! + 1);
+    lane?.set(pick.id, (lane.get(pick.id) ?? 0) + 1);
+    out.push({ ...base, requiredMode: required, staffId: pick.id, skip: null });
   }
   return out;
 }

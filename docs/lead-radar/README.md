@@ -1,5 +1,7 @@
 # GarageOS National Lead Radar
 
+> New: [Automation by approved policy](automation.md).
+
 Canada-wide discovery of automotive repair businesses → human review → the existing Sales CRM. **Live acquisition is disabled by default.**
 
 ```

@@ -84,6 +84,20 @@ export async function setSequenceStatus(actor: PlatformSalesActor, id: string, s
 
 export async function enroll(actor: PlatformSalesActor, args: { sequenceId: string; prospectId: string; contactId: string; languageOverride?: "FR" | "EN" | null }) {
   const prospect = await requireScopedProspect(actor, args.prospectId);
+  return enrollCore({ userId: actor.userId }, prospect, args, {});
+}
+
+/**
+ * Lead Radar outreach pilot: the SAME checks and transaction as a seller's manual enrollment, run on behalf of the Super Admin who activated the pilot.
+ * The enrollment is stamped `autoEnrolledAt` (measurable) and additionally requires a reply path proven by a real round trip. It never bypasses the send policy.
+ */
+export async function enrollAutomated(enrolledByUserId: string, args: { sequenceId: string; prospectId: string; contactId: string }) {
+  const prospect = await db.crmProspect.findUnique({ where: { id: args.prospectId }, select: { id: true, name: true, assignedStaffId: true, status: true, doNotContact: true, preferredLanguage: true } });
+  if (!prospect) throw new CrmError("NOT_FOUND");
+  return enrollCore({ userId: enrolledByUserId }, prospect, { ...args, languageOverride: null }, { automated: true });
+}
+
+async function enrollCore(by: { userId: string }, prospect: Awaited<ReturnType<typeof requireScopedProspect>>, args: { sequenceId: string; prospectId: string; contactId: string; languageOverride?: "FR" | "EN" | null }, opts: { automated?: boolean }) {
   const [seq, contact] = await Promise.all([
     db.crmSequence.findUnique({ where: { id: args.sequenceId }, include: { steps: { orderBy: { stepIndex: "asc" } } } }),
     db.crmContact.findFirst({ where: { id: args.contactId, prospectId: prospect.id }, select: { id: true, email: true, emailNormalized: true, doNotContact: true, archivedAt: true, preferredLanguage: true } }),
@@ -97,8 +111,9 @@ export async function enroll(actor: PlatformSalesActor, args: { sequenceId: stri
   const opp = await db.crmOpportunity.findFirst({ where: { prospectId: prospect.id, stage: { in: [...OPEN_STAGES] } }, select: { id: true } });
   const anyOpp = opp ? null : await db.crmOpportunity.findFirst({ where: { prospectId: prospect.id }, orderBy: { createdAt: "desc" }, select: { stage: true } });
   if (anyOpp && ["WON", "LOST", "UNQUALIFIED", "DO_NOT_CONTACT"].includes(anyOpp.stage)) throw new CrmError("OPPORTUNITY_CLOSED");
-  const identity = await db.crmSenderIdentity.findUnique({ where: { staffId: prospect.assignedStaffId }, select: { id: true, status: true } });
+  const identity = await db.crmSenderIdentity.findUnique({ where: { staffId: prospect.assignedStaffId }, select: { id: true, status: true, inboundVerifiedAt: true } });
   if (!identity) throw new CrmError("NO_SENDER_IDENTITY");
+  if (opts.automated && !identity.inboundVerifiedAt) throw new CrmError("REPLY_PATH_UNVERIFIED");
 
   const prospectLang = (await db.crmProspect.findUniqueOrThrow({ where: { id: prospect.id }, select: { preferredLanguage: true } })).preferredLanguage;
   const lang = resolveEffectiveLanguage({ override: args.languageOverride ?? null, contact: contact.preferredLanguage, prospect: prospectLang });
@@ -115,10 +130,10 @@ export async function enroll(actor: PlatformSalesActor, args: { sequenceId: stri
   try {
     const e = await db.$transaction(async (tx) => {
       const row = await tx.crmSequenceEnrollment.create({
-        data: { sequenceId: seq.id, prospectId: prospect.id, contactId: contact.id, opportunityId: opp?.id ?? null, staffId: prospect.assignedStaffId!, languageOverride: args.languageOverride ?? null, nextStepIndex: 0, nextRunAt, startedAt: now, enrolledByUserId: actor.userId },
+        data: { sequenceId: seq.id, prospectId: prospect.id, contactId: contact.id, opportunityId: opp?.id ?? null, staffId: prospect.assignedStaffId!, languageOverride: args.languageOverride ?? null, nextStepIndex: 0, nextRunAt, startedAt: now, enrolledByUserId: by.userId, ...(opts.automated ? { autoEnrolledAt: now } : {}) },
       });
-      await tx.crmActivity.create({ data: { prospectId: prospect.id, opportunityId: opp?.id ?? null, contactId: contact.id, type: "SEQUENCE", subject: `Enrolled in “${seq.name}”`, authorUserId: actor.userId, metadata: { enrollmentId: row.id, sequenceId: seq.id } } });
-      await writeCrmAudit({ actorUserId: actor.userId, action: "ENROLLMENT_CREATED", entityType: "CrmSequenceEnrollment", entityId: row.id, prospectId: prospect.id, staffId: prospect.assignedStaffId, metadata: { sequenceId: seq.id, contactId: contact.id } }, tx);
+      await tx.crmActivity.create({ data: { prospectId: prospect.id, opportunityId: opp?.id ?? null, contactId: contact.id, type: "SEQUENCE", subject: `Enrolled in “${seq.name}”`, authorUserId: by.userId, metadata: { enrollmentId: row.id, sequenceId: seq.id, ...(opts.automated ? { automated: true } : {}) } } });
+      await writeCrmAudit({ actorUserId: by.userId, action: "ENROLLMENT_CREATED", entityType: "CrmSequenceEnrollment", entityId: row.id, prospectId: prospect.id, staffId: prospect.assignedStaffId, metadata: { sequenceId: seq.id, contactId: contact.id, ...(opts.automated ? { automated: true, via: "lead-radar-pilot" } : {}) } }, tx);
       return row;
     });
     return e;
@@ -215,6 +230,8 @@ export async function processDueEnrollments(opts: { now?: Date; limit?: number }
     if (stop) { await stopEnrollments({ enrollmentIds: [e.id], reason: stop }); out.stopped++; continue; }
     if (e.sequence.status === "PAUSED") { out.skipped++; continue; } // sequence-level pause: leave enrollments untouched
     if (!identity) { out.skipped++; continue; }
+    // Lead Radar pilot enrollments only ever send from a mailbox whose reply path was proven by a real round trip.
+    if (e.autoEnrolledAt && !identity.inboundVerifiedAt) { await pauseWithReason(e.id, "REPLY_PATH_UNVERIFIED"); out.paused++; continue; }
 
     const lang = resolveEffectiveLanguage({ override: e.languageOverride, contact: e.contact.preferredLanguage, prospect: e.prospect.preferredLanguage });
     const tl = toTemplateLanguage(lang.language);

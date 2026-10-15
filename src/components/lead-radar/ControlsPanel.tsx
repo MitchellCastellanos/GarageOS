@@ -20,6 +20,7 @@ export function ControlsPanel({ locale, live }: { locale: "en" | "fr"; live: boo
   const [minConfidence, setMin] = useState("0");
   const [ack, setAck] = useState(false);
   const [work, setWork] = useState<{ rowGroups: number; megabytes: number; nationwide: boolean; requiresAcknowledgement: boolean } | null>(null);
+  const [overlaps, setOverlaps] = useState<{ runId: string; release: string; provinces: string[] }[]>([]);
   const [created, setCreated] = useState<string | null>(null);
   const toggle = (list: string[], v: string) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
   const scope = () => ({ provinces, groups, cities: cities.split(",").map((s) => s.trim()).filter(Boolean), minConfidence: Math.min(1, Math.max(0, Number(minConfidence) || 0)) });
@@ -63,11 +64,17 @@ export function ControlsPanel({ locale, live }: { locale: "en" | "fr"; live: boo
           )}
         </div>
       )}
+      {overlaps.length > 0 && (
+        <div role="status" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+          <p className="font-medium">{k.overlap}</p>
+          <ul className="list-disc pl-5">{overlaps.map((o) => <li key={o.runId}><Link className="underline" href={PLATFORM.salesLeadRadarRun(o.runId)}>{o.release}</Link> — {o.provinces.join(", ")}</li>)}</ul>
+        </div>
+      )}
       <FormMessage error={error} notice={notice} />
       {created && <p className="text-sm"><Link className="text-blue-700 underline" href={PLATFORM.salesLeadRadarRun(created)}>{c.runs.open} →</Link></p>}
       <div className="flex flex-wrap gap-2">
         <button type="button" className={btnSecondary} disabled={pending || !provinces.length || !groups.length}
-          onClick={() => run(() => previewDiscoveryWorkload(scope()), (r) => setWork(r.work))}>{pending ? k.previewing : k.preview}</button>
+          onClick={() => run(() => previewDiscoveryWorkload(scope()), (r) => { setWork(r.work); setOverlaps(r.overlaps); })}>{pending ? k.previewing : k.preview}</button>
         <button type="button" className={btnPrimary} disabled={pending || !live || !work || (work.requiresAcknowledgement && !ack)}
           onClick={() => run(() => createDiscoveryRun({ scope: scope(), release: release.trim() || "latest", acknowledgeLargeScope: ack }), (r) => setCreated(r.runId), k.created)}>{pending ? k.creating : k.create}</button>
       </div>

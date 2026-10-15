@@ -27,7 +27,7 @@ export default async function LeadRadarPage({ searchParams }: { searchParams: Pr
   ];
   return (
     <div className="mx-auto max-w-6xl space-y-5">
-      <PageHeader title={c.title} subtitle={c.subtitle} actions={<Link className={btnPrimary} href={PLATFORM.salesLeadRadarCandidates}>{c.candidates.title}</Link>} />
+      <PageHeader title={c.title} subtitle={c.subtitle} actions={<><Link className={btnPrimary} href={PLATFORM.salesLeadRadarCandidates}>{c.candidates.title}</Link>{access.admin && <Link className={btnSecondary} href={PLATFORM.salesLeadRadarAutomation}>{c.automation.nav}</Link>}</>} />
 
       <p role="status" className={`rounded-lg px-3 py-2 text-sm ${live ? "bg-emerald-50 text-emerald-900" : "bg-amber-50 text-amber-900"}`}>
         <strong>{live ? c.status.live : c.status.disabled}.</strong> {live ? "" : c.status.disabledHelp}

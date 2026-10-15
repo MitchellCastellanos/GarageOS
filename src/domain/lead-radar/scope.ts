@@ -75,3 +75,24 @@ export const manifestSchema = z.object({
   stats: z.record(z.string().max(40), z.number()).default({}),
 });
 export type ExtractionManifest = z.infer<typeof manifestSchema>;
+
+export interface ExistingRunScope { id: string; status: string; release: string; scope: { provinces: string[]; groups: string[]; cities: string[] } }
+export interface RunOverlap { runId: string; release: string; status: string; provinces: string[] }
+
+/**
+ * Duplicate-acquisition advisory (never a block: a re-run of the same area on a NEWER release is a legitimate refresh, and staging is idempotent per source record,
+ * so overlap can never create duplicate candidates — it only wastes a download). A run overlaps when it is not cancelled/failed, shares at least one province and
+ * category group, covers the whole province (no city allow-list) and was made for the same release.
+ */
+export function findRunOverlaps(requested: DiscoveryScope, release: string, existing: readonly ExistingRunScope[]): RunOverlap[] {
+  const out: RunOverlap[] = [];
+  for (const r of existing) {
+    if (r.status === "CANCELLED" || r.status === "FAILED") continue;
+    if (release !== "latest" && r.release !== "latest" && r.release !== release) continue;
+    if (!r.scope.groups.some((g) => requested.groups.includes(g as never))) continue;
+    const shared = r.scope.provinces.filter((p) => requested.provinces.includes(p as never));
+    const covers = r.scope.cities.length === 0 || (requested.cities.length > 0 && requested.cities.every((c) => r.scope.cities.some((x) => cityKey(x) === cityKey(c))));
+    if (shared.length && covers) out.push({ runId: r.id, release: r.release, status: r.status, provinces: shared.sort() });
+  }
+  return out;
+}
