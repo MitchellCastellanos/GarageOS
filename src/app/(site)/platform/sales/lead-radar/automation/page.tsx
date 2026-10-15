@@ -142,7 +142,7 @@ export default async function LeadRadarAutomationPage() {
             <tbody>
               {d.assignment.workload.map((w) => (
                 <tr key={w.id} className="border-t border-slate-100">
-                  <td className="py-2 pr-3">{w.name}</td><td className="pr-3">{w.mode}</td><td className="pr-3">{w.accepts ? a.assignment.yes : a.assignment.no}</td><td className="pr-3">{w.inAllowList ? a.assignment.yes : a.assignment.no}</td>
+                  <td className="py-2 pr-3">{w.name}<span className="block text-xs text-slate-500">{w.email}</span></td><td className="pr-3">{w.mode}</td><td className="pr-3">{w.accepts ? a.assignment.yes : a.assignment.no}</td><td className="pr-3">{w.inAllowList ? a.assignment.yes : a.assignment.no}</td>
                   <td className="pr-3 text-right tabular-nums">{w.workload}</td><td className="pr-3 text-right tabular-nums">{w.field}</td><td className="pr-3 text-right tabular-nums">{w.remote}</td>
                   <td className="pr-3 text-xs">{[w.cap ?? "∞", w.fieldCap ?? "∞", w.remoteCap ?? "∞"].join(" / ")}</td>
                   <td>{!w.senderStatus ? <Badge tone="bg-red-100 text-red-800">{a.assignment.noSender}</Badge> : w.senderStatus !== "ACTIVE" ? <Badge tone="bg-amber-100 text-amber-900">{a.assignment.senderNotReady}</Badge> : !w.replyPathVerified ? <Badge tone="bg-amber-100 text-amber-900">{a.assignment.replyUnverified}</Badge> : <Badge tone="bg-emerald-50 text-emerald-800">{a.assignment.senderReady}</Badge>}</td>
@@ -165,7 +165,7 @@ export default async function LeadRadarAutomationPage() {
       </Stage>
 
       <PolicyPanel locale={locale} policies={d.policies.map((p) => ({ ...p, previewedAt: p.previewedAt?.toISOString() ?? null, activatedAt: p.activatedAt?.toISOString() ?? null }))} />
-      <AutomationControls locale={locale} automation={controls} sellers={d.assignment.workload.map((w) => ({ id: w.id, name: w.name, mode: w.mode ?? "REMOTE" }))} sequences={sequences} />
+      <AutomationControls locale={locale} automation={controls} sellers={d.assignment.workload.map((w) => ({ id: w.id, name: w.name, email: w.email, mode: w.mode ?? "REMOTE" }))} sequences={sequences} />
 
       <Stage id="au-runs" title={a.runs.title}>
         {d.runs.length === 0 ? <p className="text-sm text-slate-500">{a.runs.empty}</p> : (

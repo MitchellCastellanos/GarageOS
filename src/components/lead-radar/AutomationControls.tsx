@@ -11,7 +11,7 @@ export interface AutomationView {
   assignStaffIds: string[]; importChunkSize: number; pilotEnabled: boolean; pilotSequenceId: string | null; pilotDailyCap: number; pilotTotalCap: number;
 }
 
-export function AutomationControls({ locale, automation, sellers, sequences }: { locale: "en" | "fr"; automation: AutomationView; sellers: { id: string; name: string; mode: string }[]; sequences: { id: string; name: string }[] }) {
+export function AutomationControls({ locale, automation, sellers, sequences }: { locale: "en" | "fr"; automation: AutomationView; sellers: { id: string; name: string; email: string; mode: string }[]; sequences: { id: string; name: string }[] }) {
   const { c, pending, error, notice, run } = useRadarAction(locale);
   const k = c.automation.controls;
   const [stages, setStages] = useState({ qualifyEnabled: automation.qualifyEnabled, importEnabled: automation.importEnabled, assignEnabled: automation.assignEnabled, eligibilityEnabled: automation.eligibilityEnabled, releaseUnavailable: automation.releaseUnavailable });
@@ -53,7 +53,7 @@ export function AutomationControls({ locale, automation, sellers, sequences }: {
         <legend className="text-sm font-medium text-slate-700">{k.sellers}</legend>
         <p className="text-xs text-slate-500">{k.sellersHelp}</p>
         {sellers.map((s) => (
-          <label key={s.id} className="flex min-h-11 items-center gap-2 text-sm text-slate-700"><input type="checkbox" className="size-5" checked={staff.includes(s.id)} onChange={() => toggle(s.id)} />{s.name} <span className="text-xs text-slate-500">({s.mode})</span></label>
+          <label key={s.id} className="flex min-h-11 items-center gap-2 text-sm text-slate-700"><input type="checkbox" className="size-5" checked={staff.includes(s.id)} onChange={() => toggle(s.id)} />{s.name} <span className="text-xs text-slate-500">({s.mode}) · {s.email}</span></label>
         ))}
       </fieldset>
 

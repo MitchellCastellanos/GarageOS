@@ -22,6 +22,8 @@ export async function loadSellers(actor: PlatformSalesActor, client: Prisma.Tran
   const staff = await client.platformSalesStaff.findMany({
     where: {
       status: "ACTIVE", role: "SALES_REP",
+      // Automation allow-list: a platform Super Admin login is NEVER an auto-assignment target, even if it also holds a staff row.
+      ...(onlyStaffIds ? { user: { role: { not: "SUPER_ADMIN" as const } } } : {}),
       AND: [actor.all ? {} : { id: { in: [...actor.scopeStaffIds] } }, onlyStaffIds ? { id: { in: [...onlyStaffIds] } } : {}],
     },
     select: { id: true, salesMode: true, coverageTerritoryKeys: true, acceptsAutoAssignment: true, maxActiveLeads: true, maxActiveFieldLeads: true, maxActiveRemoteLeads: true, leadLanguages: true },

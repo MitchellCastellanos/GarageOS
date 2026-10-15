@@ -387,3 +387,46 @@ test("safety wiring: the cron and server actions are guarded; automation reads n
   const seq = readFileSync(path.join(root, "src/lib/sales-comms/sequences.ts"), "utf8");
   assert.match(seq, /REPLY_PATH_UNVERIFIED/);
 });
+
+// ── the carve-out from the original static guard is NOT a loophole ────────────────────────────────────────────
+test("narrowed guard: the exempt automation files keep every original guarantee except the two they must break (read outreach tables, release/assign ownership) — and those are confined to named functions", () => {
+  const strip = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+  const lib = (f: string) => strip(readFileSync(path.join(root, "src/lib/lead-radar", f), "utf8"));
+  const exempt = { "automation.ts": lib("automation.ts"), "eligibility.ts": lib("eligibility.ts"), "dashboard.ts": lib("dashboard.ts") };
+  // The exemption list in the original test is exactly these three files — nothing else was exempted.
+  const original = readFileSync(path.join(root, "tests/lead-radar-domain.test.ts"), "utf8");
+  assert.match(original, /AUTOMATION_LAYER = new Set\(\["automation\.ts", "eligibility\.ts", "dashboard\.ts"\]\)/);
+  for (const [f, s] of Object.entries(exempt)) {
+    // (a) original guarantees that still hold for them
+    assert.ok(!/\bfetch\s*\(|axios|XMLHttpRequest|node:https?|node:net\b/.test(s), `${f}: no network`);
+    assert.ok(!/sendEmail|sendSms|twilio|resend/i.test(s), `${f}: no sending code`);
+    assert.ok(!/crmGeocodingSettings|requestsUsed/.test(s), `${f}: no geocoding budget`);
+    // (b) no writes to consent / contact / message / thread / suppression tables, ever
+    assert.ok(!/crmSendingBasis\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\b/.test(s), `${f}: never writes a sending basis`);
+    assert.ok(!/crmContact\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\b/.test(s), `${f}: never writes contacts`);
+    assert.ok(!/crmEmail(Message|Thread|Suppression)\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\b/.test(s), `${f}: never writes messages/threads/suppressions`);
+    assert.ok(!/crmSequenceEnrollment\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\b/.test(s), `${f}: enrollments only through enrollAutomated`);
+    assert.ok(!/INSERT INTO "garageos"\."Crm(EmailMessage|SendingBasis|Contact|SequenceEnrollment)"/i.test(s), `${f}: no raw writes to outreach tables`);
+  }
+  // (c) the ONLY direct prospect write is the opt-in release of untouched leads (CAS on owner, audited) — nowhere else, and never in eligibility/dashboard.
+  const writes = (s: string) => [...s.matchAll(/crmProspect\.(update|updateMany|create|createMany|delete|deleteMany)\b/g)].length;
+  assert.equal(writes(exempt["eligibility.ts"]) + writes(exempt["dashboard.ts"]), 0);
+  assert.equal(writes(exempt["automation.ts"]), 1);
+  const rel = exempt["automation.ts"].slice(exempt["automation.ts"].indexOf("export async function releaseUnavailable"));
+  assert.ok(rel.indexOf("crmProspect.updateMany") > 0 && rel.indexOf("crmProspect.updateMany") < rel.indexOf("export interface PilotTally"), "the single prospect write lives in releaseUnavailable");
+  assert.match(rel, /assignedStaffId: null, assignmentMode: null, autoAssignedAt: null/, "release only ever sets the owner to null");
+  for (const m of exempt["automation.ts"].matchAll(/assignedStaffId:\s*(\S+)/g)) assert.ok(["{", "null,", "null", "r.assignedStaffId,", "r.assignedStaffId", "true,", "true"].includes(m[1]), `direct ownership value ${m[1]}: owners are only ever SET by applyAssignmentProposals`);
+  // (d) enrollment has exactly one caller: the pilot stage; it is double-gated and `enabled` can only be set by the dedicated pilot action.
+  const calls = exempt["automation.ts"].match(/enrollAutomated\(/g) ?? [];
+  assert.equal(calls.length, 1);
+  const pilot = exempt["automation.ts"].slice(exempt["automation.ts"].indexOf("export async function pilotStage"), exempt["automation.ts"].indexOf("// ── The tick"));
+  assert.match(pilot, /!a\.pilotEnabled[\s\S]*PILOT_OFF/);
+  assert.match(pilot, /!comms\.sendingEnabled[\s\S]*SENDING_DISABLED/);
+  assert.match(exempt["automation.ts"], /await stage\("pilot", a\.pilotEnabled,/);
+  const save = exempt["automation.ts"].slice(exempt["automation.ts"].indexOf("export async function saveAutomation"), exempt["automation.ts"].indexOf("export async function setAutomationEnabled"));
+  assert.ok(!/pilotEnabled/.test(save), "saving stage settings can never switch the pilot on");
+  const master = exempt["automation.ts"].slice(exempt["automation.ts"].indexOf("export async function setAutomationEnabled"), exempt["automation.ts"].indexOf("export async function setPilotEnabled"));
+  assert.ok(!/pilotEnabled|sendingEnabled/.test(master), "the master switch never touches the pilot or company-wide sending");
+  // (e) nothing in lead-radar/automation touches company-wide sending or sequence status.
+  for (const s of Object.values(exempt)) assert.ok(!/crmCommsSettings\.(update|upsert|updateMany)|crmSequence\.(update|updateMany)|setSequenceStatus/.test(s));
+});

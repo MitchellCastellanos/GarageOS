@@ -58,12 +58,12 @@ export async function automationDashboard(actor: PlatformSalesActor) {
   const sellers = await loadSellers(actor, db);
   const staff = await db.platformSalesStaff.findMany({
     where: { id: { in: sellers.map((s) => s.id) } },
-    select: { id: true, user: { select: { name: true } }, maxActiveLeads: true, maxActiveFieldLeads: true, maxActiveRemoteLeads: true, leadLanguages: true, senderIdentity: { select: { status: true, inboundVerifiedAt: true } } },
+    select: { id: true, user: { select: { name: true, email: true } }, maxActiveLeads: true, maxActiveFieldLeads: true, maxActiveRemoteLeads: true, leadLanguages: true, senderIdentity: { select: { status: true, inboundVerifiedAt: true } } },
   });
   const workload = sellers.map((s) => {
     const st = staff.find((x) => x.id === s.id);
     return {
-      id: s.id, name: st?.user.name ?? "—", mode: s.mode, accepts: s.acceptsAutoAssignment, inAllowList: automation.assignStaffIds.includes(s.id), workload: s.workload,
+      id: s.id, name: st?.user.name ?? "—", email: st?.user.email ?? "", mode: s.mode, accepts: s.acceptsAutoAssignment, inAllowList: automation.assignStaffIds.includes(s.id), workload: s.workload,
       field: s.laneWorkload?.FIELD ?? 0, remote: s.laneWorkload?.REMOTE ?? 0, cap: st?.maxActiveLeads ?? null, fieldCap: st?.maxActiveFieldLeads ?? null, remoteCap: st?.maxActiveRemoteLeads ?? null,
       languages: st?.leadLanguages ?? [], senderStatus: st?.senderIdentity?.status ?? null, replyPathVerified: !!st?.senderIdentity?.inboundVerifiedAt,
     };

@@ -47,7 +47,7 @@ export async function saveAutomation(actor: PlatformSalesActor, input: Automatio
   const ids = [...new Set(input.assignStaffIds)];
   if (ids.length) {
     // Only ACTIVE sales REPs can ever be on the list: the Super Admin account and managers are never auto-assignment targets.
-    const ok = await db.platformSalesStaff.count({ where: { id: { in: ids }, status: "ACTIVE", role: "SALES_REP" } });
+    const ok = await db.platformSalesStaff.count({ where: { id: { in: ids }, status: "ACTIVE", role: "SALES_REP", user: { role: { not: "SUPER_ADMIN" } } } });
     if (ok !== ids.length) throw new CrmError("INVALID_SELLER");
   }
   if (input.pilotSequenceId) {

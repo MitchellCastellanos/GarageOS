@@ -721,4 +721,67 @@ if (!enabled) {
     if (applied.length) assert.ok(applied[0].finished_at);
     globalThis.fetch = fetchGuard;
   });
+
+  test("cron endpoint: fails closed without a valid bearer secret; with it, runs the same guarded tick; an overlapping run is refused by the lease and an EXPIRED lease (crashed worker) is taken over", async () => {
+    const route = await import("../src/app/api/webhooks/cron/lead-radar/route");
+    const call = (h?: string) => route.GET(new Request("https://x.test/api/webhooks/cron/lead-radar", { headers: h ? { authorization: h } : {} }));
+    const prev = process.env.CRON_SECRET;
+    delete process.env.CRON_SECRET;
+    assert.equal((await call("Bearer undefined")).status, 401, "no secret configured ⇒ nothing is authorized");
+    process.env.CRON_SECRET = "a-long-enough-cron-secret-0123456789";
+    assert.equal((await call()).status, 401);
+    assert.equal((await call("Bearer wrong-secret-wrong-secret-0000")).status, 401);
+    assert.equal((await call("a-long-enough-cron-secret-0123456789")).status, 401, "scheme required");
+    const ok = await call("Bearer a-long-enough-cron-secret-0123456789");
+    assert.equal(ok.status, 200);
+    assert.ok(["COMPLETED", "SKIPPED"].includes((await ok.json()).status));
+    // Overlap: a live lease makes every other runner skip without doing any work.
+    await db.crmLeadAutomation.update({ where: { id: "default" }, data: { enabled: true, leaseOwner: "someone-else", leaseUntil: new Date(Date.now() + 60_000) } });
+    const before = await db.crmLeadAutomationRun.count();
+    const busy = await Promise.all([tick(), tick()]);
+    assert.deepEqual(busy.map((r) => [r.status, r.reason]), [["SKIPPED", "ALREADY_RUNNING"], ["SKIPPED", "ALREADY_RUNNING"]]);
+    assert.equal(await db.crmLeadAutomationRun.count(), before, "a refused run leaves no trace and does no work");
+    // A crashed worker's lease expires and is taken over; the lease is released afterwards.
+    await db.crmLeadAutomation.update({ where: { id: "default" }, data: { leaseUntil: new Date(Date.now() - 1000) } });
+    assert.equal((await tick()).status, "COMPLETED");
+    const a = await autoLib.readAutomation();
+    assert.deepEqual([a.leaseOwner, a.leaseUntil], [null, null]);
+    // Three simultaneous ticks: exactly one performs the cycle.
+    const three = await Promise.all([tick(), tick(), tick()]);
+    assert.equal(three.filter((r) => r.status !== "SKIPPED").length >= 1, true);
+    assert.ok(three.filter((r) => r.status === "SKIPPED").every((r) => r.reason === "ALREADY_RUNNING"));
+    if (prev === undefined) delete process.env.CRON_SECRET; else process.env.CRON_SECRET = prev;
+  });
+
+  test("CRM-only activation cannot turn on email: qualify+import+assign+eligibility with company-wide sending ON and eligible prospects present create ZERO enrollments/messages while the pilot is OFF; the pilot needs its own explicit action", async () => {
+    as(users.Root);
+    await db.crmLeadAutomation.update({ where: { id: "default" }, data: { pilotEnabled: false } });
+    await db.crmCommsSettings.update({ where: { id: "default" }, data: { sendingEnabled: true } });
+    const eligible = await db.crmOutreachEligibility.count({ where: { decision: "ELIGIBLE" } });
+    const enr = await db.crmSequenceEnrollment.count(), msgs = await db.crmEmailMessage.count();
+    await wave(3, { release: "2027-05-12.0" });
+    await saveAuto({ pilotSequenceId: ids.seq });
+    for (let i = 0; i < 3; i++) assert.equal((await tick()).status, "COMPLETED");
+    assert.ok(eligible >= 0);
+    assert.deepEqual([await db.crmSequenceEnrollment.count(), await db.crmEmailMessage.count()], [enr, msgs]);
+    assert.equal((await autoLib.readAutomation()).pilotEnabled, false, "saving settings / turning automation on never flips the pilot");
+    assert.equal(((await auto.setLeadAutomationEnabled(true)) as any).ok, true);
+    assert.equal((await autoLib.readAutomation()).pilotEnabled, false);
+    const c = (await tick()).counters as any;
+    assert.equal(c.pilot.skipped, "STAGE_OFF");
+  });
+
+  test("seller identity: a Super Admin login can never be an auto-assignment target even if it has a staff row; the allow-list shows corporate emails so the two accounts cannot be confused", async () => {
+    as(users.Root);
+    const adminStaff = await db.platformSalesStaff.create({ data: { userId: users.Root, role: "SALES_REP", status: "ACTIVE", salesMode: "FIELD" } });
+    const base = await autoLib.readAutomation();
+    const input = { qualifyEnabled: true, importEnabled: true, assignEnabled: true, eligibilityEnabled: true, releaseUnavailable: false, importChunkSize: 5, pilotSequenceId: base.pilotSequenceId, pilotDailyCap: base.pilotDailyCap, pilotTotalCap: base.pilotTotalCap };
+    assert.equal(((await auto.saveLeadAutomation({ ...input, assignStaffIds: [adminStaff.id] })) as any).error, "INVALID_SELLER");
+    // Even if it were smuggled into the list, the engine refuses to load it.
+    const sellers = await assignLib.loadSellers(await root(), db, [adminStaff.id, staff.Founder]);
+    assert.deepEqual(sellers.map((s) => s.id), [staff.Founder]);
+    const d = await dash.automationDashboard(await root());
+    assert.ok(d.assignment.workload.every((w) => /@/.test(w.email)));
+    await db.platformSalesStaff.delete({ where: { id: adminStaff.id } });
+  });
 }
