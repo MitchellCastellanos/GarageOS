@@ -74,6 +74,7 @@ function LiveMap({ points, background, onPick, onViewChange, onFailed, tall, con
         const maplibre = await import("maplibre-gl");
         await import("maplibre-gl/dist/maplibre-gl.css");
         if (cancelled || !el.current) return;
+        maplibre.setWorkerUrl("/maplibre-gl-worker.mjs"); // copied to /public at install/build time (scripts/copy-maplibre-worker.mjs)
         const m = new maplibre.Map({ container: el.current, style: styleFor(config), attributionControl: { customAttribution: config.attribution, compact: false }, cooperativeGestures: true, center: [-73.57, 45.5], zoom: 9 });
         libRef.current = maplibre; mapRef.current = m;
         m.addControl(new maplibre.NavigationControl({ showCompass: false }), "top-right");

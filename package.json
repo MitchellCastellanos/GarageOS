@@ -8,9 +8,9 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && node scripts/deploy-migrations.mjs && next build",
+    "build": "prisma generate && node scripts/copy-maplibre-worker.mjs && node scripts/deploy-migrations.mjs && next build",
     "start": "next start",
-    "postinstall": "prisma generate",
+    "postinstall": "prisma generate && node scripts/copy-maplibre-worker.mjs",
     "lint": "eslint",
     "db:validate": "prisma validate",
     "db:generate": "prisma generate",
