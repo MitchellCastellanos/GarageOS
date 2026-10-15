@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowUp, X } from "lucide-react";
 import { requestGeocoding, saveFieldRoute } from "@/actions/sales-field";
@@ -31,6 +31,8 @@ export function RoutePlanner({ locale, candidates, territories, geocoding, mapCo
   const [date, setDate] = useState(initial.plannedDate);
   const [name, setName] = useState(initial.name);
   const [city, setCity] = useState(""), [area, setArea] = useState(""), [q, setQ] = useState(""), [showUnlocated, setShowUnlocated] = useState(false);
+  const [onlyInView, setOnlyInView] = useState(true), [viewIds, setViewIds] = useState<Set<string> | null>(null);
+  const onViewChange = useCallback((ids: string[]) => setViewIds(new Set(ids)), []);
   const [selected, setSelected] = useState<string[]>(initial.selectedIds);
   const [requestId] = useState(newId);
   const [info, setInfo] = useState<string | null>(null);
@@ -39,7 +41,8 @@ export function RoutePlanner({ locale, candidates, territories, geocoding, mapCo
   const matching = candidates.filter((c) => (!city || c.city === city) && (!area || c.territoryKey === area) && (!q || c.name.toLowerCase().includes(q.toLowerCase())));
   const hiddenCount = showUnlocated ? 0 : matching.filter((c) => !c.location.usable && !selected.includes(c.id)).length;
   // Addable prospects first (stable sort keeps the original order within each group).
-  const shown = (showUnlocated ? matching : matching.filter((c) => c.location.usable || selected.includes(c.id)))
+  const inArea = (c: PlannerCandidate) => !onlyInView || !viewIds || !c.location.usable || viewIds.has(c.id) || selected.includes(c.id);
+  const shown = (showUnlocated ? matching : matching.filter((c) => c.location.usable || selected.includes(c.id))).filter(inArea)
     .map((c, i) => ({ c, i, rank: c.location.usable ? 0 : 1 })).sort((a, b) => a.rank - b.rank || a.i - b.i).map((x) => x.c);
   const selectedRows = selected.map((id) => byId.get(id)).filter((c): c is PlannerCandidate => !!c);
   const points = selectedRows.flatMap((c) => (c.location.usable ? [{ id: c.id, lat: c.location.lat, lng: c.location.lng }] : []));
@@ -63,7 +66,7 @@ export function RoutePlanner({ locale, candidates, territories, geocoding, mapCo
       setInfo(`${p.located} ${[...counts].map(([k, v]) => `${v} ${t.geocoding.outcomes[k] ?? k}`).join(", ")}`);
     });
   }
-  const background = shown.flatMap((c) => (c.location.usable && !selected.includes(c.id) ? [{ id: c.id, label: c.name, lat: c.location.lat, lng: c.location.lng }] : []));
+  const background = matching.flatMap((c) => (c.location.usable && !selected.includes(c.id) ? [{ id: c.id, label: c.name, lat: c.location.lat, lng: c.location.lng }] : []));
   const mapPoints = selectedRows.flatMap((c, i) => (c.location.usable ? [{ id: c.id, n: i + 1, label: c.name, lat: c.location.lat, lng: c.location.lng }] : []));
 
   return (
@@ -77,6 +80,10 @@ export function RoutePlanner({ locale, candidates, territories, geocoding, mapCo
         <label className={labelCls}>{p.name}<input className={inputCls} value={name} maxLength={80} onChange={(e) => setName(e.target.value)} /></label>
       </section>
 
+      <section className={`${cardCls} min-w-0`} aria-label={t.map.title}>
+        <RouteMap points={mapPoints} background={background} onPick={toggle} onViewChange={onViewChange} tall showSchematic={!mapConfig} config={mapConfig} t={t.map} />
+      </section>
+
       <div className="grid gap-4 lg:grid-cols-2">
         <section className={`${cardCls} min-w-0 space-y-3`} aria-labelledby="cand-h">
           <h2 id="cand-h" className="font-semibold text-slate-900">{p.candidates} <span className="text-sm font-normal text-slate-500">({shown.length})</span></h2>
@@ -85,6 +92,12 @@ export function RoutePlanner({ locale, candidates, territories, geocoding, mapCo
             <label className={labelCls}>{p.area}<select className={inputCls} value={area} onChange={(e) => setArea(e.target.value)}><option value="">{p.allAreas}</option>{territories.map((x) => <option key={x.key} value={x.key}>{x.name}</option>)}</select></label>
             <label className={labelCls}>{p.search}<input className={inputCls} value={q} onChange={(e) => setQ(e.target.value)} type="search" /></label>
           </div>
+          {mapConfig && (
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input type="checkbox" className="h-4 w-4" checked={onlyInView} onChange={(e) => setOnlyInView(e.target.checked)} />
+              {p.onlyInView}
+            </label>
+          )}
           {unlocated.length > 0 && (
             <label className="flex items-center gap-2 text-sm text-slate-700">
               <input type="checkbox" className="h-4 w-4" checked={showUnlocated} onChange={(e) => setShowUnlocated(e.target.checked)} />
@@ -141,7 +154,6 @@ export function RoutePlanner({ locale, candidates, territories, geocoding, mapCo
           {points.length > 1 && (
             <p className="text-sm text-slate-700"><strong>{p.distance}:</strong> {formatKm(distanceM)} <span className="block text-xs text-slate-500">{p.distanceNote}</span></p>
           )}
-          <RouteMap points={mapPoints} background={background} onPick={toggle} config={mapConfig} t={t.map} />
         </section>
       </div>
 
