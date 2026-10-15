@@ -1,0 +1,1 @@
+export type CrmIndustryValue = "GENERAL_REPAIR" | "TIRE_SHOP" | "BODY_SHOP" | "TRANSMISSION" | "DIAGNOSTIC" | "SPECIALTY" | "FLEET" | "OTHER";
