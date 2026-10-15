@@ -22,7 +22,10 @@ export type DiscoveryScope = z.infer<typeof scopeSchema>;
 /** Canonical form: sorted, de-duplicated, city keys normalised. Equal intent ⇒ equal bytes ⇒ equal hash. */
 export function canonicalScope(raw: unknown): DiscoveryScope {
   const s = scopeSchema.parse(raw);
-  const cities = [...new Map(s.cities.map((c) => [cityKey(c), c.trim()] as const).filter(([k]) => k)).entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([, v]) => v);
+  // One display name per city key; when several spellings collapse to the same key, the lexicographically smallest wins (order-independent).
+  const byKey = new Map<string, string>();
+  for (const c of s.cities) { const k = cityKey(c), v = c.trim(); if (k && (!byKey.has(k) || v < byKey.get(k)!)) byKey.set(k, v); }
+  const cities = [...byKey.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([, v]) => v);
   return { provinces: [...new Set(s.provinces)].sort(), cities, groups: [...new Set(s.groups)].sort(), minConfidence: s.minConfidence };
 }
 export const planHashOf = (scope: DiscoveryScope) => createHash("sha256").update(JSON.stringify(scope)).digest("hex");

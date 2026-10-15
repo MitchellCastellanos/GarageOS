@@ -1,16 +1,10 @@
 import "server-only";
-import { can, type PlatformSalesActor } from "@/domain/sales-crm/access";
+import type { PlatformSalesActor } from "@/domain/sales-crm/access";
+import { leadRadarAccessFor, type LeadRadarAccess } from "@/domain/lead-radar/access";
 import { requireCrmActor, getCrmPageActor } from "@/lib/sales-crm/access";
 import { readSettings } from "@/lib/lead-radar/settings";
 
-export interface LeadRadarAccess { admin: boolean; review: boolean }
-
-/** Pure: what this actor may do, given the Super Admin's "managers may review" switch. Reps never get anything. */
-export function leadRadarAccessFor(actor: PlatformSalesActor, managersCanReview: boolean): LeadRadarAccess {
-  const admin = actor.all && can(actor, "manage_lead_radar");
-  const review = admin || (actor.kind === "SALES_MANAGER" && managersCanReview && can(actor, "import_prospects"));
-  return { admin, review };
-}
+export { leadRadarAccessFor, type LeadRadarAccess } from "@/domain/lead-radar/access";
 
 export type LeadRadarNeed = "admin" | "review";
 

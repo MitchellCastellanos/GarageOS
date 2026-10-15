@@ -20,7 +20,6 @@ if (!enabled) {
   const access = await import("../src/lib/sales-crm/access");
   const budget = await import("../src/lib/lead-radar/budget");
   const settingsLib = await import("../src/lib/lead-radar/settings");
-  const runsLib = await import("../src/lib/lead-radar/runs");
   const candLib = await import("../src/lib/lead-radar/candidates");
   const importLib = await import("../src/lib/lead-radar/import-service");
   const scope = await import("../src/domain/lead-radar/scope");
@@ -422,4 +421,26 @@ if (!enabled) {
     assert.equal(await db.crmGeocodingSettings.count(), 0);
   });
 
+
+  // Leave the shared scratch database as we found it: the prospect pool is global (the assignment suites count unassigned prospects),
+  // so our imported/test prospects must not outlive this file. Order respects foreign keys.
+  test("cleanup: Lead Radar test data is removed so other suites sharing the database are unaffected", async () => {
+    const root = users.Root;
+    const prospects = (await db.crmProspect.findMany({ where: { OR: [{ createdByUserId: root }, { importBatch: { sourceKey: "overture-places" } }] }, select: { id: true } })).map((p) => p.id);
+    await db.crmDuplicateReview.deleteMany({ where: { prospectId: { in: prospects } } });
+    await db.crmSourceObservation.deleteMany({ where: { OR: [{ prospectId: { in: prospects } }, { sourceKey: "overture-places" }] } });
+    await db.crmDiscoveryCandidate.deleteMany({});
+    await db.crmDiscoveryRun.deleteMany({});
+    await db.crmDiscoveryBudgetLedger.deleteMany({});
+    await db.crmDiscoverySettings.deleteMany({});
+    await db.crmEmailSuppression.deleteMany({ where: { source: "test", emailNormalized: { contains: "@sup.example.ca" } } });
+    const opps = (await db.crmOpportunity.findMany({ where: { prospectId: { in: prospects } }, select: { id: true } })).map((o) => o.id);
+    await db.crmStageEvent.deleteMany({ where: { opportunityId: { in: opps } } });
+    await db.crmActivity.deleteMany({ where: { prospectId: { in: prospects } } });
+    await db.crmOpportunity.deleteMany({ where: { prospectId: { in: prospects } } });
+    await db.crmProspect.deleteMany({ where: { id: { in: prospects } } });
+    await db.crmImportBatch.deleteMany({ where: { sourceKey: "overture-places" } });
+    assert.equal(await db.crmProspect.count({ where: { assignedStaffId: null, importBatchId: null, createdByUserId: root } }), 0);
+    delete process.env.LEAD_RADAR_ENABLED;
+  });
 }

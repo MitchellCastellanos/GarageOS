@@ -36,6 +36,7 @@ Other behavior:
 - Logs never contain connection strings or credentials.
 
 ## Recent migrations
+- `20261015090000_lead_radar_foundation` — National Lead Radar: 7 enums + `CrmDiscoveryRun/Candidate/BudgetLedger/Settings` + CHECK constraints (CAD 25 cap, approval invariants). Additive only; no existing row touched. See `docs/lead-radar/`. Not applied to Production yet.
 - `20261013090000_per_prospect_field_priority` — per-prospect FIELD priority window + manual FIELD↔REMOTE release: two nullable `CrmProspect` columns (`fieldPriorityStartedAt`, `remoteReleasedAt`) and one index. Additive, modifies no row, no backfill (existing prospects stay NULL = unchanged behaviour). See `docs/lead-engine-contracts.md` §5. Not applied to Production yet.
 - `20261012100000_lead_engine_foundation` — Lead Engine: source observations, duplicate reviews, assignment runs, derived address/territory columns, structured CASL evidence + a nullable review status (no backfill: existing bases stay `NULL` = unchanged behaviour; reclassification is a separate Super Admin procedure). Additive, modifies no existing row. See `docs/lead-engine-contracts.md`. Not applied to Production yet.
 - `20261012090000_field_route_planner` — Field Route Planner: visit-outcome/route/location enums, `CrmProspectLocation`, `CrmFieldRoute`, `CrmFieldRouteStop`, nullable `CrmActivity.fieldVisitOutcome/idempotencyKey`, CHECK constraints and a partial unique index. Additive only. See `docs/field-route-planner.md`. Not applied to Production yet.

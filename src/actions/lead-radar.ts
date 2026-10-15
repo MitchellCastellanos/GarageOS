@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { estimateWorkload, canonicalScope, NATIONWIDE_MB_THRESHOLD } from "@/domain/lead-radar/scope";
 import { toMicro } from "@/domain/lead-radar/budget";
-import { db } from "@/lib/db";
 import { PLATFORM } from "@/lib/routes";
 import { writeCrmAudit } from "@/lib/sales-crm/audit";
 import { CrmError } from "@/lib/sales-crm/prospects";
