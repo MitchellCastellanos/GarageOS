@@ -30,7 +30,7 @@ export function RoutePlanner({ locale, candidates, territories, geocoding, mapCo
   const { pending, error, notice, run, setError } = useCrmAction(locale);
   const [date, setDate] = useState(initial.plannedDate);
   const [name, setName] = useState(initial.name);
-  const [city, setCity] = useState(""), [area, setArea] = useState(""), [q, setQ] = useState("");
+  const [city, setCity] = useState(""), [area, setArea] = useState(""), [q, setQ] = useState(""), [showUnlocated, setShowUnlocated] = useState(false);
   const [selected, setSelected] = useState<string[]>(initial.selectedIds);
   const [requestId] = useState(newId);
   const [info, setInfo] = useState<string | null>(null);
