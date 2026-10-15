@@ -52,7 +52,7 @@ function styleFor(config: MapConfig): string | import("maplibre-gl").StyleSpecif
 
 /** Lazy MapLibre map, mounted only when an approved basemap + attribution are configured (server-side env). The map is created ONCE
  * per configuration; markers are refreshed in place, so ticking prospects never re-downloads tiles. */
-function LiveMap({ points, background, onPick, config, t }: { points: MapPoint[]; background: BackgroundPoint[]; onPick?: (id: string) => void; config: MapConfig; t: FieldCopy["map"] }) {
+function LiveMap({ points, background, onPick, onViewChange, onFailed, tall, config, t }: { points: MapPoint[]; background: BackgroundPoint[]; onPick?: (id: string) => void; onViewChange?: (ids: string[]) => void; onFailed?: () => void; tall?: boolean; config: MapConfig; t: FieldCopy["map"] }) {
   const el = useRef<HTMLDivElement>(null);
   const mapRef = useRef<import("maplibre-gl").Map | null>(null);
   const libRef = useRef<typeof import("maplibre-gl") | null>(null);
@@ -61,7 +61,10 @@ function LiveMap({ points, background, onPick, config, t }: { points: MapPoint[]
   const fitted = useRef("");
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
-  useEffect(() => { pick.current = onPick; }, [onPick]);
+  const viewCb = useRef(onViewChange), lastView = useRef<string | null>(null), renderRef = useRef<() => void>(() => {});
+  const failedCb = useRef(onFailed);
+  useEffect(() => { pick.current = onPick; viewCb.current = onViewChange; failedCb.current = onFailed; }, [onPick, onViewChange, onFailed]);
+  useEffect(() => { if (failed) failedCb.current?.(); }, [failed]);
   const cfgKey = `${config.styleUrl ?? ""}|${(config.rasterTiles ?? []).join(",")}|${config.attribution}`;
 
   useEffect(() => {
@@ -75,6 +78,7 @@ function LiveMap({ points, background, onPick, config, t }: { points: MapPoint[]
         libRef.current = maplibre; mapRef.current = m;
         m.addControl(new maplibre.NavigationControl({ showCompass: false }), "top-right");
         m.on("error", () => { if (!cancelled) setFailed(true); });
+        m.on("moveend", () => renderRef.current());
         setReady(true);
       } catch { if (!cancelled) setFailed(true); }
     })();
@@ -84,18 +88,52 @@ function LiveMap({ points, background, onPick, config, t }: { points: MapPoint[]
 
   const pointsKey = points.map((p) => `${p.id}:${p.lat}:${p.lng}:${p.n}:${p.current ? 1 : 0}:${p.done ? 1 : 0}`).join("|");
   const bgKey = background.map((b) => `${b.id}:${b.lat}:${b.lng}`).join("|");
-  useEffect(() => {
+
+  // Draws route stops (numbered, never merged) and the other located prospects, merged into count bubbles when they are close on screen.
+  // Called on every pan/zoom, so what is on the map — and what the parent shows in its list — always matches the visible area.
+  useEffect(() => { renderRef.current = () => {
     const m = mapRef.current, lib = libRef.current;
     if (!ready || !m || !lib) return;
     markers.current.forEach((x) => x.remove()); markers.current = [];
-    for (const b of background) {
+    const bounds = m.getBounds(), zoom = m.getZoom();
+    const inView = background.filter((b) => bounds.contains([b.lng, b.lat]));
+    const key = inView.map((b) => b.id).sort().join("|");
+    if (key !== lastView.current) { lastView.current = key; viewCb.current?.(inView.map((b) => b.id)); }
+
+    const CELL = 64; // px: prospects closer than this on screen share one bubble
+    const cells = new Map<string, BackgroundPoint[]>();
+    for (const b of inView) {
+      const px = m.project([b.lng, b.lat]);
+      const k = zoom >= 16 ? b.id : `${Math.floor(px.x / CELL)}:${Math.floor(px.y / CELL)}`;
+      const g = cells.get(k); if (g) g.push(b); else cells.set(k, [b]);
+    }
+    for (const group of cells.values()) {
+      if (group.length === 1) {
+        const b = group[0];
+        const node = document.createElement("button");
+        node.type = "button";
+        node.setAttribute("aria-label", `${t.addPoint}: ${b.label}`);
+        node.title = b.label;
+        node.className = "h-6 w-6 rounded-full border-2 border-white bg-slate-400 shadow hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500";
+        node.addEventListener("click", () => pick.current?.(b.id));
+        markers.current.push(new lib.Marker({ element: node }).setLngLat([b.lng, b.lat]).addTo(m));
+        continue;
+      }
+      const lng = group.reduce((a, b) => a + b.lng, 0) / group.length, lat = group.reduce((a, b) => a + b.lat, 0) / group.length;
+      const size = group.length < 10 ? 34 : group.length < 50 ? 42 : 52;
       const node = document.createElement("button");
       node.type = "button";
-      node.setAttribute("aria-label", `${t.addPoint}: ${b.label}`);
-      node.title = b.label;
-      node.className = "h-6 w-6 rounded-full border-2 border-white bg-slate-400 shadow hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500";
-      node.addEventListener("click", () => pick.current?.(b.id));
-      markers.current.push(new lib.Marker({ element: node }).setLngLat([b.lng, b.lat]).addTo(m));
+      node.textContent = String(group.length);
+      node.setAttribute("aria-label", `${group.length} ${t.clusterLabel}`);
+      node.title = `${group.length} ${t.clusterLabel}`;
+      node.style.width = node.style.height = `${size}px`;
+      node.className = "flex items-center justify-center rounded-full border-2 border-white bg-blue-600/90 text-sm font-semibold text-white shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300";
+      node.addEventListener("click", () => {
+        const bb = new lib.LngLatBounds();
+        for (const g of group) bb.extend([g.lng, g.lat]);
+        m.fitBounds(bb, { padding: 70, maxZoom: 17, duration: 400 });
+      });
+      markers.current.push(new lib.Marker({ element: node }).setLngLat([lng, lat]).addTo(m));
     }
     for (const p of points) {
       const node = document.createElement("div");
@@ -104,6 +142,11 @@ function LiveMap({ points, background, onPick, config, t }: { points: MapPoint[]
       node.className = `flex h-7 w-7 items-center justify-center rounded-full border-2 border-white text-xs font-semibold text-white shadow ${p.current ? "bg-blue-600" : p.done ? "bg-slate-400" : "bg-slate-800"}`;
       markers.current.push(new lib.Marker({ element: node }).setLngLat([p.lng, p.lat]).addTo(m));
     }
+  }; });
+
+  useEffect(() => {
+    const m = mapRef.current, lib = libRef.current;
+    if (!ready || !m || !lib) return;
     // Re-fit only when the SET of located places changes (not when the selection order changes).
     const fitKey = [...points.map((p) => p.id), ...background.map((b) => b.id)].sort().join("|");
     if (fitKey && fitKey !== fitted.current) {
@@ -112,19 +155,21 @@ function LiveMap({ points, background, onPick, config, t }: { points: MapPoint[]
       for (const p of [...points, ...background]) bounds.extend([p.lng, p.lat]);
       m.fitBounds(bounds, { padding: 40, maxZoom: 15, duration: 0 });
     }
+    renderRef.current();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the keys capture every input that matters
   }, [ready, pointsKey, bgKey]);
 
   if (failed) return null;
-  return <div ref={el} role="region" aria-label={t.title} className="h-64 w-full overflow-hidden rounded-lg border border-slate-200 sm:h-80" />;
+  return <div ref={el} role="region" aria-label={t.title} className={`w-full overflow-hidden rounded-lg border border-slate-200 ${tall ? "h-80 sm:h-[26rem]" : "h-64 sm:h-80"}`} />;
 }
 
-export function RouteMap({ points, background = [], onPick, config, t }: { points: MapPoint[]; background?: BackgroundPoint[]; onPick?: (id: string) => void; config: MapConfig | null; t: FieldCopy["map"] }) {
+export function RouteMap({ points, background = [], onPick, onViewChange, tall, showSchematic = true, config, t }: { points: MapPoint[]; background?: BackgroundPoint[]; onPick?: (id: string) => void; onViewChange?: (ids: string[]) => void; tall?: boolean; showSchematic?: boolean; config: MapConfig | null; t: FieldCopy["map"] }) {
+  const [failed, setFailed] = useState(false);
   return (
     <section className="space-y-2" aria-label={t.title}>
-      {config ? <LiveMap points={points} background={background} onPick={onPick} config={config} t={t} /> : <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">{t.disabled}</p>}
+      {config ? <LiveMap points={points} background={background} onPick={onPick} onViewChange={onViewChange} onFailed={() => setFailed(true)} tall={tall} config={config} t={t} /> : <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">{t.disabled}</p>}
       {background.length > 0 && <p className="text-xs text-slate-500">{t.located}: {background.length + points.length}. {config ? t.locatedHelp : ""}</p>}
-      <SchematicPlot points={points} background={background} t={t} />
+      {(showSchematic || !config || failed) && <SchematicPlot points={points} background={background} t={t} />}
     </section>
   );
 }

@@ -26,7 +26,7 @@ const en = {
     limit: "Maximum 25 stops.", needsLocation: "No map position", plannedElsewhere: "Already in another route today", selectedCount: "selected", loading: "Loading…",
     distance: "Straight-line distance", distanceNote: "Straight-line (as the crow flies) estimate between stops. It is NOT driving distance or time and uses no traffic data.", stage: "Stage",
     locationReason: { NONE: "Not located yet", MISSING_ADDRESS: "Address incomplete", ADDRESS_CHANGED: "Address changed — locate again", STALE: "Position is old — locate again", AMBIGUOUS: "Address is ambiguous", INVALID: "Address could not be found", ERROR: "Locating failed — try later", SYNTHETIC_IN_PRODUCTION: "Test position not allowed in production" } as Record<string, string>,
-    showUnlocated: "Show prospects without map position", hiddenUnlocated: "hidden — no map position yet", locate: "Locate addresses", locating: "Locating…", located: "Locate request processed.",
+    onlyInView: "Only show prospects in the map area", showUnlocated: "Show prospects without map position", hiddenUnlocated: "hidden — no map position yet", locate: "Locate addresses", locating: "Locating…", located: "Locate request processed.",
   },
   geocoding: {
     title: "Map positions", DISABLED: "Address locating is not configured yet.", SYNTHETIC: "Test mode: positions are synthetic fixtures, not real locations.", PENDING_CONFIGURATION: "A geocoding provider is selected but not yet implemented or approved.",
@@ -39,7 +39,7 @@ const en = {
   map: {
     title: "Map", schematic: "Schematic plot — relative positions only, no basemap", disabled: "Interactive map is not enabled: no approved tile provider is configured. The list and the schematic plot below are fully functional.", attribution: "Map data",
     stopLabel: "Stop", plotLabel: "Schematic plot of the route stops",
-    located: "Located prospects", locatedHelp: "Grey markers are located prospects. Tap one to add it to the route.", addPoint: "Add to route", removePoint: "Remove from route",
+    located: "Located prospects", locatedHelp: "Blue bubbles group nearby prospects — tap one to zoom in. Grey dots are single prospects: tap one to add it to the route.", clusterLabel: "prospects in this area", addPoint: "Add to route", removePoint: "Remove from route",
     noBackground: "No located prospect yet. A Super Admin geocodes addresses from Settings.",
   },
   geocodingAdmin: {
@@ -111,7 +111,7 @@ const fr: Dict = {
     limit: "Maximum 25 arrêts.", needsLocation: "Pas de position sur la carte", plannedElsewhere: "Déjà dans une autre route aujourd’hui", selectedCount: "sélectionné(s)", loading: "Chargement…",
     distance: "Distance à vol d’oiseau", distanceNote: "Estimation à vol d’oiseau entre les arrêts. Ce n’est PAS une distance ni une durée de conduite et aucune donnée de circulation n’est utilisée.", stage: "Étape",
     locationReason: { NONE: "Pas encore localisé", MISSING_ADDRESS: "Adresse incomplète", ADDRESS_CHANGED: "Adresse modifiée — localiser à nouveau", STALE: "Position ancienne — localiser à nouveau", AMBIGUOUS: "Adresse ambiguë", INVALID: "Adresse introuvable", ERROR: "Échec de la localisation — réessayez plus tard", SYNTHETIC_IN_PRODUCTION: "Position de test interdite en production" },
-    showUnlocated: "Afficher les prospects sans position sur la carte", hiddenUnlocated: "masqués — pas encore de position", locate: "Localiser les adresses", locating: "Localisation…", located: "Demande de localisation traitée.",
+    onlyInView: "Afficher seulement les prospects de la zone de la carte", showUnlocated: "Afficher les prospects sans position sur la carte", hiddenUnlocated: "masqués — pas encore de position", locate: "Localiser les adresses", locating: "Localisation…", located: "Demande de localisation traitée.",
   },
   geocoding: {
     title: "Positions sur la carte", DISABLED: "La localisation d’adresses n’est pas encore configurée.", SYNTHETIC: "Mode test : les positions sont des données fictives, pas de vrais emplacements.", PENDING_CONFIGURATION: "Un fournisseur de géocodage est choisi, mais pas encore implémenté ni approuvé.",
@@ -124,7 +124,7 @@ const fr: Dict = {
   map: {
     title: "Carte", schematic: "Tracé schématique — positions relatives seulement, sans fond de carte", disabled: "La carte interactive n’est pas activée : aucun fournisseur de tuiles approuvé n’est configuré. La liste et le tracé schématique ci-dessous fonctionnent pleinement.", attribution: "Données cartographiques",
     stopLabel: "Arrêt", plotLabel: "Tracé schématique des arrêts de la route",
-    located: "Prospects localisés", locatedHelp: "Les repères gris sont des prospects localisés. Touchez-en un pour l’ajouter à la route.", addPoint: "Ajouter à la route", removePoint: "Retirer de la route",
+    located: "Prospects localisés", locatedHelp: "Les bulles bleues regroupent des prospects proches — touchez-en une pour zoomer. Les points gris sont des prospects seuls : touchez-en un pour l’ajouter à la route.", clusterLabel: "prospects dans ce secteur", addPoint: "Ajouter à la route", removePoint: "Retirer de la route",
     noBackground: "Aucun prospect localisé pour l’instant. Un Super Admin géocode les adresses depuis les Paramètres.",
   },
   geocodingAdmin: {
