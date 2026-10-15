@@ -36,7 +36,11 @@ export function RoutePlanner({ locale, candidates, territories, geocoding, mapCo
   const [info, setInfo] = useState<string | null>(null);
   const byId = useMemo(() => new Map(candidates.map((c) => [c.id, c])), [candidates]);
   const cities = useMemo(() => [...new Set(candidates.map((c) => c.city).filter((c): c is string => !!c))].sort((a, b) => a.localeCompare(b)), [candidates]);
-  const shown = candidates.filter((c) => (!city || c.city === city) && (!area || c.territoryKey === area) && (!q || c.name.toLowerCase().includes(q.toLowerCase())));
+  const matching = candidates.filter((c) => (!city || c.city === city) && (!area || c.territoryKey === area) && (!q || c.name.toLowerCase().includes(q.toLowerCase())));
+  const hiddenCount = showUnlocated ? 0 : matching.filter((c) => !c.location.usable && !selected.includes(c.id)).length;
+  // Addable prospects first (stable sort keeps the original order within each group).
+  const shown = (showUnlocated ? matching : matching.filter((c) => c.location.usable || selected.includes(c.id)))
+    .map((c, i) => ({ c, i, rank: c.location.usable ? 0 : 1 })).sort((a, b) => a.rank - b.rank || a.i - b.i).map((x) => x.c);
   const selectedRows = selected.map((id) => byId.get(id)).filter((c): c is PlannerCandidate => !!c);
   const points = selectedRows.flatMap((c) => (c.location.usable ? [{ id: c.id, lat: c.location.lat, lng: c.location.lng }] : []));
   const distanceM = points.length > 1 ? lengthOfOrder(points, selected) : 0;
@@ -81,6 +85,12 @@ export function RoutePlanner({ locale, candidates, territories, geocoding, mapCo
             <label className={labelCls}>{p.area}<select className={inputCls} value={area} onChange={(e) => setArea(e.target.value)}><option value="">{p.allAreas}</option>{territories.map((x) => <option key={x.key} value={x.key}>{x.name}</option>)}</select></label>
             <label className={labelCls}>{p.search}<input className={inputCls} value={q} onChange={(e) => setQ(e.target.value)} type="search" /></label>
           </div>
+          {unlocated.length > 0 && (
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input type="checkbox" className="h-4 w-4" checked={showUnlocated} onChange={(e) => setShowUnlocated(e.target.checked)} />
+              {p.showUnlocated}{hiddenCount > 0 && <span className="text-slate-500">({hiddenCount} {p.hiddenUnlocated})</span>}
+            </label>
+          )}
           {unlocated.length > 0 && geocoding.mode === "SYNTHETIC" && (
             <button type="button" className={btnSecondary} onClick={locate} disabled={pending}>{pending ? p.locating : p.locate} ({Math.min(unlocated.length, 25)})</button>
           )}
