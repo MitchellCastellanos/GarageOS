@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { estimateWorkload, canonicalScope, NATIONWIDE_MB_THRESHOLD } from "@/domain/lead-radar/scope";
+import { estimateWorkload, canonicalScope, findRunOverlaps, NATIONWIDE_MB_THRESHOLD } from "@/domain/lead-radar/scope";
+import { db } from "@/lib/db";
 import { toMicro } from "@/domain/lead-radar/budget";
 import { PLATFORM } from "@/lib/routes";
 import { writeCrmAudit } from "@/lib/sales-crm/audit";
@@ -37,7 +38,9 @@ export async function previewDiscoveryWorkload(scope: unknown) {
     let s;
     try { s = canonicalScope(scope); } catch { throw new CrmError("INVALID_SCOPE"); }
     const w = estimateWorkload(s);
-    return { work: { ...w, requiresAcknowledgement: w.nationwide || w.megabytes > NATIONWIDE_MB_THRESHOLD }, cost: { paidRequests: 0, note: "OPEN_DATA_NO_PER_RECORD_FEE" } };
+    const prior = await db.crmDiscoveryRun.findMany({ orderBy: { createdAt: "desc" }, take: 40, select: { id: true, status: true, sourceRelease: true, scope: true } });
+    const overlaps = findRunOverlaps(s, "latest", prior.map((r) => ({ id: r.id, status: r.status, release: r.sourceRelease, scope: r.scope as { provinces: string[]; groups: string[]; cities: string[] } })));
+    return { work: { ...w, requiresAcknowledgement: w.nationwide || w.megabytes > NATIONWIDE_MB_THRESHOLD }, overlaps, cost: { paidRequests: 0, note: "OPEN_DATA_NO_PER_RECORD_FEE" } };
   });
 }
 

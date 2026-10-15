@@ -1,0 +1,131 @@
+// National Lead Radar — autonomous qualification (pure). The founder approves a POLICY; the policy sorts every staged candidate into one of
+// three lanes, with explicit, auditable reasons. The same function powers the Super Admin preview and the automatic executor, so a preview can
+// never disagree with what activation later does (tests/lead-radar-automation-domain.test.ts proves it).
+//
+// Design rules (derived from the real Québec run: 2,084 staged → 1,312 PRIMARY, 2,028 NEW, 37 EXISTING_STRONG, 19 AMBIGUOUS):
+//  · No invented numeric score or confidence cut-off. Only signals the pipeline already computed with a documented meaning are used:
+//    licence verdict, taxonomy tier, duplicate-match state, chain signal, the staging quality flags (incl. the extractor's own
+//    LOW_CONFIDENCE flag) and territory resolution. `completeness` is deliberately NOT an input: a complete record can be wrong.
+//  · AMBIGUOUS matches, branch relationships, ambiguous/unknown categories and source changes after approval are ALWAYS human exceptions —
+//    no policy option can auto-advance them.
+//  · A licence the allow-list rejects, an excluded tier, or a record with no usable contact/location is BLOCKED, whatever the policy says.
+//  · A candidate a human rejected is never re-opened by a policy (callers must not evaluate it; `evaluateQualification` also refuses).
+import { importEligibility } from "@/domain/lead-radar/record";
+import { canonicalRules, REVIEWABLE_FLAGS, type PolicyRules, type ReviewableFlag } from "@/domain/lead-radar/policy-rules";
+
+export * from "@/domain/lead-radar/policy-rules";
+
+export type QualificationLane = "AUTO_ELIGIBLE" | "HUMAN_REVIEW" | "BLOCKED";
+type StaticReason =
+  // blocked
+  | "LICENSE_BLOCKED" | "EXCLUDED_TIER" | "INSUFFICIENT_CONTACT" | "SOURCE_PROVENANCE_MISSING" | "CHAIN_BLOCKED_BY_POLICY"
+  // human review
+  | "AMBIGUOUS_MATCH" | "BRANCH_RELATIONSHIP" | "EXISTING_MATCH_REVIEW" | "QUESTIONABLE_CATEGORY" | "SECONDARY_CATEGORY" | "CHAIN_SIGNAL"
+  | "NO_LOCATION" | "NO_REACHABLE_CHANNEL" | "TERRITORY_UNRESOLVED" | "SOURCE_CHANGED"
+  // informational on an auto-eligible candidate
+  | "AUTO_LINK_EXISTING"
+  // outside the policy's scope (no lane)
+  | "OUT_OF_POLICY_SCOPE";
+export type QualificationReason = StaticReason | `FLAG_${ReviewableFlag}`;
+/** Every reason code the UI must be able to explain (EN/FR completeness is tested against this list). */
+export const QUALIFICATION_REASONS: readonly QualificationReason[] = [
+  "LICENSE_BLOCKED", "EXCLUDED_TIER", "INSUFFICIENT_CONTACT", "SOURCE_PROVENANCE_MISSING", "CHAIN_BLOCKED_BY_POLICY",
+  "AMBIGUOUS_MATCH", "BRANCH_RELATIONSHIP", "EXISTING_MATCH_REVIEW", "QUESTIONABLE_CATEGORY", "SECONDARY_CATEGORY", "CHAIN_SIGNAL",
+  "NO_LOCATION", "NO_REACHABLE_CHANNEL", "TERRITORY_UNRESOLVED", "SOURCE_CHANGED",
+  ...REVIEWABLE_FLAGS.map((f): QualificationReason => `FLAG_${f}`),
+  "AUTO_LINK_EXISTING", "OUT_OF_POLICY_SCOPE",
+];
+
+/** The only candidate facts qualification reads. Everything here is already stored on the staging row. */
+export interface QualificationFacts {
+  tier: "PRIMARY" | "SECONDARY" | "AMBIGUOUS" | "EXCLUDED";
+  licenseOk: boolean;
+  licenses: readonly string[];
+  datasets: readonly string[];
+  chainSignal: string;
+  matchState: "NEW" | "EXISTING_STRONG" | "AMBIGUOUS" | "BRANCH_OF_EXISTING";
+  qualityFlags: readonly string[];
+  province: string | null;
+  address: string | null;
+  postalCode: string | null;
+  phone: string | null;
+  website: string | null;
+  territoryKey: string | null;
+  reviewState: "PENDING" | "APPROVED" | "REJECTED";
+  /** Reasons kept from an earlier decision that only a human may clear (SOURCE_CHANGED set by staging when an approval was invalidated). */
+  stickyReasons?: readonly string[];
+}
+
+export interface QualificationResult {
+  /** null = the policy does not cover this candidate (outside its provinces): left untouched. */
+  lane: QualificationLane | null;
+  reasons: QualificationReason[];
+  /** What the CRM handoff would do for an AUTO_ELIGIBLE candidate. */
+  handoff: "CREATE" | "LINK_EXISTING" | null;
+}
+
+const uniqSorted = <T extends string>(xs: readonly T[]): T[] => [...new Set(xs)].sort();
+
+export function evaluateQualification(rulesIn: PolicyRules, f: QualificationFacts): QualificationResult {
+  const rules = canonicalRules(rulesIn);
+  // A human rejection is final for the policy (the executor never selects such rows; this is the belt to that brace).
+  if (f.reviewState === "REJECTED") return { lane: null, reasons: [], handoff: null };
+  if (rules.provinces.length && !(f.province && (rules.provinces as readonly string[]).includes(f.province))) {
+    return { lane: null, reasons: ["OUT_OF_POLICY_SCOPE"], handoff: null };
+  }
+
+  const blocked: QualificationReason[] = [];
+  if (!f.licenseOk) blocked.push("LICENSE_BLOCKED");
+  if (f.tier === "EXCLUDED") blocked.push("EXCLUDED_TIER");
+  if (!importEligibility({ licenseOk: true, tier: "PRIMARY", address: f.address, phone: f.phone, postalCode: f.postalCode }).eligible) blocked.push("INSUFFICIENT_CONTACT");
+  if (f.licenseOk && (f.licenses.length === 0 || f.datasets.length === 0)) blocked.push("SOURCE_PROVENANCE_MISSING"); // provenance is mandatory for attribution
+  if (f.chainSignal === "CHAIN_SIGNAL" && rules.chainSignal === "BLOCK") blocked.push("CHAIN_BLOCKED_BY_POLICY");
+  if (blocked.length) return { lane: "BLOCKED", reasons: uniqSorted(blocked), handoff: null };
+
+  const review: QualificationReason[] = [];
+  if (f.matchState === "AMBIGUOUS") review.push("AMBIGUOUS_MATCH");
+  if (f.matchState === "BRANCH_OF_EXISTING") review.push("BRANCH_RELATIONSHIP");
+  if (f.matchState === "EXISTING_STRONG" && rules.existingMatch === "REVIEW") review.push("EXISTING_MATCH_REVIEW");
+  if (f.tier === "AMBIGUOUS") review.push("QUESTIONABLE_CATEGORY");
+  if (f.tier === "SECONDARY" && rules.secondaryTier === "REVIEW") review.push("SECONDARY_CATEGORY");
+  if (f.chainSignal === "CHAIN_SIGNAL" && rules.chainSignal === "REVIEW") review.push("CHAIN_SIGNAL");
+  // Location/channel completeness matters for a record that would CREATE a new prospect. A strong match to an existing prospect only enriches it,
+  // so it needs no more than the universal "something usable" floor already enforced above (INSUFFICIENT_CONTACT).
+  if (f.matchState !== "EXISTING_STRONG") {
+    if (rules.requireLocation && !f.address && !f.postalCode) review.push("NO_LOCATION");
+    if (rules.requireReachableChannel && !f.phone && !f.website) review.push("NO_REACHABLE_CHANNEL");
+  }
+  if (f.territoryKey === "unresolved") review.push("TERRITORY_UNRESOLVED");
+  for (const flag of rules.reviewFlags) if (f.qualityFlags.includes(flag)) review.push(`FLAG_${flag}`);
+  for (const s of f.stickyReasons ?? []) if (s === "SOURCE_CHANGED") review.push("SOURCE_CHANGED");
+  if (review.length) return { lane: "HUMAN_REVIEW", reasons: uniqSorted(review), handoff: null };
+
+  const link = f.matchState === "EXISTING_STRONG";
+  return { lane: "AUTO_ELIGIBLE", reasons: link ? ["AUTO_LINK_EXISTING"] : [], handoff: link ? "LINK_EXISTING" : "CREATE" };
+}
+
+// ── Preview / dashboard aggregation (pure) ───────────────────────────────────────────────────────────────────────────
+export interface PreviewSummary {
+  evaluated: number;
+  lanes: Record<QualificationLane | "OUT_OF_SCOPE", number>;
+  reasons: Record<string, number>;
+  byProvince: Record<string, { auto: number; review: number; blocked: number }>;
+  /** Lane the candidate currently has (under the previously evaluated policy) → lane under this policy. Only changed rows are counted. */
+  changes: Record<string, number>;
+  truncated: boolean;
+}
+export const emptyPreview = (): PreviewSummary => ({ evaluated: 0, lanes: { AUTO_ELIGIBLE: 0, HUMAN_REVIEW: 0, BLOCKED: 0, OUT_OF_SCOPE: 0 }, reasons: {}, byProvince: {}, changes: {}, truncated: false });
+
+export function addToPreview(s: PreviewSummary, r: QualificationResult, ctx: { province: string | null; previousLane: QualificationLane | null }): void {
+  s.evaluated++;
+  s.lanes[r.lane ?? "OUT_OF_SCOPE"]++;
+  for (const x of r.reasons) s.reasons[x] = (s.reasons[x] ?? 0) + 1;
+  if (r.lane) {
+    const p = (s.byProvince[ctx.province ?? "??"] ??= { auto: 0, review: 0, blocked: 0 });
+    if (r.lane === "AUTO_ELIGIBLE") p.auto++; else if (r.lane === "HUMAN_REVIEW") p.review++; else p.blocked++;
+  }
+  if ((ctx.previousLane ?? null) !== r.lane) {
+    const k = `${ctx.previousLane ?? "NONE"}->${r.lane ?? "OUT_OF_SCOPE"}`;
+    s.changes[k] = (s.changes[k] ?? 0) + 1;
+  }
+}

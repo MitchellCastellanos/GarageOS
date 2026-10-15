@@ -1,5 +1,7 @@
 // EN/FR copy for the National Lead Radar. The French dictionary is typed against the English one (a missing key fails the build);
 // tests/lead-radar-domain.test.ts also enforces that no value is empty and that placeholders match.
+import { autoEn, autoFr } from "@/lib/admin-locale/lead-radar-automation";
+
 const en = {
   nav: "Lead Radar",
   title: "National Lead Radar", subtitle: "Discover automotive repair shops across Canada, review them, and hand approved ones to the Sales CRM.",
@@ -34,6 +36,7 @@ const en = {
     categories: "Automotive categories", release: "Overture release", releaseHelp: "“latest” lets the extractor find the newest release; or pin one (2026-09-23.1) to reproduce an extraction.",
     minConfidence: "Minimum source confidence (0–1)", preview: "Preview workload", previewing: "Calculating…", create: "Create run", creating: "Creating…",
     workload: "Estimated workload", rowGroups: "Parquet row groups", megabytes: "Download (upper bound)", mb: "MB", cost: "Per-record licence fee: none (open data). Paid provider requests: 0.",
+    overlap: "These provinces were already requested by an earlier run for the same categories. Re-running the same area on the same release downloads the same data again; a newer release is a legitimate refresh.",
     large: "This is a nationwide or large extraction.", acknowledge: "I understand this reads a large amount of public data from my own machine and approve it.", created: "Run created.",
     howTo: "The extraction runs on your own machine (never on Vercel). Download the plan, run the extractor, then upload its output on the run page.",
     groups: { REPAIR: "Repair shops, tires, brakes, transmission", BODY_GLASS: "Collision, body, glass, restoration", DEALER: "Dealerships", PARTS: "Parts stores", OTHER_AUTOMOTIVE: "Car wash, detailing, towing, other" } as Record<string, string>,
@@ -59,7 +62,7 @@ const en = {
   },
   candidates: {
     title: "Candidate review", search: "Search name, phone or website", province: "Province", allProvinces: "All provinces", city: "City", tier: "Tier", allTiers: "All tiers", category: "Category", allCategories: "All categories",
-    review: "Review", allReview: "All", match: "CRM match", allMatch: "All", imp: "Import status", allImp: "All", chain: "Chain signal", anyChain: "Any", minCompleteness: "Min. completeness", hasPhone: "Has phone", hasWebsite: "Has website", hasEmail: "Has email", licenseBlocked: "Licence blocked",
+    review: "Review", allReview: "All", match: "CRM match", allMatch: "All", imp: "Import status", allImp: "All", chain: "Chain signal", anyChain: "Any", lane: "Qualification lane", anyLane: "Any lane", reason: "Qualification reason", anyReason: "Any reason", minCompleteness: "Min. completeness", hasPhone: "Has phone", hasWebsite: "Has website", hasEmail: "Has email", licenseBlocked: "Licence blocked",
     apply: "Apply filters", reset: "Reset", empty: "No candidates match.", results: "{n} candidates",
     colName: "Business", colPlace: "Location", colContact: "Contact", colClass: "Classification", colQuality: "Quality", colMatch: "CRM match", colStatus: "Status",
     tiers: { PRIMARY: "Primary target", SECONDARY: "Secondary", AMBIGUOUS: "Needs a human look", EXCLUDED: "Excluded" } as Record<string, string>,
@@ -86,6 +89,7 @@ const en = {
     help: "Imported prospects stay unassigned. A manager previews and explicitly confirms assignment in the existing assignment screen; territory, FIELD/REMOTE rules and seller capacity apply there.",
     batch: "Import",
   },
+  automation: autoEn,
   compliance: {
     title: "Compliance", casl: "A published email address is not consent. Importing never creates a sending basis, sequence, message, SMS, call or visit.", attribution: "Business data © Overture Maps Foundation and its source contributors.",
   },
@@ -127,6 +131,7 @@ const fr: Dict = {
     categories: "Catégories automobiles", release: "Version d’Overture", releaseHelp: "« latest » laisse l’extracteur trouver la plus récente; ou fixez-en une (2026-09-23.1) pour reproduire une extraction.",
     minConfidence: "Confiance minimale de la source (0–1)", preview: "Prévisualiser la charge", previewing: "Calcul en cours…", create: "Créer l’exécution", creating: "Création…",
     workload: "Charge estimée", rowGroups: "Groupes de lignes Parquet", megabytes: "Téléchargement (borne supérieure)", mb: "Mo", cost: "Frais de licence par enregistrement : aucun (données ouvertes). Requêtes payantes à des fournisseurs : 0.",
+    overlap: "Ces provinces ont déjà été demandées par une exécution antérieure pour les mêmes catégories. Relancer la même zone sur la même version retélécharge les mêmes données; une version plus récente est une vraie mise à jour.",
     large: "Il s’agit d’une extraction nationale ou volumineuse.", acknowledge: "Je comprends que cela lit beaucoup de données publiques depuis mon propre poste et je l’approuve.", created: "Exécution créée.",
     howTo: "L’extraction s’exécute sur votre propre poste (jamais sur Vercel). Téléchargez le plan, lancez l’extracteur, puis téléversez son résultat sur la page de l’exécution.",
     groups: { REPAIR: "Ateliers, pneus, freins, transmission", BODY_GLASS: "Collision, carrosserie, vitres, restauration", DEALER: "Concessionnaires", PARTS: "Magasins de pièces", OTHER_AUTOMOTIVE: "Lave-auto, esthétique, remorquage, autres" },
@@ -152,7 +157,7 @@ const fr: Dict = {
   },
   candidates: {
     title: "Révision des candidats", search: "Rechercher nom, téléphone ou site", province: "Province", allProvinces: "Toutes les provinces", city: "Ville", tier: "Niveau", allTiers: "Tous les niveaux", category: "Catégorie", allCategories: "Toutes les catégories",
-    review: "Révision", allReview: "Tous", match: "Correspondance CRM", allMatch: "Toutes", imp: "État d’importation", allImp: "Tous", chain: "Signal de chaîne", anyChain: "Tous", minCompleteness: "Complétude min.", hasPhone: "A un téléphone", hasWebsite: "A un site web", hasEmail: "A un courriel", licenseBlocked: "Licence bloquée",
+    review: "Révision", allReview: "Tous", match: "Correspondance CRM", allMatch: "Toutes", imp: "État d’importation", allImp: "Tous", chain: "Signal de chaîne", anyChain: "Tous", lane: "Voie de qualification", anyLane: "Toutes les voies", reason: "Raison de qualification", anyReason: "Toutes les raisons", minCompleteness: "Complétude min.", hasPhone: "A un téléphone", hasWebsite: "A un site web", hasEmail: "A un courriel", licenseBlocked: "Licence bloquée",
     apply: "Appliquer les filtres", reset: "Réinitialiser", empty: "Aucun candidat ne correspond.", results: "{n} candidats",
     colName: "Entreprise", colPlace: "Emplacement", colContact: "Coordonnées", colClass: "Classification", colQuality: "Qualité", colMatch: "Correspondance CRM", colStatus: "Statut",
     tiers: { PRIMARY: "Cible principale", SECONDARY: "Secondaire", AMBIGUOUS: "À examiner par une personne", EXCLUDED: "Exclu" },
@@ -179,6 +184,7 @@ const fr: Dict = {
     help: "Les prospects importés restent non assignés. Un gestionnaire prévisualise puis confirme explicitement l’assignation dans l’écran d’assignation existant; les territoires, les règles TERRAIN/DISTANT et la capacité des vendeurs s’y appliquent.",
     batch: "Importation",
   },
+  automation: autoFr,
   compliance: {
     title: "Conformité", casl: "Une adresse courriel publiée n’est pas un consentement. L’importation ne crée jamais de base d’envoi, de séquence, de message, de texto, d’appel ni de visite.", attribution: "Données d’entreprises © Overture Maps Foundation et ses contributeurs.",
   },
@@ -188,6 +194,6 @@ export type RadarCopy = Dict;
 export function radarCopy(locale: "en" | "fr"): RadarCopy { return locale === "fr" ? fr : en; }
 export function radarError(locale: "en" | "fr", code: string | undefined): string {
   const c = radarCopy(locale);
-  return c.errors[code ?? ""] ?? c.errors.unexpected;
+  return c.errors[code ?? ""] ?? c.automation.errors[code ?? ""] ?? c.errors.unexpected;
 }
 export const fill = (s: string, vars: Record<string, string | number>) => s.replace(/\{(\w+)\}/g, (_, k: string) => String(vars[k] ?? ""));

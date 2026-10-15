@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import type { PlatformSalesActor } from "@/domain/sales-crm/access";
 import { parseProspectCsv } from "@/domain/sales-crm/import";
-import { candidatesToImportCsv, IMPORT_HEADERS, LAWFUL_SOURCE_NOTE, LEAD_RADAR_SOURCE_KEY, MAX_IMPORT_APPROVALS } from "@/domain/lead-radar/bridge";
+import { candidatesToImportCsv, IMPORT_HEADERS, LAWFUL_SOURCE_NOTE, lawfulSourceNoteForPolicy, LEAD_RADAR_SOURCE_KEY, MAX_IMPORT_APPROVALS } from "@/domain/lead-radar/bridge";
 import { db } from "@/lib/db";
 import { writeCrmAudit } from "@/lib/sales-crm/audit";
 import { applyImportBatch, type ImportRowResult } from "@/lib/sales-crm/lead-engine";
@@ -14,16 +14,26 @@ import { CrmError, resolveAssignee } from "@/lib/sales-crm/prospects";
  * same observations. Always UNASSIGNED (assignment stays the manual preview → confirm flow). Never creates a sending basis, enrollment or message.
  * Concurrency: candidate rows are locked with FOR UPDATE SKIP LOCKED inside the transaction, so two simultaneous imports can never take the same candidate.
  */
-export async function importApprovedCandidates(actor: PlatformSalesActor, opts: { ids?: readonly string[]; limit?: number } = {}) {
+export interface ImportOptions {
+  ids?: readonly string[];
+  limit?: number;
+  /** Set by the automatic orchestrator: only candidates approved by THIS policy version (or by a human) are claimed, FAILED rows are never retried here,
+   *  and the batch/audit trail records the policy. Manual imports leave it undefined and behave exactly as before. */
+  automation?: { policyVersion: number; timeoutMs?: number };
+}
+
+export async function importApprovedCandidates(actor: PlatformSalesActor, opts: ImportOptions = {}) {
   await resolveAssignee(actor, null); // the actor must be allowed to hold the unassigned pool (manager / Super Admin)
   const limit = Math.min(Math.max(1, opts.limit ?? MAX_IMPORT_APPROVALS), MAX_IMPORT_APPROVALS);
   const ids = opts.ids ? [...new Set(opts.ids)].slice(0, MAX_IMPORT_APPROVALS) : null;
   if (ids && !ids.length) throw new CrmError("BATCH_SIZE");
+  const auto = opts.automation ?? null;
+  const states = auto ? Prisma.sql`('NOT_IMPORTED')` : Prisma.sql`('NOT_IMPORTED','FAILED')`;
+  const policyGuard = auto ? Prisma.sql`AND ("approvedByPolicyVersion" IS NULL OR "approvedByPolicyVersion" = ${auto.policyVersion})` : Prisma.empty;
+  const idGuard = ids ? Prisma.sql`AND "id" IN (${Prisma.join(ids)})` : Prisma.empty;
 
   return db.$transaction(async (tx) => {
-    const locked = ids
-      ? await tx.$queryRaw<{ id: string }[]>`SELECT "id" FROM "garageos"."CrmDiscoveryCandidate" WHERE "id" IN (${Prisma.join(ids)}) AND "reviewState" = 'APPROVED' AND "importState" IN ('NOT_IMPORTED','FAILED') AND "licenseOk" = true AND "tier" <> 'EXCLUDED' ORDER BY "id" LIMIT ${limit} FOR UPDATE SKIP LOCKED`
-      : await tx.$queryRaw<{ id: string }[]>`SELECT "id" FROM "garageos"."CrmDiscoveryCandidate" WHERE "reviewState" = 'APPROVED' AND "importState" IN ('NOT_IMPORTED','FAILED') AND "licenseOk" = true AND "tier" <> 'EXCLUDED' ORDER BY "id" LIMIT ${limit} FOR UPDATE SKIP LOCKED`;
+    const locked = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT "id" FROM "garageos"."CrmDiscoveryCandidate" WHERE "reviewState" = 'APPROVED' AND "importState" IN ${states} AND "licenseOk" = true AND "tier" <> 'EXCLUDED' ${idGuard} ${policyGuard} ORDER BY "id" LIMIT ${limit} FOR UPDATE SKIP LOCKED`);
     if (!locked.length) return { batchId: null as string | null, claimed: 0, created: 0, linked: 0, sentToReview: 0, skipped: 0, failed: 0, createdProspectIds: [] as string[], linkedProspectIds: [] as string[], reviewProspectIds: [] as string[], unassignedCreated: 0 };
 
     const cands = await tx.crmDiscoveryCandidate.findMany({ where: { id: { in: locked.map((l) => l.id) } }, orderBy: { id: "asc" } });
@@ -38,7 +48,7 @@ export async function importApprovedCandidates(actor: PlatformSalesActor, opts: 
     let failed = 0;
     for (const [row, code] of failedByRow) {
       const id = rowToCandidate.get(row);
-      if (id) { await tx.crmDiscoveryCandidate.update({ where: { id }, data: { importState: "FAILED", importErrorCode: code } }); failed++; }
+      if (id) { await tx.crmDiscoveryCandidate.update({ where: { id }, data: { importState: "FAILED", importErrorCode: code, importAttempts: { increment: 1 }, importLastAttemptAt: new Date() } }); failed++; }
     }
 
     const release = cands.map((c) => c.lastSeenRelease).sort().at(-1) ?? "";
@@ -47,8 +57,8 @@ export async function importApprovedCandidates(actor: PlatformSalesActor, opts: 
     const batch = await tx.crmImportBatch.create({
       data: {
         createdByUserId: actor.userId, assignedStaffId: null, filename: `lead-radar-overture-${release || "unknown"}.csv`.slice(0, 120), fileHash: createHash("sha256").update(csv).digest("hex"),
-        status: "IMPORTING", summary: { origin: "LEAD_RADAR", candidates: cands.length } as Prisma.InputJsonValue, defaultSource: "DIRECTORY",
-        sourceKey: LEAD_RADAR_SOURCE_KEY, lawfulSourceNote: LAWFUL_SOURCE_NOTE, observedAt: observed > new Date() ? new Date() : observed, mapping: mapping as Prisma.InputJsonValue,
+        status: "IMPORTING", summary: { origin: "LEAD_RADAR", candidates: cands.length, ...(auto ? { automation: { policyVersion: auto.policyVersion } } : {}) } as Prisma.InputJsonValue, defaultSource: "DIRECTORY",
+        sourceKey: LEAD_RADAR_SOURCE_KEY, lawfulSourceNote: auto ? lawfulSourceNoteForPolicy(auto.policyVersion) : LAWFUL_SOURCE_NOTE, observedAt: observed > new Date() ? new Date() : observed, mapping: mapping as Prisma.InputJsonValue,
       },
       select: { id: true, fileHash: true, sourceKey: true, sourceUrl: true, lawfulSourceNote: true, observedAt: true, summary: true },
     });
@@ -60,13 +70,13 @@ export async function importApprovedCandidates(actor: PlatformSalesActor, opts: 
     for (const [row, r] of res.rows as Map<number, ImportRowResult>) {
       const candidateId = rowToCandidate.get(row);
       if (!candidateId) continue;
-      const base = { importBatchId: batch.id, importedAt: now, importErrorCode: null };
+      const base = { importBatchId: batch.id, importedAt: now, importErrorCode: null, importAttempts: { increment: 1 }, importLastAttemptAt: now };
       if (r.kind === "CREATED") { tally.created++; createdIds.push(r.prospectId!); await tx.crmDiscoveryCandidate.update({ where: { id: candidateId }, data: { ...base, importState: "CREATED", importedProspectId: r.prospectId } }); }
       else if (r.kind === "LINKED" || (r.kind === "ALREADY_IMPORTED" && r.prospectId)) { tally.linked++; linkedIds.push(r.prospectId!); await tx.crmDiscoveryCandidate.update({ where: { id: candidateId }, data: { ...base, importState: "LINKED", importedProspectId: r.prospectId } }); }
       else if (r.kind === "REVIEW") { tally.sentToReview++; if (r.prospectId) reviewIds.push(r.prospectId); await tx.crmDiscoveryCandidate.update({ where: { id: candidateId }, data: { ...base, importState: "SENT_TO_REVIEW", matchProspectId: r.prospectId ?? undefined } }); }
       else { tally.skipped++; await tx.crmDiscoveryCandidate.update({ where: { id: candidateId }, data: { ...base, importState: "SKIPPED" } }); }
     }
-    await writeCrmAudit({ actorUserId: actor.userId, action: "LEAD_RADAR_IMPORT_COMPLETED", entityType: "CrmImportBatch", entityId: batch.id, metadata: { ...tally, failed, candidates: cands.length, sourceKey: LEAD_RADAR_SOURCE_KEY } }, tx);
+    await writeCrmAudit({ actorUserId: actor.userId, action: "LEAD_RADAR_IMPORT_COMPLETED", entityType: "CrmImportBatch", entityId: batch.id, metadata: { ...tally, failed, candidates: cands.length, sourceKey: LEAD_RADAR_SOURCE_KEY, ...(auto ? { policyVersion: auto.policyVersion, automatic: true } : {}) } }, tx);
     return { batchId: batch.id as string | null, claimed: cands.length, ...tally, failed, createdProspectIds: createdIds, linkedProspectIds: linkedIds, reviewProspectIds: reviewIds, unassignedCreated: createdIds.length };
-  }, { timeout: 120_000, maxWait: 10_000 });
+  }, { timeout: auto?.timeoutMs ?? 120_000, maxWait: 10_000 });
 }

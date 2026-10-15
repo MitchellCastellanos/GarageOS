@@ -46,6 +46,8 @@ export default async function CandidatesPage({ searchParams }: { searchParams: P
           {sel("match", k.match, Object.entries(k.matchStates), k.allMatch)}
           {sel("imp", k.imp, Object.entries(k.importStates), k.allImp)}
           {sel("chain", k.chain, Object.entries(k.chainSignals), k.anyChain)}
+          {sel("lane", k.lane, Object.entries(c.automation.policy.lanes).filter(([l]) => l !== "OUT_OF_SCOPE"), k.anyLane)}
+          {sel("reason", k.reason, Object.entries(c.automation.qualification.reasons), k.anyReason)}
           <label className={labelCls}>{k.minCompleteness}<input name="minCompleteness" type="number" min={0} max={100} step={5} defaultValue={f.minCompleteness ?? ""} className={inputCls} /></label>
         </div>
         <div className="flex flex-wrap gap-x-4">{chk("hasPhone", k.hasPhone)}{chk("hasWebsite", k.hasWebsite)}{chk("hasEmail", k.hasEmail)}{chk("licenseBlocked", k.licenseBlocked)}</div>

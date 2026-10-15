@@ -84,10 +84,22 @@ export async function stageChunk(tx: Tx, run: { id: string; scope: DiscoveryScop
       const changed = prev.contentFingerprint !== c.contentFingerprint;
       // An approval was given on the OLD facts (or an old licence verdict): any material change sends it back to a human.
       const invalidated = prev.reviewState === "APPROVED" && (changed || !c.licenseOk || c.tier === "EXCLUDED");
+      const matchMoved = prev.matchState !== match.matchState || prev.matchProspectId !== match.matchProspectId;
+      const licenseMoved = !prev.licenseOk !== !c.licenseOk;
+      // Qualification is a verdict on exactly these facts: when they (or the duplicate verdict) move, the lane is cleared so the active policy
+      // re-evaluates the candidate. A HUMAN approval that a source change invalidated keeps a sticky SOURCE_CHANGED reason (only a human clears it);
+      // a POLICY approval is simply re-evaluated — the policy approves facts, not people.
+      const requalify = changed || matchMoved || licenseMoved;
+      const humanApprovalInvalidated = invalidated && prev.approvedByPolicyVersion === null;
       updates.push(tx.crmDiscoveryCandidate.update({
         where: { id: prev.id },
-        data: { lastRunId: run.id, lastSeenRelease: run.release, ...(changed || !prev.licenseOk !== !c.licenseOk ? facts : { qualityFlags: c.qualityFlags }), ...match, matchedAt: now,
-          ...(invalidated ? { reviewState: "PENDING" as const, reviewedByUserId: null, reviewedAt: null } : {}) },
+        data: {
+          lastRunId: run.id, lastSeenRelease: run.release, ...(changed || licenseMoved ? facts : { qualityFlags: c.qualityFlags }), ...match, matchedAt: now,
+          ...(invalidated ? { reviewState: "PENDING" as const, reviewedByUserId: null, reviewedAt: null, approvedByPolicyVersion: null } : {}),
+          ...(requalify ? { qualificationLane: null, qualificationPolicyVersion: null, qualifiedAt: null, qualificationReasons: humanApprovalInvalidated ? ["SOURCE_CHANGED"] : [] } : {}),
+          // A candidate whose import failed on validation/territory grounds gets a fresh chance only when its facts actually changed.
+          ...(changed && (prev.importState === "FAILED" || prev.importState === "SKIPPED") ? { importState: "NOT_IMPORTED" as const, importErrorCode: null, importAttempts: 0, importLastAttemptAt: null } : {}),
+        },
       }));
       tally.stagedUpdated++;
     }

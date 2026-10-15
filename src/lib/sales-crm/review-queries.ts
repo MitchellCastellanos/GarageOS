@@ -82,7 +82,7 @@ export async function listSellerAvailability(actor: PlatformSalesActor) {
   const staff = await db.platformSalesStaff.findMany({
     where: { status: "ACTIVE", role: "SALES_REP", ...(actor.all ? {} : { id: { in: [...actor.scopeStaffIds] } }) },
     orderBy: { user: { name: "asc" } },
-    select: { id: true, salesMode: true, acceptsAutoAssignment: true, maxActiveLeads: true, coverageTerritoryKeys: true, user: { select: { name: true } }, _count: { select: { prospects: { where: { status: "ACTIVE", doNotContact: false } } } } },
+    select: { id: true, salesMode: true, acceptsAutoAssignment: true, maxActiveLeads: true, maxActiveFieldLeads: true, maxActiveRemoteLeads: true, leadLanguages: true, coverageTerritoryKeys: true, user: { select: { name: true } }, _count: { select: { prospects: { where: { status: "ACTIVE", doNotContact: false } } } } },
   });
-  return staff.map((s) => ({ id: s.id, name: s.user.name, mode: s.salesMode, accepts: s.acceptsAutoAssignment, cap: s.maxActiveLeads, coverage: s.coverageTerritoryKeys, workload: s._count.prospects }));
+  return staff.map((s) => ({ id: s.id, name: s.user.name, mode: s.salesMode, accepts: s.acceptsAutoAssignment, cap: s.maxActiveLeads, fieldCap: s.maxActiveFieldLeads, remoteCap: s.maxActiveRemoteLeads, languages: s.leadLanguages, coverage: s.coverageTerritoryKeys, workload: s._count.prospects }));
 }

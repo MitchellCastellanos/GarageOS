@@ -186,7 +186,11 @@ test("access matrix: Super Admin always; managers only when allowed (review, nev
 
 // ── static guards ───────────────────────────────────────────────────────────────────────────────────────────────────
 const walk = (dir: string): string[] => readdirSync(dir).flatMap((f) => { const p = path.join(dir, f); return statSync(p).isDirectory() ? walk(p) : [p]; });
-const sources = () => [...walk(path.join(root, "src/lib/lead-radar")), ...walk(path.join(root, "src/domain/lead-radar")), path.join(root, "src/actions/lead-radar.ts")].filter((f) => /\.tsx?$/.test(f));
+// The AUTOMATION LAYER (policy → handoff → assignment → eligibility → pilot enrollment) deliberately reads and, for assignment/enrollment, writes outreach and ownership
+// tables, so it is held to its own, narrower static guards in tests/lead-radar-automation-domain.test.ts (never creates or sends a message, reads no credential,
+// gated by two switches + lease, every action re-checks Super Admin). EVERYTHING ELSE here (acquisition, staging, review, import, budget) keeps the original strict guard.
+const AUTOMATION_LAYER = new Set(["automation.ts", "eligibility.ts", "dashboard.ts"]);
+const sources = () => [...walk(path.join(root, "src/lib/lead-radar")), ...walk(path.join(root, "src/domain/lead-radar")), path.join(root, "src/actions/lead-radar.ts")].filter((f) => /\.tsx?$/.test(f) && !(f.includes("src/lib/lead-radar/") && AUTOMATION_LAYER.has(path.basename(f))));
 
 test("every Lead Radar server action re-checks authorization on the server before doing anything", () => {
   const src = readFileSync(path.join(root, "src/actions/lead-radar.ts"), "utf8");

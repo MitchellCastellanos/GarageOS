@@ -2493,6 +2493,11 @@ model PlatformSalesStaff {
   acceptsAutoAssignment Boolean              @default(true)
   /// Lead Engine: optional cap on active owned prospects for automatic distribution (null = no cap).
   maxActiveLeads        Int?
+  /// Lead Engine: optional per-lane caps (active owned prospects assigned automatically as FIELD / REMOTE). null = no cap for that lane.
+  maxActiveFieldLeads   Int?
+  maxActiveRemoteLeads  Int?
+  /// Business languages this seller can work in. Empty = any. A prospect with an UNKNOWN language is compatible with everyone.
+  leadLanguages         CrmLanguage[]        @default([])
   // ── Corporate identity: `User.email` is the corporate login (@garage-os.ca once assigned); the personal recovery
   // address below is private, never used in prospect-facing mail, and must be verified before it can recover an account.
   recoveryEmail            String?
@@ -2629,9 +2634,14 @@ model CrmProspect {
   /// Manual release of FIELD acquisition to REMOTE by a manager/Super Admin (acquisition eligibility only — never an
   /// ownership transfer). Cleared by "return to FIELD priority". NULL = not released.
   remoteReleasedAt   DateTime?
+  /// Which acquisition lane the prospect was assigned under (FIELD-held territory vs REMOTE). Set by automatic assignment; NULL = assigned
+  /// manually / before this column existed (reporting then derives it from the territory rule).
+  assignmentMode     SalesMode?
+  autoAssignedAt     DateTime?
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
 
+  outreachEligibility CrmOutreachEligibility?
   observations     CrmSourceObservation[]
   duplicateReviews CrmDuplicateReview[]
   contacts      CrmContact[]
@@ -2654,6 +2664,7 @@ model CrmProspect {
   @@index([postalKey])
   @@index([territoryState, territoryKey])
   @@index([territoryKey, fieldPriorityStartedAt])
+  @@index([assignedStaffId, assignmentMode])
   @@schema("garageos")
 }
 
@@ -3365,9 +3376,12 @@ model CrmSequenceEnrollment {
   stopReason       String?
   enrolledByUserId String
   stoppedByUserId  String?
+  /// Set only for enrollments created by the Lead Radar outreach pilot (measurable, separable from manual enrollments).
+  autoEnrolledAt   DateTime?
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
 
+  @@index([autoEnrolledAt])
   @@index([status, nextRunAt])
   @@index([prospectId, status])
   @@index([contactId, status])
@@ -4022,11 +4036,24 @@ model CrmDiscoveryCandidate {
   importedProspectId String?
   importErrorCode    String?
   importedAt         DateTime?
+  /// Retry bookkeeping for the automatic importer (transient failures only; validation failures wait for changed facts).
+  importAttempts      Int       @default(0)
+  importLastAttemptAt DateTime?
+
+  // ── Autonomous qualification (versioned policy). NULL lane/version = not evaluated under the active policy yet.
+  qualificationLane          CrmQualificationLane?
+  qualificationReasons       String[]              @default([])
+  qualificationPolicyVersion Int?
+  qualifiedAt                DateTime?
+  /// Set only while the current APPROVED state was granted by the policy (never by a human). Cleared when the approval is revoked/invalidated.
+  approvedByPolicyVersion    Int?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([source, sourceRecordId])
+  @@index([qualificationLane, reviewState, importState])
+  @@index([qualificationPolicyVersion, importState])
   @@index([reviewState, tier, province])
   @@index([importState, importBatchId])
   @@index([matchState])
@@ -4075,5 +4102,130 @@ model CrmDiscoverySettings {
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
+  @@schema("garageos")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// National Lead Radar — automation by approved policy (qualification → CRM handoff → assignment → outreach eligibility).
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+
+enum CrmQualificationLane {
+  AUTO_ELIGIBLE
+  HUMAN_REVIEW
+  BLOCKED
+
+  @@schema("garageos")
+}
+
+enum CrmLeadPolicyStatus {
+  DRAFT
+  ACTIVE
+  SUPERSEDED
+
+  @@schema("garageos")
+}
+
+enum CrmAutomationRunStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+  SKIPPED
+
+  @@schema("garageos")
+}
+
+enum CrmOutreachDecision {
+  ELIGIBLE
+  NOT_ELIGIBLE
+
+  @@schema("garageos")
+}
+
+/// Immutable, versioned qualification policy. `rules` is validated by the application (domain/lead-radar/qualification.ts). A draft must be
+/// PREVIEWED (previewHash = rulesHash) before it can be activated; exactly one policy is ACTIVE (partial unique index in the migration).
+model CrmLeadPolicy {
+  id                String              @id @default(cuid())
+  version           Int                 @unique
+  name              String
+  note              String?
+  status            CrmLeadPolicyStatus @default(DRAFT)
+  rules             Json
+  rulesHash         String
+  previewHash       String?
+  previewedAt       DateTime?
+  previewSummary    Json?
+  createdByUserId   String
+  activatedByUserId String?
+  activatedAt       DateTime?
+  supersededAt      DateTime?
+  createdAt         DateTime            @default(now())
+
+  @@index([status])
+  @@schema("garageos")
+}
+
+/// Singleton. EVERYTHING is off by default; nothing in this row can send an email (sending stays governed by CrmCommsSettings + the send policy).
+model CrmLeadAutomation {
+  id                  String    @id @default("default")
+  /// Master switch for the automation tick (qualification, import, assignment, eligibility, pilot).
+  enabled             Boolean   @default(false)
+  qualifyEnabled      Boolean   @default(true)
+  importEnabled       Boolean   @default(true)
+  assignEnabled       Boolean   @default(true)
+  eligibilityEnabled  Boolean   @default(true)
+  pausedReason        String?
+  pausedAt            DateTime?
+  /// Explicit allow-list of ACTIVE SALES_REP staff ids that may receive automatically assigned leads. Empty = nobody (no guessing).
+  assignStaffIds      String[]  @default([])
+  /// Policy-governed return of UNTOUCHED auto-assigned prospects when their seller pauses or is deactivated.
+  releaseUnavailable  Boolean   @default(false)
+  importChunkSize     Int       @default(100)
+  // ── Controlled outreach pilot (explicit activation; caps)
+  pilotEnabled        Boolean   @default(false)
+  pilotSequenceId     String?
+  pilotDailyCap       Int       @default(10)
+  pilotTotalCap       Int       @default(50)
+  pilotActivatedByUserId String?
+  pilotActivatedAt    DateTime?
+  // ── Single-runner lease (compare-and-set)
+  leaseOwner          String?
+  leaseUntil          DateTime?
+  lastTickAt          DateTime?
+  updatedByUserId     String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@schema("garageos")
+}
+
+/// One row per automation tick: durable progress and the error trail (codes and counters only — no business data).
+model CrmLeadAutomationRun {
+  id            String                 @id @default(cuid())
+  trigger       String
+  status        CrmAutomationRunStatus @default(RUNNING)
+  policyVersion Int?
+  counters      Json                   @default("{}")
+  errorCode     String?
+  startedAt     DateTime               @default(now())
+  finishedAt    DateTime?
+
+  @@index([startedAt])
+  @@schema("garageos")
+}
+
+/// Latest outreach-eligibility assessment of a prospect. It is NOT permission to send: every send still passes the live send policy.
+/// Eligible only when a valid, reviewed CASL basis exists for an emailable contact and the assigned seller's sender identity is ready.
+model CrmOutreachEligibility {
+  id          String              @id @default(cuid())
+  prospectId  String              @unique
+  prospect    CrmProspect         @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  contactId   String?
+  staffId     String?
+  decision    CrmOutreachDecision
+  reasons     String[]            @default([])
+  evaluatedAt DateTime            @default(now())
+
+  @@index([decision])
+  @@index([staffId, decision])
   @@schema("garageos")
 }

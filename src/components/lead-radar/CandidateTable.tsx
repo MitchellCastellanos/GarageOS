@@ -13,7 +13,7 @@ export interface CandidateRow {
   id: string; name: string; address: string | null; city: string | null; province: string | null; postalCode: string | null; phone: string | null; website: string | null; email: string | null;
   territoryKey: string | null; taxonomyPrimary: string | null; tier: string; classReasons: string[]; chainSignal: string; sourceConfidence: number | null; completeness: number; qualityFlags: string[];
   licenses: string[]; datasets: string[]; licenseOk: boolean; lastSeenRelease: string; reviewState: string; reviewNote: string | null; matchState: string; matchReasons: string[]; importState: string;
-  importErrorCode: string | null; changedSinceImport: boolean;
+  importErrorCode: string | null; changedSinceImport: boolean; qualificationLane: string | null; qualificationReasons: string[]; approvedByPolicyVersion: number | null;
   eligibility: { eligible: boolean; reasons: string[] };
   match: { id: string; visible: boolean; name: string | null; owned: boolean } | null;
   imported: { id: string; visible: boolean } | null;
@@ -74,6 +74,8 @@ export function CandidateTable({ locale, rows, approvedCount }: { locale: "en" |
                     <h3 className="min-w-0 break-words font-semibold text-slate-900">{r.name}</h3>
                     <Badge tone={TIER_TONE[r.tier]}>{k.tiers[r.tier]}</Badge>
                     <Badge tone={REVIEW_TONE[r.reviewState]}>{k.reviewStates[r.reviewState]}</Badge>
+                    {r.qualificationLane && <Badge tone={r.qualificationLane === "AUTO_ELIGIBLE" ? "bg-emerald-50 text-emerald-800" : r.qualificationLane === "BLOCKED" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-900"}>{c.automation.policy.lanes[r.qualificationLane]}{r.approvedByPolicyVersion ? ` · v${r.approvedByPolicyVersion}` : ""}</Badge>}
+                    {r.qualificationReasons.filter((x) => x !== "AUTO_LINK_EXISTING").slice(0, 3).map((x) => <span key={x} className="text-xs text-slate-500">{c.automation.qualification.reasons[x] ?? x}</span>)}
                     {r.importState !== "NOT_IMPORTED" && <Badge tone="bg-emerald-100 text-emerald-800">{k.importStates[r.importState]}</Badge>}
                     {r.changedSinceImport && <Badge tone="bg-amber-100 text-amber-900">{k.changedSinceImport}</Badge>}
                   </div>

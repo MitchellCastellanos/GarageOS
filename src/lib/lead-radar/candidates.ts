@@ -24,6 +24,8 @@ export const candidateFilterSchema = z.object({
   match: optEnum(["NEW", "EXISTING_STRONG", "AMBIGUOUS", "BRANCH_OF_EXISTING"] as const),
   imp: optEnum(["NOT_IMPORTED", "CREATED", "LINKED", "SENT_TO_REVIEW", "SKIPPED", "FAILED"] as const),
   chain: optEnum(["CHAIN_SIGNAL", "NO_CHAIN_SIGNAL"] as const),
+  lane: optEnum(["AUTO_ELIGIBLE", "HUMAN_REVIEW", "BLOCKED"] as const),
+  reason: z.string().regex(/^[A-Z_]{3,40}$/).optional().catch(undefined),
   minCompleteness: z.coerce.number().int().min(0).max(100).optional().catch(undefined),
   hasPhone: z.enum(["1"]).optional().catch(undefined),
   hasWebsite: z.enum(["1"]).optional().catch(undefined),
@@ -45,6 +47,8 @@ export function whereFor(f: CandidateFilters): Prisma.CrmDiscoveryCandidateWhere
   if (f.match) and.push({ matchState: f.match });
   if (f.imp) and.push({ importState: f.imp });
   if (f.chain) and.push({ chainSignal: f.chain });
+  if (f.lane) and.push({ qualificationLane: f.lane });
+  if (f.reason) and.push({ qualificationReasons: { has: f.reason } });
   if (f.minCompleteness !== undefined) and.push({ completeness: { gte: f.minCompleteness } });
   if (f.hasPhone) and.push({ phone: { not: null } });
   if (f.hasWebsite) and.push({ website: { not: null } });
@@ -65,7 +69,7 @@ export async function listCandidates(actor: PlatformSalesActor, f: CandidateFilt
         id: true, name: true, address: true, city: true, province: true, postalCode: true, phone: true, website: true, email: true, territoryKey: true, taxonomyPrimary: true, tier: true,
         industry: true, classReasons: true, chainSignal: true, sourceConfidence: true, completeness: true, qualityFlags: true, licenses: true, datasets: true, licenseOk: true,
         lastSeenRelease: true, reviewState: true, reviewNote: true, matchState: true, matchProspectId: true, matchReasons: true, importState: true, importedProspectId: true,
-        importErrorCode: true, changedSinceImport: true,
+        importErrorCode: true, changedSinceImport: true, qualificationLane: true, qualificationReasons: true, approvedByPolicyVersion: true,
       },
     }),
   ]);
@@ -105,9 +109,11 @@ export async function reviewCandidates(actor: PlatformSalesActor, idsIn: readonl
       id: { in: ids }, importState: { in: [...CHANGEABLE] }, reviewState: { not: decision },
       ...(decision === "APPROVED" ? { licenseOk: true, tier: { not: "EXCLUDED" } } : {}),
     },
+    // A human decision always takes the candidate out of policy ownership (approvedByPolicyVersion). Re-opening a candidate also clears any sticky
+    // exception reason so the active policy evaluates it afresh.
     data: decision === "PENDING"
-      ? { reviewState: "PENDING", reviewedByUserId: null, reviewedAt: null, reviewNote: null }
-      : { reviewState: decision, reviewedByUserId: actor.userId, reviewedAt: new Date(), reviewNote: cleanNote },
+      ? { reviewState: "PENDING", reviewedByUserId: null, reviewedAt: null, reviewNote: null, approvedByPolicyVersion: null, qualificationLane: null, qualificationPolicyVersion: null, qualifiedAt: null, qualificationReasons: [] }
+      : { reviewState: decision, reviewedByUserId: actor.userId, reviewedAt: new Date(), reviewNote: cleanNote, approvedByPolicyVersion: null },
   });
   const result = { requested: ids.length, updated: upd.count, unchanged: unchanged.length, blocked: blocked.length, alreadyImported: locked.length, notFound: ids.length - found.size };
   if (upd.count > 0) await writeCrmAudit({ actorUserId: actor.userId, action: "LEAD_RADAR_CANDIDATES_REVIEWED", entityType: "CrmDiscoveryCandidate", metadata: { decision, ids: ids.slice(0, MAX_REVIEW_BATCH), ...result } });

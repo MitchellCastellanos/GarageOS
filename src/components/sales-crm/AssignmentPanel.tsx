@@ -6,7 +6,7 @@ import { Badge, btnPrimary, btnSecondary, cardCls, inputCls, labelCls } from "@/
 import { FormMessage, useCrmAction } from "@/components/sales-crm/useCrmAction";
 import { leadCopy } from "@/lib/admin-locale/sales-lead-engine";
 
-type Seller = { id: string; name: string; mode: "FIELD" | "REMOTE"; accepts: boolean; cap: number | null; coverage: string[]; workload: number };
+type Seller = { id: string; name: string; mode: "FIELD" | "REMOTE"; accepts: boolean; cap: number | null; fieldCap: number | null; remoteCap: number | null; languages: string[]; coverage: string[]; workload: number };
 type PreviewResult = Extract<Awaited<ReturnType<typeof previewAssignmentRun>>, { ok: true }>;
 
 export function AssignmentPanel({ locale, sellers, territories, isSuperAdmin }: { locale: "en" | "fr"; sellers: Seller[]; territories: { key: string; name: string }[]; isSuperAdmin: boolean }) {
@@ -69,10 +69,13 @@ export function AssignmentPanel({ locale, sellers, territories, isSuperAdmin }: 
         <ul className="space-y-3">
           {sellers.map((s) => (
             <li key={s.id} className="rounded-lg border border-slate-200 p-3">
-              <form className="grid gap-3 sm:grid-cols-[1fr_auto_8rem_auto] sm:items-end" action={(fd) => { run(() => setStaffAssignmentSettings(s.id, fd)); }}>
+              <form className="grid gap-3 sm:grid-cols-[1fr_auto_8rem_8rem_8rem_auto_auto] sm:items-end" action={(fd) => { run(() => setStaffAssignmentSettings(s.id, fd)); }}>
                 <p className="min-w-0 break-words text-sm font-medium text-slate-900">{s.name} <Badge>{a.mode[s.mode]}</Badge> <span className="text-xs font-normal text-slate-500">{a.workload}: {s.workload}</span></p>
                 <label className="flex min-h-11 items-center gap-2 text-sm text-slate-700"><input type="checkbox" name="acceptsAutoAssignment" defaultChecked={s.accepts} className="h-4 w-4" /> {a.acceptsAuto}</label>
                 <label className={labelCls}><span className="text-xs">{a.cap}</span><input className={inputCls} name="maxActiveLeads" inputMode="numeric" defaultValue={s.cap ?? ""} /></label>
+                <label className={labelCls}><span className="text-xs">{a.capField}</span><input className={inputCls} name="maxActiveFieldLeads" inputMode="numeric" defaultValue={s.fieldCap ?? ""} /></label>
+                <label className={labelCls}><span className="text-xs">{a.capRemote}</span><input className={inputCls} name="maxActiveRemoteLeads" inputMode="numeric" defaultValue={s.remoteCap ?? ""} /></label>
+                <fieldset className="flex min-h-11 items-center gap-3 text-sm text-slate-700"><legend className="sr-only">{a.languages}</legend><span className="text-xs">{a.languages}</span>{(["FR", "EN"] as const).map((l) => <label key={l} className="flex items-center gap-1"><input type="checkbox" name={`lang${l}`} defaultChecked={s.languages.includes(l)} className="h-4 w-4" />{l}</label>)}</fieldset>
                 <button className={btnSecondary} disabled={pending}>{a.save}</button>
               </form>
             </li>

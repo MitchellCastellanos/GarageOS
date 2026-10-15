@@ -6,13 +6,11 @@ import { db } from "@/lib/db";
 import { PLATFORM } from "@/lib/routes";
 import { requireCrmActor } from "@/lib/sales-crm/access";
 import { writeCrmAudit } from "@/lib/sales-crm/audit";
-import { ASSIGNMENT_RUN_TTL_MS, buildAssignmentProposals, proposalStillValid } from "@/lib/sales-crm/assignment";
+import { ASSIGNMENT_RUN_TTL_MS, applyAssignmentProposals, buildAssignmentProposals } from "@/lib/sales-crm/assignment";
 import { CrmError, addressColumns, territoryColumns } from "@/lib/sales-crm/prospects";
 import { crmAction } from "@/lib/sales-crm/result";
 import { loadTerritoryRulesWith } from "@/lib/sales-crm/territory-rules";
 import type { AssignmentProposal } from "@/domain/sales-crm/assignment";
-
-const OPEN_STAGES = ["NEW", "CONTACTED", "ENGAGED", "QUALIFIED", "DEMO_SCHEDULED", "DEMO_COMPLETED", "DECISION"] as const;
 
 /** Step 1: compute who would get which unassigned prospect. Changes nothing except recording the preview. */
 export async function previewAssignmentRun(form: FormData) {
@@ -60,18 +58,7 @@ export async function confirmAssignmentRun(runId: string) {
       const proposals = (run.proposals as unknown as AssignmentProposal[]).filter((p) => p.staffId);
       const now = new Date();
       const out = await db.$transaction(async (tx) => {
-        const rules = await loadTerritoryRulesWith(tx);
-        let applied = 0, skipped = 0;
-        for (const pr of proposals) {
-          if (!(await proposalStillValid(tx, actor, pr, rules, now))) { skipped++; continue; }
-          // Compare-and-set on ownership: only an UNASSIGNED prospect can be taken.
-          const r = await tx.crmProspect.updateMany({ where: { id: pr.prospectId, assignedStaffId: null, status: "ACTIVE", doNotContact: false }, data: { assignedStaffId: pr.staffId } });
-          if (r.count !== 1) { skipped++; continue; }
-          await tx.crmOpportunity.updateMany({ where: { prospectId: pr.prospectId, stage: { in: [...OPEN_STAGES] }, assignedStaffId: null }, data: { assignedStaffId: pr.staffId } });
-          await tx.crmActivity.create({ data: { prospectId: pr.prospectId, type: "ASSIGNMENT", authorUserId: actor.userId, metadata: { from: null, to: pr.staffId, via: "auto-assignment", runId } } });
-          await writeCrmAudit({ actorUserId: actor.userId, action: "PROSPECT_ASSIGNED", entityType: "CrmProspect", entityId: pr.prospectId, prospectId: pr.prospectId, before: { assignedStaffId: null }, after: { assignedStaffId: pr.staffId }, metadata: { runId, territoryKey: pr.territoryKey } }, tx);
-          applied++;
-        }
+        const { applied, skipped } = await applyAssignmentProposals(tx, actor, proposals, { runId, via: "auto-assignment", now });
         await tx.crmAssignmentRun.update({ where: { id: runId }, data: { status: "APPLIED", appliedAt: now, appliedCount: applied, skippedCount: skipped } });
         await writeCrmAudit({ actorUserId: actor.userId, action: "ASSIGNMENT_RUN_APPLIED", entityType: "CrmAssignmentRun", entityId: runId, metadata: { applied, skipped } }, tx);
         return { applied, skipped };
@@ -104,10 +91,15 @@ export async function setStaffAssignmentSettings(staffId: string, form: FormData
     const capRaw = String(form.get("maxActiveLeads") ?? "").trim();
     const cap = capRaw === "" ? null : Number(capRaw);
     if (cap !== null && (!Number.isInteger(cap) || cap < 0 || cap > 5000)) throw new CrmError("INVALID");
-    const before = await db.platformSalesStaff.findUnique({ where: { id: staffId }, select: { acceptsAutoAssignment: true, maxActiveLeads: true } });
+    const lane = (name: string) => { const raw = String(form.get(name) ?? "").trim(); const v = raw === "" ? null : Number(raw); if (v !== null && (!Number.isInteger(v) || v < 0 || v > 5000)) throw new CrmError("INVALID"); return v; };
+    const maxActiveFieldLeads = lane("maxActiveFieldLeads"), maxActiveRemoteLeads = lane("maxActiveRemoteLeads");
+    // Business languages this seller works in (empty = any). Used by automatic assignment only; UNKNOWN-language prospects fit everyone.
+    const leadLanguages = (["FR", "EN"] as const).filter((l) => form.get(`lang${l}`) === "on" || form.get(`lang${l}`) === "true");
+    const before = await db.platformSalesStaff.findUnique({ where: { id: staffId }, select: { acceptsAutoAssignment: true, maxActiveLeads: true, maxActiveFieldLeads: true, maxActiveRemoteLeads: true, leadLanguages: true } });
     if (!before) throw new CrmError("NOT_FOUND");
-    await db.platformSalesStaff.update({ where: { id: staffId }, data: { acceptsAutoAssignment: accepts, maxActiveLeads: cap } });
-    await writeCrmAudit({ actorUserId: actor.userId, action: "STAFF_ASSIGNMENT_SETTINGS_CHANGED", entityType: "PlatformSalesStaff", entityId: staffId, staffId, before, after: { acceptsAutoAssignment: accepts, maxActiveLeads: cap } });
+    const after = { acceptsAutoAssignment: accepts, maxActiveLeads: cap, maxActiveFieldLeads, maxActiveRemoteLeads, leadLanguages };
+    await db.platformSalesStaff.update({ where: { id: staffId }, data: after });
+    await writeCrmAudit({ actorUserId: actor.userId, action: "STAFF_ASSIGNMENT_SETTINGS_CHANGED", entityType: "PlatformSalesStaff", entityId: staffId, staffId, before, after });
     revalidatePath(PLATFORM.salesAssignment);
     return {};
   });

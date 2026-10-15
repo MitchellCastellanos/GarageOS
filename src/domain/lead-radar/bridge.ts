@@ -30,4 +30,7 @@ export function candidatesToImportCsv(cands: readonly BridgeCandidate[]): { csv:
 }
 
 export const LAWFUL_SOURCE_NOTE = "Overture Maps Foundation places dataset; licences verified per record (permissive allow-list). Human-approved via National Lead Radar.";
+/** Same provenance statement, for candidates advanced by an approved qualification policy instead of one-by-one review. */
+export const lawfulSourceNoteForPolicy = (version: number) =>
+  `Overture Maps Foundation places dataset; licences verified per record (permissive allow-list). Advanced by Lead Radar qualification policy v${version} approved by a Super Admin.`;
 export const MAX_IMPORT_APPROVALS = 400;
