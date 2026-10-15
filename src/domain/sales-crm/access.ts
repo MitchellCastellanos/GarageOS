@@ -31,6 +31,11 @@ export const SALES_CAPABILITIES = [
   "approve_casl_evidence",
   // Live (paid) geocoding of existing prospects: Super Admin only (never in the REP/MANAGER sets).
   "manage_geocoding",
+  // National Lead Radar. `manage_lead_radar` = discovery runs, settings, budget (Super Admin only). `review_lead_radar` = review/approve/import
+  // staged candidates: Super Admin always; SALES_MANAGER only while a Super Admin has switched "managers may review" on (checked server-side,
+  // never granted statically so seller permissions are unchanged by default). Reps never.
+  "manage_lead_radar",
+  "review_lead_radar",
 ] as const;
 export type SalesCapability = (typeof SALES_CAPABILITIES)[number];
 

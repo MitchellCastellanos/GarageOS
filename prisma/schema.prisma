@@ -3853,3 +3853,227 @@ model CrmFieldRouteStop {
   @@index([prospectId, status])
   @@schema("garageos")
 }
+
+// ── National Lead Radar (discovery staging) ──────────────────────────────────────────────────────────────────────
+// Candidates live HERE, never in CrmProspect, until a human approves them. See docs/lead-radar/architecture.md.
+enum CrmDiscoverySource {
+  OVERTURE
+  CSV
+  OSM
+  GOOGLE_PLACES
+
+  @@schema("garageos")
+}
+
+enum CrmDiscoveryRunStatus {
+  PLANNED
+  INGESTING
+  COMPLETED
+  CANCELLED
+  FAILED
+
+  @@schema("garageos")
+}
+
+/// Automotive classification tier. PRIMARY = independent-shop style targets; SECONDARY = other automotive businesses;
+/// AMBIGUOUS = generic/unclear category that needs a human; EXCLUDED = not importable.
+enum CrmDiscoveryTier {
+  PRIMARY
+  SECONDARY
+  AMBIGUOUS
+  EXCLUDED
+
+  @@schema("garageos")
+}
+
+enum CrmDiscoveryReviewState {
+  PENDING
+  APPROVED
+  REJECTED
+
+  @@schema("garageos")
+}
+
+enum CrmDiscoveryMatchState {
+  NEW
+  EXISTING_STRONG
+  AMBIGUOUS
+  BRANCH_OF_EXISTING
+
+  @@schema("garageos")
+}
+
+enum CrmDiscoveryImportState {
+  NOT_IMPORTED
+  CREATED
+  LINKED
+  SENT_TO_REVIEW
+  SKIPPED
+  FAILED
+
+  @@schema("garageos")
+}
+
+enum CrmDiscoveryBudgetStatus {
+  RESERVED
+  SETTLED
+  RELEASED
+
+  @@schema("garageos")
+}
+
+/// One discovery job: a scoped, resumable load of source records into staging. Holds counters and capped diagnostics only.
+model CrmDiscoveryRun {
+  id                String                @id @default(cuid())
+  source            CrmDiscoverySource
+  /// Source release/version label (for Overture: the release id, e.g. "2026-09-23.1").
+  sourceRelease     String
+  status            CrmDiscoveryRunStatus @default(PLANNED)
+  /// { provinces[], cities[], territoryKeys[], tiers[], categories[] } — validated, bounded.
+  scope             Json
+  /// sha256 of the canonical scope; the uploaded extraction manifest must carry the same hash.
+  planHash          String
+  /// Extraction manifest (counts, file hash, extractor version). No record data.
+  manifest          Json?
+  expectedRecords   Int?
+  receivedRecords   Int                   @default(0)
+  stagedNew         Int                   @default(0)
+  stagedUpdated     Int                   @default(0)
+  rejectedRecords   Int                   @default(0)
+  /// Highest contiguous chunk sequence ingested; a retry of an already-applied chunk is a no-op (restartable uploads).
+  lastChunkSeq      Int                   @default(-1)
+  /// Capped list of { code, count } diagnostics. Never record contents.
+  diagnostics       Json                  @default("[]")
+  errorCode         String?
+  cancelRequestedAt DateTime?
+  createdByUserId   String
+  startedAt         DateTime?
+  finishedAt        DateTime?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+
+  candidates CrmDiscoveryCandidate[]
+
+  @@index([status, createdAt])
+  @@index([source, sourceRelease])
+  @@schema("garageos")
+}
+
+/// A discovered business awaiting human review. One row per (source, sourceRecordId) across releases. Only license-permitted
+/// fields are stored; the raw provider payload is never kept.
+model CrmDiscoveryCandidate {
+  id               String             @id @default(cuid())
+  source           CrmDiscoverySource
+  /// Provider record id (Overture GERS id). Stable key across releases.
+  sourceRecordId   String
+  firstRunId       String
+  lastRunId        String
+  lastRun          CrmDiscoveryRun    @relation(fields: [lastRunId], references: [id], onDelete: Restrict)
+  firstSeenRelease String
+  lastSeenRelease  String
+
+  name           String
+  nameNormalized String
+  address        String?
+  city           String?
+  /// Two-letter province/territory code, null when it could not be resolved.
+  province       String?
+  postalCode     String?
+  phone          String?
+  /// Business website only (social-network pages are not stored as a website).
+  website        String?
+  /// Published business email. Presence is NOT consent and never creates a sending basis.
+  email          String?
+  /// Territory key resolved from current CRM territory rules at staging time (informational; recomputed at import).
+  territoryKey   String?
+
+  taxonomyPrimary  String?
+  tier             CrmDiscoveryTier
+  /// Mapped CRM industry (CrmIndustry value) for PRIMARY/SECONDARY tiers.
+  industry         String?
+  classReasons     String[]         @default([])
+  /// "CHAIN_SIGNAL" | "NO_CHAIN_SIGNAL". Independence is never asserted.
+  chainSignal      String
+  sourceConfidence Float?
+  /// 0–100 contact completeness (name, address, phone, website, email).
+  completeness     Int
+  qualityFlags     String[]         @default([])
+
+  /// Licenses/datasets of the underlying source records (provenance). `licenseOk` false ⇒ never importable.
+  licenses           String[] @default([])
+  datasets           String[] @default([])
+  licenseOk          Boolean
+  contentFingerprint String
+  /// Set when a later release changed the business facts of an already-imported candidate (the CRM prospect is never overwritten).
+  changedSinceImport Boolean  @default(false)
+
+  reviewState      CrmDiscoveryReviewState @default(PENDING)
+  reviewedByUserId String?
+  reviewedAt       DateTime?
+  reviewNote       String?
+
+  matchState      CrmDiscoveryMatchState @default(NEW)
+  matchProspectId String?
+  matchReasons    String[]               @default([])
+  matchedAt       DateTime?
+
+  importState        CrmDiscoveryImportState @default(NOT_IMPORTED)
+  importBatchId      String?
+  importedProspectId String?
+  importErrorCode    String?
+  importedAt         DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([source, sourceRecordId])
+  @@index([reviewState, tier, province])
+  @@index([importState, importBatchId])
+  @@index([matchState])
+  @@index([province, city])
+  @@index([lastRunId])
+  @@index([nameNormalized])
+  @@schema("garageos")
+}
+
+/// National Lead Radar spending ledger. A paid operation first RESERVES its estimate (atomically, under an advisory lock),
+/// then settles to the actual cost or releases the reservation. Amounts are micro-CAD (1 CAD = 1,000,000).
+model CrmDiscoveryBudgetLedger {
+  id                String                   @id @default(cuid())
+  /// "YYYY-MM" in America/Toronto.
+  monthKey          String
+  provider          String
+  runId             String?
+  status            CrmDiscoveryBudgetStatus @default(RESERVED)
+  estimatedMicroCad Int
+  actualMicroCad    Int?
+  /// Original currency/amount and the conservative rate used (audit trail).
+  originalCurrency  String                   @default("CAD")
+  originalMicro     Int?
+  fxRateMilli       Int?
+  description       String
+  idempotencyKey    String                   @unique
+  createdByUserId   String?
+  createdAt         DateTime                 @default(now())
+  settledAt         DateTime?
+
+  @@index([monthKey, status])
+  @@index([runId])
+  @@schema("garageos")
+}
+
+/// Singleton. Live discovery is OFF by default; the monthly budget can only be LOWERED below the code-level hard cap.
+model CrmDiscoverySettings {
+  id                    String   @id @default("default")
+  enabled               Boolean  @default(false)
+  monthlyBudgetMicroCad Int      @default(25000000)
+  /// Conservative USD→CAD multiplier ×1000 (1450 = 1.450). Used for every USD-denominated estimate.
+  usdToCadMilli         Int      @default(1450)
+  /// Super Admin explicitly lets SALES_MANAGERs review/approve candidates (default: Super Admin only).
+  managersCanReview     Boolean  @default(false)
+  updatedByUserId       String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@schema("garageos")
+}
