@@ -59,7 +59,7 @@ function LiveMap({ points, background, onPick, onViewChange, onFailed, tall, con
   const markers = useRef<import("maplibre-gl").Marker[]>([]);
   const pick = useRef(onPick);
   const fitted = useRef("");
-  const [ready, setReady] = useState(false);
+  const [ready, setReady] = useState(false), [lineReady, setLineReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const viewCb = useRef(onViewChange), lastView = useRef<string | null>(null), renderRef = useRef<() => void>(() => {});
   const failedCb = useRef(onFailed);
@@ -80,10 +80,17 @@ function LiveMap({ points, background, onPick, onViewChange, onFailed, tall, con
         m.addControl(new maplibre.NavigationControl({ showCompass: false }), "top-right");
         m.on("error", () => { if (!cancelled) setFailed(true); });
         m.on("moveend", () => renderRef.current());
+        m.on("load", () => {
+          if (cancelled) return;
+          m.addSource("route", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+          m.addLayer({ id: "route-casing", type: "line", source: "route", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#ffffff", "line-width": 6, "line-opacity": 0.9 } });
+          m.addLayer({ id: "route-line", type: "line", source: "route", layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": "#1e293b", "line-width": 3 } });
+          setLineReady(true);
+        });
         setReady(true);
       } catch { if (!cancelled) setFailed(true); }
     })();
-    return () => { cancelled = true; markers.current.forEach((x) => x.remove()); markers.current = []; mapRef.current?.remove(); mapRef.current = null; setReady(false); };
+    return () => { cancelled = true; markers.current.forEach((x) => x.remove()); markers.current = []; mapRef.current?.remove(); mapRef.current = null; setReady(false); setLineReady(false); };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `cfgKey` captures every config input that matters
   }, [cfgKey]);
 
@@ -144,6 +151,15 @@ function LiveMap({ points, background, onPick, onViewChange, onFailed, tall, con
       markers.current.push(new lib.Marker({ element: node }).setLngLat([p.lng, p.lat]).addTo(m));
     }
   }; });
+
+  // The recommended/ordered path through the stops, drawn live so "Suggest order" and manual reordering show immediately.
+  useEffect(() => {
+    const src = mapRef.current?.getSource("route") as import("maplibre-gl").GeoJSONSource | undefined;
+    if (!lineReady || !src) return;
+    const coordinates = [...points].sort((a, b) => a.n - b.n).map((p) => [p.lng, p.lat]);
+    src.setData({ type: "FeatureCollection", features: coordinates.length > 1 ? [{ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates } }] : [] });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `pointsKey` captures every input that matters (including the order `n`)
+  }, [lineReady, pointsKey]);
 
   useEffect(() => {
     const m = mapRef.current, lib = libRef.current;
