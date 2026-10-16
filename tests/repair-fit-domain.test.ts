@@ -72,7 +72,9 @@ test("dealer-affiliated / OEM-branded listings and tire retail are reviewed", ()
 
 test("incomplete or contradictory evidence is never VERIFIED and handles empty input", () => {
   assert.equal(fit("", null).fit, "HUMAN_REVIEW");
-  assert.equal(fit("   ", REPAIR_CODE).fit, "VERIFIED_REPAIR", "a known repair category with no contrary signal is category evidence");
+  assert.equal(fit("   ", REPAIR_CODE).fit, "HUMAN_REVIEW", "a category alone, with a name that says nothing about vehicles, is no longer enough to verify (two independent signals)");
+  assert.deepEqual(fit("   ", REPAIR_CODE).reasons, ["NO_AUTOMOTIVE_WORDING"]);
+  assert.equal(fit("Garage Tremblay", REPAIR_CODE).fit, "VERIFIED_REPAIR");
   assert.equal(assessRepairFit({ name: null }).fit, "HUMAN_REVIEW");
   assert.equal(fit("Zenith", "some_unknown_code").fit, "HUMAN_REVIEW");
 });
@@ -90,4 +92,17 @@ test("real Alberta rehearsal findings: industrial/oil-field/truck-body/coating n
   assert.equal(f("Mr. Lube + Tires", "oil_change_station"), "VERIFIED_REPAIR");
   assert.equal(f("Garage Remorquage Roy", "automotive_repair"), "VERIFIED_REPAIR");
   assert.equal(f("Showroom 674 Auto Detailing", "auto_detailing"), "EXCLUDED");
+  assert.equal(f("Full Throttle Cycle Inc.", "motorcycle_repair"), "HUMAN_REVIEW", "motorcycle shop, not a bicycle shop");
+  assert.equal(f("Atelier Montgomery Cycle", "automotive_repair"), "EXCLUDED", "the bicycle exclusion for car-category listings is unchanged");
+  assert.equal(f("Meggie at Mighty Peace", "automotive_repair"), "HUMAN_REVIEW");
+  assert.equal(f("Tonno Cover Depot", "automotive_repair"), "HUMAN_REVIEW");
+  assert.equal(f("The Steering Wheel Guy", "automotive_repair"), "HUMAN_REVIEW");
+  assert.equal(f("Garage Meggie at Mighty Peace Auto Repair", "automotive_repair"), "VERIFIED_REPAIR", "a named repair business is not an employee listing");
+});
+
+test("real Alberta rehearsal: a loose repair category with a name that says nothing about vehicles goes to a person; real garages with automotive wording or a known chain stay verified", () => {
+  const f = (name: string, code = "automotive_repair", classReasons: string[] = []) => assessRepairFit({ name, taxonomyPrimary: code, classReasons }).fit;
+  for (const n of ["Pro Trac Gear", "Phantom Films", "Garner's Fuel Oils", "Gasoline Alley Business Centre Ltd", "The Concrete Doctors Ltd", "Roda Deaco Valve Inc", "Raynard Supply Ltd"]) assert.equal(f(n), "HUMAN_REVIEW", n);
+  for (const n of ["Tee Jays Mechanical", "Toytech Auto", "Bow Island Auto Service", "Great Canadian Oil Change", "Moonshine Hotrod Shop", "Cams and cranks", "Elite PDR Specialists", "Atelier Dupont", "Calgary Autocare", "Tireland", "Krown Rust Control"]) assert.equal(f(n), "VERIFIED_REPAIR", n);
+  assert.equal(f("Signature", "automotive_repair", ["CHAIN_NAME"]), "VERIFIED_REPAIR", "a chain-named listing keeps its category evidence");
 });

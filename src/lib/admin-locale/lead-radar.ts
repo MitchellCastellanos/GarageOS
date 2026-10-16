@@ -68,7 +68,7 @@ const en = {
     colName: "Business", colPlace: "Location", colContact: "Contact", colClass: "Classification", colQuality: "Quality", colMatch: "CRM match", colStatus: "Status",
     tiers: { PRIMARY: "Primary target", SECONDARY: "Secondary", AMBIGUOUS: "Needs a human look", EXCLUDED: "Excluded" } as Record<string, string>,
     reviewStates: { PENDING: "Pending", APPROVED: "Approved", REJECTED: "Rejected" } as Record<string, string>,
-    matchStates: { NEW: "New", EXISTING_STRONG: "Matches an existing prospect", AMBIGUOUS: "Ambiguous match", BRANCH_OF_EXISTING: "Branch of an existing business" } as Record<string, string>,
+    matchStates: { NEW: "New", EXISTING_STRONG: "Matches an existing prospect", AMBIGUOUS: "Ambiguous match", BRANCH_OF_EXISTING: "Same brand/name as an existing business elsewhere (advisory)" } as Record<string, string>,
     importStates: { NOT_IMPORTED: "Not imported", CREATED: "Prospect created", LINKED: "Linked to existing", SENT_TO_REVIEW: "Sent to duplicate review", SKIPPED: "Skipped", FAILED: "Import failed" } as Record<string, string>,
     chainSignals: { CHAIN_SIGNAL: "Chain / brand signal", NO_CHAIN_SIGNAL: "No chain signal (independence not verified)" } as Record<string, string>,
     flags: {
@@ -163,7 +163,7 @@ const fr: Dict = {
     colName: "Entreprise", colPlace: "Emplacement", colContact: "Coordonnées", colClass: "Classification", colQuality: "Qualité", colMatch: "Correspondance CRM", colStatus: "Statut",
     tiers: { PRIMARY: "Cible principale", SECONDARY: "Secondaire", AMBIGUOUS: "À examiner par une personne", EXCLUDED: "Exclu" },
     reviewStates: { PENDING: "En attente", APPROVED: "Approuvé", REJECTED: "Rejeté" },
-    matchStates: { NEW: "Nouveau", EXISTING_STRONG: "Correspond à un prospect existant", AMBIGUOUS: "Correspondance ambiguë", BRANCH_OF_EXISTING: "Succursale d’une entreprise existante" },
+    matchStates: { NEW: "Nouveau", EXISTING_STRONG: "Correspond à un prospect existant", AMBIGUOUS: "Correspondance ambiguë", BRANCH_OF_EXISTING: "Même marque/nom qu’une entreprise existante ailleurs (indicatif)" },
     importStates: { NOT_IMPORTED: "Non importé", CREATED: "Prospect créé", LINKED: "Lié à un existant", SENT_TO_REVIEW: "Envoyé en révision des doublons", SKIPPED: "Ignoré", FAILED: "Échec d’importation" },
     chainSignals: { CHAIN_SIGNAL: "Signal de chaîne / marque", NO_CHAIN_SIGNAL: "Aucun signal de chaîne (indépendance non vérifiée)" },
     flags: {

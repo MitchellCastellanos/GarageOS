@@ -1,0 +1,63 @@
+{
+ "thresholds": {
+  "verifiedPrecisionGo": 0.9,
+  "verifiedPrecisionStop": 0.85,
+  "excludedErrorMax": 0.1,
+  "incorrectMatchesMax": 0
+ },
+ "sampled": {
+  "VERIFIED_REPAIR": 50,
+  "EXCLUDED": 50,
+  "HUMAN_REVIEW": 25,
+  "MATCHES": 10
+ },
+ "labelled": {
+  "VERIFIED_REPAIR": 50,
+  "EXCLUDED": 50,
+  "HUMAN_REVIEW": 25,
+  "MATCHES": 10
+ },
+ "unlabelled": 0,
+ "verified": {
+  "n": 50,
+  "strictPrecision": 0.6,
+  "lenientPrecision": 0.88,
+  "buckets": {
+   "REAL_REPAIR": 30,
+   "RELEVANT_SPECIALIZED": 14,
+   "COMMERCIALLY_UNSUITABLE": 2,
+   "AMBIGUOUS": 4
+  }
+ },
+ "excluded": {
+  "n": 50,
+  "wrongExclusionRate": 0,
+  "buckets": {
+   "CORRECT_EXCLUSION": 47,
+   "AMBIGUOUS": 3
+  }
+ },
+ "review": {
+  "n": 25,
+  "buckets": {
+   "AMBIGUOUS": 8,
+   "NOT_REPAIR": 2,
+   "COMMERCIALLY_UNSUITABLE": 8,
+   "RELEVANT_SPECIALIZED": 6,
+   "REAL_REPAIR": 1
+  }
+ },
+ "matches": {
+  "n": 10,
+  "incorrect": 0,
+  "buckets": {
+   "CORRECT_DUPLICATE": 10
+  }
+ },
+ "websitesChecked": 0,
+ "verdicts": {
+  "verifiedPrecision": "BORDERLINE",
+  "excludedError": "GO",
+  "matches": "GO"
+ }
+}

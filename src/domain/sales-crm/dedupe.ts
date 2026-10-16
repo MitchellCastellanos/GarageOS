@@ -6,6 +6,8 @@
 //   AMBIGUOUS → a human decides: same business, or a distinct branch?
 //   NEW       → create a prospect; `branchOf` lists existing locations of the same chain (informational warning)
 
+import { isBannerName, isSharedIdentityDomain, isTollFreeDigits } from "@/domain/sales-crm/shared-identity";
+
 export interface MatchKey {
   nameNormalized: string;
   cityKey: string;
@@ -41,7 +43,18 @@ export function comparePlace(a: MatchKey, b: MatchKey): Place {
   return "UNKNOWN";
 }
 
-export function classifyAgainstPool(c: MatchKey, pool: readonly PoolEntry[]): Classification {
+/** A key whose domain / phone cannot identify ONE business (directory, site builder, franchise banner, toll-free call centre) loses those identifiers: they are brand or
+ *  directory relationships, not proof of identity. Name, physical place, city and the remaining identifiers still decide. */
+const identifying = <T extends MatchKey>(k: T): T => ({
+  ...k, websiteDomain: k.websiteDomain && !isSharedIdentityDomain(k.websiteDomain) ? k.websiteDomain : null, phoneDigits: k.phoneDigits && !isTollFreeDigits(k.phoneDigits) ? k.phoneDigits : null,
+});
+
+export function classifyAgainstPool(candidate: MatchKey, rawPool: readonly PoolEntry[]): Classification {
+  const c = identifying(candidate);
+  const pool = rawPool.map((p) => ({ ...identifying(p), id: p.id, doNotContact: p.doNotContact }));
+  // A banner name ("NAPA AUTOPRO", "OK Tire") is carried by many unrelated locations: without an exact physical place, same name + city + a "unique" phone/domain is only a
+  // reason to ask a person, never to link records automatically.
+  const banner = isBannerName(c.nameNormalized);
   const phoneCount = new Map<string, number>(), domainCount = new Map<string, number>();
   for (const p of pool) {
     if (p.phoneDigits) phoneCount.set(p.phoneDigits, (phoneCount.get(p.phoneDigits) ?? 0) + 1);
@@ -67,7 +80,7 @@ export function classifyAgainstPool(c: MatchKey, pool: readonly PoolEntry[]): Cl
     if (place === "DIFFERENT") { if (chainSignal) branchOf.push(p.id); continue; }
     // UNKNOWN place (address data missing on at least one side): decide cautiously.
     const phoneUnique = samePhone && phoneCount.get(c.phoneDigits!) === 1, domainUnique = sameDomain && domainCount.get(c.websiteDomain!) === 1;
-    if (sameNameCity && (phoneUnique || domainUnique)) {
+    if (sameNameCity && (phoneUnique || domainUnique) && !banner) {
       strong.push({ id: p.id, reasons: [phoneUnique ? "NAME_CITY_PHONE" : "NAME_CITY_DOMAIN"] });
     } else if (sameNameCity || samePhone || sameDomain) {
       ambiguous.push({ id: p.id, reasons: [...(sameNameCity ? ["SAME_NAME_CITY" as const] : []), ...(samePhone ? ["SAME_PHONE" as const] : []), ...(sameDomain ? ["SAME_DOMAIN" as const] : [])] });

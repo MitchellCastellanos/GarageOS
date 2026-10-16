@@ -21,6 +21,14 @@ const en = {
     ackHelp: "Only do this when you know why the gate fired (for example a territory with no mappable positions). Your reason is audited. The already-staged candidates then become visible to qualification.",
     ackLabel: "Reason (at least 10 characters)", ackButton: "Acknowledge and mark completed", ackedBy: "Acknowledged",
   },
+  fit: {
+    label: "Repair fit", any: "Any repair fit", none: "Not classified",
+    values: { VERIFIED_REPAIR: "Verified repair", HUMAN_REVIEW: "Needs a person", EXCLUDED: "Excluded (not a repair shop)" } as Record<string, string>,
+    segments: { HEAVY_DUTY: "Heavy-duty / diesel: real repair, check commercial fit", LIGHT_VEHICLE: "Light vehicle" } as Record<string, string>,
+    signals: { EV_CHARGING: "EV charging", BICYCLE: "bicycle", RECYCLING_SALVAGE: "recycling / salvage", CAR_WASH: "car wash", DETAILING: "detailing", TOWING: "towing", PARTS_RETAIL: "parts retail", TAXI_EQUIPMENT: "taxi equipment", MANUFACTURER_CORPORATE: "manufacturer / corporate", OTHER_NON_REPAIR: "other non-repair", TINT_AUDIO_WRAP: "tint / audio / wrap", ACCESSORIES_ONLY: "accessories", SPECIALTY_SERVICE: "specialty service", INDUSTRIAL_OTHER: "industrial / oil-field / truck body", MOTORCYCLE: "motorcycle", TRAILER: "trailer", DEALER: "dealer", MARINE_RV: "marine / RV", TIRE_RETAIL: "tire retail" } as Record<string, string>,
+    reasons: { REPAIR_CATEGORY: "repair category", REPAIR_CATEGORY_AND_NAME: "repair category + name", REPAIR_INDUSTRY_AND_NAME: "industry + name", NON_TARGET_CATEGORY: "category is not repair", CATEGORY_NAME_CONFLICT: "category and name disagree", OEM_BRAND_NAME: "brand-named listing", EMPLOYEE_LISTING: "person listed at a business", POSSIBLE_DEALER_SERVICE: "possible dealer service", UNCERTAIN_CATEGORY: "uncertain category", INSUFFICIENT_EVIDENCE: "not enough evidence", NO_CATEGORY_EVIDENCE: "no category evidence" } as Record<string, string>,
+    branchNote: "Same brand or name as an existing business elsewhere. Advisory only: it is not the same business and nothing is linked.",
+  },
   diag: { DUPLICATE_OF_STAGED: "Duplicate of an already staged business (kept as evidence, never imported)", POINT_MISSING: "Record without a position", POINT_OUT_OF_CANADA: "Position outside Canada", POINT_OUT_OF_PROVINCE: "Position outside its province" } as Record<string, string>,
   dash: {
     title: "National readiness", subtitle: "One card per province or territory. Raw records, staged candidates and CRM prospects are different populations and are never added together.",
@@ -44,6 +52,7 @@ const en = {
       queued: "Queued. The worker picks it up on its next check.", auto: "Refresh automatically when a newer release is published", paused: "Pause this province", interval: "Minimum days between refreshes", save: "Save schedule", saved: "Saved.", workerNote: "The worker only runs queued or opted-in provinces. Live discovery must be ON.",
     },
     totals: "All provinces",
+    rematch: { title: "Re-check CRM matches and repair fit", help: "Re-evaluates the CRM match and the repair-fit verdict of staged, not-yet-imported candidates of one province with the current rules (for example after a matching or classifier fix), without a new extraction. Preview writes nothing. Applying changes only the candidate's derived match and fit fields and clears its stale qualification verdict so the policy re-evaluates it; it never touches review decisions, prospects, owners or do-not-contact.", province: "Province", preview: "Preview", apply: "Apply", confirm: "Apply the corrected matches and repair-fit verdicts to the staged candidates of {province}? CRM prospects are not touched.", examined: "Candidates examined", changed: "Would change / changed", none: "No change needed.", more: "More candidates remain: press the button again to continue." },
     scope: { title: "Automatic import scope", help: "Which provinces the automation may import from. Leave every box unticked to allow all provinces (current behaviour). For a canary, tick only the canary province: candidates from other provinces wait, shown as deferred work. Already-imported prospects are not affected.", save: "Save scope", saved: "Saved.", all: "All provinces (nothing ticked)", limited: "Limited to: {list}" },
     email: {
       title: "Email readiness (not a sending permission)", help: "A qualified business is not an email-ready lead. Each rung only counts prospects that cleared every rung before it. “Outreach ready” is the existing eligibility engine’s own verdict (reviewed CASL basis, decided language, verified sender, no suppression): nothing on this page enables sending.",
@@ -75,6 +84,14 @@ const fr: Dict = {
     ackHelp: "À faire seulement si vous savez pourquoi le contrôle s’est déclenché (par exemple un territoire sans position cartographiable). Votre raison est journalisée. Les candidats déjà préparés deviennent alors visibles pour la qualification.",
     ackLabel: "Raison (au moins 10 caractères)", ackButton: "Reconnaître et marquer comme terminée", ackedBy: "Reconnue",
   },
+  fit: {
+    label: "Pertinence réparation", any: "Toute pertinence", none: "Non classé",
+    values: { VERIFIED_REPAIR: "Réparation vérifiée", HUMAN_REVIEW: "Demande une personne", EXCLUDED: "Exclu (pas un atelier)" },
+    segments: { HEAVY_DUTY: "Poids lourds / diesel : vraie réparation, vérifier l’adéquation commerciale", LIGHT_VEHICLE: "Véhicule léger" },
+    signals: { EV_CHARGING: "recharge électrique", BICYCLE: "vélo", RECYCLING_SALVAGE: "recyclage / casse", CAR_WASH: "lave-auto", DETAILING: "esthétique auto", TOWING: "remorquage", PARTS_RETAIL: "vente de pièces", TAXI_EQUIPMENT: "équipement de taxi", MANUFACTURER_CORPORATE: "fabricant / siège social", OTHER_NON_REPAIR: "autre non-réparation", TINT_AUDIO_WRAP: "teinture / audio / pellicule", ACCESSORIES_ONLY: "accessoires", SPECIALTY_SERVICE: "service spécialisé", INDUSTRIAL_OTHER: "industriel / pétrolier / carrosserie de camion", MOTORCYCLE: "moto", TRAILER: "remorque", DEALER: "concessionnaire", MARINE_RV: "marine / VR", TIRE_RETAIL: "vente de pneus" },
+    reasons: { REPAIR_CATEGORY: "catégorie réparation", REPAIR_CATEGORY_AND_NAME: "catégorie + nom", REPAIR_INDUSTRY_AND_NAME: "industrie + nom", NON_TARGET_CATEGORY: "catégorie hors réparation", CATEGORY_NAME_CONFLICT: "catégorie et nom en désaccord", OEM_BRAND_NAME: "fiche au nom d’une marque", EMPLOYEE_LISTING: "personne listée dans une entreprise", POSSIBLE_DEALER_SERVICE: "service de concessionnaire possible", UNCERTAIN_CATEGORY: "catégorie incertaine", INSUFFICIENT_EVIDENCE: "preuves insuffisantes", NO_CATEGORY_EVIDENCE: "aucune preuve de catégorie" },
+    branchNote: "Même marque ou même nom qu’une entreprise existante ailleurs. Indicatif seulement : ce n’est pas la même entreprise et rien n’est lié.",
+  },
   diag: { DUPLICATE_OF_STAGED: "Doublon d’une entreprise déjà préparée (conservé comme preuve, jamais importé)", POINT_MISSING: "Enregistrement sans position", POINT_OUT_OF_CANADA: "Position hors du Canada", POINT_OUT_OF_PROVINCE: "Position hors de sa province" },
   dash: {
     title: "Préparation nationale", subtitle: "Une carte par province ou territoire. Les enregistrements bruts, les candidats préparés et les prospects du CRM sont des populations différentes et ne sont jamais additionnés.",
@@ -98,6 +115,7 @@ const fr: Dict = {
       queued: "Mise en file. Le worker la prendra à sa prochaine vérification.", auto: "Rafraîchir automatiquement quand une version plus récente est publiée", paused: "Mettre cette province en pause", interval: "Nombre minimal de jours entre deux rafraîchissements", save: "Enregistrer le calendrier", saved: "Enregistré.", workerNote: "Le worker n’exécute que les provinces mises en file ou activées. La découverte en direct doit être ACTIVÉE.",
     },
     totals: "Toutes les provinces",
+    rematch: { title: "Revérifier les correspondances CRM et la pertinence", help: "Réévalue la correspondance CRM et le verdict de pertinence réparation des candidats préparés, pas encore importés, d’une province avec les règles actuelles (par exemple après une correction), sans nouvelle extraction. L’aperçu n’écrit rien. L’application ne modifie que les champs dérivés de correspondance et de pertinence du candidat et efface son verdict de qualification périmé pour que la politique le réévalue ; elle ne touche ni aux décisions de révision, ni aux prospects, ni aux responsables, ni aux Ne pas contacter.", province: "Province", preview: "Aperçu", apply: "Appliquer", confirm: "Appliquer les correspondances et verdicts de pertinence corrigés aux candidats préparés de {province} ? Les prospects du CRM ne sont pas touchés.", examined: "Candidats examinés", changed: "Changeraient / ont changé", none: "Aucun changement nécessaire.", more: "Il reste des candidats : appuyez de nouveau pour continuer." },
     scope: { title: "Portée de l’importation automatique", help: "Provinces depuis lesquelles l’automatisation peut importer. Ne cochez rien pour autoriser toutes les provinces (comportement actuel). Pour un canari, cochez seulement la province canari : les candidats des autres provinces attendent, comptés comme travail différé. Les prospects déjà importés ne sont pas touchés.", save: "Enregistrer la portée", saved: "Enregistré.", all: "Toutes les provinces (rien de coché)", limited: "Limité à : {list}" },
     email: {
       title: "Préparation au courriel (ce n’est pas une permission d’envoi)", help: "Une entreprise qualifiée n’est pas un lead prêt pour le courriel. Chaque étape ne compte que les prospects ayant franchi toutes les précédentes. « Prêt pour la prospection » est le verdict du moteur d’admissibilité existant (base LCAP révisée, langue décidée, expéditeur vérifié, aucune suppression) : rien sur cette page n’active l’envoi.",
@@ -108,3 +126,11 @@ const fr: Dict = {
 };
 export type NationalCopy = Dict;
 export const nationalCopy = (l: "en" | "fr"): NationalCopy => (l === "fr" ? fr : en);
+
+/** "NAME_SIGNAL_DETAILING" → "detailing"; "SEGMENT_MOTORCYCLE" → "motorcycle"; known reasons by dictionary; unknown codes are shown as-is (never hidden). */
+export function fitReasonLabel(locale: "en" | "fr", code: string): string {
+  const f = nationalCopy(locale).fit;
+  if (code.startsWith("NAME_SIGNAL_")) return f.signals[code.slice(12)] ?? code;
+  if (code.startsWith("SEGMENT_")) return f.signals[code.slice(8)] ?? code;
+  return f.reasons[code] ?? code;
+}

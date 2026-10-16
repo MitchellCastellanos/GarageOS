@@ -5,6 +5,7 @@ import { canonicalAddress } from "@/domain/sales-crm/address";
 import type { MatchKey } from "@/domain/sales-crm/dedupe";
 import type { ExistingProspectKey } from "@/domain/sales-crm/import";
 import { cityKey } from "@/domain/sales-crm/territory";
+import { isSharedIdentityDomain, isTollFreeDigits } from "@/domain/sales-crm/shared-identity";
 
 /**
  * Existing prospects (active, archived and do-not-contact alike) that could be the same business as any of `keys`.
@@ -13,7 +14,8 @@ import { cityKey } from "@/domain/sales-crm/territory";
  */
 export async function loadMatchPool(keys: MatchKey[], client: Prisma.TransactionClient | typeof db = db): Promise<ExistingProspectKey[]> {
   const uniq = <T,>(v: (T | null)[]) => [...new Set(v.filter((x): x is T => x !== null && x !== ""))];
-  const domains = uniq(keys.map((k) => k.websiteDomain)), phones = uniq(keys.map((k) => k.phoneDigits));
+  // Directory / banner domains and toll-free numbers identify no single business (the classifier ignores them), so they must not widen the candidate lookup either.
+  const domains = uniq(keys.map((k) => (k.websiteDomain && !isSharedIdentityDomain(k.websiteDomain) ? k.websiteDomain : null))), phones = uniq(keys.map((k) => (k.phoneDigits && !isTollFreeDigits(k.phoneDigits) ? k.phoneDigits : null)));
   const names = uniq(keys.map((k) => k.nameNormalized)), addrs = uniq(keys.map((k) => k.addressKey)), postals = uniq(keys.map((k) => k.postalKey));
   const or: Prisma.CrmProspectWhereInput[] = [];
   if (domains.length) or.push({ websiteDomain: { in: domains } });

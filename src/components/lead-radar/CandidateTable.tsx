@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { importApprovedDiscoveryCandidates, reviewDiscoveryCandidates } from "@/actions/lead-radar";
 import { fill } from "@/lib/admin-locale/lead-radar";
+import { fitReasonLabel, nationalCopy } from "@/lib/admin-locale/lead-radar-national";
 import { PLATFORM } from "@/lib/routes";
 import { Badge, btnPrimary, btnSecondary, cardCls } from "@/components/sales-crm/ui";
 import { FormMessage } from "@/components/sales-crm/useCrmAction";
@@ -14,6 +15,7 @@ export interface CandidateRow {
   territoryKey: string | null; taxonomyPrimary: string | null; tier: string; classReasons: string[]; chainSignal: string; sourceConfidence: number | null; completeness: number; qualityFlags: string[];
   licenses: string[]; datasets: string[]; licenseOk: boolean; lastSeenRelease: string; reviewState: string; reviewNote: string | null; matchState: string; matchReasons: string[]; importState: string;
   importErrorCode: string | null; changedSinceImport: boolean; qualificationLane: string | null; qualificationReasons: string[]; approvedByPolicyVersion: number | null;
+  repairFit: string | null; repairFitReasons: string[]; duplicateOfCandidateId: string | null; segment: string;
   eligibility: { eligible: boolean; reasons: string[] };
   match: { id: string; visible: boolean; name: string | null; owned: boolean } | null;
   imported: { id: string; visible: boolean } | null;
@@ -23,9 +25,12 @@ const TIER_TONE: Record<string, string> = { PRIMARY: "bg-emerald-100 text-emeral
 const REVIEW_TONE: Record<string, string> = { PENDING: "bg-slate-100 text-slate-700", APPROVED: "bg-blue-100 text-blue-800", REJECTED: "bg-red-100 text-red-800" };
 const MATCH_TONE: Record<string, string> = { NEW: "bg-emerald-50 text-emerald-800", EXISTING_STRONG: "bg-blue-50 text-blue-800", AMBIGUOUS: "bg-amber-100 text-amber-900", BRANCH_OF_EXISTING: "bg-violet-50 text-violet-800" };
 
-export function CandidateTable({ locale, rows, approvedCount }: { locale: "en" | "fr"; rows: CandidateRow[]; approvedCount: number }) {
+const FIT_TONE: Record<string, string> = { VERIFIED_REPAIR: "bg-emerald-100 text-emerald-800", HUMAN_REVIEW: "bg-amber-100 text-amber-900", EXCLUDED: "bg-red-100 text-red-800" };
+
+export function CandidateTable({ locale, rows, approvedCount, province }: { locale: "en" | "fr"; rows: CandidateRow[]; approvedCount: number; province?: string }) {
   const { c, pending, error, notice, run, setNotice } = useRadarAction(locale);
   const k = c.candidates;
+  const fitCopy = nationalCopy(locale).fit;
   const [sel, setSel] = useState<string[]>([]);
   const [note, setNote] = useState("");
   const pageIds = rows.map((r) => r.id);
@@ -40,7 +45,7 @@ export function CandidateTable({ locale, rows, approvedCount }: { locale: "en" |
   }
   function importNow() {
     if (!window.confirm(k.importConfirm)) return;
-    run(() => importApprovedDiscoveryCandidates({}), (r) => setNotice(fill(k.imported, { c: r.result.created, l: r.result.linked, r: r.result.sentToReview, f: r.result.failed })));
+    run(() => importApprovedDiscoveryCandidates(province ? { province } : {}), (r) => setNotice(fill(k.imported, { c: r.result.created, l: r.result.linked, r: r.result.sentToReview, f: r.result.failed })));
   }
 
   return (
@@ -72,6 +77,8 @@ export function CandidateTable({ locale, rows, approvedCount }: { locale: "en" |
                 <div className="min-w-0 flex-1 space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="min-w-0 break-words font-semibold text-slate-900">{r.name}</h3>
+                    <Badge tone={r.repairFit ? FIT_TONE[r.repairFit] : "bg-slate-100 text-slate-600"}>{r.repairFit ? fitCopy.values[r.repairFit] : fitCopy.none}</Badge>
+                    {r.segment === "HEAVY_DUTY" && <Badge tone="bg-violet-50 text-violet-800">{fitCopy.segments.HEAVY_DUTY}</Badge>}
                     <Badge tone={TIER_TONE[r.tier]}>{k.tiers[r.tier]}</Badge>
                     <Badge tone={REVIEW_TONE[r.reviewState]}>{k.reviewStates[r.reviewState]}</Badge>
                     {r.qualificationLane && <Badge tone={r.qualificationLane === "AUTO_ELIGIBLE" ? "bg-emerald-50 text-emerald-800" : r.qualificationLane === "BLOCKED" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-900"}>{c.automation.policy.lanes[r.qualificationLane]}{r.approvedByPolicyVersion ? ` · v${r.approvedByPolicyVersion}` : ""}</Badge>}
@@ -84,8 +91,11 @@ export function CandidateTable({ locale, rows, approvedCount }: { locale: "en" |
                     <div><dt className="text-xs text-slate-500">{k.colContact}</dt><dd className="break-words">{[r.phone, r.website, r.email].filter(Boolean).join(" · ") || "—"}</dd></div>
                     <div><dt className="text-xs text-slate-500">{k.colClass}</dt><dd>{r.taxonomyPrimary ?? "—"}{r.classReasons.length ? ` · ${r.classReasons.map((x) => k.reasons[x] ?? x).join(", ")}` : ""}<span className="block text-xs text-slate-500">{k.chainSignals[r.chainSignal]}</span></dd></div>
                   </dl>
+                  {r.repairFitReasons.length > 0 && <p className="text-xs text-slate-600">{fitCopy.label}: {r.repairFitReasons.map((x) => fitReasonLabel(locale, x)).join(" · ")}</p>}
+                  {r.duplicateOfCandidateId && <p className="text-xs text-amber-800">{nationalCopy(locale).diag.DUPLICATE_OF_STAGED}</p>}
                   <div className="flex flex-wrap items-center gap-1.5">
                     <Badge tone={MATCH_TONE[r.matchState]}>{k.matchStates[r.matchState]}</Badge>
+                    {r.matchState === "BRANCH_OF_EXISTING" && <span className="text-xs text-slate-500">{fitCopy.branchNote}</span>}
                     {r.match && (r.match.visible
                       ? <Link className="text-xs text-blue-700 underline" href={PLATFORM.salesProspect(r.match.id)}>{k.existingLink}{r.match.name ? `: ${r.match.name}` : ""}</Link>
                       : <span className="text-xs text-slate-500">{k.existingHidden}</span>)}

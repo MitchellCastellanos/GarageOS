@@ -13,6 +13,7 @@
 // A human decision (stored on the prospect) always wins over this function; callers apply it. Keyword lists are conservative EN/FR heuristics.
 import { BY_CODE, CAPABILITY, CODE_NON_TARGET_TOKENS, NAME_REPAIR, codeEvidence, hit, strip, words } from "@/domain/lead-radar/business-type";
 import { OEM_NAME } from "@/domain/lead-radar/taxonomy";
+import { BANNER_NAME } from "@/domain/sales-crm/shared-identity";
 
 export const REPAIR_FITS = ["VERIFIED_REPAIR", "HUMAN_REVIEW", "EXCLUDED"] as const;
 export type RepairFit = (typeof REPAIR_FITS)[number];
@@ -36,6 +37,10 @@ const DECISIVE: Record<string, readonly string[]> = {
 const SOFT: Record<string, readonly string[]> = {
   // Industrial / fleet / oil-field / truck-body / coating businesses carry an automotive repair code but are often not walk-in repair shops: a person decides.
   INDUSTRIAL_OTHER: ["oilfield", "industrial", "industriel", "industrielle", "powder coating", "peinture en poudre", "truck stop", "relais routier", "truck body", "truck bodies", "registry", "registries", "registre", "registres", "air liquide"],
+  // Accessory / aftermarket-product businesses (tonneau covers, bedliners, lift kits…) carry the repair code but usually sell and fit products rather than repair: a person decides.
+  ACCESSORIES_ONLY: ["tonneau", "tonno", "cover depot", "truck accessories", "accessories", "accessoires", "bedliner", "bed liner", "running boards", "lift kit", "lift kits"],
+  // Single-component / niche services (steering wheel restoration, headlight restoration): relevant to automotive but not a general repair shop. Review, never auto-excluded.
+  SPECIALTY_SERVICE: ["steering wheel", "wheel restoration", "headlight restoration", "restauration de volant"],
   OTHER_NON_REPAIR: ["parking", "stationnement", "entreposage", "storage", "driving school", "ecole de conduite", "location", "rental", "rent a car", "leasing", "assurance", "insurance"],
   TINT_AUDIO_WRAP: ["tinting", "teinture", "wrap", "upholstery", "sellerie", "alarme", "demarreur", "audio", "stereo", "sono"],
 };
@@ -52,10 +57,14 @@ const COMPOUND: { cls: string; re: RegExp }[] = [
   { cls: "EV_CHARGING", re: /recharg|chargepoint|supercharg|\bev ?charg/ },
 ];
 
+/** Any word (EN/FR, substring on the accent-stripped name) that ties a business name to vehicles or their service. Absence is NOT proof against a business: it only means the category
+ *  stands alone, and a category on its own is not enough to call a business a verified repair shop (small-business categories in open data are often loose). */
+const AUTOMOTIVE_WORDING = /(auto|tire|tyre|pneu|motor|garage|mechani|mecani|collision|carrosserie|body|glass|vitre|windshield|lube|oil change|brake|frein|transmission|muffler|silencieux|exhaust|echappement|diesel|repair|repar|entretien|wheel|roue|align|radiat|suspens|perform|import|european|dent|pdr|paint|hybrid|engine|moteur|tune|tuning|starter|alternat|crank|driveline|truck|camion|vehic|fleet|service|svc|atelier|krown|rust|napa|carstar|midas|speedy|fix|jiffy|kal|bumper|hot ?rod|heavy duty|mobile|\\bcars?\\b|\\b4x4\\b|offroad|off-road|custom|restor|detail|tint|wrap|battery|quick lane)/;
+
 export type FitReason =
   | "REPAIR_CATEGORY" | "REPAIR_CATEGORY_AND_NAME" | "REPAIR_INDUSTRY_AND_NAME"
   | "NON_TARGET_CATEGORY" | `NAME_SIGNAL_${string}` | "CATEGORY_NAME_CONFLICT"
-  | "OEM_BRAND_NAME" | "POSSIBLE_DEALER_SERVICE" | `SEGMENT_${string}` | "UNCERTAIN_CATEGORY" | "INSUFFICIENT_EVIDENCE" | "NO_CATEGORY_EVIDENCE";
+  | "OEM_BRAND_NAME" | "EMPLOYEE_LISTING" | "NO_AUTOMOTIVE_WORDING" | "POSSIBLE_DEALER_SERVICE" | `SEGMENT_${string}` | "UNCERTAIN_CATEGORY" | "INSUFFICIENT_EVIDENCE" | "NO_CATEGORY_EVIDENCE";
 
 export interface FitFacts {
   name: string | null | undefined;
@@ -78,7 +87,9 @@ export function nameSignals(name: string | null | undefined) {
   for (const c of COMPOUND) if (c.re.test(raw)) decisive.add(c.cls);
   const segments = new Set(hitAny(t, REVIEW_SEGMENTS));
   if (/\bmoto(?!r)/.test(raw)) segments.add("MOTORCYCLE"); // "MotoFlash", "Motomax"
-  return { repairWord: hit(t, NAME_REPAIR), decisive: [...decisive].sort(), soft: hitAny(t, SOFT).sort(), segments: [...segments].sort(), oem: OEM_NAME.test(name ?? "") };
+  // A person listed at a business ("Meggie at Mighty Peace"): a dealership/shop employee or contact card, not a business of its own.
+  const employeeListing = /^[A-Z][\w'’.-]{1,20}(?: [A-Z][\w'’.-]{1,20}){0,2} (?:at|chez|@) \S/.test((name ?? "").trim()) && !hit(words(((name ?? "").split(/ (?:at|chez|@) /i)[0]) ?? ""), NAME_REPAIR) && !BANNER_NAME.test(strip(name ?? ""));
+  return { employeeListing, automotiveWording: AUTOMOTIVE_WORDING.test(strip(name ?? "")), repairWord: hit(t, NAME_REPAIR), decisive: [...decisive].sort(), soft: hitAny(t, SOFT).sort(), segments: [...segments].sort(), oem: OEM_NAME.test(name ?? "") };
 }
 
 export function assessRepairFit(f: FitFacts): FitResult {
@@ -102,6 +113,8 @@ export function assessRepairFit(f: FitFacts): FitResult {
     const sig = s.decisive.map((x): FitReason => `NAME_SIGNAL_${x}`);
     // Mixed service ("Garage Remorquage Roy"): the platform's own repair category AND repair wording agree, so the secondary activity does not disqualify it.
     const mixed = specificRepair && !!s.repairWord;
+    // "Full Throttle Cycle" in a motorcycle/powersport/RV category is a motorcycle shop, not a bicycle shop: the platform category settles the ambiguity of the word "cycle".
+    if (s.decisive.length === 1 && s.decisive[0] === "BICYCLE" && /motorcycle|powersport|snowmobile|(^|_)atv(_|$)|recreation_vehicle/.test(code)) return { fit: "HUMAN_REVIEW", reasons: ["SEGMENT_MOTORCYCLE"], evidence: "NONE" };
     if (!mixed) {
       if (s.repairWord) return { fit: "HUMAN_REVIEW", reasons: [...sig, "CATEGORY_NAME_CONFLICT"], evidence: "NONE" };
       return { fit: "EXCLUDED", reasons: sig, evidence: "NONE" };
@@ -111,6 +124,7 @@ export function assessRepairFit(f: FitFacts): FitResult {
   // The platform's own category can name such a segment even when the business name does not (e.g. an unmapped "motorcycle_repair" code).
   const codeSegments = !known && /motorcycle|powersport|snowmobile|(^|_)atv(_|$)/.test(code) ? ["MOTORCYCLE"] : [];
   for (const x of codeSegments) if (!s.segments.includes(x)) s.segments.push(x);
+  if (s.employeeListing) return { fit: "HUMAN_REVIEW", reasons: ["EMPLOYEE_LISTING"], evidence: "NONE" };
   if (s.segments.length || s.soft.length || s.oem || f.classReasons?.includes("POSSIBLE_DEALER_SERVICE") || f.classReasons?.includes("ALSO_DEALER")) {
     const r: FitReason[] = [...s.segments.map((x): FitReason => `SEGMENT_${x}`), ...s.soft.map((x): FitReason => `NAME_SIGNAL_${x}`)];
     if (s.oem) r.push("OEM_BRAND_NAME");
@@ -118,6 +132,9 @@ export function assessRepairFit(f: FitFacts): FitResult {
     return { fit: "HUMAN_REVIEW", reasons: r, evidence: "NONE" };
   }
   // 4 — positive category evidence.
+  // A specific repair category verifies a business only together with SOME automotive wording in its name (two independent signals, as for generic codes). A name that says
+  // nothing about vehicles ("Pro Trac Gear", "Phantom Films", "Garner's Fuel Oils") with a loose category goes to a person — never to an automatic exclusion.
+  if (specificRepair && !s.automotiveWording && !s.repairWord && !f.classReasons?.includes("CHAIN_NAME")) return { fit: "HUMAN_REVIEW", reasons: ["NO_AUTOMOTIVE_WORDING"], evidence: "NONE" };
   if (specificRepair) return { fit: "VERIFIED_REPAIR", reasons: ["REPAIR_CATEGORY"], evidence: "TAXONOMY" };
   if (cap === "UNCERTAIN") return { fit: "HUMAN_REVIEW", reasons: ["UNCERTAIN_CATEGORY"], evidence: "NONE" };
   if (code) {
@@ -133,3 +150,16 @@ export function assessRepairFit(f: FitFacts): FitResult {
 
 /** Reason codes that mean "contradicted by the name or category" (used by qualification to explain a block / review). */
 export const isConflictReason = (r: string) => r === "CATEGORY_NAME_CONFLICT" || r === "NON_TARGET_CATEGORY" || r.startsWith("NAME_SIGNAL_");
+
+
+// ── Commercial fit is a SEPARATE question from "is it a repair business" ─────────────────────────────────────────────────────────────────────────────────────
+// A heavy-duty truck / diesel / fleet shop is a real repair business (it stays VERIFIED_REPAIR) but GarageOS's product and sales motion target light-vehicle independent
+// garages. The segment is derived (never stored, never changes the fit) so a person can filter and decide the commercial policy separately.
+export type CommercialSegment = "LIGHT_VEHICLE" | "HEAVY_DUTY";
+const HEAVY_WORDS = ["diesel", "heavy duty", "heavy truck", "heavy equipment", "truck repair", "truck service", "truck and trailer", "truck & trailer", "fleet", "big rig", "semi", "peterbilt", "kenworth", "freightliner", "cummins", "detroit diesel", "mack truck", "volvo truck", "poids lourds", "poids lourd", "camion", "camions", "machinerie lourde", "commercial truck", "oilfield", "reefer"];
+export function commercialSegment(f: { name: string | null | undefined; taxonomyPrimary?: string | null }): { segment: CommercialSegment; reasons: string[] } {
+  const reasons: string[] = [];
+  if (/truck|heavy|diesel|fleet/.test(f.taxonomyPrimary ?? "")) reasons.push("CATEGORY");
+  if (hit(words(f.name ?? ""), HEAVY_WORDS)) reasons.push("NAME");
+  return { segment: reasons.length ? "HEAVY_DUTY" : "LIGHT_VEHICLE", reasons };
+}
