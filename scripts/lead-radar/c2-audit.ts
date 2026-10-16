@@ -13,6 +13,7 @@
 // score   Computes precision / exclusion error / incorrect matches against the documented thresholds from the reviewer's labels.
 //
 // Guarantees: ONE `BEGIN READ ONLY` transaction (the database rejects any write); SELECT only; never prints the connection string; no phone numbers or emails are written.
+/* eslint-disable @typescript-eslint/no-explicit-any -- ad-hoc report rows from raw SQL */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import pg from "pg";

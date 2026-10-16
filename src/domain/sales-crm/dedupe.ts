@@ -49,9 +49,18 @@ const identifying = <T extends MatchKey>(k: T): T => ({
   ...k, websiteDomain: k.websiteDomain && !isSharedIdentityDomain(k.websiteDomain) ? k.websiteDomain : null, phoneDigits: k.phoneDigits && !isTollFreeDigits(k.phoneDigits) ? k.phoneDigits : null,
 });
 
+// The same pool is classified against once per candidate (1,500-row imports) and import planning APPENDS new entries to it as it goes: normalise each ENTRY once
+// (cached per entry object), never the whole array per row, and never cache the array itself.
+const ENTRY_CACHE = new WeakMap<PoolEntry, PoolEntry>();
+function identifyingEntry(e: PoolEntry): PoolEntry {
+  let n = ENTRY_CACHE.get(e);
+  if (!n) { n = { ...identifying(e), id: e.id, doNotContact: e.doNotContact }; ENTRY_CACHE.set(e, n); }
+  return n;
+}
+
 export function classifyAgainstPool(candidate: MatchKey, rawPool: readonly PoolEntry[]): Classification {
   const c = identifying(candidate);
-  const pool = rawPool.map((p) => ({ ...identifying(p), id: p.id, doNotContact: p.doNotContact }));
+  const pool = rawPool.map(identifyingEntry);
   // A banner name ("NAPA AUTOPRO", "OK Tire") is carried by many unrelated locations: without an exact physical place, same name + city + a "unique" phone/domain is only a
   // reason to ask a person, never to link records automatically.
   const banner = isBannerName(c.nameNormalized);
