@@ -164,6 +164,9 @@ export function FieldWorkspace({ locale, mapConfig, summary, canRecord, initial 
             <div><dt className="inline">{w.counts.matching}: </dt><dd className="inline font-semibold text-slate-900">{counts?.matching ?? "…"}</dd></div>
             <div><dt className="inline">{w.counts.stops}: </dt><dd className="inline font-semibold text-slate-900">{stops.length}/{MAX_ROUTE_STOPS}</dd></div>
           </dl>
+          {(summary.fit.excludedHidden > 0 || summary.fit.underReview > 0) && (
+            <p className="text-xs text-slate-500">{summary.fit.excludedHidden > 0 ? `${summary.fit.excludedHidden} ${w.fit.hidden}` : ""}{summary.fit.excludedHidden > 0 && summary.fit.underReview > 0 ? " · " : ""}{summary.fit.underReview > 0 ? `${summary.fit.underReview} ${w.fit.underReview}` : ""}</p>
+          )}
           {loading && <p className="text-xs text-slate-500" role="status">{w.counts.loading}</p>}
           {loadErr && <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900" role="alert">{w.counts.failed}</p>}
           {counts?.truncated && <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">{w.counts.truncated}</p>}
@@ -190,11 +193,13 @@ export function FieldWorkspace({ locale, mapConfig, summary, canRecord, initial 
                   <div className="flex flex-wrap gap-1.5">
                     <Badge tone="bg-slate-100 text-slate-800"><span className="mr-1 inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: STATUS_COLOR[detail.status] }} aria-hidden />{w.statuses[detail.status]}</Badge>
                     {inRoute(detail.id) && <Badge tone="bg-blue-100 text-blue-900">{w.panel.inRoute}</Badge>}
+                    {detail.fit === "HUMAN_REVIEW" && <Badge tone="bg-amber-100 text-amber-900">{w.fit.review}</Badge>}
                   </div>
                   <p className="text-sm text-slate-700">
                     <strong>{w.panel.lastVisit}:</strong> {detail.lastVisit ? `${t.outcomes[detail.lastVisit.outcome] ?? detail.lastVisit.outcome} · ${detail.lastVisit.at.slice(0, 10)}` : w.panel.never}
                     {detail.nextTask && <><br /><strong>{w.panel.nextTask}:</strong> {detail.nextTask.title} · {detail.nextTask.dueAt.slice(0, 10)}</>}
                   </p>
+                  {detail.fit === "HUMAN_REVIEW" && <p className="text-xs text-amber-800">{w.fit.reviewHelp}</p>}
                   {detail.blocked && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">{w.panel.blocked} {t.errors[detail.blocked]}</p>}
                   <div className="grid grid-cols-2 gap-2">
                     {inRoute(detail.id)

@@ -45,6 +45,17 @@ export function AssignmentPanel({ locale, sellers, territories, isSuperAdmin }: 
           <dl className="grid grid-cols-2 gap-3 md:grid-cols-3">
             {([[a.considered, preview.summary.considered], [a.proposed, preview.summary.proposed], [a.skipped, preview.summary.considered - preview.summary.proposed]] as const).map(([k, v]) => <div key={k} className="rounded-lg border border-slate-200 p-3"><dt className="text-xs text-slate-500">{k}</dt><dd className="text-2xl font-semibold">{v}</dd></div>)}
           </dl>
+          {preview.summary.backlog && (
+            <div className="space-y-1 rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
+              <h3 className="font-medium text-slate-900">{a.backlogTitle}</h3>
+              <ul className="grid grid-cols-2 gap-x-4 gap-y-1 md:grid-cols-5">
+                {([[a.backlogTotal, preview.summary.backlog.total], [a.backlogVerified, preview.summary.backlog.verified], [a.backlogReview, preview.summary.backlog.underReview], [a.backlogExcluded, preview.summary.backlog.excluded], [a.backlogNotEvaluated, preview.summary.backlog.notEvaluated]] as const).map(([k, v]) => <li key={k}>{k}: <b>{v}</b></li>)}
+              </ul>
+              <p className="text-xs text-slate-500">{a.batchNote.replace("{n}", String(preview.summary.batchLimit))}</p>
+              {preview.summary.deferred > 0 && <p className="text-xs font-medium text-amber-800">{preview.summary.deferred} — {a.deferred.replace("{n}", String(preview.summary.batchLimit))}</p>}
+              {preview.summary.moreUnread && <p className="text-xs text-amber-800">{a.moreUnread}</p>}
+            </div>
+          )}
           {preview.sellers.length > 0 && <div><h3 className="mb-1 text-sm font-medium text-slate-800">{a.perSeller}</h3><ul className="space-y-1 text-sm">{preview.sellers.map((s) => <li key={s.id} className="flex justify-between gap-3"><span>{s.name} <Badge>{a.mode[s.mode]}</Badge></span><b>{s.count}</b></li>)}</ul></div>}
           {Object.keys(preview.summary.skips).length > 0 && <div><h3 className="mb-1 text-sm font-medium text-slate-800">{a.skipped}</h3><ul className="space-y-1 text-sm">{Object.entries(preview.summary.skips).map(([k, n]) => <li key={k} className="flex justify-between gap-3"><span>{a.skipReasons[k] ?? k}</span><b>{n as number}</b></li>)}</ul></div>}
           {preview.rows.length === 0 ? <p className="text-sm text-slate-600">{a.empty}</p> : (

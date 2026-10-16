@@ -33,14 +33,15 @@ export const canTransitionRoute = (from: RouteStatus, to: RouteStatus) => ROUTE_
 /** Stops can be added/removed/reordered only while the route is a draft. */
 export const routeIsEditable = (status: RouteStatus) => status === "DRAFT";
 
-export type StopBlock = "PROSPECT_ARCHIVED" | "PROSPECT_MERGED" | "ALREADY_DO_NOT_CONTACT" | "NOT_ASSIGNED_TO_OWNER" | "OUTSIDE_COVERAGE";
-export interface StopProspectFacts { status: string; archivedAt: Date | null; mergedIntoId: string | null; doNotContact: boolean; assignedStaffId: string | null }
+export type StopBlock = "FIT_EXCLUDED" | "PROSPECT_ARCHIVED" | "PROSPECT_MERGED" | "ALREADY_DO_NOT_CONTACT" | "NOT_ASSIGNED_TO_OWNER" | "OUTSIDE_COVERAGE";
+export interface StopProspectFacts { status: string; archivedAt: Date | null; mergedIntoId: string | null; doNotContact: boolean; assignedStaffId: string | null; /** Repair fit: an EXCLUDED business is never a stop. */ repairFit?: string | null }
 
 /** Why this prospect cannot be a (pending) stop of a route owned by `ownerStaffId`; null when it can. */
 export function stopBlock(p: StopProspectFacts, ownerStaffId: string, coverageOk = true): StopBlock | null {
   if (p.mergedIntoId) return "PROSPECT_MERGED";
   if (p.status === "ARCHIVED" || p.archivedAt) return "PROSPECT_ARCHIVED";
   if (p.doNotContact) return "ALREADY_DO_NOT_CONTACT";
+  if (p.repairFit === "EXCLUDED") return "FIT_EXCLUDED";
   if (p.assignedStaffId !== ownerStaffId) return "NOT_ASSIGNED_TO_OWNER";
   if (!coverageOk) return "OUTSIDE_COVERAGE";
   return null;

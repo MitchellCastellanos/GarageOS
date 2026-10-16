@@ -2237,6 +2237,21 @@ enum CrmLanguage {
   @@schema("garageos")
 }
 
+enum CrmRepairFit {
+  VERIFIED_REPAIR
+  HUMAN_REVIEW
+  EXCLUDED
+
+  @@schema("garageos")
+}
+
+enum CrmRepairFitSource {
+  AUTO
+  HUMAN
+
+  @@schema("garageos")
+}
+
 enum CrmProspectStatus {
   ACTIVE
   ARCHIVED
@@ -2638,6 +2653,16 @@ model CrmProspect {
   /// manually / before this column existed (reporting then derives it from the territory rule).
   assignmentMode     SalesMode?
   autoAssignedAt     DateTime?
+  /// Is this a legitimate automotive repair business (domain/lead-radar/repair-fit.ts)? NULL = not evaluated yet. A HUMAN decision always wins over AUTO and
+  /// survives re-imports and source refreshes. EXCLUDED/HUMAN_REVIEW prospects are never newly assigned; EXCLUDED ones are hidden from the Field Planner.
+  repairFit          CrmRepairFit?
+  repairFitSource    CrmRepairFitSource?
+  repairFitReasons   String[]            @default([])
+  /// Has an active opportunity or meaningful sales activity: never removed from active workflows automatically; flagged for explicit review instead.
+  repairFitProtected Boolean             @default(false)
+  repairFitAt        DateTime?
+  repairFitByUserId  String?
+  repairFitNote      String?
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
 
@@ -2665,6 +2690,7 @@ model CrmProspect {
   @@index([territoryState, territoryKey])
   @@index([territoryKey, fieldPriorityStartedAt])
   @@index([assignedStaffId, assignmentMode])
+  @@index([repairFit, assignedStaffId])
   @@schema("garageos")
 }
 
@@ -4064,6 +4090,7 @@ model CrmDiscoveryCandidate {
   @@index([province, city])
   @@index([lastRunId])
   @@index([nameNormalized])
+  @@index([importedProspectId], map: "CrmDiscoveryCandidate_importedProspectId_all_idx")
   @@schema("garageos")
 }
 

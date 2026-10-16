@@ -54,3 +54,6 @@ The report shows: V1 vs V2 lanes; candidates moving up (review → auto) and dow
 ## 6. Known limits
 
 Name evidence is a keyword list (EN/FR) — conservative but not exhaustive; unknown names fall to review, never to auto. "Independent datasets" assumes Overture's `sources[].dataset` names distinguish upstream contributors (the report's low-confidence table shows whether that holds in your data). A repair shop that mislabels itself with a non-target code is blocked (still manually approvable). No source-confidence number is used as a decision input beyond the extractor's existing `LOW_CONFIDENCE` flag.
+
+## 7. Repair-fit contradiction gate (added after the CRM quality audit)
+Independent of the policy options, qualification now runs the shared assessor `repair-fit.ts`: a decisive non-repair name signal (EV charging, wash, detailing, towing, recycling, bicycle, parts retail, taxi equipment, manufacturer/corporate) with no repair wording blocks (`NOT_TARGET_BUSINESS`); a category/name conflict or an unruled segment (motorcycle, trailer, dealer, marine/RV, tire retail, vehicle-brand names) goes to human review (`CATEGORY_NAME_CONFLICT`). It applies to V1 and V2 and cannot be opened by any option. The V1 fingerprint is unchanged. Full rationale, CRM cleanup and owner procedure: [crm-cleanup.md](crm-cleanup.md).

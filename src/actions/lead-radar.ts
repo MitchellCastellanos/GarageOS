@@ -78,12 +78,12 @@ export async function resumeDiscoveryRun(runId: string) {
   return crmAction(async () => { const r = await resumeRun(actor, String(runId)); touch(); return r; });
 }
 
-const reviewSchema = z.object({ ids: z.array(z.string().max(40)).min(1).max(200), decision: z.enum(["APPROVED", "REJECTED", "PENDING"]), note: z.string().max(300).nullish() });
-export async function reviewDiscoveryCandidates(input: { ids: string[]; decision: ReviewDecision; note?: string | null }) {
+const reviewSchema = z.object({ ids: z.array(z.string().max(40)).min(1).max(200), decision: z.enum(["APPROVED", "REJECTED", "PENDING"]), note: z.string().max(300).nullish(), fitOverride: z.boolean().optional() });
+export async function reviewDiscoveryCandidates(input: { ids: string[]; decision: ReviewDecision; note?: string | null; fitOverride?: boolean }) {
   const actor = await requireLeadRadar("review");
   return crmAction(async () => {
     const p = reviewSchema.parse(input);
-    const r = await reviewCandidates(actor, p.ids, p.decision, p.note);
+    const r = await reviewCandidates(actor, p.ids, p.decision, p.note, { fitOverride: p.fitOverride });
     touch();
     return { result: r };
   });

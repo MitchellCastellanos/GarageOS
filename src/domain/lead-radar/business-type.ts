@@ -29,7 +29,7 @@ export const CAPABILITY: Record<BusinessType, RepairCapability> = {
 };
 
 /** Known Overture taxonomy codes (same universe as taxonomy.ts PRIMARY_RULES) → what the business does. */
-const BY_CODE: Record<string, BusinessType> = {
+export const BY_CODE: Record<string, BusinessType> = {
   automotive_repair: "GENERAL_REPAIR", engine_repair_service: "GENERAL_REPAIR", oil_change_station: "GENERAL_REPAIR",
   brake_service_and_repair: "SPECIALTY_REPAIR", transmission_repair: "SPECIALTY_REPAIR", auto_electrical_repair: "SPECIALTY_REPAIR", wheel_and_rim_repair: "SPECIALTY_REPAIR",
   tire_dealer_and_repair: "SPECIALTY_REPAIR", tire_shop: "SPECIALTY_REPAIR", truck_repair: "SPECIALTY_REPAIR",
@@ -44,11 +44,11 @@ const BY_CODE: Record<string, BusinessType> = {
   auto_customization: "CUSTOMIZATION", car_inspection: "INSPECTION",
 };
 
-const strip = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-const words = (s: string) => ` ${strip(s).replace(/[^a-z0-9]+/g, " ").trim()} `;
+export const strip = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+export const words = (s: string) => ` ${strip(s).replace(/[^a-z0-9]+/g, " ").trim()} `;
 
 /** Words in a business NAME (EN/FR) that mean the shop works on vehicles. Whole-word/prefix matches on accent-stripped text. */
-const NAME_REPAIR = [
+export const NAME_REPAIR = [
   "garage", "mecanique", "mecanicien", "mecano", "mechanic", "mechanical", "repair", "repairs", "reparation", "reparations", "service auto", "auto service", "auto services", "services automobiles",
   "pneu", "pneus", "tire", "tires", "frein", "freins", "brake", "brakes", "transmission", "transmissions", "muffler", "mufflers", "silencieux", "exhaust", "echappement",
   "radiateur", "radiator", "suspension", "alignement", "alignment", "diagnostic", "carrosserie", "collision", "body shop", "autobody", "auto body", "peinture auto", "vitres d auto", "auto glass",
@@ -62,7 +62,7 @@ const NAME_NON_TARGET = [
   "teinture", "tinting", "wrap", "upholstery", "sellerie", "alarme", "demarreur", "starter remote", "audio", "stereo", "sono",
 ];
 
-function hit(text: string, list: readonly string[]): string | null {
+export function hit(text: string, list: readonly string[]): string | null {
   for (const w of list) {
     const needle = ` ${w} `;
     if (text.includes(needle)) return w;
@@ -79,7 +79,7 @@ export function nameEvidence(name: string | null | undefined): { repair: string 
 }
 
 const CODE_REPAIR_TOKENS = ["repair", "mechanic", "tire", "tires", "brake", "brakes", "transmission", "muffler", "exhaust", "radiator", "suspension", "alignment", "engine", "lube", "tuneup"];
-const CODE_NON_TARGET_TOKENS = ["wash", "detailing", "dealer", "dealers", "parts", "towing", "rental", "storage", "parking", "charging", "fuel", "gas", "tinting", "wrap", "upholstery", "registration", "school", "taxi", "limo"];
+export const CODE_NON_TARGET_TOKENS = ["wash", "detailing", "dealer", "dealers", "parts", "towing", "rental", "storage", "parking", "charging", "fuel", "gas", "tinting", "wrap", "upholstery", "registration", "school", "taxi", "limo"];
 export function codeEvidence(code: string | null | undefined): { repair: string | null; nonTarget: string | null } {
   const toks = strip(code ?? "").split(/[^a-z0-9]+/).filter(Boolean);
   return { repair: CODE_REPAIR_TOKENS.find((t) => toks.includes(t)) ?? null, nonTarget: CODE_NON_TARGET_TOKENS.find((t) => toks.includes(t)) ?? null };

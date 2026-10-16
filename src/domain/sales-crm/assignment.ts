@@ -4,6 +4,8 @@
 import { evaluateAcquisition, requiredMode, type AcquisitionTiming, type Engagement, type Mode, type TerritoryRule } from "@/domain/sales-crm/territory";
 
 export type AssignmentSkip = "DNC" | "ARCHIVED" | "ALREADY_OWNED" | "UNRESOLVED_TERRITORY" | "NO_ELIGIBLE_SELLER"
+  /** Repair fit: clearly not a repair business (never assigned) / ambiguous (held for a person to decide first). */
+  | "FIT_EXCLUDED" | "FIT_REVIEW"
   /** Every otherwise-eligible seller is at their total or per-lane cap. Distinct from NO_ELIGIBLE_SELLER so capacity problems are visible. */
   | "CAPACITY_EXHAUSTED"
   /** Sellers are eligible by territory/mode/capacity, but none works in the prospect's language. */
@@ -22,6 +24,8 @@ export interface AssignableProspect {
   timing?: AcquisitionTiming;
   /** Business language. UNKNOWN / absent is compatible with every seller (a human still resolves it before any email). */
   language?: "FR" | "EN" | "UNKNOWN" | null;
+  /** Effective repair fit (stored decision, else the live assessment). Absent = no fit gate (legacy callers). Only VERIFIED_REPAIR may be assigned. */
+  repairFit?: "VERIFIED_REPAIR" | "HUMAN_REVIEW" | "EXCLUDED";
 }
 export interface AssignableSeller {
   id: string;
@@ -57,6 +61,8 @@ export function planAssignments(prospects: readonly AssignableProspect[], seller
     if (p.status !== "ACTIVE") { out.push({ ...base, skip: "ARCHIVED" }); continue; }
     if (p.doNotContact) { out.push({ ...base, skip: "DNC" }); continue; }
     if (p.assignedStaffId) { out.push({ ...base, skip: "ALREADY_OWNED" }); continue; }
+    if (p.repairFit === "EXCLUDED") { out.push({ ...base, skip: "FIT_EXCLUDED" }); continue; }
+    if (p.repairFit === "HUMAN_REVIEW") { out.push({ ...base, skip: "FIT_REVIEW" }); continue; }
     if (p.territoryState !== "LOCAL" && p.territoryState !== "NATIONAL") { out.push({ ...base, skip: "UNRESOLVED_TERRITORY" }); continue; }
     const required = requiredMode(p.rule, p.engagement, now, p.timing);
     // 1) hard compatibility: availability switch, working mode + territory coverage (the existing acquisition rules).
