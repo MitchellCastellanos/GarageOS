@@ -3997,6 +3997,17 @@ model CrmDiscoveryRun {
   qualityAckByUserId String?
   qualityAckAt      DateTime?
   qualityAckNote    String?
+  /// Who executes the extraction: MANUAL (a person uploads files) or WORKER (queued by a Super Admin, executed by the scheduled GitHub Actions worker, resumable via lease + attempts).
+  execution         String                @default("MANUAL")
+  /// True when the run was created by the province schedule (opt-in per province) rather than by a person.
+  scheduled         Boolean               @default(false)
+  queuedAt          DateTime?
+  workerId          String?
+  workerLeaseUntil  DateTime?
+  workerHeartbeatAt DateTime?
+  attempts          Int                   @default(0)
+  nextAttemptAt     DateTime?
+  lastFailureCode   String?
   cancelRequestedAt DateTime?
   createdByUserId   String
   startedAt         DateTime?
@@ -4008,6 +4019,35 @@ model CrmDiscoveryRun {
 
   @@index([status, createdAt])
   @@index([source, sourceRelease])
+  @@index([execution, status, nextAttemptAt])
+  @@schema("garageos")
+}
+
+/// Per-province discovery state and the OPT-IN schedule. Nothing is scheduled unless a Super Admin turns `autoRefresh` on for that province.
+model CrmDiscoveryProvince {
+  province           String    @id
+  autoRefresh        Boolean   @default(false)
+  /// Minimum days between two successful automatic refreshes of this province (even when a newer release exists).
+  refreshIntervalDays Int      @default(90)
+  /// Emergency stop for this province: no new automatic run, no claim of its queued runs.
+  paused             Boolean   @default(false)
+  enabledByUserId    String?
+  lastSuccessRunId   String?
+  lastSuccessRelease String?
+  lastSuccessAt      DateTime?
+  lastFailureAt      DateTime?
+  lastFailureCode    String?
+  updatedAt          DateTime  @updatedAt
+
+  @@schema("garageos")
+}
+
+/// Overture releases the maintenance pass has seen (new-release detection). Informational; it never starts work by itself.
+model CrmDiscoveryRelease {
+  release    String   @id
+  source     String   @default("STAC")
+  detectedAt DateTime @default(now())
+
   @@schema("garageos")
 }
 

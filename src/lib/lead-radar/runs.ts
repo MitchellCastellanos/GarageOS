@@ -5,6 +5,7 @@ import { buildPlan, canonicalScope, estimateWorkload, manifestSchema, NATIONWIDE
 import { db } from "@/lib/db";
 import { evaluateRunQuality } from "@/domain/lead-radar/run-quality";
 import { writeCrmAudit } from "@/lib/sales-crm/audit";
+import { noteRunOutcome } from "@/lib/lead-radar/province-state";
 import { CrmError } from "@/lib/sales-crm/prospects";
 import { isLive, readSettings } from "@/lib/lead-radar/settings";
 import { stageChunk } from "@/lib/lead-radar/staging";
@@ -16,6 +17,9 @@ async function requireLive() {
   const s = await readSettings();
   if (!isLive(s)) throw new CrmError("LEAD_RADAR_DISABLED");
 }
+
+/** The only thing a run transition needs from its caller is who to credit in the audit trail (a Super Admin, or the Super Admin on whose behalf the worker acts). */
+export type RunActor = Pick<PlatformSalesActor, "userId">;
 
 export interface CreateRunInput { scope: unknown; release: string; acknowledgeLargeScope?: boolean }
 
@@ -42,7 +46,7 @@ export async function planFileFor(runId: string) {
   return buildPlan(run.scope, run.sourceRelease);
 }
 
-export async function attachManifest(actor: PlatformSalesActor, runId: string, rawManifest: unknown) {
+export async function attachManifest(actor: RunActor, runId: string, rawManifest: unknown) {
   await requireLive();
   const parsed = manifestSchema.safeParse(rawManifest);
   if (!parsed.success) throw new CrmError("MANIFEST_INVALID");
@@ -65,7 +69,7 @@ export async function attachManifest(actor: PlatformSalesActor, runId: string, r
 export type ChunkResult = { duplicate: true; lastChunkSeq: number } | { duplicate: false; lastChunkSeq: number; received: number; stagedNew: number; stagedUpdated: number; rejected: number };
 
 /** Applies chunk `seq` exactly once. A replay of an applied chunk is a harmless no-op; a gap is refused so a client always resumes from lastChunkSeq + 1. */
-export async function ingestChunk(actor: PlatformSalesActor, runId: string, seq: number, text: string): Promise<ChunkResult> {
+export async function ingestChunk(actor: RunActor, runId: string, seq: number, text: string): Promise<ChunkResult> {
   await requireLive();
   if (!Number.isInteger(seq) || seq < 0 || seq > 100_000) throw new CrmError("CHUNK_SEQ_INVALID");
   try {
@@ -98,7 +102,7 @@ export async function ingestChunk(actor: PlatformSalesActor, runId: string, seq:
   }
 }
 
-export async function completeRun(actor: PlatformSalesActor, runId: string) {
+export async function completeRun(actor: RunActor, runId: string) {
   const run = await db.crmDiscoveryRun.findUnique({ where: { id: runId } });
   if (!run) throw new CrmError("NOT_FOUND");
   if (run.status === "COMPLETED") return { runId, alreadyCompleted: true };
@@ -113,6 +117,7 @@ export async function completeRun(actor: PlatformSalesActor, runId: string) {
   });
   if (r.count !== 1) throw new CrmError("RUN_INCOMPLETE");
   await writeCrmAudit({ actorUserId: actor.userId, action: quality.blocking ? "LEAD_RADAR_RUN_FAILED_QUALITY" : "LEAD_RADAR_RUN_COMPLETED", entityType: "CrmDiscoveryRun", entityId: runId, metadata: { verdict: quality.verdict, codes: quality.codes, ...quality.counters } });
+  await noteRunOutcome(runId);
   return { runId, alreadyCompleted: false, verdict: quality.verdict, blocking: quality.blocking };
 }
 
@@ -120,7 +125,7 @@ export async function completeRun(actor: PlatformSalesActor, runId: string) {
  * Super Admin acknowledgement of a run the quality gate stopped (e.g. a province that legitimately has no mappable positions). Requires a written reason, is audited, and
  * is the ONLY way a gate-failed run becomes COMPLETED. It never edits data; it only lets downstream stages read the already-staged candidates.
  */
-export async function acknowledgeRunQuality(actor: PlatformSalesActor, runId: string, note: string) {
+export async function acknowledgeRunQuality(actor: RunActor, runId: string, note: string) {
   const clean = (note ?? "").replace(/[\u0000-\u001F\u007F]/g, " ").trim().slice(0, 300);
   if (clean.length < 10) throw new CrmError("NOTE_REQUIRED");
   const run = await db.crmDiscoveryRun.findUnique({ where: { id: runId }, select: { status: true, qualityVerdict: true } });
@@ -130,11 +135,12 @@ export async function acknowledgeRunQuality(actor: PlatformSalesActor, runId: st
   const r = await db.crmDiscoveryRun.updateMany({ where: { id: runId, status: "FAILED", qualityVerdict: run.qualityVerdict }, data: { status: "COMPLETED", errorCode: null, qualityAckByUserId: actor.userId, qualityAckAt: new Date(), qualityAckNote: clean } });
   if (r.count !== 1) throw new CrmError("RUN_NOT_ACKNOWLEDGEABLE");
   await writeCrmAudit({ actorUserId: actor.userId, action: "LEAD_RADAR_RUN_QUALITY_ACKNOWLEDGED", entityType: "CrmDiscoveryRun", entityId: runId, metadata: { verdict: run.qualityVerdict, note: clean } });
+  await noteRunOutcome(runId);
   return { runId, alreadyCompleted: false };
 }
 
 /** Cancel is always allowed (it can only stop work). Staged candidates stay; nothing is imported or deleted. */
-export async function cancelRun(actor: PlatformSalesActor, runId: string) {
+export async function cancelRun(actor: RunActor, runId: string) {
   const r = await db.crmDiscoveryRun.updateMany({ where: { id: runId, status: { in: ["PLANNED", "INGESTING"] } }, data: { status: "CANCELLED", cancelRequestedAt: new Date(), finishedAt: new Date() } });
   if (r.count !== 1) {
     const run = await db.crmDiscoveryRun.findUnique({ where: { id: runId }, select: { status: true } });
@@ -146,7 +152,7 @@ export async function cancelRun(actor: PlatformSalesActor, runId: string) {
   return { runId, alreadyCancelled: false };
 }
 
-export async function resumeRun(actor: PlatformSalesActor, runId: string) {
+export async function resumeRun(actor: RunActor, runId: string) {
   await requireLive();
   const run = await db.crmDiscoveryRun.findUnique({ where: { id: runId } });
   if (!run) throw new CrmError("NOT_FOUND");

@@ -197,7 +197,7 @@ test("every Lead Radar server action re-checks authorization on the server befor
   const fns = [...src.matchAll(/export async function (\w+)\([^)]*\)[^{]*\{\s*\n\s*const actor = await requireLeadRadar\("(admin|review)"\)|export async function (\w+)\([^)]*\)[^{]*\{\s*\n\s*await requireLeadRadar\("(admin|review)"\)/g)];
   const all = [...src.matchAll(/export async function (\w+)/g)].map((m) => m[1]);
   assert.equal(fns.length, all.length, `unguarded action among ${all.join(", ")}`);
-  const admin = ["saveLeadRadarSettings", "previewDiscoveryWorkload", "createDiscoveryRun", "getDiscoveryPlan", "attachDiscoveryManifest", "ingestDiscoveryChunk", "completeDiscoveryRun", "cancelDiscoveryRun", "resumeDiscoveryRun", "releaseDiscoveryReservation"];
+  const admin = ["saveLeadRadarSettings", "previewDiscoveryWorkload", "createDiscoveryRun", "getDiscoveryPlan", "attachDiscoveryManifest", "ingestDiscoveryChunk", "completeDiscoveryRun", "cancelDiscoveryRun", "resumeDiscoveryRun", "releaseDiscoveryReservation", "acknowledgeDiscoveryRunQuality", "queueDiscoveryRunForWorker", "saveProvinceSchedule"];
   for (const name of admin) assert.match(src, new RegExp(`export async function ${name}\\([^)]*\\)[^{]*\\{\\s*\\n\\s*(const actor = await|await) requireLeadRadar\\("admin"\\)`), name);
   for (const name of ["reviewDiscoveryCandidates", "importApprovedDiscoveryCandidates"]) assert.match(src, new RegExp(`export async function ${name}\\([^)]*\\)[^{]*\\{\\s*\\n\\s*const actor = await requireLeadRadar\\("review"\\)`), name);
 });

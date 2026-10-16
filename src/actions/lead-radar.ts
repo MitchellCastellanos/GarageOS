@@ -15,6 +15,8 @@ import { importApprovedCandidates } from "@/lib/lead-radar/import-service";
 import { reviewCandidates, type ReviewDecision } from "@/lib/lead-radar/candidates";
 import { acknowledgeRunQuality, attachManifest, cancelRun, completeRun, createRun, ingestChunk, planFileFor, resumeRun } from "@/lib/lead-radar/runs";
 import { saveSettings } from "@/lib/lead-radar/settings";
+import { setProvinceSchedule } from "@/lib/lead-radar/province-state";
+import { queueWorkerRun } from "@/lib/lead-radar/worker";
 
 // Every action re-resolves the actor from the session and re-checks the capability on the server. The UI hides controls, but never decides.
 const touch = () => { revalidatePath(PLATFORM.salesLeadRadar); revalidatePath(PLATFORM.salesLeadRadarCandidates); };
@@ -116,3 +118,20 @@ export async function releaseDiscoveryReservation(ledgerId: string) {
   });
 }
 
+
+/** Owner starts a province (or any scope) on the automated worker. Same size acknowledgement as a manual run; nothing executes until the scheduled worker claims it. */
+export async function queueDiscoveryRunForWorker(input: { scope: unknown; release: string; acknowledgeLargeScope?: boolean }) {
+  const actor = await requireLeadRadar("admin");
+  return crmAction(async () => { const r = await queueWorkerRun(actor, input); touch(); return r; });
+}
+const scheduleSchema = z.object({ province: z.string().max(4), autoRefresh: z.boolean(), paused: z.boolean(), refreshIntervalDays: z.number().int() });
+/** Per-province opt-in schedule / pause. Default for every province is OFF. */
+export async function saveProvinceSchedule(input: { province: string; autoRefresh: boolean; paused: boolean; refreshIntervalDays: number }) {
+  const actor = await requireLeadRadar("admin");
+  return crmAction(async () => {
+    const p = scheduleSchema.parse(input);
+    await setProvinceSchedule(actor, p.province, { autoRefresh: p.autoRefresh, paused: p.paused, refreshIntervalDays: p.refreshIntervalDays });
+    touch();
+    return {};
+  });
+}

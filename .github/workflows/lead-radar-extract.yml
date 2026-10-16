@@ -1,0 +1,65 @@
+name: Lead Radar discovery worker (province extraction)
+
+# Replaces the founder's PC for routine extraction. It does NOTHING unless a Super Admin queued a province run (or opted a province into the schedule) in GarageOS:
+# step 1 asks the app (`peek`) whether work exists and exits in seconds when it does not; only then is Python installed and the Overture extractor run.
+# Heavy work happens HERE (a GitHub-hosted runner), never in a Vercel request handler. The extractor reads only the public Overture bucket (HTTP range requests,
+# ≈ 2–250 MB per province); records are uploaded in verified, resumable chunks to /api/lead-radar/worker (same bearer secret as the other cron workers).
+#
+# Cost/limits: GitHub-hosted runner minutes (private repos: 2,000 free min/month on the Free plan; an empty check costs ~1 billed minute, so the 2-hourly schedule
+# below ≈ 360 min/month; a province run ≈ 5–40 min). Job limit 6 h (we cap at 5 h); disk ≈ 14 GB (a province needs < 1 GB); no artifacts are stored; the work
+# directory is cached so a re-run resumes finished shards. Required secrets (names only, shared with the other workers): SALES_CRON_SECRET (= CRON_SECRET in Vercel
+# Production) and SALES_CRON_BASE_URL (https origin, no trailing slash).
+on:
+  schedule:
+    - cron: "17 */2 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lead-radar-extract
+  cancel-in-progress: false
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - name: Is there queued work?
+        id: peek
+        env:
+          SECRET: ${{ secrets.SALES_CRON_SECRET }}
+          BASE_URL: ${{ secrets.SALES_CRON_BASE_URL }}
+        run: |
+          if [ -z "$SECRET" ] || [ -z "$BASE_URL" ]; then echo "::warning::SALES_CRON_SECRET / SALES_CRON_BASE_URL are not configured; nothing to do."; echo "pending=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+          case "$BASE_URL" in https://*) ;; *) echo "::error::SALES_CRON_BASE_URL must be an https origin"; exit 1;; esac
+          code="$(curl -sS -m 60 -o /tmp/peek.json -w '%{http_code}' -X POST -H 'content-type: application/json' -H "Authorization: Bearer ${SECRET}" -d '{"action":"peek"}' "${BASE_URL%/}/api/lead-radar/worker")" || { echo "::error::peek request failed"; exit 1; }
+          echo "HTTP ${code}"; head -c 200 /tmp/peek.json; echo
+          [ "$code" = "200" ] || { echo "::error::worker endpoint returned HTTP ${code}"; exit 1; }
+          if grep -q '"pending":true' /tmp/peek.json; then echo "pending=true" >> "$GITHUB_OUTPUT"; else echo "pending=false" >> "$GITHUB_OUTPUT"; fi
+
+      - uses: actions/checkout@v4
+        if: steps.peek.outputs.pending == 'true'
+      - uses: actions/setup-python@v5
+        if: steps.peek.outputs.pending == 'true'
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: scripts/lead-radar/requirements.txt
+      - name: Install extractor dependencies
+        if: steps.peek.outputs.pending == 'true'
+        run: python -m pip install --disable-pip-version-check -r scripts/lead-radar/requirements.txt
+      - name: Resume cache (finished shards survive an interrupted attempt)
+        if: steps.peek.outputs.pending == 'true'
+        uses: actions/cache@v4
+        with:
+          path: lead-radar-work
+          key: lead-radar-work-${{ github.run_id }}
+          restore-keys: lead-radar-work-
+      - name: Run the worker
+        if: steps.peek.outputs.pending == 'true'
+        env:
+          LEAD_RADAR_WORKER_SECRET: ${{ secrets.SALES_CRON_SECRET }}
+          BASE_URL: ${{ secrets.SALES_CRON_BASE_URL }}
+        run: python scripts/lead-radar/worker.py --base-url "$BASE_URL" --work-dir lead-radar-work

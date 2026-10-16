@@ -45,3 +45,26 @@ Extractor 1.3.0 additionally writes per-shard counters (survive a resume), refus
 
 ## 5. Validation evidence
 `tests/lead-radar-national-db.test.ts` (14 tests, real PostgreSQL): Québec initial and repeated extraction, Ontario/BC/YT, cross-province same-name, mixed-service/EV/car-wash/bicycle/parts/ambiguous names, missing and out-of-province positions, float32 points, gate verdicts and acknowledgement, re-keyed duplicates, excluded business reappearing with changed facts, owned CRM prospect, interrupted/resumed ingestion, first-import position carry-over, fit backfill. `tests/lead-radar-run-quality.test.ts`, `scripts/lead-radar/test_extract.py`.
+
+## 6. Automated discovery worker (no PC, no PowerShell, no manual upload)
+
+```
+Super Admin queues a province  ─┐                                 (or opts a province into the schedule)
+                                ▼
+ CrmDiscoveryRun(execution=WORKER, PLANNED) ──claim(lease 10 min)──▶ GitHub Actions job (scripts/lead-radar/worker.py)
+                                                                    │ extractor 1.3.0 (public Overture bucket, HTTP range reads)
+   /api/lead-radar/worker  ◀── attach manifest · chunks (≤250 rec, resumable by sequence) · heartbeat · complete / fail
+                                ▼
+ run quality gate → COMPLETED | FAILED(verdict) → province state → qualification → guarded import → assignment (existing automation, unchanged)
+```
+
+* **Where it runs:** `.github/workflows/lead-radar-extract.yml`, every 2 hours + manual dispatch. Step 1 asks the app (`peek`) and exits in seconds when nothing is queued; Python is only installed when work exists. Nothing heavy runs in Vercel request handlers (the endpoint only validates and stages ≤ 300-record chunks, exactly like the existing manual upload).
+* **Authorisation:** the worker can only execute a run a Super Admin **queued** (`queueDiscoveryRunForWorker`) or that the opt-in schedule created. A manually uploaded run is never claimable. It needs live discovery ON (database + `LEAD_RADAR_ENABLED=1`), the same bearer secret as the other cron workers (`CRON_SECRET` / GitHub secret `SALES_CRON_SECRET`, `SALES_CRON_BASE_URL`), and fails closed. Nationwide/large scopes still need the explicit acknowledgement when queued.
+* **Checkpointing / resume:** finished extractor shards are kept in the cached work directory; the server stores `lastChunkSeq`; chunking is deterministic, so a new attempt re-attaches the manifest, learns where it stopped and sends only the missing chunks. Replays are no-ops, gaps are refused.
+* **Retry / stall handling:** a lease expires 10 min after the last heartbeat (every chunk and a 2-minute timer heartbeat). A stalled or failed attempt counts once, backoff 5 min → 30 min → 2 h, **3 attempts**, then the run is `FAILED` (`WORKER_RETRIES_EXHAUSTED` or the reported code) and the province records the failure. A quality-gate stop is *not* retried (retrying cannot fix lost coordinates); it needs a person.
+* **Release tracking:** the Lead Radar cron (`/api/webhooks/cron/lead-radar`, every 15 min + daily Vercel cron) runs `runDiscoveryMaintenance`: it reads the official STAC catalog (`stac.overturemaps.org`, fixed URL, 8 s timeout, release id validated), records a new release once in `CrmDiscoveryRelease`, recovers stalled runs, and **only for provinces a Super Admin opted in** queues ONE province run (REPAIR + BODY_GLASS) per newer release, never while another automatic run is in flight, never before the province's minimum interval (default 90 days), and not for 24 h after a failed automatic attempt. Default for every province: **off** (`CrmDiscoveryProvince.autoRefresh=false`). `paused=true` stops claims and scheduling for that province immediately.
+* **Bounded resources:** one automatic run nationally at a time; one province per run; extractor batch of 6 row groups; `--max-row-groups 800`, `--max-records 600000`; chunks ≤ 1.5 MB.
+* **GitHub Actions budget (estimate, not measured on this repo):** hosted runner minutes only. Private repos on the Free plan include 2,000 min/month: the empty 2-hourly check ≈ 360 billed min/month (1 min minimum per run); a province run ≈ 5–40 min (Ontario is the largest at ≈ 250 MB / 287 row groups per the measured hints). Job limit 6 h (we cap 5 h), ~14 GB disk, no artifacts stored, data transfer inbound only from the public Overture bucket. If the repository is public, minutes are free. Reduce the schedule to every 6 h (`17 */6 * * *`) to cut the idle cost to ≈ 120 min/month. No paid infrastructure is required or introduced.
+* **Manual fallback is unchanged:** the PowerShell wrapper + upload still work for any run.
+
+Tests: `tests/lead-radar-worker-policy.test.ts` (pure), `tests/lead-radar-worker-db.test.ts` (11 DB tests: auth fail-closed, claim/lease, interruption + resume, retry exhaustion, gate stop, pause, cancel, opt-in schedule, audit), `scripts/lead-radar/test_worker.py` (8 protocol tests against an in-memory fake server).
