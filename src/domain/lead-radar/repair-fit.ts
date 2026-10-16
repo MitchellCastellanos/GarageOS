@@ -12,6 +12,7 @@
 //
 // A human decision (stored on the prospect) always wins over this function; callers apply it. Keyword lists are conservative EN/FR heuristics.
 import { BY_CODE, CAPABILITY, CODE_NON_TARGET_TOKENS, NAME_REPAIR, codeEvidence, hit, strip, words } from "@/domain/lead-radar/business-type";
+import { assessIcp, icpReasons } from "@/domain/lead-radar/icp";
 import { OEM_NAME } from "@/domain/lead-radar/taxonomy";
 import { BANNER_NAME } from "@/domain/sales-crm/shared-identity";
 
@@ -24,7 +25,7 @@ const DECISIVE: Record<string, readonly string[]> = {
   BICYCLE: ["cycle", "cycles", "velo", "velos", "bicycle", "bicycles", "bicyclette", "bicyclettes", "bike", "bikes", "ebike", "e bike", "bmx", "cyclo"],
   RECYCLING_SALVAGE: ["recyclage", "recycling", "recyclers", "salvage", "scrap", "ferraille", "ferrailleur", "casse auto", "casse automobile", "demolition auto", "wrecker", "wreckers", "auto wrecking", "junk", "pieces usagees", "used auto parts", "used parts", "pick a part", "pick n pull", "pull a part", "u pull", "upull", "libre service pieces"],
   CAR_WASH: ["lave auto", "lave autos", "lavage", "car wash", "carwash", "wash", "auto spa"],
-  DETAILING: ["detailing", "detail", "esthetique auto", "esthetique automobile", "polissage"],
+  DETAILING: ["detailing", "detail", "detailz", "car spa", "auto spa", "esthetique auto", "esthetique automobile", "polissage"],
   TOWING: ["remorquage", "remorqueur", "remorqueurs", "towing", "tow", "depanneuse", "depanneuses", "assistance routiere", "roadside"],
   PARTS_RETAIL: ["pieces d auto", "pieces auto", "pieces automobiles", "pieces et accessoires", "auto parts", "car parts", "parts store", "accessoires auto", "auto accessories"],
   TAXI_EQUIPMENT: ["taximetre", "taximetres", "taxi meter", "taxi", "taxis", "limousine", "limousines", "limo"],
@@ -36,12 +37,12 @@ const DECISIVE: Record<string, readonly string[]> = {
 /** Signals that are suggestive but not decisive: with a specific repair category they only trigger a review. */
 const SOFT: Record<string, readonly string[]> = {
   // Industrial / fleet / oil-field / truck-body / coating businesses carry an automotive repair code but are often not walk-in repair shops: a person decides.
-  INDUSTRIAL_OTHER: ["oilfield", "industrial", "industriel", "industrielle", "powder coating", "peinture en poudre", "truck stop", "relais routier", "truck body", "truck bodies", "registry", "registries", "registre", "registres", "air liquide"],
+  INDUSTRIAL_OTHER: ["oilfield", "industrial", "industriel", "industrielle", "powder coating", "peinture en poudre", "truck stop", "relais routier", "mining", "mine site", "truck body", "truck bodies", "registry", "registries", "registre", "registres", "air liquide"],
   // Accessory / aftermarket-product businesses (tonneau covers, bedliners, lift kits…) carry the repair code but usually sell and fit products rather than repair: a person decides.
   ACCESSORIES_ONLY: ["tonneau", "tonno", "cover depot", "truck accessories", "accessories", "accessoires", "bedliner", "bed liner", "running boards", "lift kit", "lift kits"],
   // Single-component / niche services (steering wheel restoration, headlight restoration): relevant to automotive but not a general repair shop. Review, never auto-excluded.
   SPECIALTY_SERVICE: ["steering wheel", "wheel restoration", "headlight restoration", "restauration de volant"],
-  OTHER_NON_REPAIR: ["parking", "stationnement", "entreposage", "storage", "driving school", "ecole de conduite", "location", "rental", "rent a car", "leasing", "assurance", "insurance"],
+  OTHER_NON_REPAIR: ["supplies", "supply", "fournitures", "parking", "stationnement", "entreposage", "storage", "driving school", "ecole de conduite", "location", "rental", "rent a car", "leasing", "assurance", "insurance"],
   TINT_AUDIO_WRAP: ["tinting", "teinture", "wrap", "upholstery", "sellerie", "alarme", "demarreur", "audio", "stereo", "sono"],
 };
 /** Segments the commercial targeting policy has not ruled on (or that may include a service department): a human decides. */
@@ -64,7 +65,8 @@ const AUTOMOTIVE_WORDING = /(auto|tire|tyre|pneu|motor|garage|mechani|mecani|col
 export type FitReason =
   | "REPAIR_CATEGORY" | "REPAIR_CATEGORY_AND_NAME" | "REPAIR_INDUSTRY_AND_NAME"
   | "NON_TARGET_CATEGORY" | `NAME_SIGNAL_${string}` | "CATEGORY_NAME_CONFLICT"
-  | "OEM_BRAND_NAME" | "EMPLOYEE_LISTING" | "NO_AUTOMOTIVE_WORDING" | "POSSIBLE_DEALER_SERVICE" | `SEGMENT_${string}` | "UNCERTAIN_CATEGORY" | "INSUFFICIENT_EVIDENCE" | "NO_CATEGORY_EVIDENCE";
+  | "OEM_BRAND_NAME" | "EMPLOYEE_LISTING" | "NO_AUTOMOTIVE_WORDING" | "POSSIBLE_DEALER_SERVICE" | `SEGMENT_${string}` | "UNCERTAIN_CATEGORY" | "INSUFFICIENT_EVIDENCE" | "NO_CATEGORY_EVIDENCE"
+  | "OUTSIDE_ICP_CHAIN_OR_CORPORATE" | `ICP_${string}`;
 
 export interface FitFacts {
   name: string | null | undefined;
@@ -73,6 +75,9 @@ export interface FitFacts {
   classReasons?: readonly string[];
   /** CRM industry (CrmIndustry value) — category evidence for records that have no taxonomy code. */
   industry?: string | null;
+  /** Website and city feed the discovery-ICP gate only (franchisor/banner host, store-number names). Optional: the gate degrades to name evidence. */
+  website?: string | null;
+  city?: string | null;
 }
 export interface FitResult { fit: RepairFit; reasons: FitReason[]; evidence: "TAXONOMY" | "CODE_WORDS" | "CODE_AND_NAME" | "INDUSTRY_AND_NAME" | "NONE" }
 
@@ -87,6 +92,8 @@ export function nameSignals(name: string | null | undefined) {
   for (const c of COMPOUND) if (c.re.test(raw)) decisive.add(c.cls);
   const segments = new Set(hitAny(t, REVIEW_SEGMENTS));
   if (/\bmoto(?!r)/.test(raw)) segments.add("MOTORCYCLE"); // "MotoFlash", "Motomax"
+  // "Truck and Trailer Repair": heavy-duty repair is an eligible specialist segment; the trailer word alone only matters when nothing says heavy-duty repair.
+  if (segments.has("TRAILER") && /\b(truck|trucks|diesel|heavy duty|heavy equipment|fleet|semi)\b/.test(raw) && hit(t, NAME_REPAIR)) segments.delete("TRAILER");
   // A person listed at a business ("Meggie at Mighty Peace"): a dealership/shop employee or contact card, not a business of its own.
   const employeeListing = /^[A-Z][\w'’.-]{1,20}(?: [A-Z][\w'’.-]{1,20}){0,2} (?:at|chez|@) \S/.test((name ?? "").trim()) && !hit(words(((name ?? "").split(/ (?:at|chez|@) /i)[0]) ?? ""), NAME_REPAIR) && !BANNER_NAME.test(strip(name ?? ""));
   return { employeeListing, automotiveWording: AUTOMOTIVE_WORDING.test(strip(name ?? "")), repairWord: hit(t, NAME_REPAIR), decisive: [...decisive].sort(), soft: hitAny(t, SOFT).sort(), segments: [...segments].sort(), oem: OEM_NAME.test(name ?? "") };
@@ -101,6 +108,11 @@ export function assessRepairFit(f: FitFacts): FitResult {
   const codeNonTarget = !!code && !known && CODE_NON_TARGET_TOKENS.includes(c.nonTarget ?? "") && c.nonTarget !== "dealer" && c.nonTarget !== "dealers";
   const reasons: FitReason[] = [];
   const specificRepair = cap === "REPAIR" && known !== undefined;
+
+  // 0 — commercial ICP gate: GarageOS targets INDEPENDENT repair businesses. A confirmed chain/franchise/retail/parts-network/dealership location is EXCLUDED with its own
+  // auditable reason, whatever its repair wording or category (a Kal Tire does repair tires; it is still not who we sell to). Heavy-duty/diesel shops are NOT affected.
+  const icp = assessIcp({ name: f.name, website: f.website, city: f.city, taxonomyPrimary: f.taxonomyPrimary });
+  if (icp.outside) return { fit: "EXCLUDED", reasons: icpReasons(icp) as FitReason[], evidence: "NONE" };
 
   // 1 — the platform's own category says "not a repair business".
   if (cap === "NON_TARGET" || codeNonTarget) {

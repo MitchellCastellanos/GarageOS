@@ -108,7 +108,7 @@ export async function stageChunk(tx: Tx, run: { id: string; scope: DiscoveryScop
       completeness: c.completeness, qualityFlags: c.qualityFlags, licenses: c.licenses, datasets: c.datasets, licenseOk: c.licenseOk, contentFingerprint: c.contentFingerprint,
     };
     // Repair fit is derived from the same facts, so a business is classified the moment it is staged (the first import is never a cleanup afterwards).
-    const fit = assessRepairFit({ name: c.name, taxonomyPrimary: c.taxonomyPrimary, classReasons: c.classReasons });
+    const fit = assessRepairFit({ name: c.name, taxonomyPrimary: c.taxonomyPrimary, classReasons: c.classReasons, website: c.website, city: c.city });
     const fitData = { repairFit: fit.fit, repairFitReasons: fit.reasons as string[], repairFitAt: now };
     // The source point is refreshed whenever the extract carries one (never cleared by an extract without one) and is NOT a business fact:
     // it is outside contentFingerprint, so it never re-opens an approval, requalifies, or touches an imported prospect.
@@ -138,12 +138,14 @@ export async function stageChunk(tx: Tx, run: { id: string; scope: DiscoveryScop
       // Qualification is a verdict on exactly these facts: when they (or the duplicate verdict) move, the lane is cleared so the active policy
       // re-evaluates the candidate. A HUMAN approval that a source change invalidated keeps a sticky SOURCE_CHANGED reason (only a human clears it);
       // a POLICY approval is simply re-evaluated — the policy approves facts, not people.
-      const requalify = changed || matchMoved || licenseMoved;
+      // A release refresh re-applies the CURRENT classifier/ICP registry to every not-yet-imported candidate: a chain that was reviewable becomes excluded (and vice versa).
+      const fitMoved = prev.repairFit !== fit.fit || (prev.repairFitReasons ?? []).join() !== fit.reasons.join();
+      const requalify = changed || matchMoved || licenseMoved || fitMoved;
       const humanApprovalInvalidated = invalidated && prev.approvedByPolicyVersion === null;
       updates.push(tx.crmDiscoveryCandidate.update({
         where: { id: prev.id },
         data: {
-          lastRunId: run.id, lastSeenRelease: run.release, ...(changed || licenseMoved ? { ...facts, ...fitData } : { qualityFlags: c.qualityFlags, ...(prev.repairFit === null ? fitData : {}) }), ...point, ...match, matchedAt: now,
+          lastRunId: run.id, lastSeenRelease: run.release, ...(changed || licenseMoved ? { ...facts, ...fitData } : { qualityFlags: c.qualityFlags, ...(prev.repairFit === null || fitMoved ? fitData : {}) }), ...point, ...match, matchedAt: now,
           ...(invalidated ? { reviewState: "PENDING" as const, reviewedByUserId: null, reviewedAt: null, approvedByPolicyVersion: null } : {}),
           ...(requalify ? { qualificationLane: null, qualificationPolicyVersion: null, qualifiedAt: null, qualificationReasons: humanApprovalInvalidated ? ["SOURCE_CHANGED"] : [] } : {}),
           // A candidate whose import failed on validation/territory grounds gets a fresh chance only when its facts actually changed.

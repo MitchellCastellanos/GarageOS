@@ -22,7 +22,7 @@ test("irrelevant businesses named in the audit are EXCLUDED even when mislabeled
 });
 
 test("segments without a commercial ruling go to human review, never to exclusion or assignment", () => {
-  for (const [name, code, seg] of [["Remorques O Bédard", "trailer_repair", "TRAILER"], ["MotoFlash.ca", REPAIR_CODE, null], ["Moto Garage Laval", REPAIR_CODE, "MOTORCYCLE"], ["Honda Laval Service", REPAIR_CODE, null], ["Concessionnaire Ford Rive-Sud", "auto_dealer", "DEALER"]] as const) {
+  for (const [name, code, seg] of [["Remorques O Bédard", "trailer_repair", "TRAILER"], ["MotoFlash.ca", REPAIR_CODE, null], ["Moto Garage Laval", REPAIR_CODE, "MOTORCYCLE"], ["Honda Laval Service", REPAIR_CODE, null] ] as const) {
     const r = fit(name, code);
     assert.notEqual(r.fit, "EXCLUDED", name);
     assert.notEqual(r.fit, "VERIFIED_REPAIR", name);
@@ -89,7 +89,7 @@ test("real Alberta rehearsal findings: industrial/oil-field/truck-body/coating n
   assert.equal(f("Oscar's Pick A Part", "auto_restoration_service"), "EXCLUDED");
   assert.equal(f("Registry at Edmonton Motors", "automotive_repair"), "HUMAN_REVIEW");
   assert.equal(f("Dejong's Automotive", "automotive_repair"), "VERIFIED_REPAIR");
-  assert.equal(f("Mr. Lube + Tires", "oil_change_station"), "VERIFIED_REPAIR");
+  assert.equal(f("Mr. Lube + Tires", "oil_change_station"), "EXCLUDED", "franchise chain: outside the independent-repair ICP");
   assert.equal(f("Garage Remorquage Roy", "automotive_repair"), "VERIFIED_REPAIR");
   assert.equal(f("Showroom 674 Auto Detailing", "auto_detailing"), "EXCLUDED");
   assert.equal(f("Full Throttle Cycle Inc.", "motorcycle_repair"), "HUMAN_REVIEW", "motorcycle shop, not a bicycle shop");
@@ -103,6 +103,6 @@ test("real Alberta rehearsal findings: industrial/oil-field/truck-body/coating n
 test("real Alberta rehearsal: a loose repair category with a name that says nothing about vehicles goes to a person; real garages with automotive wording or a known chain stay verified", () => {
   const f = (name: string, code = "automotive_repair", classReasons: string[] = []) => assessRepairFit({ name, taxonomyPrimary: code, classReasons }).fit;
   for (const n of ["Pro Trac Gear", "Phantom Films", "Garner's Fuel Oils", "Gasoline Alley Business Centre Ltd", "The Concrete Doctors Ltd", "Roda Deaco Valve Inc", "Raynard Supply Ltd"]) assert.equal(f(n), "HUMAN_REVIEW", n);
-  for (const n of ["Tee Jays Mechanical", "Toytech Auto", "Bow Island Auto Service", "Great Canadian Oil Change", "Moonshine Hotrod Shop", "Cams and cranks", "Elite PDR Specialists", "Atelier Dupont", "Calgary Autocare", "Tireland", "Krown Rust Control"]) assert.equal(f(n), "VERIFIED_REPAIR", n);
+  for (const n of ["Tee Jays Mechanical", "Toytech Auto", "Bow Island Auto Service", "Moonshine Hotrod Shop", "Cams and cranks", "Elite PDR Specialists", "Atelier Dupont", "Calgary Autocare", "Tireland"]) assert.equal(f(n), "VERIFIED_REPAIR", n);
   assert.equal(f("Signature", "automotive_repair", ["CHAIN_NAME"]), "VERIFIED_REPAIR", "a chain-named listing keeps its category evidence");
 });

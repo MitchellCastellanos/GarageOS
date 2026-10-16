@@ -21,7 +21,7 @@ export const MAX_DECISION_BATCH = 100;
 const MEANINGFUL_ACTIVITY = ["NOTE", "CALL", "MEETING", "EMAIL_LOGGED", "DEMO", "EMAIL_SENT", "EMAIL_RECEIVED", "FIELD_VISIT"] as const;
 
 export const PROSPECT_FIT_SELECT = {
-  id: true, name: true, city: true, industry: true, source: true, status: true, assignedStaffId: true, assignmentMode: true, createdAt: true,
+  id: true, name: true, city: true, website: true, industry: true, source: true, status: true, assignedStaffId: true, assignmentMode: true, createdAt: true,
   repairFit: true, repairFitSource: true, repairFitReasons: true, repairFitProtected: true,
   importBatch: { select: { sourceKey: true } },
 } satisfies Prisma.CrmProspectSelect;
@@ -69,9 +69,9 @@ export interface FitProposal {
 }
 
 /** Pure given its inputs. HUMAN decisions are returned untouched; a protected record the assessor would EXCLUDE becomes a protected HUMAN_REVIEW. */
-export function proposeFit(p: Pick<FitProspectRow, "name" | "repairFit" | "repairFitSource" | "repairFitReasons" | "repairFitProtected"> & { industry: string | null }, cand: Pick<CandidateEvidence, "taxonomyPrimary" | "classReasons"> | undefined, isProtected: boolean): FitProposal {
+export function proposeFit(p: Pick<FitProspectRow, "name" | "repairFit" | "repairFitSource" | "repairFitReasons" | "repairFitProtected"> & { industry: string | null; website?: string | null; city?: string | null }, cand: Pick<CandidateEvidence, "taxonomyPrimary" | "classReasons"> | undefined, isProtected: boolean): FitProposal {
   if (p.repairFitSource === "HUMAN" && p.repairFit) return { fit: p.repairFit, reasons: p.repairFitReasons, protected: p.repairFitProtected, assessed: p.repairFit, evidence: "HUMAN", humanLocked: true };
-  const a = assessRepairFit({ name: p.name, taxonomyPrimary: cand?.taxonomyPrimary, classReasons: cand?.classReasons, industry: p.industry });
+  const a = assessRepairFit({ name: p.name, taxonomyPrimary: cand?.taxonomyPrimary, classReasons: cand?.classReasons, industry: p.industry, website: p.website, city: p.city });
   if (!cand && a.fit === "HUMAN_REVIEW" && a.reasons.length === 1 && a.reasons[0] === "NO_CATEGORY_EVIDENCE") return { fit: "UNCLASSIFIED", reasons: [], protected: isProtected, assessed: "UNCLASSIFIED", evidence: "NONE", humanLocked: false };
   if (isProtected && a.fit === "EXCLUDED") return { fit: "HUMAN_REVIEW", reasons: [...a.reasons, "PROTECTED_RECORD"], protected: true, assessed: a.fit, evidence: a.evidence, humanLocked: false };
   return { fit: a.fit, reasons: a.reasons as string[], protected: isProtected, assessed: a.fit, evidence: a.evidence, humanLocked: false };
@@ -179,14 +179,14 @@ export async function applyCleanupPage(actor: PlatformSalesActor, cursor: string
 
 // ── Import-time stamp (new prospects are classified the moment they exist) ───────────────────────────────────────────
 /** Sets the AUTOMATIC fit of prospects an import just created or linked, only where none exists. A human override approved in Lead Radar becomes a HUMAN fit. */
-export async function stampFitAtImport(tx: Prisma.TransactionClient, items: readonly { prospectId: string; created: boolean; name: string; industry: string | null; taxonomyPrimary: string | null; classReasons: readonly string[]; override: { userId: string; note: string } | null }[], now = new Date()) {
+export async function stampFitAtImport(tx: Prisma.TransactionClient, items: readonly { prospectId: string; created: boolean; name: string; industry: string | null; website?: string | null; city?: string | null; taxonomyPrimary: string | null; classReasons: readonly string[]; override: { userId: string; note: string } | null }[], now = new Date()) {
   let set = 0;
   for (const it of items) {
     if (it.override) {
       const r = await tx.crmProspect.updateMany({ where: { id: it.prospectId, repairFit: null }, data: { repairFit: "VERIFIED_REPAIR", repairFitSource: "HUMAN", repairFitReasons: ["HUMAN_OVERRIDE_AT_APPROVAL"], repairFitAt: now, repairFitByUserId: it.override.userId, repairFitNote: it.override.note.slice(0, 300) } });
       set += r.count; continue;
     }
-    const a = assessRepairFit({ name: it.name, taxonomyPrimary: it.taxonomyPrimary, classReasons: it.classReasons, industry: it.industry });
+    const a = assessRepairFit({ name: it.name, taxonomyPrimary: it.taxonomyPrimary, classReasons: it.classReasons, industry: it.industry, website: it.website, city: it.city });
     const r = await tx.crmProspect.updateMany({ where: { id: it.prospectId, repairFit: null }, data: { repairFit: a.fit, repairFitSource: "AUTO", repairFitReasons: a.reasons as string[], repairFitAt: now } });
     set += r.count;
   }

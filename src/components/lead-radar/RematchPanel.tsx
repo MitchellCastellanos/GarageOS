@@ -7,9 +7,15 @@ import { btnPrimary, btnSecondary, cardCls, inputCls, labelCls } from "@/compone
 import { FormMessage } from "@/components/sales-crm/useCrmAction";
 import { useRadarAction } from "@/components/lead-radar/useRadarAction";
 import { fill } from "@/lib/admin-locale/lead-radar";
-import { nationalCopy } from "@/lib/admin-locale/lead-radar-national";
+import { fitReasonLabel, nationalCopy } from "@/lib/admin-locale/lead-radar-national";
 
-interface Res { applied: boolean; examined: number; changed: number; transitions: Record<string, number>; nextCursor: string | null }
+interface Icp {
+  newlyExcluded: number; newlyExcludedDomainOnly: number; newlyExcludedByCategory: Record<string, number>; newlyExcludedByBrand: Record<string, number>; newlyExcludedExamples: { name: string; city: string | null; brand: string | null }[];
+  newlyEligible: number; remainingHumanReview: number; remainingReviewByReason: Record<string, number>; verifiedAfter: number; excludedAfter: number; registryVersion: number;
+  crmMatchImpact: { newlyExcludedWithCrmMatch: number; newlyExcludedAmbiguousOrBranch: number };
+  protectedDecisions: { examined: number; fitWouldChange: number; approvedNowBlockedAtImport: number };
+}
+interface Res { applied: boolean; examined: number; changed: number; transitions: Record<string, number>; nextCursor: string | null; icp: Icp }
 
 /** Owner tool: preview/apply a re-check of staged candidates' CRM matches for one province. Candidate match columns only; no prospect is touched. */
 export function RematchPanel({ locale }: { locale: "en" | "fr" }) {
@@ -35,6 +41,16 @@ export function RematchPanel({ locale }: { locale: "en" | "fr" }) {
         <div className="space-y-1 text-sm text-slate-700" aria-live="polite">
           <p>{k.examined}: <strong>{res.examined}</strong> · {k.changed}: <strong>{res.changed}</strong></p>
           {res.changed === 0 ? <p>{k.none}</p> : <ul className="list-disc pl-5 text-xs">{Object.entries(res.transitions).map(([t, n]) => <li key={t}>{t.replace("->", " → ").replace("match:", "match · ").replace("fit:", "fit · ")}: {n}</li>)}</ul>}
+          <div className="space-y-1 border-t border-slate-200 pt-2 text-xs">
+            <p className="font-semibold text-slate-900">{k.icp.title} · {k.icp.registry} {res.icp.registryVersion}</p>
+            <p>{k.icp.newlyExcluded}: <strong>{res.icp.newlyExcluded}</strong> ({k.icp.domainOnly}: {res.icp.newlyExcludedDomainOnly}) · {k.icp.newlyEligible}: <strong>{res.icp.newlyEligible}</strong> · {k.icp.remaining}: <strong>{res.icp.remainingHumanReview}</strong></p>
+            {res.icp.remainingHumanReview > 0 && <p>{k.icp.remaining}: {Object.entries(res.icp.remainingReviewByReason).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([c, n]) => `${fitReasonLabel(locale, c)} ${n}`).join(" · ")}</p>}
+            <p>{k.icp.after}: <strong>{res.icp.verifiedAfter}</strong> / <strong>{res.icp.excludedAfter}</strong></p>
+            <p>{k.icp.crm}: <strong>{res.icp.crmMatchImpact.newlyExcludedWithCrmMatch}</strong> / <strong>{res.icp.crmMatchImpact.newlyExcludedAmbiguousOrBranch}</strong></p>
+            {res.icp.newlyExcluded > 0 && <p>{k.icp.byCategory}: {Object.entries(res.icp.newlyExcludedByCategory).map(([c, n]) => `${c} ${n}`).join(" · ")}</p>}
+            {res.icp.newlyExcluded > 0 && <p>{k.icp.byBrand}: {Object.entries(res.icp.newlyExcludedByBrand).sort((a, b) => b[1] - a[1]).map(([c, n]) => `${c} ${n}`).join(" · ")}</p>}
+            <p>{k.icp.protectedTitle}: {fill(k.icp.protectedLine, { n: String(res.icp.protectedDecisions.examined), m: String(res.icp.protectedDecisions.fitWouldChange), k: String(res.icp.protectedDecisions.approvedNowBlockedAtImport) })}</p>
+          </div>
           {res.nextCursor && <p className="text-xs text-amber-800">{k.more}</p>}
         </div>
       )}

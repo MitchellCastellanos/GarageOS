@@ -84,3 +84,26 @@ Matching: `domain/sales-crm/{shared-identity,dedupe}.ts`, `lib/sales-crm/lead-po
 3. Run on your machine (read-only): `DATABASE_URL=<prod connection> npx tsx scripts/lead-radar/c2-audit.ts sample --province AB --seed c2-AB-20261016 --out ./c2` and `… impact …`; open `audit-sample.md`, fill `audit-labels.template.json` (set `websiteChecked:true` only for sites you opened), then `npx tsx scripts/lead-radar/c2-audit.ts score --sample ./c2/audit-sample.json --labels ./c2/audit-labels.template.json --out ./c2`.
 4. Decide heavy-duty and corporate-retail policy; set the Automatic import scope to Alberta only.
 5. Tell engineering the score; if GO, authorize C3 (automation CRM-only or a province-scoped manual import) as a separate decision. Sending, sequences and assignment stay as they are.
+
+
+---
+
+## 7. Independent-repair ICP re-audit (rehearsal data) — supersedes the C2 precision definition
+
+Founder decision: Lead Radar targets **independent automotive repair businesses only** (see [icp-policy.md](icp-policy.md)). The audit now measures that market: a chain/franchise/dealership counted as VERIFIED is a distinct miss (`CHAIN_OR_CORPORATE`), a correct chain exclusion is `CORRECT_EXCLUSION_CHAIN`, and the scorer reports **chain leakage** (must be 0) and the **ICP-exclusion error** (≤ 5 %) next to the existing thresholds. Sampling can now run on the *current* rules (`c2-audit.ts sample --basis current`), because stored verdicts are stale until the owner applies the re-check.
+
+Data: the real Alberta extraction replayed into a **local rehearsal database** (6,595 candidates, no CRM prospects, so CRM-match effects cannot be shown here); the reviewer judged from name, category, city and website domain only — **no website was opened**. Files: [c2-alberta-icp/](c2-alberta-icp/) (sample, labels, score, Preview).
+
+| Metric (current rules, seed `c2-AB-icp-1`) | Result | Threshold |
+|---|---|---|
+| Verified → independent repair (real + relevant specialised) | **86 % (43/50)**; strict 44 %; the 7 others are *ambiguous* (website needed), none is a chain | ≥ 90 % GO · < 85 % STOP → **BORDERLINE** |
+| Chain / franchise / dealership inside VERIFIED | **0 / 50** | 0 |
+| Excluded sample (26 chain/dealer, 24 wash/detailing/towing/parts/registry) | **0 wrong** | ≤ 10 % |
+| ICP exclusions that were independent shops | **0 / 26** | ≤ 5 % |
+| Duplicates | 10 / 10 correct | 0 incorrect |
+
+Findings that changed the rules during this audit (each now has a regression test): a bare "Go Auto" / "Discount Tire" / "Speedy Muffler" alias excluded independents (removed/tightened); "AMSOIL Dealer" is not a dealership; "Unlock My BMW" is not a dealer; **First Truck Centre** leaked as VERIFIED (added); "Truck and Trailer Repair" is heavy-duty (eligible); "Detailz a Spa…", "…Mining Services", "…Supplies" are not repair shops.
+
+**Alberta Preview (rehearsal database, not production; nothing applied):** 6,595 examined → **971 newly excluded** as chain/corporate (tire networks 373, franchise service 211, collision 141, parts 122, dealerships 76, corporate retail 39, glass 5, dealer groups 4; 30 on the franchisor website alone — spot-check), **39 newly eligible**, 8 moved to review, **1,168 remain for a person** (mostly loose categories with no automotive wording, motorcycle/marine/RV and trailer segments), 3,029 verified / 2,398 excluded after. CRM-match impact and protected decisions are 0 here because the rehearsal database has no prospects; the owner's production Preview will show them. Stored verdicts in the rehearsal database predate PR #139, so some transitions are #139 effects as well as ICP effects.
+
+**C3 remains NO-GO** until the owner runs the production Preview/Apply, a production sample (with websites checked for the ambiguous items) reaches ≥ 90 %, and the owner approves the import.
