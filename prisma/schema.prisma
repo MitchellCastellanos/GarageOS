@@ -3980,6 +3980,11 @@ model CrmDiscoveryRun {
   stagedNew         Int                   @default(0)
   stagedUpdated     Int                   @default(0)
   rejectedRecords   Int                   @default(0)
+  /// Source-coordinate accounting: records whose line carried a point / points accepted / written onto new / already-staged candidates.
+  recordsWithPoint  Int                   @default(0)
+  pointsAccepted    Int                   @default(0)
+  pointsOnNew       Int                   @default(0)
+  pointsOnExisting  Int                   @default(0)
   /// Highest contiguous chunk sequence ingested; a retry of an already-applied chunk is a no-op (restartable uploads).
   lastChunkSeq      Int                   @default(-1)
   /// Capped list of { code, count } diagnostics. Never record contents.

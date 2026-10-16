@@ -26,6 +26,16 @@ class T(unittest.TestCase):
         self.assertEqual(rec["v"], 1)
     def test_source_point_from_degenerate_bbox(self):
         self.assertEqual(ex.to_record(ROW)["geo"], {"lat": 45.5, "lng": -73.6})
+    def test_source_point_accepts_float32_widened_bbox_of_a_real_place(self):
+        # Measured on Overture release 2026-09-23.1: bbox is float32 widened to double, so a POINT has xmax - xmin = one float32 step (~7.6e-6 deg).
+        real = {**ROW, "bbox": {"xmin": -74.17697143554688, "xmax": -74.17696380615234, "ymin": 45.34060287475586, "ymax": 45.34061050415039}}
+        g = ex.source_point(real)
+        self.assertIsNotNone(g, "extractor 1.1.0 (tolerance 1e-6) returned None for every real place")
+        self.assertAlmostEqual(g["lat"], 45.3406067, places=5); self.assertAlmostEqual(g["lng"], -74.1769676, places=5)
+        self.assertIsNone(ex.source_point({**ROW, "bbox": {"xmin": -74.2, "xmax": -74.199, "ymin": 45.3, "ymax": 45.3}}))  # ~80 m wide: a real box, not a point
+    def test_shard_identity_includes_the_extractor_version(self):
+        self.assertRegex(ex.EXTRACTOR_VERSION, r"^\d+\.\d+\.\d+$")
+        self.assertNotIn(ex.EXTRACTOR_VERSION, ("1.0.0", "1.1.0"))
     def test_source_point_rejects_non_points_and_garbage(self):
         box = lambda **k: {**ROW, "bbox": {"xmin": -73.6, "xmax": -73.6, "ymin": 45.5, "ymax": 45.5, **k}}
         self.assertIsNone(ex.source_point(box(xmax=-73.5)))          # a real box is not a point

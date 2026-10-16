@@ -7,6 +7,7 @@ import { runGeocodingBatch, saveGeocodingSettings } from "@/lib/sales-crm/geocod
 import { CrmError } from "@/lib/sales-crm/prospects";
 import { runSourceLocationBackfill, type BackfillReport } from "@/lib/sales-crm/source-location-service";
 import { crmAction } from "@/lib/sales-crm/result";
+import { pointDiagnostics, refreshSourcePoints } from "@/lib/lead-radar/points-refresh";
 
 // Super Admin only (`manage_geocoding`). The actor is re-resolved from the session on every call; the service re-checks it.
 
@@ -50,4 +51,21 @@ export async function runSourceLocationBackfillAction(payload: { dryRun: boolean
     if (!payload.dryRun) refresh();
     return { report: total };
   });
+}
+
+// ── Source-position refresh (free; candidates only) and diagnostics ──────────────────────────────────────────────────
+/** One chunk (≤ 5,000 lines) of points.ndjson. `apply: false` is the read-only preview: nothing is written, not even an audit row. */
+export async function refreshSourcePointsAction(payload: { text: string; apply: boolean }) {
+  const actor = await requireCrmActor("manage_geocoding");
+  return crmAction(async () => {
+    if (!payload || typeof payload.text !== "string" || typeof payload.apply !== "boolean") throw new CrmError("INVALID");
+    const report = await refreshSourcePoints(actor, payload.text, { apply: payload.apply });
+    if (payload.apply) refresh();
+    return { report };
+  });
+}
+
+export async function loadPointDiagnosticsAction() {
+  const actor = await requireCrmActor("manage_geocoding");
+  return crmAction(async () => ({ diagnostics: await pointDiagnostics(actor) }));
 }
