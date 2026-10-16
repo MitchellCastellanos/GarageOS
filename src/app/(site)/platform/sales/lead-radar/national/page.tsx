@@ -6,6 +6,8 @@ import { nationalReadiness } from "@/lib/lead-radar/national";
 import { loadRadarPage } from "@/lib/lead-radar/page";
 import { isLive, readSettings } from "@/lib/lead-radar/settings";
 import { Badge, cardCls, formatDate, PageHeader, PermissionDenied } from "@/components/sales-crm/ui";
+import { emailReadinessFunnel } from "@/lib/sales-comms/contact-readiness";
+import { LADDER } from "@/domain/lead-radar/contact-readiness";
 import { ProvinceControls } from "@/components/lead-radar/ProvinceControls";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +23,7 @@ export default async function NationalReadinessPage() {
   const { actor, access, locale, t } = await loadRadarPage("admin");
   if (!actor || !access) return <PermissionDenied t={t} />;
   const k = nationalCopy(locale).dash;
-  const [d, settings] = await Promise.all([nationalReadiness(), readSettings()]);
+  const [d, settings, funnel] = await Promise.all([nationalReadiness(), readSettings(), emailReadinessFunnel()]);
   const live = isLive(settings);
   const at = (x: Date | null) => (x ? formatDate(x, locale) : k.k.never);
   return (
@@ -39,6 +41,19 @@ export default async function NationalReadinessPage() {
           <div key={label} className="min-w-0 rounded-xl border border-slate-200 bg-white p-3"><dt className="text-xs text-slate-500">{label}</dt><dd className="text-xl font-semibold text-slate-900">{num(v, locale)}</dd></div>
         ))}
       </dl>
+      <section className={`${cardCls} space-y-3`} aria-labelledby="nat-email">
+        <h2 id="nat-email" className="font-semibold text-slate-900">{k.email.title}</h2>
+        <p className="text-xs text-slate-600">{k.email.help}</p>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[720px] text-left text-sm">
+            <thead className="text-xs text-slate-500"><tr><th className="py-2 pr-3">{k.email.province}</th>{LADDER.map((r) => <th key={r} className="pr-3 text-right">{k.email.rungs[r]}</th>)}<th className="text-right">{k.email.pending}</th></tr></thead>
+            <tbody>
+              {funnel.rows.map((r) => <tr key={r.province} className="border-t border-slate-100"><td className="py-2 pr-3">{r.province}</td>{LADDER.map((g) => <td key={g} className="pr-3 text-right tabular-nums">{num(r.counts[g], locale)}</td>)}<td className="text-right tabular-nums">{num(r.pendingReview, locale)}</td></tr>)}
+              <tr className="border-t border-slate-300 font-semibold"><td className="py-2 pr-3">{k.email.total}</td>{LADDER.map((g) => <td key={g} className="pr-3 text-right tabular-nums">{num(funnel.total[g], locale)}</td>)}<td className="text-right tabular-nums">{num(funnel.pendingReview, locale)}</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
       <div className="grid gap-4 lg:grid-cols-2">
         {d.rows.map((r) => (
           <section key={r.province} className={`${cardCls} space-y-3`} aria-labelledby={`nat-${r.province}`}>

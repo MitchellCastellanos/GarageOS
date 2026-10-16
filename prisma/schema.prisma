@@ -2692,6 +2692,7 @@ model CrmProspect {
   @@index([assignedStaffId, assignmentMode])
   @@index([repairFit, assignedStaffId])
   @@schema("garageos")
+  discoveredContacts CrmDiscoveredContact[]
 }
 
 model CrmContact {
@@ -4321,5 +4322,41 @@ model CrmOutreachEligibility {
 
   @@index([decision])
   @@index([staffId, decision])
+  @@schema("garageos")
+}
+
+/// A business email found by discovery/enrichment, held OUTSIDE the CRM contact list until a person accepts it. Storing it creates no CrmContact, no sending basis, no
+/// enrollment and no message: a published address is business data, not consent. Provenance (source, URL, capture time) is mandatory so a CASL review can see where it came from.
+model CrmDiscoveredContact {
+  id                String      @id @default(cuid())
+  prospectId        String
+  prospect          CrmProspect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+  emailNormalized   String
+  /// OVERTURE_PUBLISHED | WEBSITE_PAGE | MANUAL | PROVIDER
+  source            String
+  sourceDataset     String?
+  sourceUrl         String?
+  capturedAt        DateTime
+  capturedByUserId  String?
+  /// Syntax + shape check (domain/lead-radar/contact-readiness.ts). Not proof the mailbox exists.
+  syntaxValid       Boolean
+  /// info@, contact@, ventes@… — a role mailbox rather than a named person (relevant to the CASL review, never a conclusion by itself).
+  roleBased         Boolean
+  /// gmail/hotmail/… — a personal-looking mailbox on a business record; flagged for the reviewer.
+  freeMailbox       Boolean
+  /// UNCHECKED | HAS_MX | NO_MX. DNS validation is a later, separate enrichment step; UNCHECKED never blocks and never counts as verified.
+  mxStatus          String      @default("UNCHECKED")
+  mxCheckedAt       DateTime?
+  /// PENDING | ACCEPTED | REJECTED
+  status            String      @default("PENDING")
+  reviewedByUserId  String?
+  reviewedAt        DateTime?
+  reviewNote        String?
+  promotedContactId String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@unique([prospectId, emailNormalized])
+  @@index([status, createdAt])
   @@schema("garageos")
 }

@@ -17,6 +17,7 @@ import { acknowledgeRunQuality, attachManifest, cancelRun, completeRun, createRu
 import { saveSettings } from "@/lib/lead-radar/settings";
 import { setProvinceSchedule } from "@/lib/lead-radar/province-state";
 import { queueWorkerRun } from "@/lib/lead-radar/worker";
+import { reviewDiscoveredContact } from "@/lib/sales-comms/contact-readiness";
 
 // Every action re-resolves the actor from the session and re-checks the capability on the server. The UI hides controls, but never decides.
 const touch = () => { revalidatePath(PLATFORM.salesLeadRadar); revalidatePath(PLATFORM.salesLeadRadarCandidates); };
@@ -134,4 +135,10 @@ export async function saveProvinceSchedule(input: { province: string; autoRefres
     touch();
     return {};
   });
+}
+
+/** Super Admin decision on a discovered business email. Accepting creates a plain CRM contact only: no consent, no sending basis, no enrollment, no message. */
+export async function decideDiscoveredContact(input: { id: string; decision: "ACCEPT" | "REJECT"; note?: string | null }) {
+  const actor = await requireLeadRadar("admin");
+  return crmAction(async () => { const r = await reviewDiscoveredContact(actor, String(input?.id ?? ""), input?.decision, input?.note ?? null); touch(); return r; });
 }
