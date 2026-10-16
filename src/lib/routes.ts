@@ -62,6 +62,7 @@ export const PLATFORM = {
   salesLeadRadarCandidates: "/platform/sales/lead-radar/candidates",
   salesLeadRadarAutomation: "/platform/sales/lead-radar/automation",
   salesLeadRadarCleanup: "/platform/sales/lead-radar/cleanup",
+  salesLeadRadarNational: "/platform/sales/lead-radar/national",
   salesLeadRadarRun: (id: string) => `/platform/sales/lead-radar/runs/${id}`,
   home: "/platform",
   shop: (id: string) => `/platform/shops/${id}`,

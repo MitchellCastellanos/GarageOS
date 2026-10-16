@@ -331,4 +331,30 @@ if (!enabled) {
     assert.deepEqual([after.reviewState, after.importState, after.qualificationLane], [before.reviewState, before.importState, before.qualificationLane]);
     assert.equal((await fitLib.backfillCandidateFit({ deadline: Date.now() + 30_000 })).classified, 0, "idempotent");
   });
+
+  test("national readiness: per-province populations are separate and honest — a finished extraction with unfinished downstream work is PROCESSING, a gate stop is named, nothing is double counted", async () => {
+    const { nationalReadiness } = await import("../src/lib/lead-radar/national");
+    const d = await nationalReadiness();
+    const row = (p: string) => d.rows.find((r) => r.province === p)!;
+    assert.equal(d.rows.length, 13);
+    const qc = row("QC");
+    assert.equal(qc.crm.prospects >= 1, true, "the imported prospect is counted in the CRM population");
+    assert.equal(qc.crm.withCoordinates, qc.crm.prospects, "first-import positions: every created prospect has coordinates");
+    assert.equal(qc.crm.missingCoordinates, 0);
+    assert.ok(qc.candidates.staged > qc.crm.prospects, "candidates and prospects are different populations");
+    assert.ok(qc.candidates.duplicates >= 2, "re-keyed businesses are counted as duplicates, not staged");
+    assert.ok(qc.candidates.excluded >= 1 && qc.candidates.verified >= 1 && qc.candidates.review >= 1);
+    assert.equal(qc.candidates.unclassified, 0);
+    assert.equal(qc.stage, "PROCESSING", "downstream work remains (pending qualification/import), so it is never shown as done");
+    assert.ok(qc.deferred.total > 0);
+    assert.ok(qc.actions.length > 0);
+    assert.equal(row("ON").candidates.staged >= 3, true);
+    assert.equal(row("NS").stage, "STOPPED_BY_GATE");
+    assert.equal(row("NS").errors.lastRunFailure, "EXTRACTION_EMPTY_SUSPECT");
+    assert.equal(row("NB").stage, "READY", "a legitimate zero-result extraction with nothing pending is complete");
+    assert.equal(row("NU").stage, "NOT_STARTED");
+    assert.equal(d.totals.prospects, d.rows.reduce((a, r) => a + r.crm.prospects, 0));
+    assert.ok(d.automation.nextWorkerCheck > new Date());
+    assert.equal(d.automation.nextTick, null, "automation is OFF in this database: no next tick is promised");
+  });
 }
