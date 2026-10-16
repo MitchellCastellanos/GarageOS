@@ -7,6 +7,9 @@ import { crmAction } from "@/lib/sales-crm/result";
 import { requireLeadRadar } from "@/lib/lead-radar/access";
 import { runAutomationTick, saveAutomation, setAutomationEnabled, setPilotEnabled, type AutomationInput } from "@/lib/lead-radar/automation";
 import { activatePolicy, createPolicyDraft, previewPolicy } from "@/lib/lead-radar/policy";
+import { compareRulesOnPool, renderComparisonMarkdown } from "@/lib/lead-radar/compare";
+import { canonicalRules, DEFAULT_POLICY_RULES, RECOMMENDED_V2_RULES } from "@/domain/lead-radar/policy-rules";
+import { db } from "@/lib/db";
 
 // Super Admin only, re-checked server-side on every call (requireLeadRadar("admin") resolves the actor from the session; the UI only hides controls).
 const touch = () => revalidatePath(PLATFORM.salesLeadRadarAutomation);
@@ -43,5 +46,28 @@ export async function runLeadAutomationNow() {
     touch();
     if (r.status === "SKIPPED") throw new CrmError(r.reason ?? "SKIPPED");
     return { status: r.status };
+  });
+}
+
+/**
+ * READ-ONLY V1 vs V2 comparison over the staged candidates (nothing is written: no policy, no candidate, no audit row). Each side is a stored policy id, the V1 defaults
+ * ("V1"), the recommended V2 ("V2"), or ad-hoc rules.
+ */
+type Side = { policyId: string } | { preset: "V1" | "V2" } | { rules: unknown };
+async function resolveSide(s: Side) {
+  if ("policyId" in s) {
+    const p = await db.crmLeadPolicy.findUnique({ where: { id: String(s.policyId) }, select: { rules: true } });
+    if (!p) throw new CrmError("NOT_FOUND");
+    return canonicalRules(p.rules);
+  }
+  if ("preset" in s) return s.preset === "V2" ? RECOMMENDED_V2_RULES : DEFAULT_POLICY_RULES;
+  try { return canonicalRules(s.rules); } catch { throw new CrmError("INVALID_POLICY"); }
+}
+export async function compareLeadPolicies(input: { a: Side; b: Side; includeNames?: boolean }) {
+  await requireLeadRadar("admin");
+  return crmAction(async () => {
+    const [ra, rb] = await Promise.all([resolveSide(input.a), resolveSide(input.b)]);
+    const { report, truncated } = await compareRulesOnPool(ra, rb, { includeNames: input.includeNames === true, examplesPerGroup: 4, deadline: Date.now() + 45_000 });
+    return { report, truncated, markdown: renderComparisonMarkdown(report) };
   });
 }

@@ -24,10 +24,29 @@ export const policyRulesSchema = z.object({
   /** The candidate must be reachable by phone or website. */
   requireReachableChannel: z.boolean().default(true),
   reviewFlags: z.array(z.enum(REVIEWABLE_FLAGS)).max(REVIEWABLE_FLAGS.length).default(DEFAULT_REVIEW_FLAGS),
+  // ── V2 options (business-type aware). Every default reproduces V1 EXACTLY, and a rule set that leaves them at their defaults keeps its V1 hash.
+  /**
+   * STORED_TIER (V1): the staged `tier` decides (body/glass/dealer/parts/wash… are all "secondary").
+   * REPAIR_CAPABLE: judge what the business DOES (business-type.ts): real repair work (general, specialists, body/collision, glass, restoration/trailer) is in scope;
+   * parts-only, wash/detailing-only, towing and similar are NOT target businesses; dealers/customization/inspection and unrecognised ones stay with a human.
+   */
+  businessTypes: z.enum(["STORED_TIER", "REPAIR_CAPABLE"]).default("STORED_TIER"),
+  /** REPAIR_CAPABLE only: what to do with a clearly non-repair business (parts store, car wash, towing…). */
+  nonTargetBusiness: z.enum(["BLOCK", "REVIEW"]).default("BLOCK"),
+  /** REPAIR_CAPABLE only: Overture's generic `automotive_service` / an unmapped code. NAME_EVIDENCE = qualify only when the code's words or the business name show repair work and nothing points the other way. */
+  genericService: z.enum(["REVIEW", "NAME_EVIDENCE"]).default("REVIEW"),
+  /**
+   * The extractor's LOW_CONFIDENCE flag (< 0.5). REVIEW (V1): always a human. CORROBORATED: tolerated ONLY when independent evidence agrees — at least two distinct upstream
+   * datasets (Overture's own label does not count), a phone AND a street address, and a confirmed repair business type. Completeness alone never counts.
+   */
+  lowConfidence: z.enum(["REVIEW", "CORROBORATED"]).default("REVIEW"),
 });
 export type PolicyRules = z.infer<typeof policyRulesSchema>;
 
 export const DEFAULT_POLICY_RULES: PolicyRules = policyRulesSchema.parse({});
+
+/** The recommended, conservative V2: business-type aware, name evidence for generic categories, corroborated low confidence. Everything else equals V1. */
+export const RECOMMENDED_V2_RULES: PolicyRules = policyRulesSchema.parse({ businessTypes: "REPAIR_CAPABLE", nonTargetBusiness: "BLOCK", genericService: "NAME_EVIDENCE", lowConfidence: "CORROBORATED" });
 
 /** Canonical form: parsed, defaulted, arrays sorted/de-duplicated. Equal intent ⇒ equal bytes ⇒ equal hash. */
 export function canonicalRules(raw: unknown): PolicyRules {
