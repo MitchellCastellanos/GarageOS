@@ -22,6 +22,29 @@ const en = {
     ackLabel: "Reason (at least 10 characters)", ackButton: "Acknowledge and mark completed", ackedBy: "Acknowledged",
   },
   diag: { DUPLICATE_OF_STAGED: "Duplicate of an already staged business (kept as evidence, never imported)", POINT_MISSING: "Record without a position", POINT_OUT_OF_CANADA: "Position outside Canada", POINT_OUT_OF_PROVINCE: "Position outside its province" } as Record<string, string>,
+  dash: {
+    title: "National readiness", subtitle: "One card per province or territory. Raw records, staged candidates and CRM prospects are different populations and are never added together.",
+    back: "Back to Lead Radar", nav: "National readiness",
+    stages: { NOT_STARTED: "Not started", QUEUED: "Queued for the worker", EXTRACTING: "Extracting", RETRYING: "Waiting to retry", STOPPED_BY_GATE: "Stopped by the quality gate", EXTRACTION_FAILED: "Extraction failed", PROCESSING: "Extraction done, processing continues", READY: "Ready" } as Record<string, string>,
+    actions: {
+      ACKNOWLEDGE_OR_REEXTRACT: "Open the last run: re-extract, or acknowledge it with a reason if the gate result is expected.", REQUEUE_AFTER_FAILURE: "The worker gave up after repeated failures. Check the failure code, then queue the province again.",
+      RETRY_FAILED_IMPORTS: "Some candidates failed to import. They are retried only when their source facts change; review them in Candidates (import status = failed).", CLASSIFY_PENDING: "Some candidates are not classified yet; the automation classifies them on its next run.",
+      WAIT_FOR_AUTOMATION: "Candidates are waiting for the next automation run (qualification, import).", NO_AUTOMATION_PROGRESS: "Candidates are waiting, but the automation is OFF, so nothing will advance until it is switched on.",
+      RESOLVE_MISSING_COORDINATES: "Some prospects have no usable position on the map (Settings → Geocoding: free backfill first).",
+    } as Record<string, string>,
+    sections: { extraction: "Extraction", candidates: "Staged candidates", crm: "CRM prospects", health: "Errors and deferred work", schedule: "Schedule" },
+    k: {
+      lastSuccess: "Last successful extraction", release: "Overture release", raw: "Raw records (last run)", rawShared: "n/a (run covered several provinces)", staged: "Staged candidates", verified: "Verified repair", review: "Human review", excluded: "Excluded", duplicates: "Duplicates (kept as evidence)", unclassified: "Not classified yet",
+      prospects: "Prospects imported", eligibleUnassigned: "Eligible, unassigned", assigned: "Assigned to sellers", withCoordinates: "With coordinates", missingCoordinates: "Missing coordinates", errors: "Import failures", lastRunFailure: "Last run failure", deferred: "Deferred work",
+      awaitingQualification: "awaiting qualification", approvedNotImported: "approved, not yet imported", inUnfinishedRun: "in an unfinished run", lastAutomation: "Last automation run", nextAutomation: "Next automation run", nextWorker: "Next worker check", nextRefresh: "Automatic refresh not before", never: "Never", off: "Not scheduled",
+      rates: "Conversion", rawToStaged: "raw → staged", stagedToVerified: "staged → verified", verifiedToProspects: "verified → prospects", prospectsWithCoordinates: "prospects with coordinates", automationOff: "Automation is OFF", noActions: "Nothing needs attention.",
+    },
+    controls: {
+      title: "Owner controls", queue: "Queue extraction", queueConfirm: "Queue a real extraction of {province} on the automated worker? It reads the public Overture data and stages candidates; it does not import, assign or contact anyone.",
+      queued: "Queued. The worker picks it up on its next check.", auto: "Refresh automatically when a newer release is published", paused: "Pause this province", interval: "Minimum days between refreshes", save: "Save schedule", saved: "Saved.", workerNote: "The worker only runs queued or opted-in provinces. Live discovery must be ON.",
+    },
+    totals: "All provinces",
+  },
 };
 type Dict = typeof en;
 const fr: Dict = {
@@ -47,6 +70,29 @@ const fr: Dict = {
     ackLabel: "Raison (au moins 10 caractères)", ackButton: "Reconnaître et marquer comme terminée", ackedBy: "Reconnue",
   },
   diag: { DUPLICATE_OF_STAGED: "Doublon d’une entreprise déjà préparée (conservé comme preuve, jamais importé)", POINT_MISSING: "Enregistrement sans position", POINT_OUT_OF_CANADA: "Position hors du Canada", POINT_OUT_OF_PROVINCE: "Position hors de sa province" },
+  dash: {
+    title: "Préparation nationale", subtitle: "Une carte par province ou territoire. Les enregistrements bruts, les candidats préparés et les prospects du CRM sont des populations différentes et ne sont jamais additionnés.",
+    back: "Retour au Radar de leads", nav: "Préparation nationale",
+    stages: { NOT_STARTED: "Non commencée", QUEUED: "En file pour le worker", EXTRACTING: "Extraction en cours", RETRYING: "En attente d’une nouvelle tentative", STOPPED_BY_GATE: "Arrêtée par le contrôle de qualité", EXTRACTION_FAILED: "Extraction en échec", PROCESSING: "Extraction terminée, traitement en cours", READY: "Prête" },
+    actions: {
+      ACKNOWLEDGE_OR_REEXTRACT: "Ouvrez la dernière exécution : refaites l’extraction, ou reconnaissez-la avec une raison si le résultat du contrôle est attendu.", REQUEUE_AFTER_FAILURE: "Le worker a abandonné après des échecs répétés. Vérifiez le code d’échec puis remettez la province en file.",
+      RETRY_FAILED_IMPORTS: "Certains candidats n’ont pas pu être importés. Ils ne sont réessayés que si leurs faits sources changent ; consultez-les dans Candidats (état d’importation = échec).", CLASSIFY_PENDING: "Certains candidats ne sont pas encore classés ; l’automatisation les classera à son prochain cycle.",
+      WAIT_FOR_AUTOMATION: "Des candidats attendent le prochain cycle d’automatisation (qualification, importation).", NO_AUTOMATION_PROGRESS: "Des candidats attendent, mais l’automatisation est DÉSACTIVÉE : rien n’avancera tant qu’elle n’est pas activée.",
+      RESOLVE_MISSING_COORDINATES: "Certains prospects n’ont pas de position utilisable sur la carte (Paramètres → Géocodage : rattrapage gratuit d’abord).",
+    },
+    sections: { extraction: "Extraction", candidates: "Candidats préparés", crm: "Prospects du CRM", health: "Erreurs et travail différé", schedule: "Calendrier" },
+    k: {
+      lastSuccess: "Dernière extraction réussie", release: "Version Overture", raw: "Enregistrements bruts (dernière exécution)", rawShared: "s.o. (l’exécution couvrait plusieurs provinces)", staged: "Candidats préparés", verified: "Réparation vérifiée", review: "Révision humaine", excluded: "Exclus", duplicates: "Doublons (conservés comme preuve)", unclassified: "Pas encore classés",
+      prospects: "Prospects importés", eligibleUnassigned: "Admissibles, non assignés", assigned: "Assignés aux vendeurs", withCoordinates: "Avec coordonnées", missingCoordinates: "Sans coordonnées", errors: "Échecs d’importation", lastRunFailure: "Échec de la dernière exécution", deferred: "Travail différé",
+      awaitingQualification: "en attente de qualification", approvedNotImported: "approuvés, pas encore importés", inUnfinishedRun: "dans une exécution inachevée", lastAutomation: "Dernier cycle d’automatisation", nextAutomation: "Prochain cycle d’automatisation", nextWorker: "Prochaine vérification du worker", nextRefresh: "Rafraîchissement automatique pas avant", never: "Jamais", off: "Non planifié",
+      rates: "Conversion", rawToStaged: "brut → préparé", stagedToVerified: "préparé → vérifié", verifiedToProspects: "vérifié → prospects", prospectsWithCoordinates: "prospects avec coordonnées", automationOff: "L’automatisation est DÉSACTIVÉE", noActions: "Rien ne demande votre attention.",
+    },
+    controls: {
+      title: "Contrôles du propriétaire", queue: "Mettre l’extraction en file", queueConfirm: "Mettre en file une vraie extraction de {province} sur le worker automatique ? Elle lit les données publiques d’Overture et prépare des candidats ; elle n’importe, n’assigne et ne contacte personne.",
+      queued: "Mise en file. Le worker la prendra à sa prochaine vérification.", auto: "Rafraîchir automatiquement quand une version plus récente est publiée", paused: "Mettre cette province en pause", interval: "Nombre minimal de jours entre deux rafraîchissements", save: "Enregistrer le calendrier", saved: "Enregistré.", workerNote: "Le worker n’exécute que les provinces mises en file ou activées. La découverte en direct doit être ACTIVÉE.",
+    },
+    totals: "Toutes les provinces",
+  },
 };
 export type NationalCopy = Dict;
 export const nationalCopy = (l: "en" | "fr"): NationalCopy => (l === "fr" ? fr : en);
