@@ -76,3 +76,18 @@ test("incomplete or contradictory evidence is never VERIFIED and handles empty i
   assert.equal(assessRepairFit({ name: null }).fit, "HUMAN_REVIEW");
   assert.equal(fit("Zenith", "some_unknown_code").fit, "HUMAN_REVIEW");
 });
+
+test("real Alberta rehearsal findings: industrial/oil-field/truck-body/coating names and unmapped motorcycle codes go to a person; ordinary garages and mixed-service shops stay verified", () => {
+  const f = (name: string, taxonomyPrimary: string) => assessRepairFit({ name, taxonomyPrimary, classReasons: [] }).fit;
+  assert.equal(f("Jacknife Oilfield Services", "truck_repair"), "HUMAN_REVIEW");
+  assert.equal(f("Intercontinental Truck Body", "automotive_repair"), "HUMAN_REVIEW");
+  assert.equal(f("Illusion Powder Coating", "automotive_repair"), "HUMAN_REVIEW");
+  assert.equal(f("City Truck Stop", "truck_repair"), "HUMAN_REVIEW");
+  assert.equal(f("Pro-Action Suspension", "motorcycle_repair"), "HUMAN_REVIEW");
+  assert.equal(f("Oscar's Pick A Part", "auto_restoration_service"), "EXCLUDED");
+  assert.equal(f("Registry at Edmonton Motors", "automotive_repair"), "HUMAN_REVIEW");
+  assert.equal(f("Dejong's Automotive", "automotive_repair"), "VERIFIED_REPAIR");
+  assert.equal(f("Mr. Lube + Tires", "oil_change_station"), "VERIFIED_REPAIR");
+  assert.equal(f("Garage Remorquage Roy", "automotive_repair"), "VERIFIED_REPAIR");
+  assert.equal(f("Showroom 674 Auto Detailing", "auto_detailing"), "EXCLUDED");
+});

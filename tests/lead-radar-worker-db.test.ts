@@ -210,4 +210,34 @@ if (!enabled) {
       assert.equal(((await radar.saveProvinceSchedule(bad)) as any).ok, false);
     assert.ok(await db.crmAuditEvent.count({ where: { action: "LEAD_RADAR_PROVINCE_CHANGED" as any } }) >= 1);
   });
+
+  test("a scheduled check with NOTHING queued is inert: no extraction, no run, no candidate, no import batch, no prospect, no assignment, no audit row; claim answers null", async () => {
+    await drain();
+    const snap = async () => ({
+      runs: await db.crmDiscoveryRun.count(), candidates: await db.crmDiscoveryCandidate.count(), batches: await db.crmImportBatch.count(), prospects: await db.crmProspect.count(),
+      assigned: await db.crmProspect.count({ where: { assignedStaffId: { not: null } } }), audits: await db.crmAuditEvent.count(), automationRuns: await db.crmLeadAutomationRun.count(),
+      claimedRuns: await db.crmDiscoveryRun.count({ where: { workerId: { not: null } } }),
+    });
+    const before = await snap();
+    for (let i = 0; i < 3; i++) {
+      const p = await json(await call({ action: "peek" }));
+      assert.deepEqual([p.status, p.body.pending, p.body.reason], [200, false, "NOTHING_QUEUED"]);
+      assert.equal((await json(await call({ action: "claim", workerId: `idle-${i}` }))).body.run, null);
+    }
+    assert.deepEqual(await snap(), before);
+  });
+
+  test("worker authentication: a dedicated LEAD_RADAR_WORKER_SECRET works and is least-privilege; the shared CRON_SECRET still works; wrong/empty/'undefined' bearers never do", async () => {
+    const dedicated = "dedicated-worker-secret-0123456789";
+    assert.equal((await call({ action: "peek" }, dedicated)).status, 401, "not configured yet: a guess is refused");
+    process.env.LEAD_RADAR_WORKER_SECRET = dedicated;
+    try {
+      assert.equal((await call({ action: "peek" }, dedicated)).status, 200);
+      assert.equal((await call({ action: "peek" })).status, 200, "the shared secret keeps working");
+      assert.equal((await call({ action: "peek" }, "dedicated-worker-secret-0123456780")).status, 401);
+      assert.equal((await call({ action: "peek" }, "undefined")).status, 401);
+    } finally { delete process.env.LEAD_RADAR_WORKER_SECRET; }
+    assert.equal((await call({ action: "peek" }, "Bearer undefined")).status, 401);
+    assert.equal((await call({ action: "peek" }, dedicated)).status, 401, "removing the dedicated secret revokes it");
+  });
 }

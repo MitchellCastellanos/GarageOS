@@ -109,7 +109,9 @@ class Heartbeat(threading.Thread):
 def run_extractor(plan_path: str, out_dir: str, extractor_cmd: list[str]) -> None:
     cmd = [*extractor_cmd, "--plan", plan_path, "--out", out_dir]
     log("extractor: " + " ".join(cmd))
-    r = subprocess.run(cmd)
+    # The extractor only reads the public Overture bucket: it never needs (and never receives) the GarageOS bearer secret.
+    env = {k: v for k, v in os.environ.items() if k not in ("LEAD_RADAR_WORKER_SECRET", "CRON_SECRET", "SALES_CRON_SECRET")}
+    r = subprocess.run(cmd, env=env)
     if r.returncode != 0:
         raise RuntimeError(f"EXTRACTOR_EXIT_{r.returncode}")
 

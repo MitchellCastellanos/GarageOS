@@ -100,6 +100,16 @@ class WorkerProtocol(unittest.TestCase):
             self.assertTrue(all(len(c.split("\n")) <= w.CHUNK_LINES and len(c) <= w.CHUNK_BYTES + 6000 for c in a))
             self.assertEqual(sum(len(c.split("\n")) for c in a), 1000)
 
+    def test_extractor_subprocess_never_receives_the_bearer_secret(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            probe = os.path.join(tmp, "probe.py")
+            open(probe, "w").write("import os, sys\nsys.exit(9 if any(os.environ.get(k) for k in ('LEAD_RADAR_WORKER_SECRET','CRON_SECRET','SALES_CRON_SECRET')) else 0)\n")
+            os.environ["LEAD_RADAR_WORKER_SECRET"] = "x" * 32
+            try:
+                w.run_extractor(os.path.join(tmp, "p.json"), tmp, [sys.executable, probe])   # exit 0 ⇒ the secret was not in the child's environment
+            finally:
+                del os.environ["LEAD_RADAR_WORKER_SECRET"]
+
     def test_refuses_insecure_origin_and_missing_secret(self):
         with self.assertRaises(SystemExit): w.Api("http://evil.example", "s" * 32)
         with self.assertRaises(SystemExit): w.Api("https://ok.example", "short")

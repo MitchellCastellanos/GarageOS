@@ -20,8 +20,11 @@ const body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("fail"), runId: id, workerId: id, code: z.string().max(60) }),
 ]);
 
+/** The worker may use its own bearer secret (LEAD_RADAR_WORKER_SECRET, least privilege: it cannot call the email/cron endpoints) or the shared CRON_SECRET. Both fail closed. */
+const authorized = (request: Request) => isAuthorizedCronRequest(request, process.env.LEAD_RADAR_WORKER_SECRET) || isAuthorizedCronRequest(request);
+
 export async function POST(request: Request) {
-  if (!isAuthorizedCronRequest(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!authorized(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   let parsed;
   try { parsed = body.safeParse(await request.json()); } catch { return NextResponse.json({ error: "INVALID_JSON" }, { status: 400 }); }
   if (!parsed.success) return NextResponse.json({ error: "INVALID_REQUEST" }, { status: 400 });
