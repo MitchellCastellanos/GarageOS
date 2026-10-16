@@ -1,6 +1,6 @@
 # Qualification policy V2 — business-type aware (proposal, NOT activated)
 
-Status: implemented and tested; **no production policy was changed, activated or created**. V1 remains exactly as deployed (its rules fingerprint is unchanged and asserted by a test).
+Status: implemented, tested, merged and deployed (PR #128) as **code only**. **No production policy was changed, activated or created**; the real V1-vs-V2 comparison on production data has **not yet been run** (the engineering session had no production database access). V1 remains exactly as deployed (its rules fingerprint is unchanged and asserted by a test).
 
 ## 1. What is verified, and what is not
 

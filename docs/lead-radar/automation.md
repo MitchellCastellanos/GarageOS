@@ -1,6 +1,8 @@
 # Lead Radar automation by approved policy
 
-Human approval of a **policy**, human review of **exceptions**. Everything ships **OFF**; deploying this change alters no production data.
+Human approval of a **policy**, human review of **exceptions**.
+
+**Deployment status:** this code and migration `20261016090000` are deployed to Production (PR #127). Everything shipped **OFF** and the deployment altered no production data. As of this writing the owner has only run a read-only V1 qualification *preview*; **no policy is active, automation is off, no prospect was imported/assigned by automation, and no email was sent.** Qualification V2 (PR #128, [qualification-v2.md](qualification-v2.md)) adds options to the same engine; V1 behaviour and its fingerprint are unchanged.
 
 ## 1. Verified audit findings (current `main`, PR #126)
 
@@ -35,15 +37,22 @@ Human approval of a **policy**, human review of **exceptions**. Everything ships
 5. **Review exceptions only** via the dashboard links (candidates lane/reason filters).
 6. **Outreach.** Sellers add contacts and CASL evidence in the existing flow (second person approves published-address evidence). Pilot: ACTIVE sequence, small caps, company-wide sending on, *Start pilot*. Measure in stage 6.
 
-## 4. Owner-gated (NOT done here)
+## 4. Owner-gated (NOT done by engineering)
 
-Merge/deploy migration `20261016090000`; activate a policy; turn automation on; name sellers; start the pilot; enable company-wide sending; set GitHub secrets `SALES_CRON_SECRET`/`SALES_CRON_BASE_URL` for the 15-minute caller; legal sign-off of CASL basis rules (product controls, **not legal advice**); other provinces. No production data was read, imported, assigned or emailed.
+Activate a policy; turn automation on; name sellers; start the pilot; enable company-wide sending; set GitHub secrets `SALES_CRON_SECRET`/`SALES_CRON_BASE_URL` for the 15-minute caller; legal sign-off of CASL basis rules (product controls, **not legal advice**); other provinces. No production data was read, imported, assigned or emailed.
 
 ## 5. GO / NO-GO
 
-* **GO** (after merge + migration): read-only policy preview on the 2,084 Québec candidates; then policy activation + automation ON with the founder as sole seller (CRM import + assignment only, no email).
+* **GO**: the read-only V1 preview has been run (924 AUTO_ELIGIBLE / 1,103 HUMAN_REVIEW / 7 BLOCKED of 2,034 evaluated); next, compare V1 vs V2 read-only, choose a policy, then policy activation + automation ON with the founder as sole seller (CRM import + assignment only, no email).
 * **NO-GO** for automated email until: legal review; founder sender ACTIVE with verified reply round trip and booking page; contacts with approved evidence; sequence + caps agreed. FIELD-held (Greater Montréal) prospects are never automated cold contacts by design.
 
 ## 6. Known limits
 
 Eligibility re-assessed every 6 h or when contacts/bases change. Preview scans ≤60k rows / 40 s and flags truncation. UI verified by build + headless render at 1280 and 390 px only.
+
+## 7. CRM-only activation checklist (no email)
+1. Policy panel: activate the chosen policy (preview ≤24 h old is required).
+2. Sellers: founder **Sales Rep** account allow-listed (never the Super Admin account); lane caps and languages set.
+3. Leave stage 5 (eligibility) off or on as wished, **leave the pilot OFF** and `CrmCommsSettings.sendingEnabled` OFF. Import and assignment never email anyone.
+4. Cron needs `CRON_SECRET` in Vercel and GitHub secrets `SALES_CRON_SECRET` / `SALES_CRON_BASE_URL` for the 15-minute caller; otherwise only the daily Vercel cron and *Run one cycle now* run it.
+5. Verify: run history on the dashboard (counts per stage, errors), imported prospects appear in the CRM unassigned→assigned to the allow-listed seller, exceptions list by lane/reason.
