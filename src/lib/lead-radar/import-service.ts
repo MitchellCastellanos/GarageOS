@@ -8,6 +8,8 @@ import { db } from "@/lib/db";
 import { writeCrmAudit } from "@/lib/sales-crm/audit";
 import { applyImportBatch, type ImportRowResult } from "@/lib/sales-crm/lead-engine";
 import { locateFromSource } from "@/lib/sales-crm/source-location-service";
+import { assessRepairFit } from "@/domain/lead-radar/repair-fit";
+import { stampFitAtImport } from "@/lib/sales-crm/repair-fit-service";
 import { CrmError, resolveAssignee } from "@/lib/sales-crm/prospects";
 
 /**
@@ -15,6 +17,8 @@ import { CrmError, resolveAssignee } from "@/lib/sales-crm/prospects";
  * same observations. Always UNASSIGNED (assignment stays the manual preview → confirm flow). Never creates a sending basis, enrollment or message.
  * Concurrency: candidate rows are locked with FOR UPDATE SKIP LOCKED inside the transaction, so two simultaneous imports can never take the same candidate.
  */
+export const FIT_OVERRIDE_PREFIX = "FIT_OVERRIDE:";
+
 export interface ImportOptions {
   ids?: readonly string[];
   limit?: number;
@@ -37,7 +41,18 @@ export async function importApprovedCandidates(actor: PlatformSalesActor, opts: 
     const locked = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT "id" FROM "garageos"."CrmDiscoveryCandidate" WHERE "reviewState" = 'APPROVED' AND "importState" IN ${states} AND "licenseOk" = true AND "tier" <> 'EXCLUDED' ${idGuard} ${policyGuard} ORDER BY "id" LIMIT ${limit} FOR UPDATE SKIP LOCKED`);
     if (!locked.length) return { batchId: null as string | null, claimed: 0, created: 0, linked: 0, sentToReview: 0, skipped: 0, failed: 0, createdProspectIds: [] as string[], linkedProspectIds: [] as string[], reviewProspectIds: [] as string[], unassignedCreated: 0 };
 
-    const cands = await tx.crmDiscoveryCandidate.findMany({ where: { id: { in: locked.map((l) => l.id) } }, orderBy: { id: "asc" } });
+    const claimed = await tx.crmDiscoveryCandidate.findMany({ where: { id: { in: locked.map((l) => l.id) } }, orderBy: { id: "asc" } });
+    // Fit gate: a candidate that is clearly not a repair business (EV charging, car wash, recycling, bicycle, manufacturer…) is never imported, even if someone approved it.
+    // The rejection is durable (a human/system rejection is never reopened by a refresh). A person who really wants it approves it WITH a fit override, which is stamped as a human decision.
+    const overrideOf = (c: { reviewState: string; approvedByPolicyVersion: number | null; reviewNote: string | null }) => c.reviewState === "APPROVED" && c.approvedByPolicyVersion === null && !!c.reviewNote?.startsWith(FIT_OVERRIDE_PREFIX);
+    const fitBlocked = claimed.filter((c) => !overrideOf(c) && assessRepairFit({ name: c.name, taxonomyPrimary: c.taxonomyPrimary, classReasons: c.classReasons }).fit === "EXCLUDED");
+    if (fitBlocked.length) {
+      await tx.crmDiscoveryCandidate.updateMany({ where: { id: { in: fitBlocked.map((c) => c.id) }, importState: { in: ["NOT_IMPORTED", "FAILED"] } }, data: { reviewState: "REJECTED", reviewedByUserId: actor.userId, reviewedAt: new Date(), reviewNote: "FIT_EXCLUDED_AT_IMPORT", approvedByPolicyVersion: null } });
+      await writeCrmAudit({ actorUserId: actor.userId, action: "LEAD_RADAR_CANDIDATES_REVIEWED", entityType: "CrmDiscoveryCandidate", metadata: { decision: "REJECTED", via: "fit-gate-at-import", count: fitBlocked.length, ids: fitBlocked.slice(0, 200).map((c) => c.id) } }, tx);
+    }
+    const blockedIds = new Set(fitBlocked.map((c) => c.id));
+    const cands = claimed.filter((c) => !blockedIds.has(c.id));
+    if (!cands.length) return { batchId: null as string | null, claimed: claimed.length, created: 0, linked: 0, sentToReview: 0, skipped: 0, failed: 0, fitBlocked: fitBlocked.length, createdProspectIds: [] as string[], linkedProspectIds: [] as string[], reviewProspectIds: [] as string[], unassignedCreated: 0 };
     const { csv, rowToCandidate } = candidatesToImportCsv(cands.map((c) => ({ id: c.id, sourceRecordId: c.sourceRecordId, name: c.name, website: c.website, address: c.address, city: c.city, province: c.province, postalCode: c.postalCode, phone: c.phone, email: c.email, industry: c.industry, lastSeenRelease: c.lastSeenRelease })));
     const mapping = Object.fromEntries(IMPORT_HEADERS.map((h, i) => [String(i), h]));
     const parsed = parseProspectCsv(csv, { defaultSource: "DIRECTORY", mapping });
@@ -79,6 +94,12 @@ export async function importApprovedCandidates(actor: PlatformSalesActor, opts: 
       else if (r.kind === "REVIEW") { tally.sentToReview++; if (r.prospectId) reviewIds.push(r.prospectId); await tx.crmDiscoveryCandidate.update({ where: { id: candidateId }, data: { ...base, importState: "SENT_TO_REVIEW", matchProspectId: r.prospectId ?? undefined } }); }
       else { tally.skipped++; await tx.crmDiscoveryCandidate.update({ where: { id: candidateId }, data: { ...base, importState: "SKIPPED" } }); }
     }
+    // Classify every prospect this import created or linked, the moment it exists (only where no fit is stored; a human decision is never touched).
+    const fitItems = cands.filter((c) => c.id in importedBy).map((c) => ({
+      prospectId: importedBy[c.id].prospectId, created: importedBy[c.id].created, name: c.name, industry: c.industry, taxonomyPrimary: c.taxonomyPrimary, classReasons: c.classReasons,
+      override: overrideOf(c) && c.reviewedByUserId ? { userId: c.reviewedByUserId, note: (c.reviewNote ?? "").slice(FIT_OVERRIDE_PREFIX.length).trim() || "Approved with fit override" } : null,
+    }));
+    const fitStamped = await stampFitAtImport(tx, fitItems, now);
     // Position from the source point already staged (free, no network). Only prospects this import created or linked, and only if the address is the
     // candidate's own; touches CrmProspectLocation only (never assignment, eligibility or the prospect row).
     const located = { located: 0, skipped: 0 };
@@ -93,7 +114,7 @@ export async function importApprovedCandidates(actor: PlatformSalesActor, opts: 
         if (r.written) located.located++; else located.skipped++;
       }
     }
-    await writeCrmAudit({ actorUserId: actor.userId, action: "LEAD_RADAR_IMPORT_COMPLETED", entityType: "CrmImportBatch", entityId: batch.id, metadata: { ...tally, failed, positions: located, candidates: cands.length, sourceKey: LEAD_RADAR_SOURCE_KEY, ...(auto ? { policyVersion: auto.policyVersion, automatic: true } : {}) } }, tx);
-    return { batchId: batch.id as string | null, claimed: cands.length, ...tally, failed, createdProspectIds: createdIds, linkedProspectIds: linkedIds, reviewProspectIds: reviewIds, unassignedCreated: createdIds.length };
+    await writeCrmAudit({ actorUserId: actor.userId, action: "LEAD_RADAR_IMPORT_COMPLETED", entityType: "CrmImportBatch", entityId: batch.id, metadata: { ...tally, failed, fitBlocked: fitBlocked.length, fitStamped, positions: located, candidates: cands.length, sourceKey: LEAD_RADAR_SOURCE_KEY, ...(auto ? { policyVersion: auto.policyVersion, automatic: true } : {}) } }, tx);
+    return { batchId: batch.id as string | null, claimed: claimed.length, ...tally, failed, fitBlocked: fitBlocked.length, createdProspectIds: createdIds, linkedProspectIds: linkedIds, reviewProspectIds: reviewIds, unassignedCreated: createdIds.length };
   }, { timeout: auto?.timeoutMs ?? 120_000, maxWait: 10_000 });
 }

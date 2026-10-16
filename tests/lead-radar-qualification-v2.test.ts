@@ -112,7 +112,7 @@ test("V2: generic `automotive_service` / unmapped codes qualify ONLY on independ
   assert.equal(g("Pneus Alma"), "AUTO_ELIGIBLE:CATEGORY_NAME_EVIDENCE");
   assert.equal(g("Auto Dupont"), "HUMAN_REVIEW:QUESTIONABLE_CATEGORY");
   assert.equal(g("Garage Remorquage Dupont"), "HUMAN_REVIEW:QUESTIONABLE_CATEGORY");
-  assert.equal(g("Lave-auto Express"), "HUMAN_REVIEW:QUESTIONABLE_CATEGORY");
+  assert.equal(g("Lave-auto Express"), "BLOCKED:NOT_TARGET_BUSINESS", "a decisive non-repair name with no repair wording is blocked, not merely reviewed");
   assert.equal(g("Toyota Laval Service"), "HUMAN_REVIEW:QUESTIONABLE_CATEGORY");
   assert.equal(g("Garage Tremblay", "automotive_service", canonicalRules({ ...V2, genericService: "REVIEW" })), "HUMAN_REVIEW:QUESTIONABLE_CATEGORY", "policy can keep humans on generic categories");
   assert.equal(g("Dupuis", "brake_pad_installation"), "AUTO_ELIGIBLE:CATEGORY_NAME_EVIDENCE");

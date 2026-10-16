@@ -38,7 +38,8 @@ type Located = MapPointDto;
 const emptyCounts = (): Record<MapStatus, number> => Object.fromEntries(MAP_STATUSES.map((s) => [s, 0])) as Record<MapStatus, number>;
 
 /** Prospects a FIELD seller may see on the map: own book only (never a manager's team or the pool), active, not DNC/merged/archived. */
-const bookWhere = (staffId: string): Prisma.CrmProspectWhereInput => ({ assignedStaffId: staffId, status: "ACTIVE", doNotContact: false, mergedIntoId: null, archivedAt: null });
+// Businesses excluded as not-a-repair-shop are not FIELD opportunities and never reach the map; prospects under review stay visible (flagged in the panel) so existing work is not lost.
+const bookWhere = (staffId: string): Prisma.CrmProspectWhereInput => ({ assignedStaffId: staffId, status: "ACTIVE", doNotContact: false, mergedIntoId: null, archivedAt: null, AND: [{ OR: [{ repairFit: null }, { repairFit: { in: ["VERIFIED_REPAIR", "HUMAN_REVIEW"] } }] }] });
 
 async function statusFacts(ids: readonly string[]) {
   const lastVisit = new Map<string, string>(), openTasks = new Map<string, number>(), activities = new Map<string, number>();
@@ -129,13 +130,19 @@ export interface TerritorySummary {
   /** Eligible prospects in the seller's authorized book (active, not DNC). */
   total: number; located: number;
   coverage: Record<"LOCATED" | "PENDING" | "AMBIGUOUS_FAILED" | "INSUFFICIENT_ADDRESS", number>;
+  /** Repair-fit bookkeeping for the seller's whole book (including what is hidden). */
+  fit: { excludedHidden: number; underReview: number; notEvaluated: number };
   /** A short list of prospects the map cannot place yet (so the seller knows which ones are missing and why). */
   unlocatedSample: { id: string; name: string; city: string | null; address: string | null; coverage: string }[];
 }
 
 export async function territorySummary(actor: PlatformSalesActor, now = new Date()): Promise<TerritorySummary> {
   const staffId = requirePlanner(actor);
-  const rows = await db.crmProspect.findMany({ where: bookWhere(staffId), select: { id: true, name: true, address: true, city: true, province: true, postalCode: true }, orderBy: [{ city: "asc" }, { name: "asc" }], take: 30000 });
+  const [rows, fitRows] = await Promise.all([
+    db.crmProspect.findMany({ where: bookWhere(staffId), select: { id: true, name: true, address: true, city: true, province: true, postalCode: true }, orderBy: [{ city: "asc" }, { name: "asc" }], take: 30000 }),
+    db.crmProspect.groupBy({ by: ["repairFit"], where: { assignedStaffId: staffId, status: "ACTIVE", doNotContact: false, mergedIntoId: null, archivedAt: null }, _count: { _all: true } }),
+  ]);
+  const nFit = (k: string | null) => fitRows.find((r) => r.repairFit === k)?._count._all ?? 0;
   const [rules, states] = await Promise.all([loadTerritoryRules(), resolveLocationStates(rows, now)]);
   const coverage = { LOCATED: 0, PENDING: 0, AMBIGUOUS_FAILED: 0, INSUFFICIENT_ADDRESS: 0 };
   const sample: TerritorySummary["unlocatedSample"] = [];
@@ -147,7 +154,7 @@ export async function territorySummary(actor: PlatformSalesActor, now = new Date
     coverage[st.coverage]++;
     if (!st.location.usable && sample.length < 50) sample.push({ id: r.id, name: r.name, city: r.city, address: r.address, coverage: st.coverage });
   }
-  return { total, located: coverage.LOCATED, coverage, unlocatedSample: sample };
+  return { total, located: coverage.LOCATED, coverage, fit: { excludedHidden: nFit("EXCLUDED"), underReview: nFit("HUMAN_REVIEW"), notEvaluated: nFit(null) }, unlocatedSample: sample };
 }
 
 export interface PlaceResult { label: string; center: { lat: number; lng: number }; bbox: Bbox; count: number }
@@ -183,6 +190,8 @@ export interface MapProspectDetail {
   lastVisit: { outcome: string; at: string } | null; nextTask: { title: string; dueAt: string } | null;
   /** The seller's pending stop for this prospect in the IN_PROGRESS route (so a result can be recorded in place), if any. */
   activeStopId: string | null; blocked: string | null;
+  /** Repair fit of this business (null = not evaluated yet) and why; HUMAN_REVIEW is shown as "needs review" in the panel. */
+  fit: string | null; fitReasons: string[];
 }
 
 /** Details for the tapped marker. Same ownership rule as everything else: another seller's prospect is indistinguishable from a missing one. */
@@ -190,7 +199,7 @@ export async function getMapProspect(actor: PlatformSalesActor, prospectId: stri
   const staffId = requirePlanner(actor);
   const p = await db.crmProspect.findFirst({
     where: { id: prospectId, assignedStaffId: staffId },
-    select: { id: true, name: true, address: true, city: true, province: true, postalCode: true, phone: true, status: true, archivedAt: true, mergedIntoId: true, doNotContact: true, assignedStaffId: true, location: true, opportunities: { select: { stage: true }, orderBy: { stageChangedAt: "desc" } } },
+    select: { id: true, name: true, repairFit: true, repairFitReasons: true, address: true, city: true, province: true, postalCode: true, phone: true, status: true, archivedAt: true, mergedIntoId: true, doNotContact: true, assignedStaffId: true, location: true, opportunities: { select: { stage: true }, orderBy: { stageChangedAt: "desc" } } },
   });
   if (!p) throw new CrmError("NOT_FOUND");
   const [f, visit, task, stop] = await Promise.all([
@@ -205,6 +214,6 @@ export async function getMapProspect(actor: PlatformSalesActor, prospectId: stri
     status: mapStatusOf({ stage: bestStage(p.opportunities), lastVisitOutcome: f.lastVisit.get(p.id) ?? null, openTaskCount: f.openTasks.get(p.id) ?? 0, activityCount: f.activities.get(p.id) ?? 0 }),
     lastVisit: visit?.fieldVisitOutcome ? { outcome: visit.fieldVisitOutcome, at: visit.occurredAt.toISOString() } : null,
     nextTask: task ? { title: task.title, dueAt: task.dueAt.toISOString() } : null,
-    activeStopId: stop?.id ?? null, blocked: stopBlock(p, staffId),
+    activeStopId: stop?.id ?? null, blocked: stopBlock(p, staffId), fit: p.repairFit, fitReasons: p.repairFitReasons,
   };
 }

@@ -8,7 +8,7 @@ import "./helpers/action-harness";
 const { FieldWorkspace } = await import("../src/components/sales-field/FieldWorkspace");
 
 const summary = (over = {}) => ({
-  total: 5, located: 2, coverage: { LOCATED: 2, PENDING: 1, AMBIGUOUS_FAILED: 1, INSUFFICIENT_ADDRESS: 1 },
+  total: 5, located: 2, fit: { excludedHidden: 3, underReview: 1, notEvaluated: 0 }, coverage: { LOCATED: 2, PENDING: 1, AMBIGUOUS_FAILED: 1, INSUFFICIENT_ADDRESS: 1 },
   unlocatedSample: [{ id: "c", name: "Garage Gamma", city: "Montréal", address: "1 Rue Test", coverage: "PENDING" }, { id: "d", name: "Garage Delta", city: "Laval", address: null, coverage: "AMBIGUOUS_FAILED" }], ...over,
 });
 const render = (locale: "en" | "fr", s = summary(), stops: { id: string; name: string; city: string | null; lat: number; lng: number }[] = []) =>
@@ -33,6 +33,11 @@ test("unlocated prospects are listed with the reason and need no manual action",
   assert.ok(html.includes("Prospects not on the map yet") && html.includes("Garage Gamma") && html.includes("Locating automatically") && html.includes("Ambiguous or not found"));
   assert.ok(html.includes("nothing to do unless the address is wrong"));
   assert.ok(!render("en", summary({ total: 2, located: 2, unlocatedSample: [] })).includes("not on the map yet"));
+});
+
+test("excluded businesses are reported as hidden, never drawn", () => {
+  const html = render("en");
+  assert.ok(html.includes("3 excluded as not repair shops") && html.includes("1 under review"));
 });
 
 test("French copy and the no-map fallback", () => {

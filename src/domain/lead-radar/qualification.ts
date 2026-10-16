@@ -14,6 +14,7 @@ import { importEligibility } from "@/domain/lead-radar/record";
 import { canonicalRules, REVIEWABLE_FLAGS, type PolicyRules, type ReviewableFlag } from "@/domain/lead-radar/policy-rules";
 import { classifyBusinessType, independentSources, type BusinessType } from "@/domain/lead-radar/business-type";
 import { OEM_NAME } from "@/domain/lead-radar/taxonomy";
+import { assessRepairFit } from "@/domain/lead-radar/repair-fit";
 
 export * from "@/domain/lead-radar/policy-rules";
 
@@ -25,7 +26,7 @@ type StaticReason =
   | "AMBIGUOUS_MATCH" | "BRANCH_RELATIONSHIP" | "EXISTING_MATCH_REVIEW" | "QUESTIONABLE_CATEGORY" | "SECONDARY_CATEGORY" | "CHAIN_SIGNAL"
   | "NO_LOCATION" | "NO_REACHABLE_CHANNEL" | "TERRITORY_UNRESOLVED" | "SOURCE_CHANGED"
   // V2 (business-type aware)
-  | "NOT_TARGET_BUSINESS"
+  | "NOT_TARGET_BUSINESS" | "CATEGORY_NAME_CONFLICT"
   // informational on an auto-eligible candidate
   | "AUTO_LINK_EXISTING" | "REPAIR_CAPABLE_SPECIALTY" | "CATEGORY_NAME_EVIDENCE" | "CORROBORATED_LOW_CONFIDENCE"
   // outside the policy's scope (no lane)
@@ -37,7 +38,7 @@ export const QUALIFICATION_REASONS: readonly QualificationReason[] = [
   "AMBIGUOUS_MATCH", "BRANCH_RELATIONSHIP", "EXISTING_MATCH_REVIEW", "QUESTIONABLE_CATEGORY", "SECONDARY_CATEGORY", "CHAIN_SIGNAL",
   "NO_LOCATION", "NO_REACHABLE_CHANNEL", "TERRITORY_UNRESOLVED", "SOURCE_CHANGED",
   ...REVIEWABLE_FLAGS.map((f): QualificationReason => `FLAG_${f}`),
-  "NOT_TARGET_BUSINESS", "AUTO_LINK_EXISTING", "REPAIR_CAPABLE_SPECIALTY", "CATEGORY_NAME_EVIDENCE", "CORROBORATED_LOW_CONFIDENCE", "OUT_OF_POLICY_SCOPE",
+  "NOT_TARGET_BUSINESS", "CATEGORY_NAME_CONFLICT", "AUTO_LINK_EXISTING", "REPAIR_CAPABLE_SPECIALTY", "CATEGORY_NAME_EVIDENCE", "CORROBORATED_LOW_CONFIDENCE", "OUT_OF_POLICY_SCOPE",
 ];
 
 /** The only candidate facts qualification reads. Everything here is already stored on the staging row. */
@@ -96,6 +97,10 @@ export function evaluateQualification(rulesIn: PolicyRules, f: QualificationFact
   if (f.chainSignal === "CHAIN_SIGNAL" && rules.chainSignal === "BLOCK") blocked.push("CHAIN_BLOCKED_BY_POLICY");
   // V2: a business that provably does not repair vehicles (parts-only, wash/detailing-only, towing…) is not a GarageOS target. Only a KNOWN category decides this.
   if (v2 && bt.capability === "NON_TARGET" && rules.nonTargetBusiness === "BLOCK") blocked.push("NOT_TARGET_BUSINESS");
+  // Contradiction gate (every policy, V1 included): a decisive non-repair signal in the name with NO repair wording (EV charging, car wash, recycling, bicycle, taxi
+  // equipment, manufacturer/corporate…) blocks, whatever the stored category says; see repair-fit.ts. A known non-repair CATEGORY stays governed by the policy options above.
+  const fit = assessRepairFit({ name: f.name, taxonomyPrimary: f.taxonomyPrimary, classReasons: f.classReasons });
+  if (fit.fit === "EXCLUDED" && fit.reasons.some((r) => r.startsWith("NAME_SIGNAL_"))) blocked.push("NOT_TARGET_BUSINESS");
   if (blocked.length) return done({ lane: "BLOCKED", reasons: uniqSorted(blocked), handoff: null });
 
   const review: QualificationReason[] = [];
@@ -139,6 +144,9 @@ export function evaluateQualification(rulesIn: PolicyRules, f: QualificationFact
     review.push(`FLAG_${flag}`);
   }
   for (const s of f.stickyReasons ?? []) if (s === "SOURCE_CHANGED") review.push("SOURCE_CHANGED");
+  // Category and name disagree, or the listing is in a segment nobody has ruled on (motorcycle, trailer, dealer, tire retail, OEM-branded): always a human,
+  // and the reason is named when nothing else already sends the record to review.
+  if (!review.length && fit.fit === "HUMAN_REVIEW" && fit.reasons.some((r) => r === "CATEGORY_NAME_CONFLICT" || r.startsWith("SEGMENT_") || r === "OEM_BRAND_NAME" || r.startsWith("NAME_SIGNAL_"))) review.push("CATEGORY_NAME_CONFLICT");
   if (review.length) return done({ lane: "HUMAN_REVIEW", reasons: uniqSorted(review), handoff: null });
 
   const link = f.matchState === "EXISTING_STRONG";

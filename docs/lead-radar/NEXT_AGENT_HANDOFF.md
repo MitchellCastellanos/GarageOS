@@ -92,5 +92,12 @@ Overture's point was dropped by the extractor; it is now carried to staging (`so
 **Pending owner actions (unchanged + new):** Québec refresh run + dry-run + Apply (runbook); phone check of Field Planner after deploy; V1/V2 comparison and activation (section 4); sender setup + real inbound reply round trip; CASL legal review; any national extraction.
 ""
 
+## 8d. CRM quality audit & cleanup (session 2026-10-17) — read [crm-cleanup.md](crm-cleanup.md) first
+* **Production data access: none** (the Supabase connector holds an unrelated auth/storage project; Vercel Hobby keeps runtime logs 1 h). All production counts (backlog, legitimate/ambiguous/irrelevant, automation state, last cron run) are **Not verified**; the new preview produces them.
+* **Verified code:** the 500 in Assign Leads is a batch cap (`ASSIGNMENT_BATCH_LIMIT`), the pool was ungated; irrelevant businesses entered through category trust + ungated bulk approval + ungated import/assignment. Fixed by the shared assessor `domain/lead-radar/repair-fit.ts` (qualification gate, review/import gate, durable `CrmProspect.repairFit*`, cleanup preview/apply/review queue, assignment gate + 5,000-row scan, Field Planner visibility, FIELD readiness funnel). Migration `20261018090000_prospect_repair_fit` (additive, no data change).
+* **Finding:** Vercel Production *has* `GEOCODING_PROVIDER`, `MAPBOX_GEOCODING_ENABLED`, `MAPBOX_GEOCODING_TOKEN`, `LEAD_RADAR_ENABLED`, `CRON_SECRET`, map variables (values encrypted/unread). The earlier "Mapbox switches unset" claim is unverified — owner must confirm Settings → Geocoding shows disabled / budget 0.
+* **Owner-only, not executed:** run funnel + preview, approve + apply the cleanup, work the review queue, discard the unconfirmed 500-assignment preview and re-preview, then the Québec refresh + geocoding dry run (owner-runbook-geolocation.md).
+* Test DB suites need a **fresh scratch database per suite** (name must contain `scratch|test|replay`); running two suites on one DB or in parallel produces false failures.
+
 ## 9. Test and environment notes
 `npx tsc --noEmit`, `npx eslint`, `npm test` (unit), DB suites need a scratch Postgres (`GARAGEOS_CRM_TEST_DB_URL`, one fresh DB per suite): `tests/prospect-source-location-db.test.ts` (17), `tests/lead-radar-db.test.ts`, `lead-radar-automation-db.test.ts` (27), `lead-radar-compare-db.test.ts` (5). Production migrations run only on Vercel Production builds (`scripts/deploy-migrations.mjs`).

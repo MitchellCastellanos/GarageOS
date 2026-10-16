@@ -1,7 +1,7 @@
 // Copy for the Field Route Planner (EN/FR). The French dictionary is typed against the English one, so a missing key fails the build.
 const en = {
   errors: {
-    STOP_NOT_ALLOWED: "One of the selected prospects is not in your book of business.", PROSPECT_ARCHIVED: "This prospect is archived.", PROSPECT_MERGED: "This prospect was merged into another record.",
+    FIT_EXCLUDED: "This business was excluded: it is not an automotive repair shop.", STOP_NOT_ALLOWED: "One of the selected prospects is not in your book of business.", PROSPECT_ARCHIVED: "This prospect is archived.", PROSPECT_MERGED: "This prospect was merged into another record.",
     ALREADY_DO_NOT_CONTACT: "This prospect is marked Do Not Contact.", NOT_ASSIGNED_TO_OWNER: "This prospect is no longer assigned to you.", OUTSIDE_COVERAGE: "This prospect is outside the territories you cover.",
     LOCATION_UNAVAILABLE: "A selected prospect has no usable map position (missing, changed, ambiguous or invalid address).", TOO_MANY_STOPS: "A route can have at most 25 stops.", DUPLICATE_STOP: "A prospect can only appear once in a route.",
     INVALID_DATE: "Choose a valid date (from two days ago to one year ahead).", STALE_ROUTE: "This route was changed elsewhere. Reload it before saving again.", ROUTE_NOT_EDITABLE: "Only draft routes can be edited.",
@@ -96,7 +96,7 @@ type Dict = typeof en;
 
 const fr: Dict = {
   errors: {
-    STOP_NOT_ALLOWED: "L’un des prospects sélectionnés ne fait pas partie de votre portefeuille.", PROSPECT_ARCHIVED: "Ce prospect est archivé.", PROSPECT_MERGED: "Ce prospect a été fusionné dans un autre dossier.",
+    FIT_EXCLUDED: "Cette entreprise a été exclue : ce n’est pas un atelier de réparation automobile.", STOP_NOT_ALLOWED: "L’un des prospects sélectionnés ne fait pas partie de votre portefeuille.", PROSPECT_ARCHIVED: "Ce prospect est archivé.", PROSPECT_MERGED: "Ce prospect a été fusionné dans un autre dossier.",
     ALREADY_DO_NOT_CONTACT: "Ce prospect est marqué Ne pas contacter.", NOT_ASSIGNED_TO_OWNER: "Ce prospect ne vous est plus assigné.", OUTSIDE_COVERAGE: "Ce prospect est hors des territoires que vous couvrez.",
     LOCATION_UNAVAILABLE: "Un prospect sélectionné n’a pas de position utilisable (adresse manquante, modifiée, ambiguë ou invalide).", TOO_MANY_STOPS: "Une route compte au maximum 25 arrêts.", DUPLICATE_STOP: "Un prospect ne peut apparaître qu’une fois dans une route.",
     INVALID_DATE: "Choisissez une date valide (de 2 jours passés à 1 an à venir).", STALE_ROUTE: "Cette route a été modifiée ailleurs. Rechargez-la avant d’enregistrer à nouveau.", ROUTE_NOT_EDITABLE: "Seules les routes en brouillon peuvent être modifiées.",

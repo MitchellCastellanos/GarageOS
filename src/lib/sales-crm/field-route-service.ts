@@ -22,7 +22,7 @@ export function requirePlanner(actor: PlatformSalesActor): string {
   return actor.staffId!;
 }
 
-export const PROSPECT_FACTS = { id: true, name: true, address: true, city: true, province: true, postalCode: true, status: true, archivedAt: true, mergedIntoId: true, doNotContact: true, assignedStaffId: true } as const;
+export const PROSPECT_FACTS = { id: true, name: true, address: true, city: true, province: true, postalCode: true, status: true, archivedAt: true, mergedIntoId: true, doNotContact: true, assignedStaffId: true, repairFit: true } as const;
 
 export async function coverageOk(actor: PlatformSalesActor, p: { province: string | null; city: string | null; postalCode: string | null }, rules: Awaited<ReturnType<typeof loadTerritoryRules>>) {
   const keys = actor.coverageTerritoryKeys ?? [];
@@ -46,7 +46,7 @@ export async function listCandidates(actor: PlatformSalesActor, filter: { city?:
   const staffId = requirePlanner(actor);
   const rows = await db.crmProspect.findMany({
     where: {
-      assignedStaffId: staffId, status: "ACTIVE", doNotContact: false, mergedIntoId: null, archivedAt: null,
+      assignedStaffId: staffId, status: "ACTIVE", doNotContact: false, mergedIntoId: null, archivedAt: null, OR: [{ repairFit: null }, { repairFit: { in: ["VERIFIED_REPAIR", "HUMAN_REVIEW"] } }],
       ...(filter.city ? { city: { equals: filter.city, mode: "insensitive" as const } } : {}),
       ...(filter.q ? { name: { contains: filter.q.slice(0, 80), mode: "insensitive" as const } } : {}),
     },

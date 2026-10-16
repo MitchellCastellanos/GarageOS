@@ -6,7 +6,8 @@ import { db } from "@/lib/db";
 import { PLATFORM } from "@/lib/routes";
 import { requireCrmActor } from "@/lib/sales-crm/access";
 import { writeCrmAudit } from "@/lib/sales-crm/audit";
-import { ASSIGNMENT_RUN_TTL_MS, applyAssignmentProposals, buildAssignmentProposals } from "@/lib/sales-crm/assignment";
+import { ASSIGNMENT_BATCH_LIMIT, ASSIGNMENT_RUN_TTL_MS, ASSIGNMENT_SCAN_LIMIT, applyAssignmentProposals, buildAssignmentProposals } from "@/lib/sales-crm/assignment";
+import { assignedScopeWhere } from "@/domain/sales-crm/access";
 import { CrmError, addressColumns, territoryColumns } from "@/lib/sales-crm/prospects";
 import { crmAction } from "@/lib/sales-crm/result";
 import { loadTerritoryRulesWith } from "@/lib/sales-crm/territory-rules";
@@ -18,14 +19,22 @@ export async function previewAssignmentRun(form: FormData) {
   return crmAction(async () => {
     const territoryKey = String(form.get("territoryKey") ?? "").trim() || undefined;
     if (territoryKey && !/^[a-z0-9-]{1,60}$/.test(territoryKey)) throw new CrmError("INVALID");
-    const { proposals, considered } = await buildAssignmentProposals(actor, { territoryKey });
+    // Reads up to 5,000 unassigned prospects (not just the first 500) so excluded / under-review rows cannot hide assignable ones, accounts seller capacity across
+    // the whole scan, then keeps the first 500 ASSIGNMENTS for this run (the confirm step stays bounded). The rest is reported as `deferred`, never silently dropped.
+    const scan = await buildAssignmentProposals(actor, { territoryKey, scanLimit: ASSIGNMENT_SCAN_LIMIT });
+    let kept = 0, deferred = 0;
+    const proposals = scan.proposals.filter((p) => { if (!p.staffId) return true; if (kept < ASSIGNMENT_BATCH_LIMIT) { kept++; return true; } deferred++; return false; });
+    const considered = scan.considered;
+    const poolWhere = { AND: [assignedScopeWhere(actor), { assignedStaffId: null, status: "ACTIVE" as const, doNotContact: false, mergedIntoId: null, territoryState: { in: ["LOCAL" as const, "NATIONAL" as const] } }, territoryKey ? { territoryKey } : {}] };
+    const poolByFit = await db.crmProspect.groupBy({ by: ["repairFit"], where: poolWhere, _count: { _all: true } });
+    const backlog = { total: poolByFit.reduce((a, r) => a + r._count._all, 0), notEvaluated: poolByFit.find((r) => r.repairFit === null)?._count._all ?? 0, verified: poolByFit.find((r) => r.repairFit === "VERIFIED_REPAIR")?._count._all ?? 0, underReview: poolByFit.find((r) => r.repairFit === "HUMAN_REVIEW")?._count._all ?? 0, excluded: poolByFit.find((r) => r.repairFit === "EXCLUDED")?._count._all ?? 0 };
     const assigned = proposals.filter((p) => p.staffId);
     const skips: Record<string, number> = {};
     for (const p of proposals) if (p.skip) skips[p.skip] = (skips[p.skip] ?? 0) + 1;
     const perSeller: Record<string, number> = {};
     for (const p of assigned) perSeller[p.staffId!] = (perSeller[p.staffId!] ?? 0) + 1;
-    const summary = { considered, proposed: assigned.length, skips, perSeller };
-    const run = await db.crmAssignmentRun.create({ data: { createdByUserId: actor.userId, proposals: proposals as unknown as Prisma.InputJsonValue, summary: summary as Prisma.InputJsonValue }, select: { id: true } });
+    const summary = { considered, proposed: assigned.length, skips, perSeller, batchLimit: ASSIGNMENT_BATCH_LIMIT, deferred, moreUnread: scan.next !== null, backlog };
+    const run = await db.crmAssignmentRun.create({ data: { createdByUserId: actor.userId, proposals: [...assigned, ...proposals.filter((p) => !p.staffId).slice(0, 200)] as unknown as Prisma.InputJsonValue, summary: summary as Prisma.InputJsonValue }, select: { id: true } });
     await writeCrmAudit({ actorUserId: actor.userId, action: "ASSIGNMENT_RUN_PREVIEWED", entityType: "CrmAssignmentRun", entityId: run.id, metadata: summary as Prisma.InputJsonValue });
     const [staff, prospects] = await Promise.all([
       db.platformSalesStaff.findMany({ where: { id: { in: Object.keys(perSeller) } }, select: { id: true, salesMode: true, user: { select: { name: true } } } }),
