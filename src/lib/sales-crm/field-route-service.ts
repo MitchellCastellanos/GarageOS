@@ -17,14 +17,14 @@ import { loadTerritoryRules } from "@/lib/sales-crm/territory";
 
 const isUnique = (e: unknown) => typeof e === "object" && !!e && (e as { code?: string }).code === "P2002";
 
-function requirePlanner(actor: PlatformSalesActor): string {
+export function requirePlanner(actor: PlatformSalesActor): string {
   if (!canPlanRoutes(actor)) throw new Error("SALES_FORBIDDEN");
   return actor.staffId!;
 }
 
-const PROSPECT_FACTS = { id: true, name: true, address: true, city: true, province: true, postalCode: true, status: true, archivedAt: true, mergedIntoId: true, doNotContact: true, assignedStaffId: true } as const;
+export const PROSPECT_FACTS = { id: true, name: true, address: true, city: true, province: true, postalCode: true, status: true, archivedAt: true, mergedIntoId: true, doNotContact: true, assignedStaffId: true } as const;
 
-async function coverageOk(actor: PlatformSalesActor, p: { province: string | null; city: string | null; postalCode: string | null }, rules: Awaited<ReturnType<typeof loadTerritoryRules>>) {
+export async function coverageOk(actor: PlatformSalesActor, p: { province: string | null; city: string | null; postalCode: string | null }, rules: Awaited<ReturnType<typeof loadTerritoryRules>>) {
   const keys = actor.coverageTerritoryKeys ?? [];
   if (!keys.length) return true;
   const rule = resolveTerritory(rules, p);
@@ -313,4 +313,47 @@ export async function fieldMetrics(actor: PlatformSalesActor, range: { from: Dat
     demosDiscussed: by("DEMO_DISCUSSED"), demosScheduled: by("DEMO_SCHEDULED"), followUpTasks: tasks,
     visitToDemoRate: attempted ? demos / attempted : null,
   };
+}
+
+/**
+ * Records a visit result straight from the map. One path for both cases, always the same transactional writer:
+ *  - the seller has a PENDING stop for this prospect in the route being run → the normal stop result (stop, activity, task,
+ *    opportunity, audit in ONE transaction, exactly-once);
+ *  - otherwise (a prospect seen on the map but not on the route) → the same `writeFieldVisit` transaction without a stop
+ *    (planned stops in DRAFT routes are untouched: a revisit stays plannable).
+ * Ownership is strict: only the assigned seller; retries with the same submission id return the original activity.
+ */
+export async function recordMapVisit(actor: PlatformSalesActor, prospectId: string, raw: unknown, now = new Date()): Promise<{ activityId: string; taskId: string | null; replayed: boolean; stopId: string | null }> {
+  if (!canExecuteVisits(actor)) throw new Error("SALES_FORBIDDEN");
+  const input = visitResultSchema.parse(raw);
+  const staffId = actor.staffId!;
+  const p = await db.crmProspect.findFirst({ where: { id: prospectId, assignedStaffId: staffId }, select: PROSPECT_FACTS });
+  if (!p) throw new CrmError("NOT_FOUND");
+  const stop = await db.crmFieldRouteStop.findFirst({ where: { prospectId, status: "PENDING", route: { ownerStaffId: staffId, status: "IN_PROGRESS" } }, select: { id: true } });
+  if (stop) {
+    const r = await submitStopResult(actor, stop.id, raw, now);
+    return { activityId: r.activityId, taskId: r.taskId, replayed: r.replayed, stopId: stop.id };
+  }
+  const prior = await findVisitBySubmission(actor.userId, input.submissionId);
+  if (prior) {
+    if (prior.prospectId !== prospectId) throw new CrmError("IDEMPOTENCY_CONFLICT");
+    return { activityId: prior.id, taskId: null, replayed: true, stopId: null };
+  }
+  assertProspectVisitable(p);
+  const tz = (await db.platformSalesStaff.findUnique({ where: { id: staffId }, select: { timezone: true } }))?.timezone ?? "America/Toronto";
+  try {
+    const r = await db.$transaction(async (tx) => {
+      return writeFieldVisit(tx, {
+        actor, prospectId, outcome: input.outcome as FieldVisitOutcome, note: input.note, nextAction: input.nextAction, followUpDate: input.followUpDate,
+        contactId: input.contactId, submissionId: input.submissionId, timezone: tz, now,
+      });
+    });
+    return { ...r, replayed: false, stopId: null };
+  } catch (e) {
+    if (isUnique(e)) {
+      const again = await findVisitBySubmission(actor.userId, input.submissionId);
+      if (again && again.prospectId === prospectId) return { activityId: again.id, taskId: null, replayed: true, stopId: null };
+    }
+    throw e;
+  }
 }

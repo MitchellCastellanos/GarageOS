@@ -1,43 +1,42 @@
-// Field Planner rendering: the coverage indicator and the located/unlocated list, EN and FR, server-rendered (no browser, no network).
+// Field Planner 2.0 workspace rendering: territory counts, legend/filters, unlocated panel, EN and FR, server-rendered (no browser, no network).
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import "./helpers/action-harness";
 
-const { RoutePlanner } = await import("../src/components/sales-field/RoutePlanner");
+const { FieldWorkspace } = await import("../src/components/sales-field/FieldWorkspace");
 
-const mk = (id: string, name: string, coverage: "LOCATED" | "PENDING" | "AMBIGUOUS_FAILED" | "INSUFFICIENT_ADDRESS", city = "Montréal") => ({
-  id, name, city, address: "1 Rue Test", territoryKey: null, stage: null, plannedElsewhere: false, coverage,
-  location: coverage === "LOCATED" ? { usable: true as const, lat: 45.5, lng: -73.5 } : { usable: false as const, reason: "NONE" },
+const summary = (over = {}) => ({
+  total: 5, located: 2, coverage: { LOCATED: 2, PENDING: 1, AMBIGUOUS_FAILED: 1, INSUFFICIENT_ADDRESS: 1 },
+  unlocatedSample: [{ id: "c", name: "Garage Gamma", city: "Montréal", address: "1 Rue Test", coverage: "PENDING" }, { id: "d", name: "Garage Delta", city: "Laval", address: null, coverage: "AMBIGUOUS_FAILED" }], ...over,
 });
-const candidates = [mk("a", "Garage Alpha", "LOCATED"), mk("b", "Garage Beta", "LOCATED", "Laval"), mk("c", "Garage Gamma", "PENDING"), mk("d", "Garage Delta", "AMBIGUOUS_FAILED"), mk("e", "Garage Epsilon", "INSUFFICIENT_ADDRESS")];
-const render = (locale: "en" | "fr", cs = candidates, showAll = false) => renderToStaticMarkup(createElement(RoutePlanner, {
-  locale, candidates: cs, territories: [], geocoding: { mode: "DISABLED", reason: "NO_PROVIDER_CONFIGURED" }, mapConfig: null,
-  initial: { plannedDate: "2026-10-20", name: "", selectedIds: showAll ? ["c"] : [] },
-}));
+const render = (locale: "en" | "fr", s = summary(), stops: { id: string; name: string; city: string | null; lat: number; lng: number }[] = []) =>
+  renderToStaticMarkup(createElement(FieldWorkspace, { locale, mapConfig: null, summary: s, canRecord: true, initial: { plannedDate: "2026-10-20", name: "", stops } }));
 
-test("the planner shows the four coverage counts and lists located prospects first; unlocated ones stay hidden behind the existing toggle", () => {
+test("all eight CRM status filters and the legend are present (EN)", () => {
   const html = render("en");
-  for (const [label, n] of [["On the map", 2], ["Locating automatically", 1], ["Ambiguous or not found", 1], ["Address incomplete", 1]] as const) assert.ok(html.includes(`${label}: ${n}`), label);
-  assert.ok(html.includes("Garage Alpha") && html.includes("Garage Beta"));
-  assert.ok(!html.includes("Garage Gamma") && !html.includes("Garage Delta"), "unlocated prospects are hidden until the seller asks");
-  assert.ok(html.includes("3 hidden") || html.includes("(3 "), "the hidden count is still reported");
-  assert.ok(html.includes("nothing for you to do"), "no manual geolocation work is asked of the seller");
+  for (const label of ["Not contacted", "Not visited", "Visit attempted", "Follow-up required", "Interested", "Demo scheduled", "Customer", "Lost / not interested"]) assert.ok(html.includes(label), label);
+  assert.ok(html.includes("Reset filters"));
+  assert.equal((html.match(/aria-pressed="false"/g) ?? []).length, 8);
 });
 
-test("a selected-but-unlocated prospect explains its state without any manual action", () => {
-  const html = render("en", candidates, true);
-  assert.ok(html.includes("Garage Gamma") && html.includes("Locating automatically") && html.includes("Will appear on the map once located."));
+test("territory coverage is reported separately from loaded markers and route stops", () => {
+  const html = render("en", summary(), [{ id: "x", name: "Garage X", city: "Laval", lat: 45.5, lng: -73.6 }]);
+  assert.ok(html.includes("In your territory") && html.includes("On the map") && html.includes("In this view") && html.includes("Match filters") && html.includes("Route stops"));
+  assert.ok(html.includes("1/25"));
+  assert.ok(html.includes("Garage X"));
 });
 
-test("French copy", () => {
+test("unlocated prospects are listed with the reason and need no manual action", () => {
+  const html = render("en");
+  assert.ok(html.includes("Prospects not on the map yet") && html.includes("Garage Gamma") && html.includes("Locating automatically") && html.includes("Ambiguous or not found"));
+  assert.ok(html.includes("nothing to do unless the address is wrong"));
+  assert.ok(!render("en", summary({ total: 2, located: 2, unlocatedSample: [] })).includes("not on the map yet"));
+});
+
+test("French copy and the no-map fallback", () => {
   const html = render("fr");
-  assert.ok(html.includes("Sur la carte: 2") && html.includes("Localisation automatique en cours: 1") && html.includes("Adresse incomplète: 1"));
-});
-
-test("nothing is rendered when the seller has no prospects, and the all-located case shows no 'pending' note", () => {
-  assert.ok(!render("en", []).includes("Map location coverage"));
-  const all = render("en", candidates.filter((c) => c.coverage === "LOCATED"));
-  assert.ok(all.includes("On the map: 2") && !all.includes("nothing for you to do"));
+  assert.ok(html.includes("Non contacté") && html.includes("Démo planifiée") && html.includes("Réinitialiser les filtres") && html.includes("Dans votre territoire"));
+  assert.ok(html.includes("n’est pas configurée"), "list fallback explained");
 });

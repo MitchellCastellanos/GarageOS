@@ -1,13 +1,12 @@
 import { notFound } from "next/navigation";
 import { canMutateRoute, canPlanRoutes } from "@/domain/sales-crm/field-route";
 import { fieldCopy } from "@/lib/admin-locale/sales-field";
-import { getRoute, listCandidates } from "@/lib/sales-crm/field-route-service";
-import { geocodingStatus } from "@/lib/sales-crm/geocoder";
+import { getRoute } from "@/lib/sales-crm/field-route-service";
+import { territorySummary } from "@/lib/sales-crm/field-map-service";
 import { getMapConfig } from "@/lib/sales-crm/map-config";
 import { loadCrmPage } from "@/lib/sales-crm/page";
-import { loadTerritoryRules } from "@/lib/sales-crm/territory";
 import { PageHeader, PermissionDenied } from "@/components/sales-crm/ui";
-import { RoutePlanner } from "@/components/sales-field/RoutePlanner";
+import { FieldWorkspace } from "@/components/sales-field/FieldWorkspace";
 
 export default async function EditRoutePage({ params }: { params: Promise<{ id: string }> }) {
   const { actor, t, locale } = await loadCrmPage("plan_field_routes");
@@ -16,15 +15,12 @@ export default async function EditRoutePage({ params }: { params: Promise<{ id: 
   const route = await getRoute(actor, id);
   if (!route || !canMutateRoute(actor, route) || route.status !== "DRAFT") notFound();
   const f = fieldCopy(locale);
-  const [candidates, rules] = await Promise.all([listCandidates(actor), loadTerritoryRules()]);
-  const covered = actor.coverageTerritoryKeys ?? [];
-  const territories = rules.filter((r) => !covered.length || covered.includes(r.key)).map((r) => ({ key: r.key, name: (locale === "fr" ? r.nameFr : r.nameEn) ?? r.key }));
-  const gc = geocodingStatus();
+  const summary = await territorySummary(actor);
   return (
-    <div className="mx-auto max-w-6xl space-y-4">
+    <div className="mx-auto max-w-7xl space-y-4">
       <PageHeader title={f.planner.edit} />
-      <RoutePlanner locale={locale} candidates={candidates} territories={territories} geocoding={{ mode: gc.mode, reason: gc.reason }} mapConfig={getMapConfig()}
-        initial={{ routeId: route.id, version: route.version, plannedDate: route.plannedDate, name: route.name ?? "", selectedIds: route.stops.map((s) => s.prospectId) }} />
+      <FieldWorkspace locale={locale} mapConfig={getMapConfig()} summary={summary} canRecord
+        initial={{ routeId: route.id, version: route.version, plannedDate: route.plannedDate, name: route.name ?? "", stops: route.stops.map((s) => ({ id: s.prospectId, name: s.name, city: null, lat: s.lat, lng: s.lng })) }} />
     </div>
   );
 }
