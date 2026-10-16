@@ -41,7 +41,7 @@ Expected size (**Estimate**: Québec staged 10,466 candidates across all automot
 |---|---|
 | Run quality verdict | `OK` (no acknowledgement needed) |
 | Positions valid / staged | ≥ 95 % (gate floor is 80 %) |
-| Rejected by validation / received | ≤ 10 % |
+| Unexpected rejections / received (everything except `OUT_OF_SCOPE_PROVINCE` and `OUTSIDE_CANADA`, which are expected: the extraction bounding box is deliberately generous and contains neighbouring provinces/states) | ≤ 2 % |
 | Duplicates / staged | ≤ 3 % |
 | Sampled *verified repair* that are real repair businesses | ≥ 90 % (≥ 45 of 50) |
 | Sampled *excluded* that are wrongly excluded | ≤ 10 % (≤ 5 of 50) — any pattern of false exclusion is a classifier bug to fix before widening |

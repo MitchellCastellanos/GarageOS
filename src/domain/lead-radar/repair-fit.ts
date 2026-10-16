@@ -21,7 +21,7 @@ export type RepairFit = (typeof REPAIR_FITS)[number];
 const DECISIVE: Record<string, readonly string[]> = {
   EV_CHARGING: ["charging station", "charging stations", "ev charging", "borne de recharge", "bornes de recharge", "borne electrique", "bornes electriques", "charge point", "chargepoint", "supercharger", "superchargeur", "recharge electrique"],
   BICYCLE: ["cycle", "cycles", "velo", "velos", "bicycle", "bicycles", "bicyclette", "bicyclettes", "bike", "bikes", "ebike", "e bike", "bmx", "cyclo"],
-  RECYCLING_SALVAGE: ["recyclage", "recycling", "recyclers", "salvage", "scrap", "ferraille", "ferrailleur", "casse auto", "casse automobile", "demolition auto", "wrecker", "wreckers", "auto wrecking", "junk", "pieces usagees", "used auto parts", "used parts"],
+  RECYCLING_SALVAGE: ["recyclage", "recycling", "recyclers", "salvage", "scrap", "ferraille", "ferrailleur", "casse auto", "casse automobile", "demolition auto", "wrecker", "wreckers", "auto wrecking", "junk", "pieces usagees", "used auto parts", "used parts", "pick a part", "pick n pull", "pull a part", "u pull", "upull", "libre service pieces"],
   CAR_WASH: ["lave auto", "lave autos", "lavage", "car wash", "carwash", "wash", "auto spa"],
   DETAILING: ["detailing", "detail", "esthetique auto", "esthetique automobile", "polissage"],
   TOWING: ["remorquage", "remorqueur", "remorqueurs", "towing", "tow", "depanneuse", "depanneuses", "assistance routiere", "roadside"],
@@ -34,6 +34,8 @@ const DECISIVE: Record<string, readonly string[]> = {
 };
 /** Signals that are suggestive but not decisive: with a specific repair category they only trigger a review. */
 const SOFT: Record<string, readonly string[]> = {
+  // Industrial / fleet / oil-field / truck-body / coating businesses carry an automotive repair code but are often not walk-in repair shops: a person decides.
+  INDUSTRIAL_OTHER: ["oilfield", "industrial", "industriel", "industrielle", "powder coating", "peinture en poudre", "truck stop", "relais routier", "truck body", "truck bodies", "registry", "registries", "registre", "registres", "air liquide"],
   OTHER_NON_REPAIR: ["parking", "stationnement", "entreposage", "storage", "driving school", "ecole de conduite", "location", "rental", "rent a car", "leasing", "assurance", "insurance"],
   TINT_AUDIO_WRAP: ["tinting", "teinture", "wrap", "upholstery", "sellerie", "alarme", "demarreur", "audio", "stereo", "sono"],
 };
@@ -106,6 +108,9 @@ export function assessRepairFit(f: FitFacts): FitResult {
     }
   }
   // 3 — segments with no commercial ruling, soft signals, brand-named listings: a human decides.
+  // The platform's own category can name such a segment even when the business name does not (e.g. an unmapped "motorcycle_repair" code).
+  const codeSegments = !known && /motorcycle|powersport|snowmobile|(^|_)atv(_|$)/.test(code) ? ["MOTORCYCLE"] : [];
+  for (const x of codeSegments) if (!s.segments.includes(x)) s.segments.push(x);
   if (s.segments.length || s.soft.length || s.oem || f.classReasons?.includes("POSSIBLE_DEALER_SERVICE") || f.classReasons?.includes("ALSO_DEALER")) {
     const r: FitReason[] = [...s.segments.map((x): FitReason => `SEGMENT_${x}`), ...s.soft.map((x): FitReason => `NAME_SIGNAL_${x}`)];
     if (s.oem) r.push("OEM_BRAND_NAME");
