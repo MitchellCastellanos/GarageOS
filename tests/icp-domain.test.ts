@@ -142,3 +142,8 @@ test("heavy-duty truck AND trailer repair is an eligible specialist, while a tra
   assert.equal(fit("Peace River Heavy Duty Truck & Trailer Repair", { taxonomyPrimary: "truck_repair" }).fit, "VERIFIED_REPAIR");
   assert.equal(fit("Remorques O Bédard", { taxonomyPrimary: "trailer_repair" }).fit, "HUMAN_REVIEW");
 });
+
+test("brands found by the Alberta Preview-all review: Quick Lane, Speedy Apollo, fuel retailers, luxury dealers with a trailing city", () => {
+  for (const [n, city] of [["Quick Lane", "Innisfail"], ["Drayton Valley Quick Lane Tire & Auto Centre", "Drayton Valley"], ["Speedy Apollo Auto Service Centres", "Calgary"], ["Shell Gas", "Calgary"], ["Petro-Canada", "Edmonton"], ["Rolls-Royce Motor Cars Calgary", "Calgary"]] as const) assert.equal(assessIcp({ name: n, city }).outside, true, n);
+  for (const [n, city] of [["Shell Lake Garage", "Shell Lake"], ["Esso Valley Mechanical", "Edmonton"]] as const) assert.equal(assessIcp({ name: n, city }).outside, false, n);
+});
