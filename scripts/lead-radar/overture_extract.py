@@ -28,13 +28,14 @@ import time
 from datetime import datetime, timezone
 
 EXTRACTOR = "garageos-overture-extract"
-EXTRACTOR_VERSION = "1.1.0"
+EXTRACTOR_VERSION = "1.2.0"
 BUCKET_HOST = "overturemaps-us-west-2.s3.amazonaws.com"
 BUCKET_BASE = f"https://{BUCKET_HOST}/"
 STAC_ROOT = "https://stac.overturemaps.org/catalog.json"
 PLACES_PREFIX = "release/{release}/theme=places/type=place/"
 RELEASE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}(\.\d{1,3})?$")
 SCHEMA_VERSION = 1
+POINT_BBOX_TOLERANCE = 1e-4
 
 COLUMNS = ["id", "confidence", "names", "taxonomy", "brand", "addresses", "phones", "websites", "emails", "operating_status", "sources", "bbox"]
 
@@ -142,7 +143,10 @@ def source_point(row: dict):
         return None
     if not all(math.isfinite(v) for v in (x0, x1, y0, y1)):
         return None
-    if abs(x1 - x0) > 1e-6 or abs(y1 - y0) > 1e-6:
+    # Overture stores bbox as float32 values widened to double, so for a POINT xmax - xmin is not 0 but one float32 step (~7.6e-6 deg near Montréal; measured on
+    # release 2026-09-23.1). A tolerance of 1e-6 (extractor 1.1.0) rejected every place. 1e-4 deg (~10 m) is far above float32 rounding and far below any real
+    # polygon-like box, and the midpoint is within ~0.4 m of the true point.
+    if abs(x1 - x0) > POINT_BBOX_TOLERANCE or abs(y1 - y0) > POINT_BBOX_TOLERANCE:
         return None
     lng, lat = (x0 + x1) / 2, (y0 + y1) / 2
     if not (-180 <= lng <= 180 and -90 <= lat <= 90):
@@ -209,6 +213,7 @@ def main() -> int:
     ap.add_argument("--max-row-groups", type=int, default=800)
     ap.add_argument("--max-records", type=int, default=600_000)
     ap.add_argument("--batch", type=int, default=6, help="row groups read per batch (memory bound)")
+    ap.add_argument("--points-only", action="store_true", help="write points.ndjson ({id,lat,lng} per place) for the Super Admin 'Refresh positions' upload instead of records.ndjson + manifest.json")
     args = ap.parse_args()
 
     import fsspec  # imported lazily so unit tests of the pure helpers need no network libraries
@@ -232,7 +237,8 @@ def main() -> int:
     started = time.time()
 
     for n, key in enumerate(files):
-        shard = os.path.join(args.out, "parts", f"{release}.{plan['planHash'][:12]}.{n:05d}.ndjson")
+        # The extractor version is part of the shard identity: shards written by an older extractor (e.g. 1.0.0/1.1.0, no usable points) are never reused.
+        shard = os.path.join(args.out, "parts", f"{release}.{plan['planHash'][:12]}.v{EXTRACTOR_VERSION}.{n:05d}.ndjson")
         shard_paths.append(shard)
         done = shard + ".done"
         f = fs.open(BUCKET_BASE + key, block_size=16 * 1024 * 1024)  # URL built from the fixed bucket + a listed key only
@@ -274,15 +280,33 @@ def main() -> int:
 
     # Merge shards deterministically (sorted by id, de-duplicated).
     records: dict[str, str] = {}
+    points: dict[str, tuple[float, float]] = {}
     for p in shard_paths:
         if not os.path.exists(p):
             continue
         with open(p, encoding="utf-8") as fh:
             for line in fh:
-                rid = json.loads(line)["id"]
+                obj = json.loads(line)
+                rid = obj["id"]
+                g = obj.get("geo")
+                if g and g.get("lat") is not None and g.get("lng") is not None:
+                    points[rid] = (g["lat"], g["lng"])
                 records[rid] = line.rstrip("\n")
                 if len(records) > args.max_records:
                     raise SystemExit(f"more than --max-records ({args.max_records}) records; narrow the plan")
+    stats["recordsWithPoint"] = len(points)
+    # Never report a successful extraction whose coordinates failed: GarageOS needs these points to place shops on the map without a paid geocoder.
+    if records and not points:
+        raise SystemExit(f"0 of {len(records)} records carry a source point. Refusing to write a coordinate-less extraction "
+                         f"(extractor {EXTRACTOR_VERSION}); delete the output folder's parts/ directory and report this.")
+    log(f"source points: {len(points)} of {len(records)} records")
+    if args.points_only:
+        pp = os.path.join(args.out, "points.ndjson")
+        with open(pp, "w", encoding="utf-8", newline="\n") as out:
+            for rid in sorted(points):
+                out.write(json.dumps({"id": rid, "lat": points[rid][0], "lng": points[rid][1]}, separators=(",", ":")) + "\n")
+        log(f"done: {len(points)} points → {pp}")
+        return 0
     out_path = os.path.join(args.out, "records.ndjson")
     sha = hashlib.sha256()
     with open(out_path, "w", encoding="utf-8", newline="\n") as out:

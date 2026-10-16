@@ -99,5 +99,8 @@ Overture's point was dropped by the extractor; it is now carried to staging (`so
 * **Owner-only, not executed:** run funnel + preview, approve + apply the cleanup, work the review queue, discard the unconfirmed 500-assignment preview and re-preview, then the Québec refresh + geocoding dry run (owner-runbook-geolocation.md).
 * Test DB suites need a **fresh scratch database per suite** (name must contain `scratch|test|replay`); running two suites on one DB or in parallel produces false failures.
 
+## 8e. Geolocation root cause (2026-10-17) — see [geolocation.md §8](geolocation.md)
+Extractor ≤ 1.1.0 dropped every Overture point (float32 bbox vs 1e-6 tolerance, proven on the real release): the Oct 16 run carried no coordinates, the backfill read 0. Fixed in extractor 1.2.0 (+ refuses coordinate-less output, shard names carry the version), run-level point counters, Super Admin *Source positions: diagnostics and refresh* panel (database check, candidate counts, last-run verdict, `points.ndjson` preview/apply). Recovery needs no new PC extraction. Owner steps: owner-runbook-geolocation.md (top). Verify: diagnostics panel → refresh preview → free dry-run examines candidates (was 0) → Field Planner "On the map" rises.
+
 ## 9. Test and environment notes
 `npx tsc --noEmit`, `npx eslint`, `npm test` (unit), DB suites need a scratch Postgres (`GARAGEOS_CRM_TEST_DB_URL`, one fresh DB per suite): `tests/prospect-source-location-db.test.ts` (17), `tests/lead-radar-db.test.ts`, `lead-radar-automation-db.test.ts` (27), `lead-radar-compare-db.test.ts` (5). Production migrations run only on Vercel Production builds (`scripts/deploy-migrations.mjs`).

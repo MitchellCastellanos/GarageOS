@@ -16,7 +16,12 @@ type Tx = Prisma.TransactionClient;
 
 const IMPORTED = new Set(["CREATED", "LINKED", "SENT_TO_REVIEW"]);
 
-export interface ChunkTally { received: number; stagedNew: number; stagedUpdated: number; rejected: number; issues: Record<string, number> }
+export interface ChunkTally {
+  received: number; stagedNew: number; stagedUpdated: number; rejected: number; issues: Record<string, number>;
+  /** Source-coordinate accounting (so a coordinate-less extraction can never pass silently): records whose line carried a point, points accepted by the plausibility check,
+   *  and how many accepted points were written onto NEW / already-existing candidates. */
+  withPoint: number; pointsAccepted: number; pointsOnNew: number; pointsOnExisting: number;
+}
 
 export const matchKeyOf = (c: Pick<StagedCandidate, "nameNormalized" | "city" | "website" | "phone" | "address" | "postalCode" | "province">): MatchKey => {
   const a = canonicalAddress({ address: c.address, city: c.city, province: c.province, postalCode: c.postalCode });
@@ -28,7 +33,7 @@ export async function stageChunk(tx: Tx, run: { id: string; scope: DiscoveryScop
   if (Buffer.byteLength(text, "utf8") > MAX_CHUNK_BYTES) throw new CrmError("CHUNK_TOO_LARGE");
   const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
   if (lines.length > MAX_CHUNK_RECORDS) throw new CrmError("CHUNK_TOO_LARGE");
-  const tally: ChunkTally = { received: lines.length, stagedNew: 0, stagedUpdated: 0, rejected: 0, issues: {} };
+  const tally: ChunkTally = { received: lines.length, stagedNew: 0, stagedUpdated: 0, rejected: 0, issues: {}, withPoint: 0, pointsAccepted: 0, pointsOnNew: 0, pointsOnExisting: 0 };
   const issue = (code: RecordIssue | "MALFORMED_JSON") => { tally.rejected++; tally.issues[code] = (tally.issues[code] ?? 0) + 1; };
 
   const objs: unknown[] = [];
@@ -59,6 +64,10 @@ export async function stageChunk(tx: Tx, run: { id: string; scope: DiscoveryScop
   const updates: Prisma.PrismaPromise<unknown>[] = [];
   for (const c of cands) {
     const prev = existing.get(c.sourceRecordId);
+    if (c.sourcePointIssue !== "NO_SOURCE_COORDINATES") tally.withPoint++;
+    if (c.sourceLatitude !== null) tally.pointsAccepted++;
+    else tally.issues[c.sourcePointIssue === "NO_SOURCE_COORDINATES" ? "POINT_MISSING" : `POINT_${c.sourcePointIssue}`] = (tally.issues[c.sourcePointIssue === "NO_SOURCE_COORDINATES" ? "POINT_MISSING" : `POINT_${c.sourcePointIssue}`] ?? 0) + 1;
+    if (c.sourceLatitude !== null) { if (prev) tally.pointsOnExisting++; else tally.pointsOnNew++; }
     const cls = classifyTerritory(rules, { province: c.province, city: c.city, postalCode: c.postalCode });
     const territoryKey = cls.state === "LOCAL" ? cls.rule!.key : cls.state === "NATIONAL" ? "national" : "unresolved";
     const facts = {

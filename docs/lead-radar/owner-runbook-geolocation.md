@@ -1,4 +1,15 @@
-# Owner runbook — refresh Québec release 2026-09-23.1 and position the prospects (Windows PowerShell)
+# Owner runbook — position the prospects from Overture coordinates
+
+> **UPDATE 2026-10-17 — read this first.** The October 16 refresh uploaded **no coordinates**. Root cause: extractor 1.1.0 rejected every place (bbox tolerance 1e-6 vs Overture's float32 bbox, ~7.6e-6) — proven on the real release, see [geolocation.md §8](geolocation.md). The uploaded records were not kept (chunks are staged and discarded) and never contained positions, so they cannot be replayed. **You do NOT need to run the extraction again.** Use the small position file instead:
+> 1. Download `points.ndjson` (sent with the fix; 20,475 Québec places, 1.6 MB; made from Overture release 2026-09-23.1 with extractor 1.2.0; sha256 `5a482db5…6a75`). No extraction on your PC.
+> 2. Settings → Geocoding → **Source positions: diagnostics and refresh** → *Load diagnostics* (it reads the database directly: columns, migrations, candidates with/without positions, last run verdict).
+> 3. Choose the file → **Preview file** (writes nothing). Expect thousands of "matched" and a few skipped (not staged / outside province).
+> 4. **Apply to candidates** (attaches positions to the EXISTING staged candidates only; no prospects, no assignment, no paid request).
+> 5. Same page → **Positions from Lead Radar (free)** → *Preview (dry run)*: it must now examine candidates (it read 0 before) and show positions to write. Review the skip reasons, then *Apply next page* until finished.
+> 6. Field Planner: the "On the map" counter rises and markers appear.
+> Future refresh runs (extractor 1.2.0+) carry positions; the run page shows *records carrying a position / accepted / written on new / written on existing* and a red banner if a completed run carried none. The sections below describe the original procedure; extractor ≥ 1.2.0 is required for any new extraction (older versions lose every position and 1.2.0 refuses to write a coordinate-less file).
+
+# (Original procedure) refresh Québec release 2026-09-23.1 and position the prospects (Windows PowerShell)
 
 Nothing below has been run by engineering. Each step that touches production data is yours to run.
 
