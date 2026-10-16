@@ -4018,6 +4018,10 @@ model CrmDiscoveryCandidate {
   datasets           String[] @default([])
   licenseOk          Boolean
   contentFingerprint String
+  /// The place's own point from the source record (Overture, permissive licence), when it passed the Canada/province check. Used to locate the
+  /// CRM prospect without a paid geocoder. Deliberately NOT part of contentFingerprint. Both set or both null (CHECK).
+  sourceLatitude     Float?
+  sourceLongitude    Float?
   /// Set when a later release changed the business facts of an already-imported candidate (the CRM prospect is never overwritten).
   changedSinceImport Boolean  @default(false)
 

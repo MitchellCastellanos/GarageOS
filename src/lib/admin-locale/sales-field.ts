@@ -27,6 +27,10 @@ const en = {
     distance: "Straight-line distance", distanceNote: "Straight-line (as the crow flies) estimate between stops. It is NOT driving distance or time and uses no traffic data.", stage: "Stage",
     locationReason: { NONE: "Not located yet", MISSING_ADDRESS: "Address incomplete", ADDRESS_CHANGED: "Address changed — locate again", STALE: "Position is old — locate again", AMBIGUOUS: "Address is ambiguous", INVALID: "Address could not be found", ERROR: "Locating failed — try later", SYNTHETIC_IN_PRODUCTION: "Test position not allowed in production" } as Record<string, string>,
     onlyInView: "Only show prospects in the map area", showUnlocated: "Show prospects without map position", hiddenUnlocated: "hidden — no map position yet", locate: "Locate addresses", locating: "Locating…", located: "Locate request processed.",
+    coverageTitle: "Map location coverage", coverageNote: "Positions are added automatically; nothing for you to do. Prospects without a position cannot be placed on a route yet.",
+    coverage: { LOCATED: "On the map", PENDING: "Locating automatically", AMBIGUOUS_FAILED: "Ambiguous or not found", INSUFFICIENT_ADDRESS: "Address incomplete" } as Record<string, string>,
+    coverageHelp: { PENDING: "Will appear on the map once located.", AMBIGUOUS_FAILED: "The address could not be matched confidently. Ask your manager to correct it.", INSUFFICIENT_ADDRESS: "Needs a street number and a city or postal code." } as Record<string, string>,
+    coverageFilter: "Location", coverageAll: "All",
   },
   geocoding: {
     title: "Map positions", DISABLED: "Address locating is not configured yet.", SYNTHETIC: "Test mode: positions are synthetic fixtures, not real locations.", PENDING_CONFIGURATION: "A geocoding provider is selected but not yet implemented or approved.",
@@ -44,7 +48,7 @@ const en = {
   },
   geocodingAdmin: {
     nav: "Geocoding", title: "Geocode prospect addresses", subtitle: "Resolve existing prospect addresses to map positions with Mapbox, on request, within a request budget you control.",
-    providerTitle: "Provider status", providerNote: "Positions are requested with Mapbox Permanent Geocoding and stored in GarageOS (allowed by Mapbox for permanent results). Nothing runs automatically: not on deploy, not on page load.",
+    providerTitle: "Provider status", providerNote: "Positions are requested with Mapbox Permanent Geocoding and stored in GarageOS (allowed by Mapbox for permanent results). Nothing runs on deploy or on page load. Prospects whose source record already carries a position are located for free; only when geocoding is enabled here, with budget left, may the Lead Radar worker request the rest in small batches.",
     controls: "Owner controls", enabled: "Geocoding enabled", maxRequests: "Maximum requests (lifetime ceiling)", maxHelp: "Hard stop: no request is made once the used count reaches this number. Cannot be lower than what was already used. Deployment hard cap:", used: "Requests used", remaining: "Remaining",
     saveControls: "Save controls", saving: "Saving…", saved: "Controls saved.",
     previewTitle: "Preview (no request made)", eligible: "Assigned active prospects", ready: "Already located", toGeocode: "To locate", review: "Need review", incomplete: "Address incomplete", errorRetry: "Failed, can retry", estimated: "Estimated requests for a full run",
@@ -56,6 +60,12 @@ const en = {
     reviewTitle: "Manual review", reviewHelp: "These addresses were not placed automatically. Correct the address on the prospect (it is then located on the next run), or retry once if the failure was temporary. Ambiguous or low-confidence matches are never stored as coordinates.",
     noReview: "Nothing needs review.", retry: "Retry", openProspect: "Open prospect", attempts: "attempts", truncated: "Showing the first 100.",
     reasons: { AMBIGUOUS: "Ambiguous or low-confidence match", NOT_FOUND: "Address not found", ERROR_EXHAUSTED: "Repeated provider errors", ERROR: "Provider error, can retry", NO_STREET: "No street", NO_CIVIC_NUMBER: "No civic number", NO_CITY_OR_POSTAL: "No city or postal code" } as Record<string, string>,
+    source: {
+      title: "Positions from Lead Radar (free)", help: "Imported prospects take the place point that Overture already provides, so no geocoding request is spent. Run the preview first: it changes nothing. It only applies to prospects whose staged candidate carries a point (re-run the province extraction once to refresh older candidates).",
+      coverage: "Map coverage of assigned active prospects", withPoint: "Not on the map but a source position is available", preview: "Preview (dry run)", apply: "Apply next page", applyConfirm: "Write the previewed positions? This only adds map positions; assignments and outreach are not changed.",
+      working: "Working…", report: "Result", scanned: "candidates examined", located: "positions", dry: "Dry run — nothing written.", written: "Positions written.", done: "Finished: nothing left to examine.", more: "More remain: apply again to continue.",
+      skipped: { NO_SOURCE_COORDINATES: "No source position", OUT_OF_CANADA: "Outside Canada (rejected)", OUT_OF_PROVINCE: "Outside the prospect’s province (rejected)", INSUFFICIENT_ADDRESS: "Address incomplete", ADDRESS_MISMATCH: "Address differs from the source", ALREADY_LOCATED: "Already located", HIGHER_CONFIDENCE_EXISTS: "A better position exists (kept)", PROSPECT_NOT_ELIGIBLE: "Inactive, archived, merged or Do Not Contact", PROSPECT_MISSING: "Prospect not found" } as Record<string, string>,
+    },
     notLive: "Live geocoding is not available on this deployment, so the buttons below are disabled.", mapboxTerms: "Map data © Mapbox © OpenStreetMap. Geocoding results are stored under Mapbox Permanent Geocoding terms.",
   },
   run: {
@@ -112,6 +122,10 @@ const fr: Dict = {
     distance: "Distance à vol d’oiseau", distanceNote: "Estimation à vol d’oiseau entre les arrêts. Ce n’est PAS une distance ni une durée de conduite et aucune donnée de circulation n’est utilisée.", stage: "Étape",
     locationReason: { NONE: "Pas encore localisé", MISSING_ADDRESS: "Adresse incomplète", ADDRESS_CHANGED: "Adresse modifiée — localiser à nouveau", STALE: "Position ancienne — localiser à nouveau", AMBIGUOUS: "Adresse ambiguë", INVALID: "Adresse introuvable", ERROR: "Échec de la localisation — réessayez plus tard", SYNTHETIC_IN_PRODUCTION: "Position de test interdite en production" },
     onlyInView: "Afficher seulement les prospects de la zone de la carte", showUnlocated: "Afficher les prospects sans position sur la carte", hiddenUnlocated: "masqués — pas encore de position", locate: "Localiser les adresses", locating: "Localisation…", located: "Demande de localisation traitée.",
+    coverageTitle: "Couverture des positions sur la carte", coverageNote: "Les positions sont ajoutées automatiquement ; rien à faire de votre côté. Un prospect sans position ne peut pas encore être placé sur une route.",
+    coverage: { LOCATED: "Sur la carte", PENDING: "Localisation automatique en cours", AMBIGUOUS_FAILED: "Ambigu ou introuvable", INSUFFICIENT_ADDRESS: "Adresse incomplète" } as Record<string, string>,
+    coverageHelp: { PENDING: "Apparaîtra sur la carte une fois localisé.", AMBIGUOUS_FAILED: "L’adresse n’a pas pu être associée avec confiance. Demandez à votre gestionnaire de la corriger.", INSUFFICIENT_ADDRESS: "Il faut un numéro civique et une ville ou un code postal." } as Record<string, string>,
+    coverageFilter: "Position", coverageAll: "Tous",
   },
   geocoding: {
     title: "Positions sur la carte", DISABLED: "La localisation d’adresses n’est pas encore configurée.", SYNTHETIC: "Mode test : les positions sont des données fictives, pas de vrais emplacements.", PENDING_CONFIGURATION: "Un fournisseur de géocodage est choisi, mais pas encore implémenté ni approuvé.",
@@ -129,7 +143,7 @@ const fr: Dict = {
   },
   geocodingAdmin: {
     nav: "Géocodage", title: "Géocoder les adresses des prospects", subtitle: "Associez les adresses des prospects existants à des positions sur la carte avec Mapbox, sur demande, dans un budget de requêtes que vous contrôlez.",
-    providerTitle: "État du fournisseur", providerNote: "Les positions sont demandées avec le géocodage permanent de Mapbox et enregistrées dans GarageOS (permis par Mapbox pour les résultats permanents). Rien ne s’exécute automatiquement : ni au déploiement, ni à l’affichage d’une page.",
+    providerTitle: "État du fournisseur", providerNote: "Les positions sont demandées avec le géocodage permanent de Mapbox et enregistrées dans GarageOS (permis par Mapbox pour les résultats permanents). Rien ne s’exécute au déploiement ni à l’affichage d’une page. Les prospects dont la fiche source contient déjà une position sont localisés gratuitement ; seulement si le géocodage est activé ici, avec du budget restant, le traitement Lead Radar peut demander le reste par petits lots.",
     controls: "Contrôles du propriétaire", enabled: "Géocodage activé", maxRequests: "Maximum de requêtes (plafond cumulatif)", maxHelp: "Arrêt strict : aucune requête n’est faite une fois le compte utilisé atteint. Ne peut pas être inférieur à ce qui a déjà été utilisé. Plafond absolu du déploiement :", used: "Requêtes utilisées", remaining: "Restantes",
     saveControls: "Enregistrer les contrôles", saving: "Enregistrement…", saved: "Contrôles enregistrés.",
     previewTitle: "Aperçu (aucune requête effectuée)", eligible: "Prospects actifs assignés", ready: "Déjà localisés", toGeocode: "À localiser", review: "À réviser", incomplete: "Adresse incomplète", errorRetry: "Échecs, nouvel essai possible", estimated: "Requêtes estimées pour un passage complet",
@@ -141,6 +155,12 @@ const fr: Dict = {
     reviewTitle: "Révision manuelle", reviewHelp: "Ces adresses n’ont pas été placées automatiquement. Corrigez l’adresse sur le prospect (elle sera localisée au prochain passage) ou réessayez une fois si l’échec était temporaire. Une correspondance ambiguë ou peu fiable n’est jamais enregistrée comme coordonnées.",
     noReview: "Rien à réviser.", retry: "Réessayer", openProspect: "Ouvrir le prospect", attempts: "essais", truncated: "Affichage des 100 premiers.",
     reasons: { AMBIGUOUS: "Correspondance ambiguë ou peu fiable", NOT_FOUND: "Adresse introuvable", ERROR_EXHAUSTED: "Erreurs répétées du fournisseur", ERROR: "Erreur du fournisseur, nouvel essai possible", NO_STREET: "Aucune rue", NO_CIVIC_NUMBER: "Aucun numéro civique", NO_CITY_OR_POSTAL: "Aucune ville ni code postal" },
+    source: {
+      title: "Positions issues de Lead Radar (gratuit)", help: "Les prospects importés reprennent le point que fournit déjà Overture : aucune requête de géocodage n’est dépensée. Lancez d’abord l’aperçu : il ne modifie rien. Cela ne vaut que pour les prospects dont le candidat porte un point (relancez une fois l’extraction de la province pour rafraîchir les anciens candidats).",
+      coverage: "Couverture de la carte des prospects actifs assignés", withPoint: "Pas sur la carte, mais une position source est disponible", preview: "Aperçu (essai à blanc)", apply: "Appliquer la page suivante", applyConfirm: "Écrire les positions prévisualisées ? Cela n’ajoute que des positions sur la carte ; les assignations et la prospection ne changent pas.",
+      working: "Traitement…", report: "Résultat", scanned: "candidats examinés", located: "positions", dry: "Essai à blanc — rien n’a été écrit.", written: "Positions écrites.", done: "Terminé : plus rien à examiner.", more: "Il en reste : appliquez à nouveau pour continuer.",
+      skipped: { NO_SOURCE_COORDINATES: "Aucune position source", OUT_OF_CANADA: "Hors du Canada (rejetée)", OUT_OF_PROVINCE: "Hors de la province du prospect (rejetée)", INSUFFICIENT_ADDRESS: "Adresse incomplète", ADDRESS_MISMATCH: "Adresse différente de la source", ALREADY_LOCATED: "Déjà localisé", HIGHER_CONFIDENCE_EXISTS: "Une meilleure position existe (conservée)", PROSPECT_NOT_ELIGIBLE: "Inactif, archivé, fusionné ou ne pas contacter", PROSPECT_MISSING: "Prospect introuvable" } as Record<string, string>,
+    },
     notLive: "Le géocodage en direct n’est pas disponible sur ce déploiement : les boutons ci-dessous sont désactivés.", mapboxTerms: "Données cartographiques © Mapbox © OpenStreetMap. Les résultats de géocodage sont enregistrés selon les conditions du géocodage permanent de Mapbox.",
   },
   run: {

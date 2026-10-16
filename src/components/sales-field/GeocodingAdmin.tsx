@@ -2,14 +2,15 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { runGeocoding, saveGeocodingControls } from "@/actions/sales-geocoding";
+import { runGeocoding, runSourceLocationBackfillAction, saveGeocodingControls } from "@/actions/sales-geocoding";
 import { fieldCopy } from "@/lib/admin-locale/sales-field";
 import { PLATFORM } from "@/lib/routes";
 import type { GeocodingOverview, BatchResult } from "@/lib/sales-crm/geocoding-admin-service";
+import type { BackfillReport, CoverageSummary } from "@/lib/sales-crm/source-location-service";
 import { Badge, btnPrimary, btnSecondary, cardCls, inputCls, labelCls } from "@/components/sales-crm/ui";
 import { FormMessage, useCrmAction } from "@/components/sales-crm/useCrmAction";
 
-export function GeocodingAdmin({ locale, overview }: { locale: "en" | "fr"; overview: GeocodingOverview }) {
+export function GeocodingAdmin({ locale, overview, coverage }: { locale: "en" | "fr"; overview: GeocodingOverview; coverage: CoverageSummary }) {
   const f = fieldCopy(locale), c = f.geocodingAdmin;
   const { pending, error, notice, run } = useCrmAction(locale);
   const [enabled, setEnabled] = useState(overview.settings.enabled);
@@ -17,6 +18,13 @@ export function GeocodingAdmin({ locale, overview }: { locale: "en" | "fr"; over
   const [includeErrors, setIncludeErrors] = useState(false);
   const [last, setLast] = useState<BatchResult | null>(null);
   const { settings, counts } = overview;
+  const [src, setSrc] = useState<BackfillReport | null>(null);
+  const sc = c.source;
+  function preview() { run(() => runSourceLocationBackfillAction({ dryRun: true }), (r) => setSrc(r.report)); }
+  function apply() {
+    if (!window.confirm(sc.applyConfirm)) return;
+    run(() => runSourceLocationBackfillAction({ dryRun: false, cursor: src && !src.dryRun ? src.nextCursor : null }), (r) => setSrc(r.report), sc.written);
+  }
   const canRun = overview.provider.live && settings.enabled && settings.remaining > 0;
 
   function save() { run(() => saveGeocodingControls({ enabled, maxRequests: Number.parseInt(max, 10) }), undefined, c.saved); }
@@ -35,6 +43,27 @@ export function GeocodingAdmin({ locale, overview }: { locale: "en" | "fr"; over
           {f.geocoding[overview.provider.mode as "DISABLED"]} {f.geocoding[overview.provider.reason as "NO_PROVIDER_CONFIGURED"]}
         </p>
         <p className="mt-2 text-xs text-slate-500">{c.providerNote}</p>
+      </section>
+
+      <section className={`${cardCls} space-y-3`} aria-labelledby="gs-h">
+        <h2 id="gs-h" className="font-semibold text-slate-900">{sc.title}</h2>
+        <p className="text-xs text-slate-500">{sc.help}</p>
+        <h3 className="text-sm font-medium text-slate-700">{sc.coverage}</h3>
+        <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {(["LOCATED", "PENDING", "AMBIGUOUS_FAILED", "INSUFFICIENT_ADDRESS"] as const).map((k) => <div key={k} className="min-w-0 rounded-lg bg-slate-50 p-3"><dt className="text-xs text-slate-500">{f.planner.coverage[k]}</dt><dd className="text-2xl font-semibold text-slate-900">{coverage.byCoverage[k]}</dd></div>)}
+        </dl>
+        <p className="text-sm text-slate-800"><strong>{sc.withPoint}:</strong> {coverage.withSourcePointNotLocated}</p>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className={btnSecondary} onClick={preview} disabled={pending}>{pending ? sc.working : sc.preview}</button>
+          <button type="button" className={btnPrimary} onClick={apply} disabled={pending || !src || !src.dryRun && src.done}>{pending ? sc.working : sc.apply}</button>
+        </div>
+        {src && (
+          <div role="status" className="rounded-lg bg-slate-50 p-3 text-sm text-slate-800">
+            <strong>{sc.report}:</strong> {src.scanned} {sc.scanned} · {src.located} {sc.located}
+            <span className="block text-xs text-slate-600">{src.dryRun ? sc.dry : src.done ? sc.done : sc.more}</span>
+            {Object.keys(src.skipped).length > 0 && <ul className="mt-1 text-xs text-slate-600">{Object.entries(src.skipped).map(([k, v]) => <li key={k}>{sc.skipped[k] ?? k}: {v}</li>)}</ul>}
+          </div>
+        )}
       </section>
 
       <section className={`${cardCls} space-y-3`} aria-labelledby="gc-h">

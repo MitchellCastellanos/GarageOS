@@ -10,7 +10,8 @@ import { lengthOfOrder } from "@/domain/sales-crm/route-optimizer";
 import { db } from "@/lib/db";
 import { writeCrmAudit } from "@/lib/sales-crm/audit";
 import { assertProspectVisitable, findVisitBySubmission, writeFieldVisit } from "@/lib/sales-crm/field-visit-service";
-import { resolveLocations } from "@/lib/sales-crm/location-service";
+import { resolveLocations, resolveLocationStates } from "@/lib/sales-crm/location-service";
+import type { LocationCoverage } from "@/domain/sales-crm/source-location";
 import { CrmError } from "@/lib/sales-crm/prospects";
 import { loadTerritoryRules } from "@/lib/sales-crm/territory";
 
@@ -34,6 +35,8 @@ export interface Candidate {
   id: string; name: string; city: string | null; province: string | null; address: string | null; postalCode: string | null;
   territoryKey: string | null; stage: string | null;
   location: { usable: true; lat: number; lng: number } | { usable: false; reason: string };
+  /** Seller-facing bucket: located / pending automatic location / ambiguous-or-failed / insufficient address. Informational only. */
+  coverage: LocationCoverage;
   /** Already a pending stop of another open route of the same seller on the requested date. */
   plannedElsewhere: boolean;
 }
@@ -50,7 +53,7 @@ export async function listCandidates(actor: PlatformSalesActor, filter: { city?:
     select: { ...PROSPECT_FACTS, opportunities: { where: { stage: { in: ["NEW", "CONTACTED", "ENGAGED", "QUALIFIED", "DEMO_SCHEDULED", "DEMO_COMPLETED", "DECISION"] } }, select: { stage: true }, take: 1 } },
     orderBy: [{ city: "asc" }, { name: "asc" }], take: 400,
   });
-  const [rules, locs] = await Promise.all([loadTerritoryRules(), resolveLocations(rows, now)]);
+  const [rules, locs] = await Promise.all([loadTerritoryRules(), resolveLocationStates(rows, now)]);
   const elsewhere = filter.date
     ? new Set((await db.crmFieldRouteStop.findMany({ where: { prospectId: { in: rows.map((r) => r.id) }, status: "PENDING", route: { ownerStaffId: staffId, plannedDate: filter.date, status: { in: ["DRAFT", "IN_PROGRESS"] } } }, select: { prospectId: true } })).map((s) => s.prospectId))
     : new Set<string>();
@@ -59,7 +62,7 @@ export async function listCandidates(actor: PlatformSalesActor, filter: { city?:
     const rule = resolveTerritory(rules, p);
     if (!(await coverageOk(actor, p, rules))) continue;
     if (filter.territoryKey && rule?.key !== filter.territoryKey) continue;
-    out.push({ id: p.id, name: p.name, city: p.city, province: p.province, address: p.address, postalCode: p.postalCode, territoryKey: rule?.key ?? null, stage: p.opportunities[0]?.stage ?? null, location: locs.get(p.id)!, plannedElsewhere: elsewhere.has(p.id) });
+    out.push({ id: p.id, name: p.name, city: p.city, province: p.province, address: p.address, postalCode: p.postalCode, territoryKey: rule?.key ?? null, stage: p.opportunities[0]?.stage ?? null, location: locs.get(p.id)!.location, coverage: locs.get(p.id)!.coverage, plannedElsewhere: elsewhere.has(p.id) });
   }
   return out;
 }

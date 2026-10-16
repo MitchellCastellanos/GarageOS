@@ -66,9 +66,12 @@ export async function stageChunk(tx: Tx, run: { id: string; scope: DiscoveryScop
       territoryKey, taxonomyPrimary: c.taxonomyPrimary, tier: c.tier, industry: c.industry, classReasons: c.classReasons, chainSignal: c.chainSignal, sourceConfidence: c.sourceConfidence,
       completeness: c.completeness, qualityFlags: c.qualityFlags, licenses: c.licenses, datasets: c.datasets, licenseOk: c.licenseOk, contentFingerprint: c.contentFingerprint,
     };
+    // The source point is refreshed whenever the extract carries one (never cleared by an extract without one) and is NOT a business fact:
+    // it is outside contentFingerprint, so it never re-opens an approval, requalifies, or touches an imported prospect.
+    const point = c.sourceLatitude !== null && c.sourceLongitude !== null ? { sourceLatitude: c.sourceLatitude, sourceLongitude: c.sourceLongitude } : {};
     if (prev && IMPORTED.has(prev.importState)) {
-      // Already in the CRM: never re-stage or overwrite anything; only note that the source has moved on.
-      updates.push(tx.crmDiscoveryCandidate.update({ where: { id: prev.id }, data: { lastRunId: run.id, lastSeenRelease: run.release, changedSinceImport: prev.changedSinceImport || prev.contentFingerprint !== c.contentFingerprint } }));
+      // Already in the CRM: never re-stage or overwrite anything; only note that the source has moved on (and keep the source point fresh).
+      updates.push(tx.crmDiscoveryCandidate.update({ where: { id: prev.id }, data: { lastRunId: run.id, lastSeenRelease: run.release, changedSinceImport: prev.changedSinceImport || prev.contentFingerprint !== c.contentFingerprint, ...point } }));
       tally.stagedUpdated++;
       continue;
     }
@@ -78,7 +81,7 @@ export async function stageChunk(tx: Tx, run: { id: string; scope: DiscoveryScop
       : cl.branchOf.length ? { matchState: "BRANCH_OF_EXISTING" as const, matchProspectId: cl.branchOf[0], matchReasons: [] as string[] }
       : { matchState: "NEW" as const, matchProspectId: null, matchReasons: [] as string[] };
     if (!prev) {
-      creates.push({ source: "OVERTURE", sourceRecordId: c.sourceRecordId, firstRunId: run.id, lastRunId: run.id, firstSeenRelease: run.release, lastSeenRelease: run.release, ...facts, ...match, matchedAt: now });
+      creates.push({ source: "OVERTURE", sourceRecordId: c.sourceRecordId, firstRunId: run.id, lastRunId: run.id, firstSeenRelease: run.release, lastSeenRelease: run.release, ...facts, ...point, ...match, matchedAt: now });
       tally.stagedNew++;
     } else {
       const changed = prev.contentFingerprint !== c.contentFingerprint;
@@ -94,7 +97,7 @@ export async function stageChunk(tx: Tx, run: { id: string; scope: DiscoveryScop
       updates.push(tx.crmDiscoveryCandidate.update({
         where: { id: prev.id },
         data: {
-          lastRunId: run.id, lastSeenRelease: run.release, ...(changed || licenseMoved ? facts : { qualityFlags: c.qualityFlags }), ...match, matchedAt: now,
+          lastRunId: run.id, lastSeenRelease: run.release, ...(changed || licenseMoved ? facts : { qualityFlags: c.qualityFlags }), ...point, ...match, matchedAt: now,
           ...(invalidated ? { reviewState: "PENDING" as const, reviewedByUserId: null, reviewedAt: null, approvedByPolicyVersion: null } : {}),
           ...(requalify ? { qualificationLane: null, qualificationPolicyVersion: null, qualifiedAt: null, qualificationReasons: humanApprovalInvalidated ? ["SOURCE_CHANGED"] : [] } : {}),
           // A candidate whose import failed on validation/territory grounds gets a fresh chance only when its facts actually changed.
