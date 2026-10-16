@@ -20,6 +20,7 @@ const LEASE_MS = 2 * 60_000;
 const REQUEST_TIMEOUT_MS = 8_000;
 const SCAN_LIMIT = 5_000;
 const REVIEW_LIST_LIMIT = 100;
+const AUTO_RETRY_BACKOFF_MS = 60 * 60_000;
 const SAMPLE_LIMIT = 10;
 
 function requireSuperAdmin(actor: PlatformSalesActor) {
@@ -55,14 +56,14 @@ export async function saveGeocodingSettings(actor: PlatformSalesActor, input: { 
 const ELIGIBLE_WHERE = { status: "ACTIVE", doNotContact: false, mergedIntoId: null, archivedAt: null, assignedStaffId: { not: null } } as const;
 const SELECT = { id: true, name: true, address: true, city: true, province: true, postalCode: true, location: true } as const;
 
-interface Scanned { id: string; name: string; address: string | null; city: string | null; province: string | null; postalCode: string | null; cls: QueueClass; failureCode: string | null; attempts: number }
+interface Scanned { lastAttemptAt: Date | null; id: string; name: string; address: string | null; city: string | null; province: string | null; postalCode: string | null; cls: QueueClass; failureCode: string | null; attempts: number }
 
 /** `only` narrows the scan to specific prospects (programmatic use and tests; the admin UI always works on the whole eligible book). */
 async function scan(now: Date, only?: readonly string[]): Promise<Scanned[]> {
   const rows = await db.crmProspect.findMany({ where: only ? { ...ELIGIBLE_WHERE, id: { in: [...only] } } : ELIGIBLE_WHERE, select: SELECT, orderBy: { id: "asc" }, take: SCAN_LIMIT });
   const production = isProductionEnvironment();
   return rows.map((r) => ({
-    id: r.id, name: r.name, address: r.address, city: r.city, province: r.province, postalCode: r.postalCode,
+    lastAttemptAt: r.location?.lastAttemptAt ?? null, id: r.id, name: r.name, address: r.address, city: r.city, province: r.province, postalCode: r.postalCode,
     cls: classifyForGeocoding(r, r.location, now, { production }), failureCode: r.location?.failureCode ?? null, attempts: r.location?.attempts ?? 0,
   }));
 }
@@ -119,7 +120,7 @@ async function reserveRequest(cap: number): Promise<boolean> {
   return n === 1;
 }
 
-export interface RunOptions { mode: "TEST" | "BATCH" | "RETRY"; /** RETRY only: the review/failed prospects to re-request. */ prospectIds?: string[]; includeErrors?: boolean; /** Restrict the whole run to these prospects (programmatic/test use). */ only?: readonly string[] }
+export interface RunOptions { /** Set only by the Lead Radar automation tick: failed lookups are retried after a back-off, bad credentials switch geocoding off, and an empty run writes no audit row. */ automatic?: boolean; mode: "TEST" | "BATCH" | "RETRY"; /** RETRY only: the review/failed prospects to re-request. */ prospectIds?: string[]; includeErrors?: boolean; /** Restrict the whole run to these prospects (programmatic/test use). */ only?: readonly string[] }
 
 export async function runGeocodingBatch(actor: PlatformSalesActor, opts: RunOptions, now = new Date(), provider: GeocodeProvider | null = liveGeocoder()): Promise<BatchResult> {
   requireSuperAdmin(actor);
@@ -148,7 +149,9 @@ export async function runGeocodingBatch(actor: PlatformSalesActor, opts: RunOpti
         else result.items.push({ prospectId: id, outcome: "NOT_ELIGIBLE", failureCode: null });
       }
     } else {
-      queue = all.filter((r) => r.cls.kind === "TO_GEOCODE" || (opts.includeErrors === true && r.cls.kind === "ERROR_RETRY"));
+      // Automatic runs retry a transient failure (attempts < MAX) only after a back-off, so an outage cannot burn the budget every tick.
+      const retryErrors = opts.automatic ? (r: Scanned) => !r.lastAttemptAt || now.getTime() - r.lastAttemptAt.getTime() >= AUTO_RETRY_BACKOFF_MS : () => opts.includeErrors === true;
+      queue = all.filter((r) => r.cls.kind === "TO_GEOCODE" || (r.cls.kind === "ERROR_RETRY" && retryErrors(r)));
       queue = queue.slice(0, opts.mode === "TEST" ? TEST_BATCH_MAX : BATCH_MAX);
     }
 
@@ -166,6 +169,8 @@ export async function runGeocodingBatch(actor: PlatformSalesActor, opts: RunOpti
       // Credentials rejected or rate-limited: stop the whole batch, store nothing for this prospect (it is retried later at no extra "attempt" cost).
       if (answer.kind === "ERROR" && (answer.code === "AUTH" || answer.code === "RATE_LIMITED")) {
         result.stoppedReason = answer.code; result.failed++;
+        // Unattended runs fail closed: rejected credentials switch geocoding off (the owner re-enables it after fixing the token) instead of burning one request per tick.
+        if (opts.automatic && answer.code === "AUTH") await db.crmGeocodingSettings.updateMany({ where: { id: SETTINGS_ID }, data: { enabled: false } });
         result.items.push({ prospectId: p.id, outcome: "ERROR", failureCode: answer.code });
         break;
       }
@@ -183,8 +188,31 @@ export async function runGeocodingBatch(actor: PlatformSalesActor, opts: RunOpti
     await db.crmGeocodingSettings.updateMany({ where: { id: SETTINGS_ID }, data: { runLeaseUntil: null } });
   }
   result.settings = await readSettings();
+  if (opts.automatic && result.attempted === 0) return result; // nothing spent, nothing to report
   // Audit: counts only — never addresses, coordinates or the token.
   await writeCrmAudit({ actorUserId: actor.userId, action: "GEOCODING_BATCH_RUN", entityType: "CrmGeocodingSettings", entityId: SETTINGS_ID,
-    metadata: { mode: opts.mode, attempted: result.attempted, geocoded: result.geocoded, needsReview: result.needsReview, failed: result.failed, stoppedReason: result.stoppedReason, requestsUsed: result.settings.requestsUsed, maxRequests: result.settings.maxRequests } });
+    metadata: { mode: opts.mode, ...(opts.automatic ? { automatic: true } : {}), attempted: result.attempted, geocoded: result.geocoded, needsReview: result.needsReview, failed: result.failed, stoppedReason: result.stoppedReason, requestsUsed: result.settings.requestsUsed, maxRequests: result.settings.maxRequests } });
   return result;
+}
+
+export interface AutoGeocodeTally { skipped?: "PROVIDER_NOT_LIVE" | "GEOCODING_DISABLED" | "BUDGET_EXHAUSTED" | "RUN_IN_PROGRESS" | "PAST_DEADLINE"; attempted?: number; geocoded?: number; needsReview?: number; failed?: number; stoppedReason?: BatchResult["stoppedReason"] }
+
+/**
+ * One bounded, unattended geocoding step for the Lead Radar tick. It can spend a paid request ONLY if all of these hold: Mapbox is fully configured
+ * and switched on in the environment, the Super Admin enabled geocoding in the database, and the owner's request budget (≤ the hard cap) has room.
+ * Today none of that is true, so this returns a "skipped" tally and touches nothing. Positions already known from the source never cost a request.
+ */
+export async function autoGeocodeStep(actor: PlatformSalesActor, deadline: number, now = new Date(), provider: GeocodeProvider | null = liveGeocoder()): Promise<AutoGeocodeTally> {
+  if (!provider) return { skipped: "PROVIDER_NOT_LIVE" };
+  const s = await readSettings();
+  if (!s.enabled) return { skipped: "GEOCODING_DISABLED" };
+  if (s.remaining <= 0) return { skipped: "BUDGET_EXHAUSTED" };
+  if (Date.now() >= deadline) return { skipped: "PAST_DEADLINE" };
+  try {
+    const r = await runGeocodingBatch(actor, { mode: "BATCH", automatic: true }, now, provider);
+    return { attempted: r.attempted, geocoded: r.geocoded, needsReview: r.needsReview, failed: r.failed, stoppedReason: r.stoppedReason };
+  } catch (e) {
+    if (e instanceof CrmError && (e.code === "RUN_IN_PROGRESS" || e.code === "BUDGET_EXHAUSTED" || e.code === "GEOCODING_DISABLED")) return { skipped: e.code === "GEOCODING_DISABLED" ? "GEOCODING_DISABLED" : e.code === "BUDGET_EXHAUSTED" ? "BUDGET_EXHAUSTED" : "RUN_IN_PROGRESS" };
+    throw e;
+  }
 }

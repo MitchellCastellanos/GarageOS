@@ -7,6 +7,7 @@ import { candidatesToImportCsv, IMPORT_HEADERS, LAWFUL_SOURCE_NOTE, lawfulSource
 import { db } from "@/lib/db";
 import { writeCrmAudit } from "@/lib/sales-crm/audit";
 import { applyImportBatch, type ImportRowResult } from "@/lib/sales-crm/lead-engine";
+import { locateFromSource } from "@/lib/sales-crm/source-location-service";
 import { CrmError, resolveAssignee } from "@/lib/sales-crm/prospects";
 
 /**
@@ -67,16 +68,32 @@ export async function importApprovedCandidates(actor: PlatformSalesActor, opts: 
     const tally = { created: 0, linked: 0, sentToReview: 0, skipped: 0 };
     const createdIds: string[] = [], linkedIds: string[] = [], reviewIds: string[] = [];
     const now = new Date();
+    const importedBy: Record<string, { prospectId: string; created: boolean }> = {};
     for (const [row, r] of res.rows as Map<number, ImportRowResult>) {
       const candidateId = rowToCandidate.get(row);
       if (!candidateId) continue;
       const base = { importBatchId: batch.id, importedAt: now, importErrorCode: null, importAttempts: { increment: 1 }, importLastAttemptAt: now };
+      if ((r.kind === "CREATED" || r.kind === "LINKED" || (r.kind === "ALREADY_IMPORTED" && r.prospectId)) && r.prospectId) importedBy[candidateId] = { prospectId: r.prospectId, created: r.kind === "CREATED" };
       if (r.kind === "CREATED") { tally.created++; createdIds.push(r.prospectId!); await tx.crmDiscoveryCandidate.update({ where: { id: candidateId }, data: { ...base, importState: "CREATED", importedProspectId: r.prospectId } }); }
       else if (r.kind === "LINKED" || (r.kind === "ALREADY_IMPORTED" && r.prospectId)) { tally.linked++; linkedIds.push(r.prospectId!); await tx.crmDiscoveryCandidate.update({ where: { id: candidateId }, data: { ...base, importState: "LINKED", importedProspectId: r.prospectId } }); }
       else if (r.kind === "REVIEW") { tally.sentToReview++; if (r.prospectId) reviewIds.push(r.prospectId); await tx.crmDiscoveryCandidate.update({ where: { id: candidateId }, data: { ...base, importState: "SENT_TO_REVIEW", matchProspectId: r.prospectId ?? undefined } }); }
       else { tally.skipped++; await tx.crmDiscoveryCandidate.update({ where: { id: candidateId }, data: { ...base, importState: "SKIPPED" } }); }
     }
-    await writeCrmAudit({ actorUserId: actor.userId, action: "LEAD_RADAR_IMPORT_COMPLETED", entityType: "CrmImportBatch", entityId: batch.id, metadata: { ...tally, failed, candidates: cands.length, sourceKey: LEAD_RADAR_SOURCE_KEY, ...(auto ? { policyVersion: auto.policyVersion, automatic: true } : {}) } }, tx);
+    // Position from the source point already staged (free, no network). Only prospects this import created or linked, and only if the address is the
+    // candidate's own; touches CrmProspectLocation only (never assignment, eligibility or the prospect row).
+    const located = { located: 0, skipped: 0 };
+    const withPoint = cands.filter((c) => c.sourceLatitude !== null && c.sourceLongitude !== null && (c.id in importedBy));
+    if (withPoint.length) {
+      const rows = await tx.crmProspect.findMany({ where: { id: { in: [...new Set(withPoint.map((c) => importedBy[c.id].prospectId))] } }, select: { id: true, address: true, city: true, province: true, postalCode: true } });
+      const pById = new Map(rows.map((p) => [p.id, p]));
+      for (const c of withPoint) {
+        const target = importedBy[c.id], p = pById.get(target.prospectId);
+        if (!p) { located.skipped++; continue; }
+        const r = await locateFromSource(tx, { prospect: p, point: { lat: c.sourceLatitude, lng: c.sourceLongitude }, sourceAddress: target.created ? undefined : c }, { now });
+        if (r.written) located.located++; else located.skipped++;
+      }
+    }
+    await writeCrmAudit({ actorUserId: actor.userId, action: "LEAD_RADAR_IMPORT_COMPLETED", entityType: "CrmImportBatch", entityId: batch.id, metadata: { ...tally, failed, positions: located, candidates: cands.length, sourceKey: LEAD_RADAR_SOURCE_KEY, ...(auto ? { policyVersion: auto.policyVersion, automatic: true } : {}) } }, tx);
     return { batchId: batch.id as string | null, claimed: cands.length, ...tally, failed, createdProspectIds: createdIds, linkedProspectIds: linkedIds, reviewProspectIds: reviewIds, unassignedCreated: createdIds.length };
   }, { timeout: auto?.timeoutMs ?? 120_000, maxWait: 10_000 });
 }

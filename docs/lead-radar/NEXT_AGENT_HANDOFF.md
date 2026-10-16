@@ -1,6 +1,6 @@
 # Lead Radar — handoff for the next agent
 
-Read this first. Then [automation.md](automation.md), [qualification-v2.md](qualification-v2.md), [runbook.md](runbook.md), [licensing-and-compliance.md](licensing-and-compliance.md).
+Read this first. Then [geolocation.md](geolocation.md) (prospect map positions), [automation.md](automation.md), [qualification-v2.md](qualification-v2.md), [runbook.md](runbook.md), [licensing-and-compliance.md](licensing-and-compliance.md).
 Legend: **Completed** (done in code/deploy) · **Verified** (checked by tests/build/Vercel) · **Pending owner action** · **Pending legal review** · **Not verified** (never observed).
 
 ## 0. Operating rules that still apply
@@ -77,5 +77,8 @@ Pause/recovery: see runbook "Recovery quick reference". Gate: nothing runs unles
 5. Verify the first import/assignment cycle and exceptions.
 6. Continue province extractions; later, with legal/sender prerequisites met, a compliant REMOTE pilot.
 
+## 8b. Prospect geolocation (Field Planner) — see [geolocation.md](geolocation.md)
+Overture's point was dropped by the extractor; it is now carried to staging (`sourceLatitude/Longitude`), to `CrmProspectLocation` at import, and by a Super Admin dry-run-first backfill (Settings → Geocoding). Paid Mapbox fallback exists but is **disabled** (no spend without owner approval). **Pending owner action:** refresh the QC candidates once with extractor 1.1.0, run the dry-run, review, then Apply. No production backfill has been run.
+
 ## 9. Test and environment notes
-`npx tsc --noEmit`, `npx eslint`, `npm test` (unit), DB suites need a scratch Postgres (`DATABASE_URL`, one fresh DB per suite): `tests/lead-radar-db.test.ts`, `lead-radar-automation-db.test.ts` (27), `lead-radar-compare-db.test.ts` (5). Production migrations run only on Vercel Production builds (`scripts/deploy-migrations.mjs`).
+`npx tsc --noEmit`, `npx eslint`, `npm test` (unit), DB suites need a scratch Postgres (`GARAGEOS_CRM_TEST_DB_URL`, one fresh DB per suite): `tests/prospect-source-location-db.test.ts` (17), `tests/lead-radar-db.test.ts`, `lead-radar-automation-db.test.ts` (27), `lead-radar-compare-db.test.ts` (5). Production migrations run only on Vercel Production builds (`scripts/deploy-migrations.mjs`).

@@ -7,7 +7,7 @@ ex = importlib.util.module_from_spec(spec); spec.loader.exec_module(ex)
 PLAN = {"taxonomyPrimaries": ["automotive_repair"], "hierarchyAny": ["vehicle_service"], "minConfidence": 0.3, "bboxes": [[-74.05, 45.35, -73.4, 45.75]]}
 ROW = {"id": "abc-12345678", "confidence": 0.9, "names": {"primary": "Garage X"}, "taxonomy": {"primary": "automotive_repair", "hierarchy": ["a", "vehicle_service"], "alternates": None},
        "addresses": [{"freeform": "1 Rue A", "locality": "Montréal", "postcode": "H2X1Y4", "region": "QC", "country": "CA"}], "phones": ["+15145550100"], "websites": None, "emails": None,
-       "sources": [{"dataset": "meta", "license": "CDLA-Permissive-2.0", "record_id": "SECRET-UPSTREAM", "update_time": "x"}], "brand": None, "operating_status": None, "bbox": {"xmin": -73.6, "ymin": 45.5}}
+       "sources": [{"dataset": "meta", "license": "CDLA-Permissive-2.0", "record_id": "SECRET-UPSTREAM", "update_time": "x"}], "brand": None, "operating_status": None, "bbox": {"xmin": -73.6, "xmax": -73.6, "ymin": 45.5, "ymax": 45.5}}
 
 class T(unittest.TestCase):
     def test_wants_by_primary_and_hierarchy(self):
@@ -24,6 +24,17 @@ class T(unittest.TestCase):
         self.assertEqual(rec["sources"], [{"dataset": "meta", "license": "CDLA-Permissive-2.0"}])
         self.assertNotIn("SECRET-UPSTREAM", ex.dump_line(rec))
         self.assertEqual(rec["v"], 1)
+    def test_source_point_from_degenerate_bbox(self):
+        self.assertEqual(ex.to_record(ROW)["geo"], {"lat": 45.5, "lng": -73.6})
+    def test_source_point_rejects_non_points_and_garbage(self):
+        box = lambda **k: {**ROW, "bbox": {"xmin": -73.6, "xmax": -73.6, "ymin": 45.5, "ymax": 45.5, **k}}
+        self.assertIsNone(ex.source_point(box(xmax=-73.5)))          # a real box is not a point
+        self.assertIsNone(ex.source_point(box(ymax=46.5)))
+        self.assertIsNone(ex.source_point({**ROW, "bbox": None}))
+        self.assertIsNone(ex.source_point({**ROW, "bbox": {"xmin": None, "xmax": None, "ymin": None, "ymax": None}}))
+        self.assertIsNone(ex.source_point(box(xmin=float("nan"), xmax=float("nan"))))
+        self.assertIsNone(ex.source_point(box(ymin=95, ymax=95)))    # out of range
+        self.assertIsNone(ex.to_record({**ROW, "bbox": {"xmin": -73.6}})["geo"])
     def test_dump_is_deterministic(self):
         self.assertEqual(ex.dump_line(ex.to_record(ROW)), ex.dump_line(ex.to_record(dict(reversed(list(ROW.items()))))))
     def test_bbox_helpers(self):

@@ -9,6 +9,7 @@ import { normalizeBusinessName, normalizeEmail, normalizeWebsite, phoneDigits, w
 import { classify, type Tier } from "@/domain/lead-radar/taxonomy";
 import { resolveGeo, type ProvinceCode } from "@/domain/lead-radar/geo";
 import { evaluateLicenses } from "@/domain/lead-radar/license";
+import { checkSourceCoordinates } from "@/domain/sales-crm/source-location";
 
 export const RECORD_SCHEMA_VERSION = 1;
 const str = (max: number) => z.string().max(max).nullish();
@@ -29,6 +30,8 @@ export const rawRecordSchema = z.object({
   websites: z.array(z.string()).max(6).nullish(),
   emails: z.array(z.string()).max(6).nullish(),
   sources: z.array(z.object({ dataset: str(80), license: str(60) })).max(20).nullish(),
+  /** The place's own point (extractor >= 1.1.0). Optional: older extracts have none. Validated again in toCandidate; never used as a business fact. */
+  geo: z.object({ lat: z.number().nullish(), lng: z.number().nullish() }).nullish(),
 });
 export type RawRecord = z.infer<typeof rawRecordSchema>;
 
@@ -45,6 +48,8 @@ export interface StagedCandidate {
   taxonomyPrimary: string | null; tier: Tier; industry: string | null; classReasons: string[]; chainSignal: "CHAIN_SIGNAL" | "NO_CHAIN_SIGNAL";
   sourceConfidence: number | null; completeness: number; qualityFlags: QualityFlag[];
   licenses: string[]; datasets: string[]; licenseOk: boolean; contentFingerprint: string;
+  /** Source point, only when it passed the Canada/province plausibility check. NOT part of contentFingerprint (a refreshed point must never re-open an approval). */
+  sourceLatitude: number | null; sourceLongitude: number | null;
 }
 
 const SOCIAL_HOST = /(^|\.)(facebook|fb|instagram|linkedin|twitter|x|tiktok|youtube|youtu|pinterest|yelp|google|goo|maps\.app\.goo|wa|whatsapp|linktr|linktree|business\.site|wixsite|square\.site|godaddysites)\.(com|me|gl|be|ee|site|app)$/i;
@@ -126,6 +131,7 @@ export function toCandidate(input: unknown, scope: ScopeFilter, opts: { isSuppre
   const lic = evaluateLicenses(r.sources ?? []);
   if (!lic.ok) flags.add("LICENSE_BLOCKED");
 
+  const point = checkSourceCoordinates(r.geo?.lat, r.geo?.lng, geo.province).ok ? { lat: r.geo!.lat as number, lng: r.geo!.lng as number } : null;
   const nameNormalized = normalizeBusinessName(name);
   const fingerprint = createHash("sha256").update(JSON.stringify([nameNormalized, canon.addressKey, canon.postalKey, geo.province, phoneDigits(phone), websiteDomain(website), email, tax.primary ?? null])).digest("hex").slice(0, 40);
   return {
@@ -136,6 +142,7 @@ export function toCandidate(input: unknown, scope: ScopeFilter, opts: { isSuppre
       sourceConfidence: r.confidence ?? null,
       completeness: completenessScore({ name: true, address: !!street, postal: !!postalCode, phone: !!phone, website: !!website, email: !!email }),
       qualityFlags: [...flags].sort(), licenses: lic.licenses, datasets: lic.datasets, licenseOk: lic.ok, contentFingerprint: fingerprint,
+      sourceLatitude: point ? Math.round(point.lat * 1e7) / 1e7 : null, sourceLongitude: point ? Math.round(point.lng * 1e7) / 1e7 : null,
     },
   };
 }

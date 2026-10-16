@@ -1,5 +1,7 @@
 # Mapbox geocoding & map — runbook
 
+> **Update (Lead Radar geolocation):** prospects imported by Lead Radar are now located for free from the Overture point (see `docs/lead-radar/geolocation.md`). Mapbox is only the fallback for prospects without a source position. Once enabled here, the Lead Radar worker may also run small bounded batches (≤ 25 per tick) within the same budget; bad credentials switch geocoding off.
+
 ## What was integrated
 - **Geocoding API v6 forward**, server-side only (`src/lib/sales-crm/geocoder.ts`), always `permanent=true`, `country=ca`, `autocomplete=false`, `limit=3`. Temporary results are never requested, so nothing non-storable is stored.
 - Stored in the existing `CrmProspectLocation` (provider `mapbox-permanent-v6`). Coordinates exist only for decisive answers: confidence (from Mapbox `match_code`, capped when civic number / postal code / city did not match), navigable accuracy, Canada bounding box, and no rival match >250 m away. Everything else is stored **without** coordinates (AMBIGUOUS / INVALID / ERROR) and listed for manual review.

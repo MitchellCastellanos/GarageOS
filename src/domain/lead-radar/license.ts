@@ -38,7 +38,7 @@ export function evaluateLicenses(sources: readonly SourceRef[]): LicenseVerdict 
  * (Google's terms restrict caching other content), so it is registered here but no Google adapter persists anything else.
  */
 export const PROVIDER_POLICY = {
-  OVERTURE: { enabled: true, persist: ["id", "name", "address", "phone", "website", "email", "category", "confidence", "licenses", "datasets"] },
+  OVERTURE: { enabled: true, persist: ["id", "name", "address", "phone", "website", "email", "category", "confidence", "licenses", "datasets", "coordinates"] },
   CSV: { enabled: true, persist: ["*"] /* owner-supplied: governed by the lawfulSourceNote the importer already requires */ },
   OSM: { enabled: false, persist: [] as string[], reason: "ODbL share-alike not accepted yet" },
   GOOGLE_PLACES: { enabled: false, persist: ["id"], reason: "No live adapter; terms restrict storing content other than place ids" },

@@ -13,6 +13,7 @@ import { RouteMap, type MapConfig } from "@/components/sales-field/RouteMap";
 
 export interface PlannerCandidate {
   id: string; name: string; city: string | null; address: string | null; territoryKey: string | null; stage: string | null;
+  coverage: "LOCATED" | "PENDING" | "AMBIGUOUS_FAILED" | "INSUFFICIENT_ADDRESS";
   location: { usable: true; lat: number; lng: number } | { usable: false; reason: string };
   plannedElsewhere: boolean;
 }
@@ -48,6 +49,8 @@ export function RoutePlanner({ locale, candidates, territories, geocoding, mapCo
   const points = selectedRows.flatMap((c) => (c.location.usable ? [{ id: c.id, lat: c.location.lat, lng: c.location.lng }] : []));
   const distanceM = points.length > 1 ? lengthOfOrder(points, selected) : 0;
   const unlocated = candidates.filter((c) => !c.location.usable);
+  const coverageCounts = { LOCATED: 0, PENDING: 0, AMBIGUOUS_FAILED: 0, INSUFFICIENT_ADDRESS: 0 };
+  for (const c of candidates) coverageCounts[c.coverage]++;
 
   function toggle(id: string) { setInfo(null); setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : s.length >= MAX_ROUTE_STOPS ? s : [...s, id])); }
   function move(i: number, d: -1 | 1) { setInfo(null); setSelected((s) => { const j = i + d; if (j < 0 || j >= s.length) return s; const n = [...s]; [n[i], n[j]] = [n[j], n[i]]; return n; }); }
@@ -87,6 +90,17 @@ export function RoutePlanner({ locale, candidates, territories, geocoding, mapCo
       <div className="grid gap-4 lg:grid-cols-2">
         <section className={`${cardCls} min-w-0 space-y-3`} aria-labelledby="cand-h">
           <h2 id="cand-h" className="font-semibold text-slate-900">{p.candidates} <span className="text-sm font-normal text-slate-500">({shown.length})</span></h2>
+          {candidates.length > 0 && (
+            <div className="space-y-1" aria-label={p.coverageTitle}>
+              <p className="text-xs font-medium text-slate-600">{p.coverageTitle}</p>
+              <ul className="flex flex-wrap gap-1.5 text-xs">
+                {(["LOCATED", "PENDING", "AMBIGUOUS_FAILED", "INSUFFICIENT_ADDRESS"] as const).map((k) => (
+                  <li key={k}><Badge tone={k === "LOCATED" ? "bg-emerald-100 text-emerald-900" : k === "PENDING" ? "bg-sky-100 text-sky-900" : "bg-amber-100 text-amber-900"}>{p.coverage[k]}: {coverageCounts[k]}</Badge></li>
+                ))}
+              </ul>
+              {coverageCounts.LOCATED < candidates.length && <p className="text-xs text-slate-500">{p.coverageNote}</p>}
+            </div>
+          )}
           <div className="grid gap-2 sm:grid-cols-3">
             <label className={labelCls}>{p.city}<select className={inputCls} value={city} onChange={(e) => setCity(e.target.value)}><option value="">{p.allCities}</option>{cities.map((c) => <option key={c} value={c}>{c}</option>)}</select></label>
             <label className={labelCls}>{p.area}<select className={inputCls} value={area} onChange={(e) => setArea(e.target.value)}><option value="">{p.allAreas}</option>{territories.map((x) => <option key={x.key} value={x.key}>{x.name}</option>)}</select></label>
@@ -119,7 +133,8 @@ export function RoutePlanner({ locale, candidates, territories, geocoding, mapCo
                         <span className="block break-words font-medium text-slate-900">{c.name}</span>
                         <span className="block break-words text-xs text-slate-500">{[c.address, c.city].filter(Boolean).join(", ") || "—"}</span>
                         <span className="mt-1 flex flex-wrap gap-1">
-                          {!c.location.usable && <Badge tone="bg-amber-100 text-amber-900">{p.locationReason[c.location.reason] ?? p.needsLocation}</Badge>}
+                          {!c.location.usable && <Badge tone={c.coverage === "PENDING" ? "bg-sky-100 text-sky-900" : "bg-amber-100 text-amber-900"}>{p.coverage[c.coverage] ?? p.needsLocation}</Badge>}
+                          {!c.location.usable && p.coverageHelp[c.coverage] && <span className="block w-full text-xs text-slate-500">{p.coverageHelp[c.coverage]}</span>}
                           {c.plannedElsewhere && <Badge tone="bg-sky-100 text-sky-800">{p.plannedElsewhere}</Badge>}
                           {c.stage && <Badge>{c.stage}</Badge>}
                         </span>

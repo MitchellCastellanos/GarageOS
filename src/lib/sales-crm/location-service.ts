@@ -1,6 +1,7 @@
 import "server-only";
 import type { PlatformSalesActor } from "@/domain/sales-crm/access";
 import { addressFingerprint, decideLocation, geocodeQuery, usableLocation, type Usable } from "@/domain/sales-crm/geocoding";
+import { locationCoverage, type LocationCoverage } from "@/domain/sales-crm/source-location";
 import { db } from "@/lib/db";
 import { activeGeocoder, geocodingStatus, isProductionEnvironment } from "@/lib/sales-crm/geocoder";
 import { CrmError } from "@/lib/sales-crm/prospects";
@@ -90,3 +91,14 @@ export async function resolveLocations(prospects: readonly { id: string; address
 }
 
 export { geocodingStatus };
+
+/** Usable position AND the seller-facing coverage bucket (located / pending / ambiguous-failed / insufficient address) for each prospect. */
+export async function resolveLocationStates(prospects: readonly { id: string; address: string | null; city: string | null; province: string | null; postalCode: string | null }[], now = new Date()): Promise<Map<string, { location: Usable; coverage: LocationCoverage }>> {
+  const locs = await db.crmProspectLocation.findMany({ where: { prospectId: { in: prospects.map((p) => p.id) } } });
+  const byId = new Map(locs.map((l) => [l.prospectId, l]));
+  const production = isProductionEnvironment();
+  return new Map(prospects.map((p) => {
+    const loc = byId.get(p.id) ?? null;
+    return [p.id, { location: usableLocation(loc, p, now, { production }), coverage: locationCoverage(p, loc, now, { production }) }];
+  }));
+}

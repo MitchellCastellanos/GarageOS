@@ -14,6 +14,7 @@ import { CrmError } from "@/lib/sales-crm/prospects";
 import { loadEngagements } from "@/lib/sales-crm/territory";
 import { assessProspects, refreshEligibility, saveAssessments } from "@/lib/lead-radar/eligibility";
 import { importApprovedCandidates } from "@/lib/lead-radar/import-service";
+import { autoGeocodeStep } from "@/lib/sales-crm/geocoding-admin-service";
 import { getActivePolicy } from "@/lib/lead-radar/policy";
 import { qualifyPending } from "@/lib/lead-radar/qualify";
 import { isLive, readSettings } from "@/lib/lead-radar/settings";
@@ -26,7 +27,7 @@ const ID = "default";
 export const TICK_BUDGET_MS = 45_000;
 export const LEASE_SLACK_MS = 30_000;
 export const MAX_IMPORT_ATTEMPTS = 3;
-const SHARE = { qualify: 0.3, import: 0.3, assign: 0.15, release: 0.05, eligibility: 0.1, pilot: 0.1 } as const;
+const SHARE = { qualify: 0.3, import: 0.3, assign: 0.15, release: 0.05, locate: 0.1, eligibility: 0.1, pilot: 0.1 } as const;
 
 export async function readAutomation(client: Pick<typeof db, "crmLeadAutomation"> = db) {
   return (await client.crmLeadAutomation.findUnique({ where: { id: ID } })) ?? (await client.crmLeadAutomation.upsert({ where: { id: ID }, create: { id: ID }, update: {} }));
@@ -327,6 +328,8 @@ export async function runAutomationTick(opts: { trigger: "CRON" | "MANUAL"; budg
       } else counters.note = "NO_ACTIVE_POLICY";
       await stage("assign", a.assignEnabled, (deadline) => assignStage(admin, a.assignStaffIds, deadline));
       await stage("release", a.releaseUnavailable, (deadline) => releaseUnavailable(admin, deadline));
+      // Paid geocoding fallback for assigned prospects the source point could not locate. Inert unless Mapbox is configured AND a Super Admin enabled it AND budget remains.
+      await stage("locate", true, (deadline) => autoGeocodeStep(admin, deadline));
       await stage("eligibility", a.eligibilityEnabled, (deadline) => refreshEligibility({ deadline }));
       await stage("pilot", a.pilotEnabled, (deadline) => pilotStage(admin, a, deadline));
     }

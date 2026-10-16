@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import os
 import re
 import sys
@@ -27,7 +28,7 @@ import time
 from datetime import datetime, timezone
 
 EXTRACTOR = "garageos-overture-extract"
-EXTRACTOR_VERSION = "1.0.0"
+EXTRACTOR_VERSION = "1.1.0"
 BUCKET_HOST = "overturemaps-us-west-2.s3.amazonaws.com"
 BUCKET_BASE = f"https://{BUCKET_HOST}/"
 STAC_ROOT = "https://stac.overturemaps.org/catalog.json"
@@ -130,6 +131,25 @@ def wants(row: dict, plan: dict) -> bool:
     return country in ("CA", "")  # unknown country is kept; GarageOS decides (postal/region) and rejects non-Canadian rows
 
 
+def source_point(row: dict):
+    """Overture places are POINT features, so their `bbox` collapses to the point itself (xmin == xmax, ymin == ymax). Returns
+    {"lat", "lng"} only for such a degenerate bbox with finite, in-range values; anything else (a polygon-like box, nulls) yields None.
+    Nothing is invented: a row without a trustworthy point simply carries no coordinates."""
+    b = row.get("bbox") or {}
+    try:
+        x0, x1, y0, y1 = (float(b[k]) for k in ("xmin", "xmax", "ymin", "ymax"))
+    except (KeyError, TypeError, ValueError):
+        return None
+    if not all(math.isfinite(v) for v in (x0, x1, y0, y1)):
+        return None
+    if abs(x1 - x0) > 1e-6 or abs(y1 - y0) > 1e-6:
+        return None
+    lng, lat = (x0 + x1) / 2, (y0 + y1) / 2
+    if not (-180 <= lng <= 180 and -90 <= lat <= 90):
+        return None
+    return {"lat": round(lat, 7), "lng": round(lng, 7)}
+
+
 def to_record(row: dict) -> dict:
     """Whitelisted, schema-v1 projection. Nothing outside this list is ever written."""
     tax = row.get("taxonomy") or {}
@@ -149,6 +169,8 @@ def to_record(row: dict) -> dict:
         "websites": list(row.get("websites") or [])[:3],
         "emails": list(row.get("emails") or [])[:3],
         "sources": [{"dataset": s.get("dataset"), "license": s.get("license")} for s in (row.get("sources") or [])][:20],
+        # Additive (schema v1 stays valid): the place's own point, so GarageOS never has to geocode what the source already located.
+        "geo": source_point(row),
     }
 
 

@@ -19,3 +19,7 @@ export class NotFoundError extends Error {
 export function notFound(): never {
   throw new NotFoundError();
 }
+// Client hooks, so client components can be server-rendered in tests.
+export function useRouter() { return { push() {}, replace() {}, refresh() {}, back() {}, forward() {}, prefetch() {} }; }
+export function usePathname() { return "/"; }
+export function useSearchParams() { return new URLSearchParams(); }
