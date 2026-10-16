@@ -2,6 +2,8 @@
 
 > **Start here if you are a new agent: [NEXT_AGENT_HANDOFF.md](NEXT_AGENT_HANDOFF.md)** (production state, what is OFF, exact next actions).
 >
+> **National engine (clean-first pipeline, automated worker, readiness dashboard, rollout plan): [national-engine.md](national-engine.md) · [national-rollout-plan.md](national-rollout-plan.md) · [email-outreach-readiness.md](email-outreach-readiness.md).**
+>
 > Automation by approved policy: [automation.md](automation.md) · Qualification policy V2 + read-only comparison: [qualification-v2.md](qualification-v2.md).
 
 ## Status (code deployed ≠ feature activated)
@@ -46,7 +48,8 @@ Overture release (public Parquet) ──► local extractor (scripts/lead-radar,
 | UI (EN/FR) | `/platform/sales/lead-radar`, `/candidates`, `/runs/[id]`; `src/components/lead-radar/*`; `src/lib/admin-locale/lead-radar.ts` |
 | Automation (PR #127) | `src/domain/lead-radar/{policy-rules,qualification,qualification-hash,outreach}.ts`, `src/lib/lead-radar/{policy,qualify,automation,eligibility,dashboard}.ts`, `src/actions/lead-radar-automation.ts`, `/platform/sales/lead-radar/automation`, cron `/api/webhooks/cron/lead-radar` |
 | Qualification V2 + comparison (PR #128) | `src/domain/lead-radar/{business-type,policy-compare}.ts`, `src/lib/lead-radar/compare.ts`, `src/components/lead-radar/PolicyComparePanel.tsx`, `scripts/lead-radar/policy-report.ts` |
-| Windows extraction | `scripts/lead-radar/Run-LeadRadarExtraction.ps1` |
+| Windows extraction (manual fallback) | `scripts/lead-radar/Run-LeadRadarExtraction.ps1` |
+| National engine (PRs #133–#137) | `src/domain/lead-radar/{run-quality,worker-policy,national-readiness,contact-readiness}.ts`, `src/lib/lead-radar/{worker,province-state,national,candidate-fit}.ts`, `src/lib/sales-comms/contact-readiness.ts`, `src/app/api/lead-radar/worker/route.ts`, `scripts/lead-radar/worker.py`, `.github/workflows/lead-radar-extract.yml`, `/platform/sales/lead-radar/national` |
 | Tests | `tests/lead-radar-automation-domain.test.ts`, `tests/lead-radar-automation-db.test.ts`, `tests/lead-radar-qualification-v2.test.ts`, `tests/lead-radar-compare-db.test.ts`, `tests/lead-radar-domain.test.ts`, `tests/lead-radar-db.test.ts` (real PostgreSQL), `scripts/lead-radar/test_extract.py` |
 
 ## Design decisions

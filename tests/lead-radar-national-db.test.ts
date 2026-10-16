@@ -357,4 +357,32 @@ if (!enabled) {
     assert.ok(d.automation.nextWorkerCheck > new Date());
     assert.equal(d.automation.nextTick, null, "automation is OFF in this database: no next tick is promised");
   });
+
+  test("province-scoped automatic import: with a scope of one province only that province's approved candidates are imported; the rest stay deferred; empty scope = all (previous behaviour)", async () => {
+    const auto = await import("../src/lib/lead-radar/automation");
+    const access = await import("../src/lib/sales-crm/access");
+    const admin = (await access.resolvePlatformSalesActor(users.Root))!;
+    const ab = { freeform: "10 Jasper Ave", locality: "Edmonton", postcode: "T5J 1S9", region: "AB", country: "CA" };
+    const recs = [rec("Garage Scope Alberta", "MTL", { address: ab, geo: { lat: 53.5461, lng: -113.4938 } }), rec("Garage Scope Colombie", "VAN"), rec("Garage Scope Quebec", "QCC")];
+    const runId = (await extract(recs, ["AB", "BC", "QC"], R2)).runId;
+    const cs = await db.crmDiscoveryCandidate.findMany({ where: { lastRunId: runId } });
+    assert.equal(cs.length, 3);
+    await db.crmDiscoveryCandidate.updateMany({ where: { id: { in: cs.map((c) => c.id) } }, data: { reviewState: "APPROVED" } });
+    await auto.setImportProvinces(admin, ["AB"]);
+    const t1 = await auto.importStage(admin, 1, 50, Date.now() + 30_000, (await auto.readAutomation()).importProvinces);
+    assert.equal(t1.created, 1);
+    const state = async (n: string) => (await db.crmDiscoveryCandidate.findFirstOrThrow({ where: { name: n } })).importState;
+    assert.equal(await state("Garage Scope Alberta"), "CREATED");
+    assert.equal(await state("Garage Scope Colombie"), "NOT_IMPORTED");
+    assert.equal(await state("Garage Scope Quebec"), "NOT_IMPORTED");
+    const d = await (await import("../src/lib/lead-radar/national")).nationalReadiness();
+    assert.deepEqual(d.automation.importProvinces, ["AB"]);
+    assert.ok(d.rows.find((r) => r.province === "BC")!.deferred.approvedNotImported >= 1, "withheld work is reported as deferred, not hidden");
+    await auto.setImportProvinces(admin, []);
+    const t2 = await auto.importStage(admin, 1, 50, Date.now() + 30_000, (await auto.readAutomation()).importProvinces);
+    assert.ok(t2.created >= 2);
+    await assert.rejects(auto.setImportProvinces(admin, ["XX"]), /INVALID/);
+    const seller = await access.resolvePlatformSalesActor(users.Seller);
+    if (seller) await assert.rejects(auto.setImportProvinces(seller, ["AB"]), /SALES_FORBIDDEN/);
+  });
 }

@@ -8,6 +8,7 @@ import { isLive, readSettings } from "@/lib/lead-radar/settings";
 import { Badge, cardCls, formatDate, PageHeader, PermissionDenied } from "@/components/sales-crm/ui";
 import { emailReadinessFunnel } from "@/lib/sales-comms/contact-readiness";
 import { LADDER } from "@/domain/lead-radar/contact-readiness";
+import { ImportScopePanel } from "@/components/lead-radar/ImportScopePanel";
 import { ProvinceControls } from "@/components/lead-radar/ProvinceControls";
 
 export const dynamic = "force-dynamic";
@@ -41,6 +42,7 @@ export default async function NationalReadinessPage() {
           <div key={label} className="min-w-0 rounded-xl border border-slate-200 bg-white p-3"><dt className="text-xs text-slate-500">{label}</dt><dd className="text-xl font-semibold text-slate-900">{num(v, locale)}</dd></div>
         ))}
       </dl>
+      <ImportScopePanel locale={locale} initial={d.automation.importProvinces} />
       <section className={`${cardCls} space-y-3`} aria-labelledby="nat-email">
         <h2 id="nat-email" className="font-semibold text-slate-900">{k.email.title}</h2>
         <p className="text-xs text-slate-600">{k.email.help}</p>

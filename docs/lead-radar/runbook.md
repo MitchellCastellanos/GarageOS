@@ -16,6 +16,8 @@ Plus the database switch (Lead Radar page → Settings → "Enable live discover
 3. Rollback: the application can be rolled back at any time (old code ignores the tables). To remove the feature entirely: `DROP TABLE` the four `CrmDiscovery*` tables and the 7 enums (nothing else references them; imported prospects keep their `importBatchId`/observations).
 4. After deploy with the env switch **unset**, `/platform/sales/lead-radar` is visible to Super Admin only and everything is inert.
 
+> **Since the national engine (PRs #133–#137) routine extraction no longer needs a PC:** queue a province on `/platform/sales/lead-radar/national`; the GitHub Actions worker does the rest. See [national-engine.md](national-engine.md) §6 and the canary procedure in [national-rollout-plan.md](national-rollout-plan.md). The manual procedure below remains a supported fallback.
+
 ## First controlled extraction (recommended: one metro or one province, never national first)
 1. Production: set `LEAD_RADAR_ENABLED=1`; as Super Admin open **Lead Radar**, tick *Enable live discovery*, keep the budget at CAD 25 (nothing will be spent: open data), leave "managers may review" off for now.
 2. *Start a discovery job*: choose **Québec**, category groups *Repair* (+ *Body/glass* if wanted), optionally cities (e.g. `Montréal, Laval, Longueuil`). Press **Preview workload** (QC ≈ 47 row groups / ≤71 MB), then **Create run**.

@@ -12,6 +12,7 @@ import { applyAssignmentProposals, buildAssignmentProposals, loadSellers } from 
 import { writeCrmAudit } from "@/lib/sales-crm/audit";
 import { CrmError } from "@/lib/sales-crm/prospects";
 import { loadEngagements } from "@/lib/sales-crm/territory";
+import { isProvinceCode } from "@/domain/lead-radar/geo";
 import { assessProspects, refreshEligibility, saveAssessments } from "@/lib/lead-radar/eligibility";
 import { importApprovedCandidates } from "@/lib/lead-radar/import-service";
 import { autoGeocodeStep } from "@/lib/sales-crm/geocoding-admin-service";
@@ -73,6 +74,17 @@ export async function saveAutomation(actor: PlatformSalesActor, input: Automatio
   return readAutomation();
 }
 
+/** Province scope of the automatic import (Super Admin). Empty = every province. Canary rollouts set exactly one code; this never touches already-imported prospects. */
+export async function setImportProvinces(actor: PlatformSalesActor, provinces: readonly string[]) {
+  if (!can(actor, "manage_lead_radar")) throw new CrmError("SALES_FORBIDDEN");
+  const list = [...new Set(provinces)].sort();
+  if (list.length > 13 || list.some((p) => !isProvinceCode(p))) throw new CrmError("INVALID");
+  const before = await readAutomation();
+  await db.crmLeadAutomation.update({ where: { id: ID }, data: { importProvinces: list, updatedByUserId: actor.userId } });
+  await writeCrmAudit({ actorUserId: actor.userId, action: "LEAD_RADAR_AUTOMATION_CHANGED", entityType: "CrmLeadAutomation", entityId: ID, before: { importProvinces: before.importProvinces }, after: { importProvinces: list }, metadata: { setting: "importProvinces" } });
+  return readAutomation();
+}
+
 /** Master switch. Pausing is immediate and safe at any time: in-flight work is bounded by the tick budget and every stage re-checks state. */
 export async function setAutomationEnabled(actor: PlatformSalesActor, enabled: boolean, reason?: string | null) {
   if (!can(actor, "manage_lead_radar")) throw new CrmError("SALES_FORBIDDEN");
@@ -109,14 +121,14 @@ const emptyImport = (): ImportTally => ({ chunks: 0, claimed: 0, created: 0, lin
  * A chunk that throws is rolled back entirely, then retried one candidate at a time so ONE bad record can never block the queue: it is marked FAILED
  * (IMPORT_EXCEPTION) and the rest continue. Candidates that stay untouched after a claim are attempt-counted and dropped from the queue after MAX_IMPORT_ATTEMPTS.
  */
-export async function importStage(actor: PlatformSalesActor, policyVersion: number, chunkSize: number, deadline: number): Promise<ImportTally> {
+export async function importStage(actor: PlatformSalesActor, policyVersion: number, chunkSize: number, deadline: number, provinces: readonly string[] = []): Promise<ImportTally> {
   const t = emptyImport();
   const add = (r: Awaited<ReturnType<typeof importApprovedCandidates>>) => {
     t.claimed += r.claimed; t.created += r.created; t.linked += r.linked; t.sentToReview += r.sentToReview; t.skipped += r.skipped; t.failed += r.failed;
   };
   const queue = (size: number) => db.crmDiscoveryCandidate.findMany({
     where: {
-      reviewState: "APPROVED", importState: "NOT_IMPORTED", licenseOk: true, tier: { not: "EXCLUDED" }, duplicateOfCandidateId: null, importAttempts: { lt: MAX_IMPORT_ATTEMPTS },
+      reviewState: "APPROVED", importState: "NOT_IMPORTED", licenseOk: true, tier: { not: "EXCLUDED" }, duplicateOfCandidateId: null, ...(provinces.length ? { province: { in: [...provinces] } } : {}), importAttempts: { lt: MAX_IMPORT_ATTEMPTS },
       OR: [{ approvedByPolicyVersion: null }, { approvedByPolicyVersion: policyVersion }],
     },
     orderBy: { id: "asc" }, take: size, select: { id: true },
@@ -327,7 +339,7 @@ export async function runAutomationTick(opts: { trigger: "CRON" | "MANUAL"; budg
       await stage("classify", true, (deadline) => backfillCandidateFit({ deadline }));
       if (policy) {
         await stage("qualify", a.qualifyEnabled, (deadline) => qualifyPending(policy, { deadline }));
-        await stage("import", a.importEnabled, (deadline) => importStage(admin, policy.version, a.importChunkSize, deadline));
+        await stage("import", a.importEnabled, (deadline) => importStage(admin, policy.version, a.importChunkSize, deadline, a.importProvinces));
       } else counters.note = "NO_ACTIVE_POLICY";
       await stage("assign", a.assignEnabled, (deadline) => assignStage(admin, a.assignStaffIds, deadline));
       await stage("release", a.releaseUnavailable, (deadline) => releaseUnavailable(admin, deadline));
