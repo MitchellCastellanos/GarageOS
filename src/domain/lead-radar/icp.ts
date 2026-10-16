@@ -11,12 +11,18 @@ export const OUTSIDE_ICP_REASON = "OUTSIDE_ICP_CHAIN_OR_CORPORATE" as const;
 
 export interface IcpFacts { name: string | null | undefined; website?: string | null; city?: string | null; taxonomyPrimary?: string | null }
 export type IcpEvidence = "NAME" | "DOMAIN" | "TAXONOMY_DEALER" | "DEALER_WORDING" | "DEALER_NETWORK_DOMAIN" | "OEM_DEALER_PATTERN";
-export interface IcpResult { outside: boolean; category: IcpCategory | null; brandId: string | null; evidence: IcpEvidence[]; registryVersion: number }
+export interface IcpResult {
+  outside: boolean; category: IcpCategory | null; brandId: string | null; evidence: IcpEvidence[]; registryVersion: number;
+  /** Matched only through a weak alias (an ordinary word such as "Midas"): the most error-prone name match, surfaced for review. */
+  weak?: boolean;
+  /** A brand in the name PLUS words that look like the location's own name ("NAPA AUTOPRO - Lakey Diesel & Auto"): branded, but possibly an independent franchisee worth a second look. */
+  ownName?: boolean;
+}
 
 const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/['’`]/g, " ").replace(/&/g, " and ").replace(/[^a-z0-9]+/g, " ").trim();
 /** Affiliation / supplier / certification wording: a brand that only follows it ("Joe's Garage – NAPA Certified", "member of NAPA") is not the business's own brand. */
 const AFFILIATION = /\b(certified|certifie|certifiee|member of|membre de|partner|partenaire|powered by|supplied by|parts by|pieces par|authorized|autorise|preferred|approved|affiliated|proud)\b.*$/;
-const GENERIC = new Set(["auto", "autos", "automobile", "automotive", "service", "services", "center", "centre", "centers", "centres", "inc", "ltd", "ltee", "limited", "store", "shop", "repair", "the", "and", "of", "de", "du", "la", "le", "station", "garage", "pneus", "tire", "tires"]);
+const GENERIC = new Set(["auto", "autos", "automobile", "automotive", "service", "services", "center", "centre", "centers", "centres", "inc", "ltd", "ltee", "limited", "store", "shop", "repair", "the", "and", "of", "de", "du", "la", "le", "station", "garage", "pneus", "tire", "tires", "gas", "fuel", "essence"]);
 
 function cleanName(raw: string): string {
   // parenthetical mentions and affiliation tails are not part of the business's own name
@@ -36,6 +42,7 @@ function weakMatch(name: string, brand: IcpBrand, city: string): boolean {
   const cityTokens = new Set(norm(city).split(" ").filter(Boolean));
   for (const w of brand.weakAliases ?? []) {
     const alias = norm(w).split(" ");
+    if (alias.every((a) => cityTokens.has(a))) continue; // "Shell Lake Garage" in Shell Lake: the word is the place, not the brand
     const tokens = name.split(" ").filter(Boolean);
     const at = tokens.findIndex((_, i) => alias.every((a, j) => tokens[i + j] === a));
     if (at < 0) continue;
@@ -71,13 +78,23 @@ export function assessIcp(f: IcpFacts): IcpResult {
     const evidence: IcpEvidence[] = [];
     if (nameHit) evidence.push("NAME");
     if (domainHit) evidence.push("DOMAIN");
-    return { outside: true, category: brand.category, brandId: brand.id, evidence, registryVersion: ICP_REGISTRY_VERSION };
+    const strong = !!nameHit && nameHit.aliases.some((a) => hasPhrase(name, a));
+    let ownName = false;
+    if (strong && nameHit) {
+      const alias = nameHit.aliases.map(norm).filter((a) => ` ${name} `.includes(` ${a} `)).sort((a, b) => b.length - a.length)[0];
+      const cityTokens = new Set(norm(city).split(" ").filter(Boolean));
+      const rest = ` ${name} `.replace(` ${alias} `, " ").split(" ").filter((t) => t && !GENERIC.has(t) && !/^\d+$/.test(t) && !cityTokens.has(t));
+      ownName = rest.length >= 2;
+    }
+    return { outside: true, category: brand.category, brandId: brand.id, evidence, registryVersion: ICP_REGISTRY_VERSION, weak: !!nameHit && !strong, ownName };
   }
   // Dealerships and dealer-owned service departments. Repair wording in the name ("… Auto Repair & Used Car Dealer") keeps an independent mixed shop out of this rule.
   const repairWord = hit(words(rawName), NAME_REPAIR);
   if (onDomain(host, DEALER_NETWORK_DOMAINS)) return { ...none, outside: true, category: "DEALERSHIP", evidence: ["DEALER_NETWORK_DOMAIN"] };
   if (!repairWord && f.taxonomyPrimary && DEALER_CODES.includes(f.taxonomyPrimary)) return { ...none, outside: true, category: "DEALERSHIP", evidence: ["TAXONOMY_DEALER"] };
-  if (isDealerName(name)) return { ...none, outside: true, category: "DEALERSHIP", evidence: ["OEM_DEALER_PATTERN"] };
+  // a trailing city is not part of the make-at-the-end pattern ("Rolls-Royce Motor Cars Calgary")
+  const cityNorm = norm(city), bare = cityNorm && name.endsWith(` ${cityNorm}`) ? name.slice(0, -(cityNorm.length + 1)) : name;
+  if (isDealerName(bare)) return { ...none, outside: true, category: "DEALERSHIP", evidence: ["OEM_DEALER_PATTERN"] };
   if (!repairWord && DEALER_NAME.test(norm(rawName))) return { ...none, outside: true, category: "DEALERSHIP", evidence: ["DEALER_WORDING"] };
   return none;
 }

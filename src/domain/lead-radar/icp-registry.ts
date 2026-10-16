@@ -8,7 +8,7 @@
 //  - `domains`      the franchisor / banner website. A location whose website IS the banner site is a branded location.
 // A supplier, certification or affiliation mention ("NAPA parts available", "NAPA Certified", "Bosch Service") is never evidence: the matcher reads only the name and
 // the website host, never page content, and a brand that appears only in parentheses or after an affiliation word does not count.
-export const ICP_REGISTRY_VERSION = 1;
+export const ICP_REGISTRY_VERSION = 2; // v2: Quick Lane, Speedy Apollo, fuel retailers, luxury makes (found by the Alberta Preview-all review)
 
 export const ICP_CATEGORIES = ["FRANCHISE_SERVICE_CHAIN", "RETAIL_CORPORATE", "TIRE_NETWORK", "COLLISION_NETWORK", "GLASS_NETWORK", "PARTS_NETWORK", "DEALERSHIP_GROUP", "DEALERSHIP"] as const;
 export type IcpCategory = (typeof ICP_CATEGORIES)[number];
@@ -43,6 +43,7 @@ export const ICP_BRANDS: readonly IcpBrand[] = [
   // Retail / corporate
   B("CANADIAN_TIRE", "RETAIL_CORPORATE", ["canadian tire", "pneus canadian tire", "pneu canadian tire"], { domains: ["canadiantire.ca"] }),
   B("WALMART", "RETAIL_CORPORATE", ["walmart", "wal mart"], { domains: ["walmart.ca", "walmart.com"] }),
+  B("PETRO_CANADA", "RETAIL_CORPORATE", ["petro canada", "ultramar", "husky"], { weak: ["esso", "shell"], domains: ["petro-canada.ca", "esso.ca", "shell.ca", "ultramar.ca"] }),
   B("COSTCO", "RETAIL_CORPORATE", ["costco"], { domains: ["costco.ca", "costco.com"] }),
   // Franchise service chains
   B("MIDAS", "FRANCHISE_SERVICE_CHAIN", ["midas auto service", "midas auto systems"], { weak: ["midas"], domains: ["midas.com", "midas.ca"] }),
@@ -54,6 +55,8 @@ export const ICP_BRANDS: readonly IcpBrand[] = [
   B("SPEEDEE_OIL", "FRANCHISE_SERVICE_CHAIN", ["speedee oil"]),
   B("KROWN", "FRANCHISE_SERVICE_CHAIN", ["krown rust control", "krown"], { domains: ["krown.com"] }),
   B("ZIEBART", "FRANCHISE_SERVICE_CHAIN", ["ziebart"], { domains: ["ziebart.com"] }),
+  B("QUICK_LANE", "FRANCHISE_SERVICE_CHAIN", ["quick lane"], { domains: ["quicklane.ca"] }),
+  B("SPEEDY_APOLLO", "FRANCHISE_SERVICE_CHAIN", ["speedy apollo"], { domains: ["speedyapollo.ca"] }),
   B("MONRO", "FRANCHISE_SERVICE_CHAIN", ["monro muffler", "monro auto", "monro tire", "monro service"], { weak: ["monro"], domains: ["monro.com"] }),
   B("MEINEKE", "FRANCHISE_SERVICE_CHAIN", ["meineke"], { domains: ["meineke.com", "meineke.ca"] }),
   B("PEP_BOYS", "FRANCHISE_SERVICE_CHAIN", ["pep boys"], { domains: ["pepboys.com"] }),
@@ -100,7 +103,7 @@ export const DEALER_NAME = /\b(dealership|dealerships|concessionnaire|concession
 /** Vehicle makes whose franchised dealers sell and service them. Used ONLY by the dealer-name pattern below (never on its own). "Ram", "Mini" and "Genesis" are left out: they are also ordinary words and given names. */
 export const DEALER_MAKES: readonly string[] = [
   "toyota", "honda", "ford", "chevrolet", "chevy", "gmc", "buick", "cadillac", "nissan", "hyundai", "kia", "mazda", "subaru", "volkswagen", "vw", "audi", "bmw", "mercedes benz", "mercedes", "volvo",
-  "jeep", "dodge", "chrysler", "fiat", "lexus", "acura", "infiniti", "mitsubishi", "porsche", "lincoln", "jaguar", "land rover", "tesla", "kenworth", "peterbilt", "freightliner", "western star", "international trucks",
+  "jeep", "dodge", "chrysler", "fiat", "lexus", "acura", "infiniti", "mitsubishi", "porsche", "lincoln", "jaguar", "land rover", "tesla", "rolls royce", "bentley", "ferrari", "lamborghini", "maserati", "mclaren", "aston martin", "alfa romeo", "kenworth", "peterbilt", "freightliner", "western star", "international trucks",
 ];
 /** Words a dealer's sales/service/body/parts department appends to the make ("CH Nissan - Body Shop", "Southview Acura Parts", "Lacombe Ford Ltd"). */
-export const DEALER_DEPARTMENT_WORDS: readonly string[] = ["ltd", "limited", "inc", "motors", "motor", "auto group", "autogroup", "group", "body shop", "collision centre", "collision center", "collision", "service", "services", "service centre", "service center", "parts", "sales", "pre owned", "preowned", "certified"];
+export const DEALER_DEPARTMENT_WORDS: readonly string[] = ["ltd", "limited", "inc", "motors", "motor", "motor cars", "auto group", "autogroup", "group", "body shop", "collision centre", "collision center", "collision", "service", "services", "service centre", "service center", "parts", "sales", "pre owned", "preowned", "certified"];

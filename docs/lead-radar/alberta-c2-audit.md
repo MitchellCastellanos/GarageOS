@@ -107,3 +107,20 @@ Findings that changed the rules during this audit (each now has a regression tes
 **Alberta Preview (rehearsal database, not production; nothing applied):** 6,595 examined → **971 newly excluded** as chain/corporate (tire networks 373, franchise service 211, collision 141, parts 122, dealerships 76, corporate retail 39, glass 5, dealer groups 4; 30 on the franchisor website alone — spot-check), **39 newly eligible**, 8 moved to review, **1,168 remain for a person** (mostly loose categories with no automotive wording, motorcycle/marine/RV and trailer segments), 3,029 verified / 2,398 excluded after. CRM-match impact and protected decisions are 0 here because the rehearsal database has no prospects; the owner's production Preview will show them. Stored verdicts in the rehearsal database predate PR #139, so some transitions are #139 effects as well as ICP effects.
 
 **C3 remains NO-GO** until the owner runs the production Preview/Apply, a production sample (with websites checked for the ambiguous items) reaches ≥ 90 %, and the owner approves the import.
+
+
+## 8. Preview all — complete Alberta run on the rehearsal database (registry v2)
+
+All 6,595 candidates examined in **14 bounded batches (slowest 225 ms)**, read-only. Files: [c2-alberta-icp/preview-all/](c2-alberta-icp/preview-all/) (review CSV, domain-only CSV, match-change CSV, totals).
+
+| | Rehearsal result |
+|---|---|
+| With changes | 1,041 (fit: 894 verified→excluded, 100 review→excluded, 39 review→verified, 8 verified→review) |
+| Newly excluded (ICP) | **1,002** — tire 373, franchise service 232, collision 141, parts 122, dealerships 84, corporate retail 41, glass 5, dealer groups 4 |
+| Excluded on the franchisor website alone | **32** (0.032 of newly excluded) — each listed with business, domain, brand |
+| After | 3,005 verified · 1,161 human review · 2,429 excluded |
+| Flagged for C2 review | 207 exclusions (55 HIGH-risk = 5.5 %), 44 ambiguous verified (1.5 %) |
+| CRM match changes / protected | 0 / 0 — the rehearsal database has no prospects or human decisions; **the production run is the one that counts** |
+| Recommendation | **GO** on this data (5.5 % ≤ 10 %, 3.2 % ≤ 5 %, 1.5 % ≤ 15 %) |
+
+The review found real gaps, now fixed (registry v2, with tests): Quick Lane, Speedy Apollo, Shell/Petro-Canada, luxury-make dealers with a trailing city. Examples worth a human look in the CSV: franchisor-site-only rows such as "Crowfoot Carwash" (napaautopro.com — excluded as a car wash anyway) and "Airways Brake and Muffler" (krown.com).

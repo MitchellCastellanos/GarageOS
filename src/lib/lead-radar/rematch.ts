@@ -3,9 +3,13 @@ import type { PlatformSalesActor } from "@/domain/sales-crm/access";
 import { can } from "@/domain/sales-crm/access";
 import { classifyAgainstPool } from "@/domain/sales-crm/dedupe";
 import { isProvinceCode } from "@/domain/lead-radar/geo";
-import { ICP_REGISTRY_VERSION } from "@/domain/lead-radar/icp-registry";
-import { isIcpExclusion } from "@/domain/lead-radar/icp";
-import { assessRepairFit } from "@/domain/lead-radar/repair-fit";
+import { DEALER_MAKES, ICP_REGISTRY_VERSION } from "@/domain/lead-radar/icp-registry";
+import { assessIcp, isIcpExclusion } from "@/domain/lead-radar/icp";
+import { BY_CODE, CAPABILITY } from "@/domain/lead-radar/business-type";
+import { emptyDetail, emptyIcp, isAmbiguousVerified, riskOf, type PreviewDetail, type RematchIcp } from "@/domain/lead-radar/icp-preview";
+import { isSharedIdentityDomain } from "@/domain/sales-crm/shared-identity";
+import { websiteDomain } from "@/domain/sales-crm/normalize";
+import { assessRepairFit, nameSignals } from "@/domain/lead-radar/repair-fit";
 import { db } from "@/lib/db";
 import { writeCrmAudit } from "@/lib/sales-crm/audit";
 import { loadMatchPool } from "@/lib/sales-crm/lead-pool";
@@ -17,14 +21,8 @@ export const REMATCH_MAX_PAGES = 4;
 
 type RematchRow = { id: string; name: string; taxonomyPrimary: string | null; classReasons: string[]; repairFit: "VERIFIED_REPAIR" | "HUMAN_REVIEW" | "EXCLUDED" | null; nameNormalized: string; city: string | null; website: string | null; phone: string | null; address: string | null; postalCode: string | null; province: string | null; matchState: "NEW" | "EXISTING_STRONG" | "AMBIGUOUS" | "BRANCH_OF_EXISTING"; matchProspectId: string | null; reviewState: "PENDING" | "APPROVED" | "REJECTED"; repairFitReasons: string[] };
 
-/** The discovery-ICP view of a re-check (independent repair businesses only). Counts are over the examined candidates; `protectedDecisions` are candidates a person already decided. */
-export interface RematchIcp {
-  newlyExcluded: number; /** Excluded on the franchisor website host alone (the name carries no brand): listed so a person can spot-check them. */ newlyExcludedDomainOnly: number; newlyExcludedByCategory: Record<string, number>; newlyExcludedByBrand: Record<string, number>; newlyExcludedExamples: { name: string; city: string | null; brand: string | null }[];
-  newlyEligible: number; remainingHumanReview: number; /** Why the rest still needs a person (independence or repair-fit cannot be settled from evidence). */ remainingReviewByReason: Record<string, number>; verifiedAfter: number; excludedAfter: number; registryVersion: number;
-  crmMatchImpact: { newlyExcludedWithCrmMatch: number; newlyExcludedAmbiguousOrBranch: number };
-  protectedDecisions: { examined: number; fitWouldChange: number; reviewStateTouched: 0; approvedNowBlockedAtImport: number };
-}
-export interface RematchResult { applied: boolean; examined: number; changed: number; transitions: Record<string, number>; nextCursor: string | null; icp: RematchIcp }
+export type { RematchIcp };
+export interface RematchResult { applied: boolean; examined: number; changed: number; transitions: Record<string, number>; nextCursor: string | null; icp: RematchIcp; /** Only when `detail` was requested (read-only preview). */ poolSize?: number; detail?: PreviewDetail }
 
 /**
  * Re-evaluates, for STAGED NOT-YET-IMPORTED candidates, (a) the CRM match and (b) the stored repair-fit with the CURRENT rules (after the shared-identifier / classifier fixes),
@@ -33,16 +31,16 @@ export interface RematchResult { applied: boolean; examined: number; changed: nu
  * policy re-evaluates it (and revokes a policy approval that no longer holds). It never touches review decisions,
  * prospects, ownership, DNC, activities or opportunities. Bounded: ≤ 2,000 candidates per call, resumable by cursor. Super Admin only; audited.
  */
-export async function rematchCandidates(actor: PlatformSalesActor, opts: { province: string; apply: boolean; cursor?: string | null }): Promise<RematchResult> {
+export async function rematchCandidates(actor: PlatformSalesActor, opts: { province: string; apply: boolean; cursor?: string | null; /** Pages of REMATCH_PAGE per call (default REMATCH_MAX_PAGES). */ maxPages?: number; /** Collect per-candidate detail for the owner's review. Read-only only. */ detail?: boolean }): Promise<RematchResult> {
   if (!can(actor, "manage_lead_radar")) throw new CrmError("SALES_FORBIDDEN");
   if (!isProvinceCode(opts.province)) throw new CrmError("INVALID");
-  const icp: RematchIcp = {
-    newlyExcluded: 0, newlyExcludedDomainOnly: 0, newlyExcludedByCategory: {}, newlyExcludedByBrand: {}, newlyExcludedExamples: [], newlyEligible: 0, remainingHumanReview: 0, remainingReviewByReason: {}, verifiedAfter: 0, excludedAfter: 0, registryVersion: ICP_REGISTRY_VERSION,
-    crmMatchImpact: { newlyExcludedWithCrmMatch: 0, newlyExcludedAmbiguousOrBranch: 0 }, protectedDecisions: { examined: 0, fitWouldChange: 0, reviewStateTouched: 0, approvedNowBlockedAtImport: 0 },
-  };
+  if (opts.detail && opts.apply) throw new CrmError("INVALID"); // detail is a read-only preview feature
+  const detail: PreviewDetail | null = opts.detail ? emptyDetail() : null;
+  const icp: RematchIcp = emptyIcp(ICP_REGISTRY_VERSION);
   const out: RematchResult = { applied: opts.apply, examined: 0, changed: 0, transitions: {}, nextCursor: null, icp };
   let cursor: string | null = opts.cursor ?? null;
-  for (let page = 0; page < REMATCH_MAX_PAGES; page++) {
+  const pages = Math.min(Math.max(opts.maxPages ?? REMATCH_MAX_PAGES, 1), REMATCH_MAX_PAGES);
+  for (let page = 0; page < pages; page++) {
     const rows: RematchRow[] = await db.crmDiscoveryCandidate.findMany({
       where: { province: opts.province, importState: "NOT_IMPORTED", duplicateOfCandidateId: null, ...(cursor ? { id: { gt: cursor } } : {}) },
       orderBy: { id: "asc" }, take: REMATCH_PAGE,
@@ -52,6 +50,7 @@ export async function rematchCandidates(actor: PlatformSalesActor, opts: { provi
     const keys = rows.map((r) => matchKeyOf(r as Parameters<typeof matchKeyOf>[0]));
     const pool = await loadMatchPool(keys);
     const now = new Date();
+    const pendingMatch: { r: RematchRow; to: string; toId: string | null }[] = [];
     for (let i = 0; i < rows.length; i++) {
       const r = rows[i], cl = classifyAgainstPool(keys[i], pool);
       const next = cl.outcome === "STRONG" ? { matchState: "EXISTING_STRONG" as const, matchProspectId: cl.strong!.id, matchReasons: cl.strong!.reasons as string[] }
@@ -75,6 +74,35 @@ export async function rematchCandidates(actor: PlatformSalesActor, opts: { provi
         else if (r.matchState === "AMBIGUOUS" || r.matchState === "BRANCH_OF_EXISTING") icp.crmMatchImpact.newlyExcludedAmbiguousOrBranch++;
       }
       if (fit.fit === "VERIFIED_REPAIR" && r.repairFit !== "VERIFIED_REPAIR") icp.newlyEligible++;
+      if (detail) {
+        const dom = websiteDomain(r.website) ?? null;
+        const base = { id: r.id, name: r.name, city: r.city, category: r.taxonomyPrimary, domain: dom };
+        if (nowIcp && !wasIcp) {
+          const ic = assessIcp({ name: r.name, website: r.website, city: r.city, taxonomyPrimary: r.taxonomyPrimary });
+          const flags: string[] = [];
+          if (fit.reasons.includes("ICP_EVIDENCE_DOMAIN_ONLY")) flags.push("DOMAIN_ONLY");
+          if (ic.weak) flags.push("WEAK_ALIAS");
+          if (ic.evidence.includes("OEM_DEALER_PATTERN")) flags.push("DEALER_NAME_PATTERN");
+          if (ic.evidence.includes("DEALER_WORDING")) flags.push("DEALER_WORDING");
+          if (ic.ownName) flags.push("BRAND_PLUS_OWN_NAME");
+          const brand = fit.reasons.find((x) => x.startsWith("ICP_BRAND_"))?.slice(10) ?? null;
+          if (flags.includes("DOMAIN_ONLY")) detail.domainOnly.push({ id: r.id, name: r.name, city: r.city, domain: dom ?? "", brand, category: ic.category, reason: "ICP_EVIDENCE_DOMAIN_ONLY" });
+          if (flags.length) detail.review.push({ ...base, kind: "QUESTIONABLE_EXCLUSION", risk: riskOf("QUESTIONABLE_EXCLUSION", flags), fit: fit.fit, brand, flags, reasons: fit.reasons.join(" ") });
+        } else if (fit.fit === "EXCLUDED" && !nowIcp && r.repairFit !== "EXCLUDED" && !!r.taxonomyPrimary && CAPABILITY[BY_CODE[r.taxonomyPrimary]] === "REPAIR") {
+          detail.review.push({ ...base, kind: "QUESTIONABLE_EXCLUSION", risk: "HIGH", fit: fit.fit, brand: null, flags: ["EXCLUDED_DESPITE_REPAIR_CATEGORY"], reasons: fit.reasons.join(" ") });
+        }
+        if (fit.fit === "VERIFIED_REPAIR") {
+          const flags: string[] = [];
+          if (r.classReasons.includes("CHAIN_NAME") || r.classReasons.includes("BRAND_LINKED")) flags.push("CHAIN_HINT");
+          const lower = r.name.toLowerCase();
+          if (dom && DEALER_MAKES.some((m) => !m.includes(" ") && m.length > 3 && dom.includes(m) && !lower.includes(m))) flags.push("MAKE_IN_DOMAIN");
+          if (!nameSignals(r.name).repairWord) flags.push("NO_REPAIR_WORD");
+          if (dom && isSharedIdentityDomain(dom)) flags.push("SHARED_DOMAIN");
+          if (next.matchState !== "NEW") flags.push("MATCHES_CRM");
+          if (isAmbiguousVerified(flags)) detail.review.push({ ...base, kind: "AMBIGUOUS_VERIFIED", risk: riskOf("AMBIGUOUS_VERIFIED", flags), fit: fit.fit, brand: null, flags, reasons: fit.reasons.join(" ") });
+        }
+        if (next.matchState !== r.matchState || next.matchProspectId !== r.matchProspectId) pendingMatch.push({ r, to: next.matchState, toId: next.matchProspectId });
+      }
       const matchMoved = next.matchState !== r.matchState || next.matchProspectId !== r.matchProspectId, fitMoved = fit.fit !== r.repairFit;
       if (!matchMoved && !fitMoved) continue;
       out.changed++;
@@ -88,10 +116,16 @@ export async function rematchCandidates(actor: PlatformSalesActor, opts: { provi
         });
       }
     }
+    if (detail && pendingMatch.length) {
+      const ids = [...new Set(pendingMatch.flatMap((m) => [m.r.matchProspectId, m.toId]).filter((x): x is string => !!x))];
+      const names = new Map((await db.crmProspect.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, city: true } })).map((p) => [p.id, `${p.name}${p.city ? ` (${p.city})` : ""}`]));
+      for (const m of pendingMatch) detail.matchChanges.push({ id: m.r.id, name: m.r.name, city: m.r.city, from: m.r.matchState, to: m.to, crmBefore: m.r.matchProspectId ? names.get(m.r.matchProspectId) ?? "(removed)" : null, crmAfter: m.toId ? names.get(m.toId) ?? "(removed)" : null });
+    }
     cursor = rows.length === REMATCH_PAGE ? rows[rows.length - 1].id : null;
     if (!cursor) break;
   }
   out.nextCursor = cursor;
+  if (detail) { out.detail = detail; out.poolSize = await db.crmDiscoveryCandidate.count({ where: { province: opts.province, importState: "NOT_IMPORTED", duplicateOfCandidateId: null } }); }
   if (opts.apply && out.changed > 0) await writeCrmAudit({ actorUserId: actor.userId, action: "LEAD_RADAR_REMATCH", entityType: "CrmDiscoveryCandidate", metadata: { province: opts.province, examined: out.examined, changed: out.changed, transitions: out.transitions, icpNewlyExcluded: icp.newlyExcluded, icpRegistryVersion: icp.registryVersion } });
   return out;
 }

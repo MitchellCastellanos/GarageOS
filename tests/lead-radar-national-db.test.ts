@@ -539,4 +539,57 @@ if (!enabled) {
     const cfAfter = await db.crmDiscoveryCandidate.findUniqueOrThrow({ where: { id: cf.id } });
     assert.deepEqual([cfAfter.repairFit, cfAfter.reviewState, cfAfter.reviewNote], ["EXCLUDED", "APPROVED", "approved by a person"], "fit corrected; the person's decision is kept (and the import gate still refuses it)");
   });
+
+  test("Preview all: bounded 500-candidate batches over a province (cursor-resumable) are strictly read-only, add up exactly to the single multi-page re-check, and report domain-only exclusions, CRM match changes, protected impact and review rows", async () => {
+    const access = await import("../src/lib/sales-crm/access");
+    const { rematchCandidates, REMATCH_PAGE } = await import("../src/lib/lead-radar/rematch");
+    const prev = await import("../src/domain/lead-radar/icp-preview");
+    const admin = (await access.resolvePlatformSalesActor(users.Root))!;
+    // 1,100 more Alberta candidates (3 batches in total): clones of an existing row, so every column is realistic. A fifth carry a stale VERIFIED verdict on a franchisor-site-only business.
+    const tpl = await db.crmDiscoveryCandidate.findFirstOrThrow({ where: { province: "AB", importState: "NOT_IMPORTED", duplicateOfCandidateId: null } });
+    const { id: _id, ...rest } = tpl as any; void _id;
+    const mk = (i: number) => ({ ...rest, sourceRecordId: `pa-${run}-${i}`, name: i % 5 === 0 ? `Pa Station ${i}` : `Pa Garage ${i}`, nameNormalized: `pa garage ${i}`, website: i % 5 === 0 ? `https://www.napaautopro.com/stations/pa${i}` : `https://pa-${run}-${i}.example.ca`,
+      phone: null, address: `${i} Preview Rd`, repairFit: i % 5 === 0 ? "VERIFIED_REPAIR" : tpl.repairFit, repairFitReasons: i % 5 === 0 ? ["REPAIR_CATEGORY"] : tpl.repairFitReasons, reviewState: i % 50 === 0 ? "APPROVED" : "PENDING", importState: "NOT_IMPORTED", importedProspectId: null, matchState: "NEW", matchProspectId: null, duplicateOfCandidateId: null });
+    await db.crmDiscoveryCandidate.createMany({ data: Array.from({ length: 1100 }, (_, i) => mk(i + 1)) });
+    const pool = await db.crmDiscoveryCandidate.count({ where: { province: "AB", importState: "NOT_IMPORTED", duplicateOfCandidateId: null } });
+    assert.ok(pool > REMATCH_PAGE * 2, "more than two batches");
+    const snap = async () => JSON.stringify([await db.crmDiscoveryCandidate.findMany({ where: { province: "AB" }, orderBy: { id: "asc" } }), await db.crmProspect.count(), await db.crmAuditEvent.count()]);
+    const before = await snap();
+
+    as(users.Root);
+    let acc = prev.newAcc("AB");
+    for (let guard = 0; !acc.done && guard < 20; guard++) {
+      const from = acc.cursor;
+      const r: any = await radar.previewProvinceCandidatesBatch({ province: "AB", cursor: from });
+      assert.equal(r.ok, true, JSON.stringify(r));
+      assert.ok(r.result.examined <= REMATCH_PAGE, "each request is bounded");
+      acc = prev.mergeBatch(acc, r.result, from);
+    }
+    assert.equal(acc.done, true); assert.equal(acc.examined, pool); assert.equal(acc.poolSize, pool); assert.ok(acc.batches >= 3);
+    assert.equal(await snap(), before, "Preview all writes nothing: candidates, prospects and the audit log are untouched");
+
+    // Exactly the same totals as the single multi-page re-check (preview mode).
+    const single = await rematchCandidates(admin, { province: "AB", apply: false });
+    assert.equal(single.nextCursor, null);
+    assert.deepEqual([acc.examined, acc.changed, acc.transitions], [single.examined, single.changed, single.transitions]);
+    assert.deepEqual([acc.icp.newlyExcluded, acc.icp.newlyExcludedDomainOnly, acc.icp.verifiedAfter, acc.icp.excludedAfter, acc.icp.remainingHumanReview], [single.icp.newlyExcluded, single.icp.newlyExcludedDomainOnly, single.icp.verifiedAfter, single.icp.excludedAfter, single.icp.remainingHumanReview]);
+    // The franchisor-site-only exclusions are listed with business, domain, brand and reason; approved candidates are reported as protected decisions and never changed.
+    assert.ok(acc.icp.newlyExcludedDomainOnly >= 220, "every fifth clone");
+    assert.equal(acc.detail.domainOnly.length, acc.icp.newlyExcludedDomainOnly);
+    assert.deepEqual([acc.detail.domainOnly[0].domain, acc.detail.domainOnly[0].brand, acc.detail.domainOnly[0].reason], ["napaautopro.com", "NAPA", "ICP_EVIDENCE_DOMAIN_ONLY"]);
+    assert.ok(acc.detail.review.some((x) => x.kind === "QUESTIONABLE_EXCLUSION" && x.flags.includes("DOMAIN_ONLY")));
+    assert.ok(acc.icp.protectedDecisions.examined >= 20 && acc.icp.protectedDecisions.reviewStateTouched === 0);
+    assert.equal(prev.recommendApply(acc).verdict, "NO_GO", "a fifth of the exclusions rest on the domain alone");
+    const csv = prev.toCsv(acc.detail.domainOnly, prev.DOMAIN_ONLY_CSV_COLUMNS);
+    assert.ok(csv.split("\r\n").length > acc.detail.domainOnly.length);
+    // Resumable: restarting from a mid-way cursor yields the remaining batches only.
+    const mid: any = await radar.previewProvinceCandidatesBatch({ province: "AB", cursor: null });
+    const rest2: any = await radar.previewProvinceCandidatesBatch({ province: "AB", cursor: mid.result.nextCursor });
+    assert.equal(mid.result.examined + rest2.result.examined + (rest2.result.nextCursor ? 1 : 0) >= pool - REMATCH_PAGE, true);
+    // Not for sellers, not for apply-with-detail.
+    const seller = await access.resolvePlatformSalesActor(users.Seller);
+    if (seller) await assert.rejects(rematchCandidates(seller, { province: "AB", apply: false, detail: true }), /SALES_FORBIDDEN/);
+    await assert.rejects(rematchCandidates(admin, { province: "AB", apply: true, detail: true }), /INVALID/);
+    assert.equal(await snap(), before);
+  });
 }

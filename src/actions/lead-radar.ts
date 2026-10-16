@@ -153,6 +153,12 @@ export async function decideDiscoveredContact(input: { id: string; decision: "AC
   return crmAction(async () => { const r = await reviewDiscoveredContact(actor, String(input?.id ?? ""), input?.decision, input?.note ?? null); touch(); return r; });
 }
 
+/** "Preview all": ONE bounded (500-candidate), strictly read-only batch of the re-check with per-candidate detail. The browser calls it repeatedly with the returned cursor; nothing is written or audited. */
+export async function previewProvinceCandidatesBatch(input: { province: string; cursor?: string | null }) {
+  const actor = await requireLeadRadar("admin");
+  return crmAction(async () => ({ result: await rematchCandidates(actor, { province: String(input?.province ?? ""), apply: false, cursor: input?.cursor ?? null, maxPages: 1, detail: true }) }));
+}
+
 /** Re-check the CRM match of staged, not-yet-imported candidates of ONE province with the current matching rules. Preview writes nothing; apply writes derived match columns only. */
 export async function rematchProvinceCandidates(input: { province: string; apply: boolean; cursor?: string | null }) {
   const actor = await requireLeadRadar("admin");
