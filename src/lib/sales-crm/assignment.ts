@@ -9,6 +9,7 @@ import { assignedScopeWhere } from "@/domain/sales-crm/access";
 import { loadTerritoryRulesWith } from "@/lib/sales-crm/territory-rules";
 import { writeCrmAudit } from "@/lib/sales-crm/audit";
 import { LEAD_RADAR_SOURCE_KEY } from "@/domain/lead-radar/bridge";
+import { assessIcp } from "@/domain/lead-radar/icp";
 import type { RepairFit } from "@/domain/lead-radar/repair-fit";
 import { candidateEvidence, proposeFit } from "@/lib/sales-crm/repair-fit-service";
 
@@ -46,14 +47,16 @@ export async function loadSellers(actor: PlatformSalesActor, client: Prisma.Tran
 }
 
 /** Stored fit if a decision exists; otherwise the live assessment from the prospect's own facts and its staged candidate. Only VERIFIED_REPAIR is assignable. */
-export async function effectiveFits(client: Prisma.TransactionClient | typeof db, rows: readonly { id: string; name: string; industry: string | null; repairFit: RepairFit | null }[]): Promise<Map<string, RepairFit | "UNCLASSIFIED">> {
+export async function effectiveFits(client: Prisma.TransactionClient | typeof db, rows: readonly { id: string; name: string; industry: string | null; repairFit: RepairFit | null; website?: string | null; city?: string | null; repairFitSource?: string | null }[]): Promise<Map<string, RepairFit | "UNCLASSIFIED">> {
   const out = new Map<string, RepairFit | "UNCLASSIFIED">();
   const open = rows.filter((r) => !r.repairFit);
-  for (const r of rows) if (r.repairFit) out.set(r.id, r.repairFit);
+  // Discovery ICP at assignment: a confirmed chain/franchise/dealership is never assigned, even when an older automatic label (or none) says otherwise. Only a HUMAN decision outranks it.
+  const chain = (r: (typeof rows)[number]) => r.repairFitSource !== "HUMAN" && assessIcp({ name: r.name, website: r.website, city: r.city }).outside;
+  for (const r of rows) if (r.repairFit) out.set(r.id, chain(r) ? "EXCLUDED" : r.repairFit);
   if (open.length) {
     const cands = await candidateEvidence(client, open.map((r) => r.id));
     // Same rule as the cleanup (proposeFit): a hand-entered record with no evidence either way and nothing contradicting it is UNCLASSIFIED, not held.
-    for (const r of open) out.set(r.id, proposeFit({ name: r.name, industry: r.industry, repairFit: null, repairFitSource: null, repairFitReasons: [], repairFitProtected: false }, cands.get(r.id), false).fit);
+    for (const r of open) out.set(r.id, proposeFit({ name: r.name, industry: r.industry, website: r.website, city: r.city, repairFit: null, repairFitSource: null, repairFitReasons: [], repairFitProtected: false }, cands.get(r.id), false).fit);
   }
   return out;
 }
@@ -84,7 +87,7 @@ export async function buildAssignmentProposals(actor: PlatformSalesActor, f: Pre
       ],
     },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }], take: limit,
-    select: { id: true, name: true, industry: true, repairFit: true, status: true, doNotContact: true, assignedStaffId: true, territoryState: true, province: true, city: true, postalCode: true, fieldPriorityStartedAt: true, remoteReleasedAt: true, preferredLanguage: true, createdAt: true },
+    select: { id: true, name: true, industry: true, website: true, repairFitSource: true, repairFit: true, status: true, doNotContact: true, assignedStaffId: true, territoryState: true, province: true, city: true, postalCode: true, fieldPriorityStartedAt: true, remoteReleasedAt: true, preferredLanguage: true, createdAt: true },
   });
   const [eng, fits] = await Promise.all([loadEngagements(rows.map((r) => r.id)), effectiveFits(db, rows)]);
   const prospects: AssignableProspect[] = rows.map((r) => ({
@@ -99,12 +102,12 @@ export async function buildAssignmentProposals(actor: PlatformSalesActor, f: Pre
 export async function proposalStillValid(tx: Prisma.TransactionClient, actor: PlatformSalesActor, pr: AssignmentProposal, rules: TerritoryRule[], now: Date): Promise<boolean> {
   if (!pr.staffId || !canAssignToStaff(actor, pr.staffId)) return false;
   const [p, s] = await Promise.all([
-    tx.crmProspect.findUnique({ where: { id: pr.prospectId }, select: { name: true, industry: true, repairFit: true, assignedStaffId: true, status: true, doNotContact: true, province: true, city: true, postalCode: true, territoryState: true, fieldPriorityStartedAt: true, remoteReleasedAt: true } }),
+    tx.crmProspect.findUnique({ where: { id: pr.prospectId }, select: { name: true, industry: true, website: true, repairFitSource: true, repairFit: true, assignedStaffId: true, status: true, doNotContact: true, province: true, city: true, postalCode: true, territoryState: true, fieldPriorityStartedAt: true, remoteReleasedAt: true } }),
     tx.platformSalesStaff.findUnique({ where: { id: pr.staffId }, select: { status: true, salesMode: true, coverageTerritoryKeys: true, acceptsAutoAssignment: true } }),
   ]);
   if (!p || !s || p.assignedStaffId || p.status !== "ACTIVE" || p.doNotContact || (p.territoryState !== "LOCAL" && p.territoryState !== "NATIONAL")) return false;
   if (s.status !== "ACTIVE" || !s.acceptsAutoAssignment) return false;
-  const fit = (await effectiveFits(tx, [{ id: pr.prospectId, name: p.name, industry: p.industry, repairFit: p.repairFit }])).get(pr.prospectId);
+  const fit = (await effectiveFits(tx, [{ id: pr.prospectId, name: p.name, industry: p.industry, repairFit: p.repairFit, website: p.website, city: p.city, repairFitSource: p.repairFitSource }])).get(pr.prospectId);
   if (fit !== "VERIFIED_REPAIR" && fit !== "UNCLASSIFIED") return false; // excluded / under review: never assigned
   const eng = (await loadEngagements([pr.prospectId], tx)).get(pr.prospectId)!;
   return evaluateAcquisition({ mode: s.salesMode, coverageKeys: s.coverageTerritoryKeys, isSuperAdmin: false }, resolveTerritory(rules, p), eng, now, false, { fieldPriorityStartedAt: p.fieldPriorityStartedAt, remoteReleasedAt: p.remoteReleasedAt }).allowed;

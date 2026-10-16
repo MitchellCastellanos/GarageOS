@@ -23,3 +23,17 @@ test("C2 scoring: borderline, stop and incomplete states; one incorrect match st
   assert.equal(scoreAudit(sample, { ...base, ...lab("v", 50, "REAL_REPAIR"), e0: { bucket: "WRONG_EXCLUSION" }, ...lab("e", 5, "WRONG_EXCLUSION", 1) }).verdicts.excludedError, "STOP");
   assert.equal(scoreAudit(sample, { ...base, v0: { bucket: "REAL_REPAIR", websiteChecked: true } }).websitesChecked, 1);
 });
+
+test("C2 scoring (independent-repair ICP): a chain inside VERIFIED_REPAIR is its own miss and stops; the ICP exclusion is scored on the rows the gate excluded", () => {
+  const icp = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `e${i}`, evidence: { currentReasons: i < 20 ? ["OUTSIDE_ICP_CHAIN_OR_CORPORATE", "ICP_BRAND_NAPA"] : ["NAME_SIGNAL_CAR_WASH"] } }));
+  const smp = { ...sample, EXCLUDED: icp(50) };
+  const base = { ...lab("h", 25, "AMBIGUOUS"), ...lab("m", 10, "CORRECT_MATCH") };
+  const good = { ...base, ...lab("v", 50, "REAL_REPAIR"), ...lab("e", 20, "CORRECT_EXCLUSION_CHAIN"), ...lab("e", 30, "CORRECT_EXCLUSION", 20) };
+  const ok = scoreAudit(smp, good);
+  assert.deepEqual([ok.verdicts.chainLeakage, ok.verdicts.icpExclusion, ok.icp.excludedByIcp.n, ok.icp.chainLeakage], ["GO", "GO", 20, 0]);
+  const leak = scoreAudit(smp, { ...good, ...lab("v", 1, "CHAIN_OR_CORPORATE", 49) });
+  assert.equal(leak.icp.chainLeakage, 1); assert.equal(leak.verdicts.chainLeakage, "STOP"); assert.equal(leak.icp.independentShareOfVerified, 0.98);
+  const wrong = scoreAudit(smp, { ...good, ...lab("e", 2, "WRONG_EXCLUSION", 0) });
+  assert.equal(wrong.verdicts.icpExclusion, "STOP"); assert.equal(wrong.icp.excludedByIcp.wrong, 2);
+  assert.equal(scoreAudit(sample, good).verdicts.icpExclusion, "INCOMPLETE", "nothing to judge when the sample holds no ICP exclusion");
+});

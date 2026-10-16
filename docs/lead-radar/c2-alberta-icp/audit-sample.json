@@ -1,0 +1,6102 @@
+{
+  "meta": {
+    "province": "AB",
+    "seed": "c2-AB-icp-1",
+    "drawnAt": "2026-10-16T21:00:07.942Z",
+    "populations": {
+      "staged": 6595,
+      "currentRules": {
+        "EXCLUDED": 2398,
+        "HUMAN_REVIEW": 1168,
+        "VERIFIED_REPAIR": 3029
+      },
+      "basis": "current"
+    },
+    "sizes": {
+      "VERIFIED_REPAIR": 50,
+      "EXCLUDED": 50,
+      "HUMAN_REVIEW": 25,
+      "MATCHES": 10
+    },
+    "method": "ORDER BY md5(sourceRecordId || seed) within each stratum (the stable Overture id, so the same seed gives the same sample in any environment holding the same release), duplicates excluded from the three fit strata",
+    "websitesFetched": false
+  },
+  "VERIFIED_REPAIR": [
+    {
+      "id": "cmvbd305a01go457dc13nu9zl",
+      "sourceRecordId": "4f9ae7d4-87d8-4b59-874f-5f80b98e8697",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "MP Auto Body Repair",
+      "category": "auto_body_shop",
+      "tier": "SECONDARY",
+      "address": "920 28 St NE, Calgary, AB, T2A 6K1",
+      "website": "http://www.mpautobodyrepair.ca",
+      "websiteDomain": "mpautobodyrepair.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "COLLISION_BODY"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.85,
+        "datasets": [
+          "Microsoft",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd310y021m457d1fj89xbf",
+      "sourceRecordId": "6d4d2fcb-1beb-4a9a-918c-af0247579a89",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "Wright Automotive",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "9978 67 Ave NW, Edmonton, AB, T6E 0P5",
+      "website": "https://www.wrightautomotive.ca",
+      "websiteDomain": "wrightautomotive.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.9885663390159607,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd30kn01rj457dfnbswr71",
+      "sourceRecordId": "5f69a27a-f895-470f-a3e7-353a5975b5da",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "G-Tec Mechanical Inc",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "36343 Hwy 2 Service Rd NB, Red Deer County, AB, T0M 1R0",
+      "website": "http://g-tecmechanicalinc.ca",
+      "websiteDomain": "g-tecmechanicalinc.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.77,
+        "datasets": [
+          "Foursquare",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd344a04gc457dzs1a4hev",
+      "sourceRecordId": "e08a5c4e-2b4c-482c-963e-70143a57870d",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "Twin Peaks Automotive",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "8 Legend Trl, Stony Plain, AB, T7Z 0B1",
+      "website": null,
+      "websiteDomain": null,
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED",
+          "NO_WEBSITE"
+        ],
+        "sourceConfidence": 0.7703885436058044,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd33fi03u4457d27tfzm82",
+      "sourceRecordId": "c54fc1fe-a03c-4642-895b-f421d34e38c0",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "Prairiefire Paint",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "5533-48th, Consort, AB, T0C 1B0",
+      "website": "http://www.prairiefirepaint.com",
+      "websiteDomain": "prairiefirepaint.com",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.6840171813964844,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd2ywj00e8457djn4nvz0h",
+      "sourceRecordId": "1616f33a-48a8-48f3-9ba0-c4df3315bc75",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "home mobile auto warehouse",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "5967 103a St NW, Edmonton, AB, T6H 2J7",
+      "website": "http://www.homemobileauto.ca",
+      "websiteDomain": "homemobileauto.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED",
+          "LOW_CONFIDENCE"
+        ],
+        "sourceConfidence": 0.2366127222776413,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd305a01gj457dghn1061r",
+      "sourceRecordId": "4f63a066-49f1-4769-9a74-75033b4935b2",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "Cars Automotive",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "9805 Horton Rd SW, Calgary, AB, T2V 2X5",
+      "website": "http://carsauto.ca",
+      "websiteDomain": "carsauto.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.9546320182085037,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd33fi03ub457dst51blts",
+      "sourceRecordId": "c57b29c4-7fb4-49c1-b92a-b10cc91d4c73",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "GMD Auto Werks",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "11010 166a St NW, Edmonton, AB, T5P 4H6",
+      "website": "https://gmdautowerks.com",
+      "websiteDomain": "gmdautowerks.com",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.6378857493400574,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd31o402mf457d5jdbzx49",
+      "sourceRecordId": "8a69ca7c-b455-48e0-ac92-514f9967305d",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "Collision Kings",
+      "category": "auto_body_shop",
+      "tier": "SECONDARY",
+      "address": "2520 Centre Ave, Calgary, AB, T2A 2L2",
+      "website": "http://www.tandthonda.ca/collision.php",
+      "websiteDomain": "tandthonda.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "COLLISION_BODY"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED",
+          "LOW_CONFIDENCE"
+        ],
+        "sourceConfidence": 0.4084594249725342,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd305a01fr457d72y8c2k3",
+      "sourceRecordId": "4e52c609-3c70-48c5-9bcd-981f1dc252f4",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "A-Q Auto Mechanic",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "4127 Edmonton Trail NE, Calgary, AB, T2E 3V5",
+      "website": "http://yp.ca/bus/7597403",
+      "websiteDomain": "yp.ca",
+      "websiteDomainIsShared": true,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.77,
+        "datasets": [
+          "Foursquare",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd2zbk00rd457dp03w5ce4",
+      "sourceRecordId": "2a42c54e-f254-4656-96f9-580d98923e3d",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "RJ King Mechanics Corp.",
+      "category": "truck_repair",
+      "tier": "PRIMARY",
+      "address": "291 Macalpine Crescent #117, Wood Buffalo, AB, T9H 4Y4",
+      "website": "https://rjkingmechanics.ca",
+      "websiteDomain": "rjkingmechanics.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "HEAVY_VEHICLE_REPAIR"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.9115440464019775,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "HEAVY_DUTY"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd2zr6010z457dlhhay8z6",
+      "sourceRecordId": "376a7058-d069-425a-ab2a-e2b77f0880d1",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "Caliber Automotive Ltd",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "16625 111 Ave NW, Edmonton, AB, T5M 2S2",
+      "website": "http://www.caliberautomotive.com",
+      "websiteDomain": "caliberautomotive.com",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.9982978724837304,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd30c601kf457dch3mxbx4",
+      "sourceRecordId": "559a8704-f841-4056-9d88-2b613f999468",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "Stadium Automotive",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "9129 111 Ave NW, Edmonton, AB, T5B 0C3",
+      "website": "http://www.stadiumautomotive.ca",
+      "websiteDomain": "stadiumautomotive.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.9938723754882812,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd305a01eh457djf9cr6rn",
+      "sourceRecordId": "4c9e0687-5256-4670-8861-130ad441b9b5",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "Minit Lube Ltd (Downtown RD)",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "5420 49 Ave, Red Deer, AB, T4N 5Z7",
+      "website": "http://www.minitlube.com",
+      "websiteDomain": "minitlube.com",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.9883523643016815,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd2zbd00qs457dzk41eqsr",
+      "sourceRecordId": "29ad9fa7-05b4-4fc6-8c2b-244e9770293c",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "Pete's Auto Service",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "5511 Wolf Creek Dr Bay 2, Lacombe, AB, T4L 2H8",
+      "website": "http://www.fixitwithpete.com",
+      "websiteDomain": "fixitwithpete.com",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.9895405155420304,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd31vg02ni457diflibibj",
+      "sourceRecordId": "8babecfc-cecb-4c91-85c7-c0f92fb11ffa",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "Anarchy Mechanical Ltd.",
+      "category": "truck_repair",
+      "tier": "PRIMARY",
+      "address": "10609 79 Ave, Grande Prairie County No 1, AB, T8X 5G9",
+      "website": null,
+      "websiteDomain": null,
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "HEAVY_VEHICLE_REPAIR"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED",
+          "NO_WEBSITE"
+        ],
+        "sourceConfidence": 0.8041684627532959,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "HEAVY_DUTY"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd350a04zh457dkt89wkti",
+      "sourceRecordId": "f9521a0b-b06e-45ea-8079-2c18442ed2a1",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "Northland Radiator Service",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "6870 Edgar Industrial Dr, Red Deer, AB, T4P 3R2",
+      "website": "http://www.northlandradiator.com",
+      "websiteDomain": "northlandradiator.com",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.999557374626398,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd2yds001m457di2hz57cr",
+      "sourceRecordId": "01e33b2d-1c92-49a7-bd44-99cb52cc054e",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "Elite PDR Specialists",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "4709 36 St, Camrose, AB, T4V 0J3",
+      "website": null,
+      "websiteDomain": null,
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL",
+          "NO_WEBSITE"
+        ],
+        "sourceConfidence": 0.583040714263916,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd32jy0398457d1m7dfvqj",
+      "sourceRecordId": "aa26453b-6de9-4271-be77-2c4943755d87",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "JNS Performance",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "1239 36 St N, Lethbridge, AB, T1H 6L5",
+      "website": "http://www.jnsperformance.com",
+      "websiteDomain": "jnsperformance.com",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.6902488470077515,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd2zr7012o457d23qxignz",
+      "sourceRecordId": "39853385-e8fb-43c3-9338-908a9dd30e8f",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "Tire Zone",
+      "category": "tire_dealer_and_repair",
+      "tier": "PRIMARY",
+      "address": "12318 Barlow Trail NE #130, Calgary, AB, T3N 2A9",
+      "website": "http://tirezoneyyc.ca",
+      "websiteDomain": "tirezoneyyc.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "TIRE_SERVICE"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.9736323356628418,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd344904cw457dh28jlbzy",
+      "sourceRecordId": "dc9fb1bd-98e5-432f-98ba-03df16eef7c9",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "Diamond Edge Services",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "4250 47 Ave Office A, Olds, AB, T4H 1T9",
+      "website": "http://www.diamondedgeservices.ca",
+      "websiteDomain": "diamondedgeservices.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.9888727879524231,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd30c601k9457dpdj2tugp",
+      "sourceRecordId": "554fb626-a3e2-4885-af18-6a31a0eac55b",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "ProColor Collision",
+      "category": "auto_body_shop",
+      "tier": "SECONDARY",
+      "address": "4315 78 Ave NW, Edmonton, AB, T6B 2N3",
+      "website": null,
+      "websiteDomain": null,
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "COLLISION_BODY"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED",
+          "NO_WEBSITE"
+        ],
+        "sourceConfidence": 0.9843816423416137,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd2ydt002f457d4uvyiajk",
+      "sourceRecordId": "036a6cb4-770f-4d93-95dc-f80792c44987",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "Windewa Mobile Maintainence",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "725 20 St N, Lethbridge, AB, T1H 4Z6",
+      "website": "http://yp.ca/bus/101025820",
+      "websiteDomain": "yp.ca",
+      "websiteDomainIsShared": true,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.77,
+        "datasets": [
+          "Foursquare",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd310y021k457dobgcuwf1",
+      "sourceRecordId": "6d3e0b1d-1c6c-4745-ab53-77e7cf15db03",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "Iron Mountain Diesel",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "418 Railway Ave E, Cremona, AB, T0M 0B9",
+      "website": "http://ironmountaindiesel.com",
+      "websiteDomain": "ironmountaindiesel.com",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.999231659501791,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "HEAVY_DUTY"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd2yos00a8457dqx82v4n0",
+      "sourceRecordId": "0ff33a26-abbb-40c7-8756-5470dc6f3295",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "Euro Auto Service Ltd",
+      "category": "automotive_service",
+      "tier": "AMBIGUOUS",
+      "address": "7929A Coronet Rd NW, Edmonton, AB, T6E 4N7",
+      "website": "http://euroautoserve.com",
+      "websiteDomain": "euroautoserve.com",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY_AND_NAME"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY_AND_NAME"
+        ],
+        "classReasons": [
+          "GENERIC_AUTOMOTIVE_SERVICE"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.9910764411687851,
+        "datasets": [
+          "Microsoft",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd32sa03c5457dsg1ah7qo",
+      "sourceRecordId": "add3e13d-df30-4414-ad68-18cc19caf361",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "Brothers Tire Service Ltd.",
+      "category": "tire_dealer_and_repair",
+      "tier": "PRIMARY",
+      "address": "235126 ryan road, Rocky View County, AB, T3J 4A2",
+      "website": null,
+      "websiteDomain": null,
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "TIRE_SERVICE"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED",
+          "NO_WEBSITE"
+        ],
+        "sourceConfidence": 0.8251138925552368,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd34k804r7457dreij974e",
+      "sourceRecordId": "ee1789b2-c098-44c7-865c-36987bead98c",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "Friendly tire & auto services",
+      "category": "tire_dealer_and_repair",
+      "tier": "PRIMARY",
+      "address": "4669 62 St unit 3, Red Deer, AB, T4N 2R4",
+      "website": null,
+      "websiteDomain": null,
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "TIRE_SERVICE"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED",
+          "LOW_CONFIDENCE",
+          "NO_WEBSITE"
+        ],
+        "sourceConfidence": 0.2549942433834076,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd2zbk00sb457dz6nh89oi",
+      "sourceRecordId": "2b6a443e-7ab6-442a-a653-1475e1471ef1",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "Magpie Garage",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "119 Clarke St, Acme, AB, T0M 0A0",
+      "website": null,
+      "websiteDomain": null,
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED",
+          "LOW_CONFIDENCE",
+          "NO_WEBSITE"
+        ],
+        "sourceConfidence": 0.21365952491760254,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd344904cs457dic4dz7af",
+      "sourceRecordId": "dc6c8a38-e500-4a0c-896d-48b6a5a93473",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "Inline Auto Centre",
+      "category": "auto_body_shop",
+      "tier": "SECONDARY",
+      "address": "5710 39A Ave, Wetaskiwin, AB, T9A 2Z4",
+      "website": "http://www.inlineautocentre.com",
+      "websiteDomain": "inlineautocentre.com",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "COLLISION_BODY"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.9928957825899124,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd338203q3457dpljvhypd",
+      "sourceRecordId": "c04a9981-eb0f-4e49-90c4-3307e4afe2ac",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "Grizzly Trucks Red Deer",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "98 Clearview Dr, Red Deer, AB",
+      "website": "http://www.grizzlytrucks.ca",
+      "websiteDomain": "grizzlytrucks.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED",
+          "NO_POSTAL"
+        ],
+        "sourceConfidence": 0.7805976271629333,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd32jx036s457dgcj5pohh",
+      "sourceRecordId": "a655b9d8-c7dd-4f0d-a8a1-ba597c29a451",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "Lube City",
+      "category": "oil_change_station",
+      "tier": "PRIMARY",
+      "address": "119 8 St SW, Airdrie, AB, T4B 2X7",
+      "website": "https://www.lubecity.ca/stores/airdrie-119-8th-street-sw",
+      "websiteDomain": "lubecity.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "MAINTENANCE"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.9997930150032044,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd30cc01m5457dfe7q0rkh",
+      "sourceRecordId": "585ea686-7710-479c-8e68-77a61d9309ca",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "Acreage Auto Works",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "52312 Range Rd 223 #146, Strathcona County, AB, T8C 1B3",
+      "website": "http://www.acreageautoworks.ca",
+      "websiteDomain": "acreageautoworks.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED",
+          "LOW_CONFIDENCE"
+        ],
+        "sourceConfidence": 0.2586977183818817,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd350a0509457dj8dyg6nc",
+      "sourceRecordId": "fa7271f7-8173-45f2-875b-d111c4bb81e4",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "7Eighty Auto Plus",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "10515 103 Ave NW, Edmonton, AB, T5J 4P7",
+      "website": "http://www.7eightyauto.com",
+      "websiteDomain": "7eightyauto.com",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.6114735007286072,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd34k804r8457da403h9px",
+      "sourceRecordId": "ee1e5881-7f03-49f7-8b5d-44ea305cac35",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "MG Collision Center",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "Calgary, AB, T2V 4J2",
+      "website": "http://www.mgcollisioncentre.com",
+      "websiteDomain": "mgcollisioncentre.com",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "ADDRESS_INCOMPLETE",
+          "NO_ADDRESS",
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.77,
+        "datasets": [
+          "Foursquare",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd31g502av457dx572t10w",
+      "sourceRecordId": "7a29f63e-dbdc-4527-95cb-9bb0a359fccb",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "Elite Autoworks",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "9969 29A Ave NW, Edmonton, AB, T6N 1A9",
+      "website": "http://eliteautowork.weebly.com",
+      "websiteDomain": "eliteautowork.weebly.com",
+      "websiteDomainIsShared": true,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.77,
+        "datasets": [
+          "Foursquare",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd2z4a00j2457dlif1v33p",
+      "sourceRecordId": "1d92c14b-0b95-47ce-b48a-c63dbe90f7c8",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "CarProof Auto and Body Shop Repair Centre",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "9650 105A Ave NW, Edmonton, AB, T5H 0M4",
+      "website": "http://carproofauto.ca",
+      "websiteDomain": "carproofauto.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.9916505467891693,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd2zr6010o457dof3zz0kb",
+      "sourceRecordId": "371128e7-9e76-4b22-8371-1c76f58faf3c",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "Truck Dynasty Mechanical Services",
+      "category": "truck_repair",
+      "tier": "PRIMARY",
+      "address": "1108 5th Street, Nisku, AB, T9E 8B6",
+      "website": "http://www.truckdynasty.ca",
+      "websiteDomain": "truckdynasty.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "HEAVY_VEHICLE_REPAIR"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.85,
+        "datasets": [
+          "Microsoft",
+          "Overture"
+        ],
+        "commercialSegment": "HEAVY_DUTY"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd2zr8014s457dlt5ed0i7",
+      "sourceRecordId": "3cd3c8b1-a0be-45fa-a1f2-aee0705a9560",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "Northern Automatic Transmission",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "9530 115 St, Grande Prairie, AB, T8V 5W2",
+      "website": "http://www.northernautomatictransmission.ca",
+      "websiteDomain": "northernautomatictransmission.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.9968285989761353,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd33nb041l457dakx84n3h",
+      "sourceRecordId": "ce03961d-65d7-49e0-a9b4-0dc3c8a0d057",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "Glenn's Auto Repair",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "4932 50 Ave, Legal, AB",
+      "website": "http://glennsauto.ca",
+      "websiteDomain": "glennsauto.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED",
+          "NO_POSTAL"
+        ],
+        "sourceConfidence": 0.8747041821479797,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd34rh04xs457d6ihxaftj",
+      "sourceRecordId": "f6b0b9e3-e481-4b60-93be-5275960d6dd2",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "DECO Windshield Repair",
+      "category": "windshield_installation_and_repair",
+      "tier": "SECONDARY",
+      "address": "3803 Calgary Trl NW, Edmonton, AB, T6J 5M8",
+      "website": "https://decorepair.com/locations/south-park-centre",
+      "websiteDomain": "decorepair.com",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "GLASS"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.85,
+        "datasets": [
+          "Microsoft",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd2z4900hz457dfyz8opoh",
+      "sourceRecordId": "1c1537c4-e997-43d1-b3da-54fe14ae09c5",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "Barks Body Works Ltd",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "4807 50 St, Valleyview, AB, T0H 3N0",
+      "website": "http://barksbodyworksltd.com",
+      "websiteDomain": "barksbodyworksltd.com",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.77,
+        "datasets": [
+          "Foursquare",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd34ci04lp457d9nel6d4x",
+      "sourceRecordId": "e7130786-7fd3-464b-a71d-4f802a082f6b",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "JW Auto Centers",
+      "category": "truck_repair",
+      "tier": "PRIMARY",
+      "address": "9416 40 St SE, Calgary, AB, T2C 2P3",
+      "website": "https://truckcenters.ca",
+      "websiteDomain": "truckcenters.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "HEAVY_VEHICLE_REPAIR"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.85,
+        "datasets": [
+          "Microsoft",
+          "Overture"
+        ],
+        "commercialSegment": "HEAVY_DUTY"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd30c701l2457d65e7wzyz",
+      "sourceRecordId": "5695ab81-b88a-4ff9-b6b4-30ca243e3479",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "Just Tires.ca",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "9705 42 Ave NW, Edmonton, AB, T6E 5P8",
+      "website": "http://www.justtires.ca",
+      "websiteDomain": "justtires.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.8636328610777855,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd2ywj00fx457d8j6rb3wd",
+      "sourceRecordId": "18aea287-d799-4614-beda-be4f2a4331f0",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "Awais's Truck Center and Repair Facility",
+      "category": "truck_repair",
+      "tier": "PRIMARY",
+      "address": "4315 72 Ave SE, Calgary, AB, T2C 2G5",
+      "website": "https://atcrepair.ca",
+      "websiteDomain": "atcrepair.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "HEAVY_VEHICLE_REPAIR"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.9957941263914108,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "HEAVY_DUTY"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd2zr70125457ddb9qcuc9",
+      "sourceRecordId": "3904dec1-dee4-4fed-aea0-6ae0da2f0ddb",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "ABS Truck Repair Solutions Ltd",
+      "category": "truck_repair",
+      "tier": "PRIMARY",
+      "address": "8616 44th Street SE, Calgary, AB, T2C 2P6",
+      "website": "http://abstruckrepairsolutionsltd.com",
+      "websiteDomain": "abstruckrepairsolutionsltd.com",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "HEAVY_VEHICLE_REPAIR"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.9874321759939194,
+        "datasets": [
+          "Microsoft",
+          "Overture"
+        ],
+        "commercialSegment": "HEAVY_DUTY"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd2zye017w457dof3ev19l",
+      "sourceRecordId": "41bba185-09b4-4428-811b-d198317936d7",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "Montgomery Auto Body & Paint",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "6316 Bowness Rd NW, Calgary, AB, T3B 0E5",
+      "website": "http://montgomeryautobodyandpaint.ca",
+      "websiteDomain": "montgomeryautobodyandpaint.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.77,
+        "datasets": [
+          "Foursquare",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd344904d4457d2wsolex2",
+      "sourceRecordId": "dcfa93e1-9226-440e-b2cd-695b72325fd4",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "Alpha Tires",
+      "category": "tire_dealer_and_repair",
+      "tier": "PRIMARY",
+      "address": "7320 40 St NE, Calgary, AB, T3J 4E6",
+      "website": "https://alphatires.ca",
+      "websiteDomain": "alphatires.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "TIRE_SERVICE"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.9846176302433014,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd344a04et457dolmeqxzw",
+      "sourceRecordId": "ded453d6-b4b4-4997-98de-667434377caf",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "Crystal Glass",
+      "category": "auto_glass_service",
+      "tier": "SECONDARY",
+      "address": "16107 Stony Plain Rd NW, Edmonton, AB, T5P 4A1",
+      "website": "https://crystalglass.ca/location/edmonton-west",
+      "websiteDomain": "crystalglass.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "GLASS"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.9928357303142548,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd33nb040p457dlp7zmme7",
+      "sourceRecordId": "cd3db5ed-e609-47f8-b250-3916aaa98148",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "Hauz of Auto Parts & Repair",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "2422 9 Ave SE, Calgary, AB, T2G 0V7",
+      "website": null,
+      "websiteDomain": null,
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED",
+          "NO_WEBSITE",
+          "WEBSITE_IS_SOCIAL"
+        ],
+        "sourceConfidence": 0.6986677050590515,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd344a04f3457de38xfqoj",
+      "sourceRecordId": "df310791-0932-4ea1-87bf-cef11cf32d8c",
+      "stratum": "VERIFIED_REPAIR",
+      "name": "Motorsports Addicts",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "261 Kaska Rd, Strathcona County, AB, T8A 4E8",
+      "website": null,
+      "websiteDomain": null,
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED",
+          "NO_WEBSITE"
+        ],
+        "sourceConfidence": 0.6692047119140625,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    }
+  ],
+  "EXCLUDED": [
+    {
+      "id": "cmvbd350a04zn457dzai3ke9f",
+      "sourceRecordId": "f991e00f-293e-425f-91bd-8568e21d3301",
+      "stratum": "EXCLUDED",
+      "name": "Fountain Tire",
+      "category": "tire_dealer_and_repair",
+      "tier": "PRIMARY",
+      "address": "7007 Macleod Trl SW, Calgary, AB, T2H 0L7",
+      "website": "https://www.fountaintire.com/stores/calgary-macleod-trail-ab",
+      "websiteDomain": "fountaintire.com",
+      "websiteDomainIsShared": true,
+      "bannerName": true,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "OUTSIDE_ICP_CHAIN_OR_CORPORATE",
+          "ICP_TIRE_NETWORK",
+          "ICP_BRAND_FOUNTAIN_TIRE",
+          "ICP_REGISTRY_V1"
+        ],
+        "classReasons": [
+          "CHAIN_NAME",
+          "TIRE_SERVICE"
+        ],
+        "chainSignal": "CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.9999443742215633,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd34cg04ic457dwh7kuo6f",
+      "sourceRecordId": "e34076f5-dc43-4fcd-8b27-187400f6afbe",
+      "stratum": "EXCLUDED",
+      "name": "Presidential Auto Detailing",
+      "category": "auto_detailing",
+      "tier": "SECONDARY",
+      "address": "9832 47 Ave NW, Edmonton, AB, T6E 5P3",
+      "website": "https://presidentialautodetailing.ca",
+      "websiteDomain": "presidentialautodetailing.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "EXCLUDED",
+        "storedReasons": [
+          "NON_TARGET_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "NON_TARGET_CATEGORY"
+        ],
+        "classReasons": [
+          "DETAILING"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.9813514447212219,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd34k604o0457dsbb0h7g6",
+      "sourceRecordId": "e97f91c5-51a0-456f-a7a4-59e42e943415",
+      "stratum": "EXCLUDED",
+      "name": "Kelvin Singh - Capital GMC",
+      "category": "automotive_service",
+      "tier": "AMBIGUOUS",
+      "address": "9751 34 St, Edmonton, AB, T6T 1W5",
+      "website": "http://www.capitalgmcbuick.ca",
+      "websiteDomain": "capitalgmcbuick.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "HUMAN_REVIEW",
+        "storedReasons": [
+          "OEM_BRAND_NAME"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "OUTSIDE_ICP_CHAIN_OR_CORPORATE",
+          "ICP_DEALERSHIP",
+          "ICP_REGISTRY_V1"
+        ],
+        "classReasons": [
+          "GENERIC_AUTOMOTIVE_SERVICE"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.9323966360092163,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd31g802ew457dbpeahmwi",
+      "sourceRecordId": "80968f62-92ba-4f3c-955f-63e222c532f8",
+      "stratum": "EXCLUDED",
+      "name": "Grandview Truck And Carwash",
+      "category": "car_wash",
+      "tier": "SECONDARY",
+      "address": "9901 Hoppe Ave, Greenview No 16, AB, T0E 0A6",
+      "website": null,
+      "websiteDomain": null,
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "EXCLUDED",
+        "storedReasons": [
+          "NON_TARGET_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "NON_TARGET_CATEGORY"
+        ],
+        "classReasons": [
+          "CAR_WASH"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED",
+          "NO_WEBSITE"
+        ],
+        "sourceConfidence": 0.9750104546546936,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd323w02wd457dt3tz71is",
+      "sourceRecordId": "984adb03-56a5-452b-a294-601d9afa3055",
+      "stratum": "EXCLUDED",
+      "name": "Wolf Creek Truck Wash",
+      "category": "car_wash",
+      "tier": "SECONDARY",
+      "address": "4005 52 Ave, Lacombe, AB, T4L 2J8",
+      "website": null,
+      "websiteDomain": null,
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "EXCLUDED",
+        "storedReasons": [
+          "NON_TARGET_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "NON_TARGET_CATEGORY"
+        ],
+        "classReasons": [
+          "CAR_WASH"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL",
+          "NO_WEBSITE"
+        ],
+        "sourceConfidence": 0.9451777935028076,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd31920268457dx98p9itf",
+      "sourceRecordId": "73b35d9e-8fe3-47a1-af61-5b5b59c6bb2d",
+      "stratum": "EXCLUDED",
+      "name": "Integra Tire and Auto Centre",
+      "category": "tire_dealer_and_repair",
+      "tier": "PRIMARY",
+      "address": "10022 124 Ave, Grande Prairie, AB, T8V 5L7",
+      "website": "http://integratire.com/integra-tire-auto-centre-grande-prairie",
+      "websiteDomain": "integratire.com",
+      "websiteDomainIsShared": true,
+      "bannerName": true,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "OUTSIDE_ICP_CHAIN_OR_CORPORATE",
+          "ICP_TIRE_NETWORK",
+          "ICP_BRAND_INTEGRA_TIRE",
+          "ICP_REGISTRY_V1"
+        ],
+        "classReasons": [
+          "TIRE_SERVICE"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.9983224213123322,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd2zjo00tr457dbgbkpoky",
+      "sourceRecordId": "2dc37c96-87e2-4573-bd39-cde1004b35eb",
+      "stratum": "EXCLUDED",
+      "name": "Jiffy Lube",
+      "category": "oil_change_station",
+      "tier": "PRIMARY",
+      "address": "6800 48 Ave #140, Camrose, AB, T4V 4T1",
+      "website": "https://jiffylubeservice.ca/locations/camrose/jiffy-camrose",
+      "websiteDomain": "jiffylubeservice.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": true,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "OUTSIDE_ICP_CHAIN_OR_CORPORATE",
+          "ICP_FRANCHISE_SERVICE_CHAIN",
+          "ICP_BRAND_JIFFY_LUBE",
+          "ICP_REGISTRY_V1"
+        ],
+        "classReasons": [
+          "CHAIN_NAME",
+          "MAINTENANCE"
+        ],
+        "chainSignal": "CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.994930208325386,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd350a04zb457dvr1649e1",
+      "sourceRecordId": "f9007f53-8792-4cf9-8054-9273e20813c3",
+      "stratum": "EXCLUDED",
+      "name": "CARSTAR Calgary McKnight",
+      "category": "auto_body_shop",
+      "tier": "SECONDARY",
+      "address": "4413 11 St NE, Calgary, AB, T2E 6K4",
+      "website": null,
+      "websiteDomain": null,
+      "websiteDomainIsShared": false,
+      "bannerName": true,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "OUTSIDE_ICP_CHAIN_OR_CORPORATE",
+          "ICP_COLLISION_NETWORK",
+          "ICP_BRAND_CARSTAR",
+          "ICP_REGISTRY_V1"
+        ],
+        "classReasons": [
+          "CHAIN_NAME",
+          "COLLISION_BODY"
+        ],
+        "chainSignal": "CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED",
+          "NO_WEBSITE",
+          "WEBSITE_IS_SOCIAL"
+        ],
+        "sourceConfidence": 0.9996551031470299,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd350a050t457doqdbfrvh",
+      "sourceRecordId": "fafd956c-c0a0-4a09-9f01-3476548cd416",
+      "stratum": "EXCLUDED",
+      "name": "Suds In The Bucket Auto Detailing",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "6610 71 St #3, Red Deer, AB, T4P 3Y7",
+      "website": "https://sudsdetailing.ca",
+      "websiteDomain": "sudsdetailing.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "EXCLUDED",
+        "storedReasons": [
+          "NAME_SIGNAL_DETAILING"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "NAME_SIGNAL_DETAILING"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.77,
+        "datasets": [
+          "Foursquare",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd330h03jv457d2i7b6gf4",
+      "sourceRecordId": "b7975799-1b78-44a4-aab0-ce2b37c27869",
+      "stratum": "EXCLUDED",
+      "name": "Saamis Heights Car Wash",
+      "category": "car_wash",
+      "tier": "SECONDARY",
+      "address": "3-12 Sierra Dr SW, Medicine Hat, AB, T1B 4S5",
+      "website": null,
+      "websiteDomain": null,
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "EXCLUDED",
+        "storedReasons": [
+          "NON_TARGET_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "NON_TARGET_CATEGORY"
+        ],
+        "classReasons": [
+          "CAR_WASH"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL",
+          "NO_WEBSITE"
+        ],
+        "sourceConfidence": 0.9616965889930725,
+        "datasets": [
+          "Microsoft",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd31vh02rd457d1qs12f29",
+      "sourceRecordId": "90e5b745-cbb1-4fb1-beac-5603f40c956e",
+      "stratum": "EXCLUDED",
+      "name": "Value Detailing",
+      "category": "auto_detailing",
+      "tier": "SECONDARY",
+      "address": "98 Red Sky Green NE, Calgary, AB, T3N 0V5",
+      "website": null,
+      "websiteDomain": null,
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "EXCLUDED",
+        "storedReasons": [
+          "NON_TARGET_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "NON_TARGET_CATEGORY"
+        ],
+        "classReasons": [
+          "DETAILING"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED",
+          "LOW_CONFIDENCE",
+          "NO_WEBSITE"
+        ],
+        "sourceConfidence": 0.211415097117424,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd33wa046g457dbrih82p2",
+      "sourceRecordId": "d460abf9-b137-4e26-a876-4c760f392721",
+      "stratum": "EXCLUDED",
+      "name": "Tirecraft",
+      "category": "tire_shop",
+      "tier": "PRIMARY",
+      "address": "10511 - 103 Avenue, Edmonton, AB, T5J 4P7",
+      "website": "http://www.tirecraft.com",
+      "websiteDomain": "tirecraft.com",
+      "websiteDomainIsShared": true,
+      "bannerName": true,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "OUTSIDE_ICP_CHAIN_OR_CORPORATE",
+          "ICP_TIRE_NETWORK",
+          "ICP_BRAND_TIRECRAFT",
+          "ICP_REGISTRY_V1"
+        ],
+        "classReasons": [
+          "TIRE_SERVICE"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.85,
+        "datasets": [
+          "Microsoft",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd33nb040u457d6emnxqt6",
+      "sourceRecordId": "cd4a06cc-75f0-48e7-91b7-703f16272098",
+      "stratum": "EXCLUDED",
+      "name": "NAPA AUTOPRO - Eastside Auto Service",
+      "category": "tire_shop",
+      "tier": "PRIMARY",
+      "address": "4009 Ross St, Red Deer, AB, T4N 1W5",
+      "website": "https://www.napaautopro.com/auto-repair/alberta/red-deer-eastside-auto-service",
+      "websiteDomain": "napaautopro.com",
+      "websiteDomainIsShared": true,
+      "bannerName": true,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "OUTSIDE_ICP_CHAIN_OR_CORPORATE",
+          "ICP_PARTS_NETWORK",
+          "ICP_BRAND_NAPA",
+          "ICP_REGISTRY_V1"
+        ],
+        "classReasons": [
+          "CHAIN_NAME",
+          "TIRE_SERVICE"
+        ],
+        "chainSignal": "CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.85,
+        "datasets": [
+          "Microsoft",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd2z4c00nf457d6cz6x7ij",
+      "sourceRecordId": "2463edd9-5d5a-4301-b538-8d5d4464ccb1",
+      "stratum": "EXCLUDED",
+      "name": "Southside Legends Detailing",
+      "category": "car_wash",
+      "tier": "SECONDARY",
+      "address": "9504 Fairmount Dr SE, Calgary, AB, T2J 0R6",
+      "website": "https://southsidelegends.com",
+      "websiteDomain": "southsidelegends.com",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "EXCLUDED",
+        "storedReasons": [
+          "NON_TARGET_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "NON_TARGET_CATEGORY"
+        ],
+        "classReasons": [
+          "CAR_WASH"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.77,
+        "datasets": [
+          "Foursquare",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd2zyd016o457d6mwcuuxp",
+      "sourceRecordId": "3fe0adff-eb58-4474-bebe-8460a63d61b4",
+      "stratum": "EXCLUDED",
+      "name": "CARSTAR Edmonton Millwoods",
+      "category": "auto_body_shop",
+      "tier": "SECONDARY",
+      "address": "3918 91 St NW, Edmonton, AB, T6E 6M5",
+      "website": "https://www.carstar.ca/en/locations/ab/edmonton/carstar-edmonton-millwoods-16048",
+      "websiteDomain": "carstar.ca",
+      "websiteDomainIsShared": true,
+      "bannerName": true,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "OUTSIDE_ICP_CHAIN_OR_CORPORATE",
+          "ICP_COLLISION_NETWORK",
+          "ICP_BRAND_CARSTAR",
+          "ICP_REGISTRY_V1"
+        ],
+        "classReasons": [
+          "CHAIN_NAME",
+          "COLLISION_BODY"
+        ],
+        "chainSignal": "CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.9655,
+        "datasets": [
+          "Microsoft",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd330h03ja457drlloiqsn",
+      "sourceRecordId": "b70d0113-0d83-45b2-bf4a-5210921662ff",
+      "stratum": "EXCLUDED",
+      "name": "Fountain Tire",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "5615 53 St SE, Calgary, AB, T2C 4V1",
+      "website": "http://www.fountaintire.com",
+      "websiteDomain": "fountaintire.com",
+      "websiteDomainIsShared": true,
+      "bannerName": true,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "OUTSIDE_ICP_CHAIN_OR_CORPORATE",
+          "ICP_TIRE_NETWORK",
+          "ICP_BRAND_FOUNTAIN_TIRE",
+          "ICP_REGISTRY_V1"
+        ],
+        "classReasons": [
+          "CHAIN_NAME",
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.9740072500705719,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd319a02a6457d673vn7nj",
+      "sourceRecordId": "78e1d280-fee9-45ed-a18e-b9ebb20af4c0",
+      "stratum": "EXCLUDED",
+      "name": "Kal Tire",
+      "category": "tire_shop",
+      "tier": "PRIMARY",
+      "address": "27 Strathmoor Dr, Sherwood Park, AB, T8H 0C1",
+      "website": "https://www.kaltire.com",
+      "websiteDomain": "kaltire.com",
+      "websiteDomainIsShared": true,
+      "bannerName": true,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "OUTSIDE_ICP_CHAIN_OR_CORPORATE",
+          "ICP_TIRE_NETWORK",
+          "ICP_BRAND_KAL_TIRE",
+          "ICP_REGISTRY_V1"
+        ],
+        "classReasons": [
+          "CHAIN_NAME",
+          "TIRE_SERVICE"
+        ],
+        "chainSignal": "CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 1,
+        "datasets": [
+          "DAC",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd2yos00au457dhxcnvavm",
+      "sourceRecordId": "10ae16c0-f909-42b5-94ce-70b38162a746",
+      "stratum": "EXCLUDED",
+      "name": "Hughes",
+      "category": "car_wash",
+      "tier": "SECONDARY",
+      "address": "11606 107 Ave NW, Edmonton, AB, T5A 0A1",
+      "website": "http://hughescarwash.ca",
+      "websiteDomain": "hughescarwash.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "EXCLUDED",
+        "storedReasons": [
+          "NON_TARGET_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "NON_TARGET_CATEGORY"
+        ],
+        "classReasons": [
+          "CAR_WASH"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.8571128249168396,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd30c501hn457dvawltkjh",
+      "sourceRecordId": "512e5e0f-cbb3-4a8f-9498-e856053e03d2",
+      "stratum": "EXCLUDED",
+      "name": "CARSTAR Medicine Hat",
+      "category": "auto_body_shop",
+      "tier": "SECONDARY",
+      "address": "2682 Box Spgs Cl NW #105, Medicine Hat, AB, T1C 0C8",
+      "website": null,
+      "websiteDomain": null,
+      "websiteDomainIsShared": false,
+      "bannerName": true,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "OUTSIDE_ICP_CHAIN_OR_CORPORATE",
+          "ICP_COLLISION_NETWORK",
+          "ICP_BRAND_CARSTAR",
+          "ICP_REGISTRY_V1"
+        ],
+        "classReasons": [
+          "CHAIN_NAME",
+          "COLLISION_BODY"
+        ],
+        "chainSignal": "CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED",
+          "NO_WEBSITE",
+          "WEBSITE_IS_SOCIAL"
+        ],
+        "sourceConfidence": 0.9990207242369652,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd34rh04y4457d5kejap8i",
+      "sourceRecordId": "f7834dd6-6738-4d80-8cc1-5dd375599a55",
+      "stratum": "EXCLUDED",
+      "name": "Golden Touch Autocare",
+      "category": "auto_detailing",
+      "tier": "SECONDARY",
+      "address": "3421 32 St NE, Calgary, AB, T1Y 5X7",
+      "website": "http://www.goldentouchautocare.ca",
+      "websiteDomain": "goldentouchautocare.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "EXCLUDED",
+        "storedReasons": [
+          "NON_TARGET_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "NON_TARGET_CATEGORY"
+        ],
+        "classReasons": [
+          "DETAILING"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.8205851528048516,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd338203q5457dico2cr7p",
+      "sourceRecordId": "c05538f9-6f2e-4aae-9e18-694193af2ebe",
+      "stratum": "EXCLUDED",
+      "name": "Mr Lube and Tires",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "7215 Winterburn Rd NW, Edmonton, AB, T5T 4K2",
+      "website": "https://www.mrlube.com/locations/220?utm_source=Facebook&utm_medium=lpm&utm_campaign=MrLube",
+      "websiteDomain": "mrlube.com",
+      "websiteDomainIsShared": true,
+      "bannerName": true,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "OUTSIDE_ICP_CHAIN_OR_CORPORATE",
+          "ICP_FRANCHISE_SERVICE_CHAIN",
+          "ICP_BRAND_MR_LUBE",
+          "ICP_REGISTRY_V1"
+        ],
+        "classReasons": [
+          "CHAIN_NAME",
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.9998193364143372,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd33nb0434457dr7vob1i4",
+      "sourceRecordId": "d03dce60-5f73-4def-883f-59b2ceabaf23",
+      "stratum": "EXCLUDED",
+      "name": "Dash Detailing Inc.",
+      "category": "auto_detailing",
+      "tier": "SECONDARY",
+      "address": "6219 Township Road 121A, Cypress County, AB, T1B 0L5",
+      "website": "http://www.dashdetailing.ca",
+      "websiteDomain": "dashdetailing.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "EXCLUDED",
+        "storedReasons": [
+          "NON_TARGET_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "NON_TARGET_CATEGORY"
+        ],
+        "classReasons": [
+          "DETAILING"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.9370195806026459,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd32c90301457dbydpmdo1",
+      "sourceRecordId": "9cfaaf5b-db08-40f4-877c-9844f1229a78",
+      "stratum": "EXCLUDED",
+      "name": "The Detailing Pros",
+      "category": "auto_detailing",
+      "tier": "SECONDARY",
+      "address": "58 St, Bonnyville, AB, T9N 2N1",
+      "website": "http://thedetailingpros.ca",
+      "websiteDomain": "thedetailingpros.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "EXCLUDED",
+        "storedReasons": [
+          "NON_TARGET_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "NON_TARGET_CATEGORY"
+        ],
+        "classReasons": [
+          "DETAILING"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED",
+          "LOW_CONFIDENCE"
+        ],
+        "sourceConfidence": 0.4757819175720215,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd338203qd457d8uynd6et",
+      "sourceRecordId": "c08d9f36-4f4c-43fa-9d88-e540d732b4b9",
+      "stratum": "EXCLUDED",
+      "name": "Fix Auto Calgary Peigan",
+      "category": "auto_body_shop",
+      "tier": "SECONDARY",
+      "address": "3596 44 Ave SE, Calgary, AB, T2B 3J9",
+      "website": "https://www.fixauto.com/ca/en/shop/fix-auto-calgary-peigan",
+      "websiteDomain": "fixauto.com",
+      "websiteDomainIsShared": true,
+      "bannerName": true,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "OUTSIDE_ICP_CHAIN_OR_CORPORATE",
+          "ICP_COLLISION_NETWORK",
+          "ICP_BRAND_FIX_AUTO",
+          "ICP_REGISTRY_V1"
+        ],
+        "classReasons": [
+          "CHAIN_NAME",
+          "COLLISION_BODY"
+        ],
+        "chainSignal": "CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.998751838684082,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd330i03kq457dbflcwvgs",
+      "sourceRecordId": "b8d94de2-3a31-4d93-b711-7ddbe89ba566",
+      "stratum": "EXCLUDED",
+      "name": "Kal Tire",
+      "category": "tire_shop",
+      "tier": "PRIMARY",
+      "address": "5220 41 Ave, Athabasca, AB, T9S 1T6",
+      "website": "https://www.kaltire.com",
+      "websiteDomain": "kaltire.com",
+      "websiteDomainIsShared": true,
+      "bannerName": true,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "OUTSIDE_ICP_CHAIN_OR_CORPORATE",
+          "ICP_TIRE_NETWORK",
+          "ICP_BRAND_KAL_TIRE",
+          "ICP_REGISTRY_V1"
+        ],
+        "classReasons": [
+          "CHAIN_NAME",
+          "TIRE_SERVICE"
+        ],
+        "chainSignal": "CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 1,
+        "datasets": [
+          "DAC",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd350b051j457dxjbe75ps",
+      "sourceRecordId": "fbcd3e32-93aa-4d2d-a978-5280ebf250c7",
+      "stratum": "EXCLUDED",
+      "name": "Mr. Lube + Tires in Walmart",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "1212 37 St SW, Calgary, AB, T3C 1S3",
+      "website": "https://local.mrlube.com/centres/530",
+      "websiteDomain": "local.mrlube.com",
+      "websiteDomainIsShared": true,
+      "bannerName": true,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "OUTSIDE_ICP_CHAIN_OR_CORPORATE",
+          "ICP_RETAIL_CORPORATE",
+          "ICP_BRAND_WALMART",
+          "ICP_REGISTRY_V1"
+        ],
+        "classReasons": [
+          "CHAIN_NAME",
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.77,
+        "datasets": [
+          "Foursquare",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd338203qt457duacl5w7i",
+      "sourceRecordId": "c0f6f92f-b20a-44b4-adfc-8c30bb7b21fc",
+      "stratum": "EXCLUDED",
+      "name": "Clearwash Autosystems Ltd",
+      "category": "auto_detailing",
+      "tier": "SECONDARY",
+      "address": "12245 Lake Fraser Way SE, Calgary, AB, T2J 3T2",
+      "website": "http://www.clearwash.ca",
+      "websiteDomain": "clearwash.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "EXCLUDED",
+        "storedReasons": [
+          "NON_TARGET_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "NON_TARGET_CATEGORY"
+        ],
+        "classReasons": [
+          "DETAILING"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "LOW_CONFIDENCE",
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.437106192111969,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd3192025a457d4851hvja",
+      "sourceRecordId": "724c60ce-3206-4b4e-a6c3-74beb62769bb",
+      "stratum": "EXCLUDED",
+      "name": "FIFI Mobile Detailing",
+      "category": "auto_detailing",
+      "tier": "SECONDARY",
+      "address": "Edmonton, Edmonton, AB",
+      "website": null,
+      "websiteDomain": null,
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "EXCLUDED",
+        "storedReasons": [
+          "NON_TARGET_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "NON_TARGET_CATEGORY"
+        ],
+        "classReasons": [
+          "DETAILING"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "ADDRESS_INCOMPLETE",
+          "EMAIL_UNVERIFIED",
+          "LOW_CONFIDENCE",
+          "NO_POSTAL",
+          "NO_WEBSITE"
+        ],
+        "sourceConfidence": 0.25166958570480347,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd34k804qy457d8hbcrlmj",
+      "sourceRecordId": "ed9cc069-1d7f-4681-9ba1-62364d691d28",
+      "stratum": "EXCLUDED",
+      "name": "Detailz a Spa For Your Car Inc",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "4616 Manitoba Rd SE, Calgary, AB, T2G 4B8",
+      "website": "http://detailz.ca",
+      "websiteDomain": "detailz.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "NAME_SIGNAL_DETAILING"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.77,
+        "datasets": [
+          "Foursquare",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd338203qi457dtnvm0yi2",
+      "sourceRecordId": "c0c5bdd8-24eb-4561-a8f8-f019ff08d453",
+      "stratum": "EXCLUDED",
+      "name": "Klarity Wash",
+      "category": "car_wash",
+      "tier": "SECONDARY",
+      "address": "16806 118 Ave NW, Edmonton, AB, T5V 1M8",
+      "website": "http://www.westedmontontruckland.com",
+      "websiteDomain": "westedmontontruckland.com",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "EXCLUDED",
+        "storedReasons": [
+          "NON_TARGET_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "NON_TARGET_CATEGORY"
+        ],
+        "classReasons": [
+          "CAR_WASH"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.77,
+        "datasets": [
+          "Foursquare",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd350904yl457dtuhhivoh",
+      "sourceRecordId": "f80eebf5-dc0e-4ddc-af71-c56bbad4473c",
+      "stratum": "EXCLUDED",
+      "name": "First Truck Centre Edmonton West",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "11313 170 St NW, Edmonton, AB, T5M 3P5",
+      "website": "https://www.firsttruck.ca/edmonton-west",
+      "websiteDomain": "firsttruck.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "OUTSIDE_ICP_CHAIN_OR_CORPORATE",
+          "ICP_DEALERSHIP_GROUP",
+          "ICP_BRAND_FIRST_TRUCK_CENTRE",
+          "ICP_REGISTRY_V1"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.9994280892014503,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd30c601kx457da5n0w3a8",
+      "sourceRecordId": "56775031-8069-49f2-9f57-0be0933dc66a",
+      "stratum": "EXCLUDED",
+      "name": "Bora Towing",
+      "category": "towing_service",
+      "tier": "SECONDARY",
+      "address": "12521 123 St NW Suite #B, Edmonton, AB, T5L 4W7",
+      "website": "https://boratowing.com",
+      "websiteDomain": "boratowing.com",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "EXCLUDED",
+        "storedReasons": [
+          "NON_TARGET_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "NON_TARGET_CATEGORY"
+        ],
+        "classReasons": [
+          "TOWING"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.9655,
+        "datasets": [
+          "Microsoft",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd310z0245457d0z3k3d9c",
+      "sourceRecordId": "70c4d6c6-1c0e-4fd6-b8fe-b2e0d9c36039",
+      "stratum": "EXCLUDED",
+      "name": "New Lethbridge Mitsubishi",
+      "category": "automotive_service",
+      "tier": "AMBIGUOUS",
+      "address": "3423 4 Ave S, Lethbridge, AB, T1J 0G7",
+      "website": "https://www.lethbridgemitsubishi.ca/en",
+      "websiteDomain": "lethbridgemitsubishi.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "HUMAN_REVIEW",
+        "storedReasons": [
+          "OEM_BRAND_NAME"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "OUTSIDE_ICP_CHAIN_OR_CORPORATE",
+          "ICP_DEALERSHIP",
+          "ICP_REGISTRY_V1"
+        ],
+        "classReasons": [
+          "GENERIC_AUTOMOTIVE_SERVICE"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.85,
+        "datasets": [
+          "Microsoft",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd30c601jr457d7diz6kxn",
+      "sourceRecordId": "543e96a5-8731-4c19-9295-931240a08aee",
+      "stratum": "EXCLUDED",
+      "name": "Dilawri Collision Centre Calgary",
+      "category": "auto_body_shop",
+      "tier": "SECONDARY",
+      "address": "10569 42 Street Southeast, Calgary, AB, T2C 5B9",
+      "website": "http://www.dilawricollisioncentre.ca/?utm_source=Bing-website&utm_medium=organic",
+      "websiteDomain": "dilawricollisioncentre.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "OUTSIDE_ICP_CHAIN_OR_CORPORATE",
+          "ICP_DEALERSHIP_GROUP",
+          "ICP_BRAND_DILAWRI",
+          "ICP_REGISTRY_V1"
+        ],
+        "classReasons": [
+          "COLLISION_BODY"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.9931,
+        "datasets": [
+          "Microsoft",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd2zbc00o9457dtbnmdke9",
+      "sourceRecordId": "25decd0b-060d-423a-9821-6ecd01ac1f92",
+      "stratum": "EXCLUDED",
+      "name": "Mr. Lube in Walmart",
+      "category": "automotive_service",
+      "tier": "AMBIGUOUS",
+      "address": "239 Wye Rd, Sherwood Park, AB, T8B 1N1",
+      "website": "https://local.mrlube.com/centres/513?utm_source=Bing&utm_medium=lpm&utm_campaign=MrLube",
+      "websiteDomain": "local.mrlube.com",
+      "websiteDomainIsShared": true,
+      "bannerName": true,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY_AND_NAME"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "OUTSIDE_ICP_CHAIN_OR_CORPORATE",
+          "ICP_RETAIL_CORPORATE",
+          "ICP_BRAND_WALMART",
+          "ICP_REGISTRY_V1"
+        ],
+        "classReasons": [
+          "CHAIN_NAME",
+          "GENERIC_AUTOMOTIVE_SERVICE"
+        ],
+        "chainSignal": "CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.9655,
+        "datasets": [
+          "Microsoft",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd32cb034g457dproragab",
+      "sourceRecordId": "a317887a-db16-43c0-9743-7b1d51a6c3df",
+      "stratum": "EXCLUDED",
+      "name": "Glitter",
+      "category": "auto_detailing",
+      "tier": "SECONDARY",
+      "address": "3640 26 St NE Unit 3B, Calgary, AB, T1Y 4T7",
+      "website": "https://www.glitterandwrap.com",
+      "websiteDomain": "glitterandwrap.com",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "EXCLUDED",
+        "storedReasons": [
+          "NON_TARGET_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "NON_TARGET_CATEGORY"
+        ],
+        "classReasons": [
+          "DETAILING"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.8299144479632378,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd2ydv004k457d5atvuyzb",
+      "sourceRecordId": "06c71302-a802-4809-b75f-80fdc8dc3c2b",
+      "stratum": "EXCLUDED",
+      "name": "Spotless Auto and Dog Wash",
+      "category": "car_wash",
+      "tier": "SECONDARY",
+      "address": "4782 50 Ave, Vegreville, AB, T9C 1K9",
+      "website": null,
+      "websiteDomain": null,
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "EXCLUDED",
+        "storedReasons": [
+          "NON_TARGET_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "NON_TARGET_CATEGORY"
+        ],
+        "classReasons": [
+          "CAR_WASH"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "LOW_CONFIDENCE",
+          "NO_EMAIL",
+          "NO_PHONE",
+          "NO_WEBSITE"
+        ],
+        "sourceConfidence": 0.34150174260139465,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd338303ru457db668cjb9",
+      "sourceRecordId": "c25a4e21-0ac6-4e2b-bbef-4d2c8aa61608",
+      "stratum": "EXCLUDED",
+      "name": "Auto Parts Canada",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "5530 3 St SE, Calgary, AB, T2H 1J9",
+      "website": null,
+      "websiteDomain": null,
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "EXCLUDED",
+        "storedReasons": [
+          "NAME_SIGNAL_PARTS_RETAIL"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "NAME_SIGNAL_PARTS_RETAIL"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED",
+          "LOW_CONFIDENCE",
+          "NO_WEBSITE"
+        ],
+        "sourceConfidence": 0.25911378860473633,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd31g602c8457dp0z6giea",
+      "sourceRecordId": "7c507824-76cb-4260-ada3-c38ab509e8ad",
+      "stratum": "EXCLUDED",
+      "name": "Poor Boys Wash",
+      "category": "car_wash",
+      "tier": "SECONDARY",
+      "address": "7713 Sparrow Dr, Leduc, AB, T9E 0H3",
+      "website": null,
+      "websiteDomain": null,
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "EXCLUDED",
+        "storedReasons": [
+          "NON_TARGET_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "NON_TARGET_CATEGORY"
+        ],
+        "classReasons": [
+          "CAR_WASH"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL",
+          "NO_WEBSITE"
+        ],
+        "sourceConfidence": 0.8944125771522522,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd338203pp457dpesjuwpg",
+      "sourceRecordId": "bfdc0260-f9c1-4e02-bbd7-6f92c657a165",
+      "stratum": "EXCLUDED",
+      "name": "Millwoods Registry Services",
+      "category": "automobile_registration_service",
+      "tier": "SECONDARY",
+      "address": "6410 28 Avenue NW, Edmonton, AB, T6L 6N3",
+      "website": "http://www.millwoodsregistry.com",
+      "websiteDomain": "millwoodsregistry.com",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "EXCLUDED",
+        "storedReasons": [
+          "NON_TARGET_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "NON_TARGET_CATEGORY"
+        ],
+        "classReasons": [
+          "REGISTRATION"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.9584466546773911,
+        "datasets": [
+          "Microsoft",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd33fh03tq457d4ude1r7d",
+      "sourceRecordId": "c4a0b6df-894f-4179-a2e7-64076b40cac8",
+      "stratum": "EXCLUDED",
+      "name": "Kal Tire",
+      "category": "tire_shop",
+      "tier": "PRIMARY",
+      "address": "1620 14 Ave NW, Calgary, AB, T2N 1M6",
+      "website": "https://www.kaltire.com",
+      "websiteDomain": "kaltire.com",
+      "websiteDomainIsShared": true,
+      "bannerName": true,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "OUTSIDE_ICP_CHAIN_OR_CORPORATE",
+          "ICP_TIRE_NETWORK",
+          "ICP_BRAND_KAL_TIRE",
+          "ICP_REGISTRY_V1"
+        ],
+        "classReasons": [
+          "CHAIN_NAME",
+          "TIRE_SERVICE"
+        ],
+        "chainSignal": "CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 1,
+        "datasets": [
+          "DAC",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd34ci04l5457d66fbw2rr",
+      "sourceRecordId": "e65e68bc-09bc-47e1-937b-ea18fcbcc72c",
+      "stratum": "EXCLUDED",
+      "name": "Mr. Lube + Tires",
+      "category": "oil_change_station",
+      "tier": "PRIMARY",
+      "address": "2940 26 Ave S, Lethbridge, AB, T1K 7K8",
+      "website": "https://www.mrlube.com",
+      "websiteDomain": "mrlube.com",
+      "websiteDomainIsShared": true,
+      "bannerName": true,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "OUTSIDE_ICP_CHAIN_OR_CORPORATE",
+          "ICP_FRANCHISE_SERVICE_CHAIN",
+          "ICP_BRAND_MR_LUBE",
+          "ICP_REGISTRY_V1"
+        ],
+        "classReasons": [
+          "CHAIN_NAME",
+          "MAINTENANCE"
+        ],
+        "chainSignal": "CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 1,
+        "datasets": [
+          "DAC",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd32jy039d457dsx6on5mj",
+      "sourceRecordId": "aa5601bc-7169-4353-8da8-4bbb034a50d3",
+      "stratum": "EXCLUDED",
+      "name": "CH Nissan - Body Shop",
+      "category": "auto_body_shop",
+      "tier": "SECONDARY",
+      "address": "2451 Country Hills Boulevard Northeast, Calgary, AB, T3J 0R4",
+      "website": "https://www.chnissan.com/collision-department",
+      "websiteDomain": "chnissan.com",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "HUMAN_REVIEW",
+        "storedReasons": [
+          "OEM_BRAND_NAME"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "OUTSIDE_ICP_CHAIN_OR_CORPORATE",
+          "ICP_DEALERSHIP",
+          "ICP_REGISTRY_V1"
+        ],
+        "classReasons": [
+          "COLLISION_BODY"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.85,
+        "datasets": [
+          "Microsoft",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd33na03yz457df9iqhu19",
+      "sourceRecordId": "cb0b8109-823c-4812-86d7-307479bf1fdc",
+      "stratum": "EXCLUDED",
+      "name": "Napa Autopro",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "5701 47 St, Leduc, AB, T9E 7A1",
+      "website": "https://www.napaautopro.com/en/auto-repair/alberta/leduc-tischer-automotive-services-ltd",
+      "websiteDomain": "napaautopro.com",
+      "websiteDomainIsShared": true,
+      "bannerName": true,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "OUTSIDE_ICP_CHAIN_OR_CORPORATE",
+          "ICP_PARTS_NETWORK",
+          "ICP_BRAND_NAPA",
+          "ICP_REGISTRY_V1"
+        ],
+        "classReasons": [
+          "CHAIN_NAME",
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.988621610403061,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd31o402mk457dr3sqardf",
+      "sourceRecordId": "8a7c9bf0-96c0-4174-b120-fb8cbe5f4411",
+      "stratum": "EXCLUDED",
+      "name": "Mr. Lube in Walmart",
+      "category": "tire_shop",
+      "tier": "PRIMARY",
+      "address": "700 St. Albert Trail, St. Albert, AB, T8N 7A5",
+      "website": "https://local.mrlube.com/centres/508?utm_source=Bing&utm_medium=lpm&utm_campaign=MrLube",
+      "websiteDomain": "local.mrlube.com",
+      "websiteDomainIsShared": true,
+      "bannerName": true,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "OUTSIDE_ICP_CHAIN_OR_CORPORATE",
+          "ICP_RETAIL_CORPORATE",
+          "ICP_BRAND_WALMART",
+          "ICP_REGISTRY_V1"
+        ],
+        "classReasons": [
+          "CHAIN_NAME",
+          "TIRE_SERVICE"
+        ],
+        "chainSignal": "CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.9655,
+        "datasets": [
+          "Microsoft",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd34ch04kb457d2kqoiffo",
+      "sourceRecordId": "e585f7d0-86ad-4938-aa7e-bf0a762e6d5d",
+      "stratum": "EXCLUDED",
+      "name": "Extreme Auto Clean",
+      "category": "car_wash",
+      "tier": "SECONDARY",
+      "address": "1550 Railway Ave, Canmore, AB, T1W 1P6",
+      "website": "http://www.extremeautoclean.ca",
+      "websiteDomain": "extremeautoclean.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "EXCLUDED",
+        "storedReasons": [
+          "NON_TARGET_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "NON_TARGET_CATEGORY"
+        ],
+        "classReasons": [
+          "CAR_WASH"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.925158302783966,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd31990297457dzmtz20jn",
+      "sourceRecordId": "77f0c2e3-ed99-4b38-ad5c-bfdf46566e7e",
+      "stratum": "EXCLUDED",
+      "name": "Urban Towing Calgary",
+      "category": "towing_service",
+      "tier": "SECONDARY",
+      "address": "511-11620 Elbow Dr SW, Calgary, AB, T2W 3L6",
+      "website": "http://urbantowingltd.com",
+      "websiteDomain": "urbantowingltd.com",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "EXCLUDED",
+        "storedReasons": [
+          "NON_TARGET_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "NON_TARGET_CATEGORY"
+        ],
+        "classReasons": [
+          "TOWING"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.8875710785388946,
+        "datasets": [
+          "Microsoft",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd330g03he457daabyazj4",
+      "sourceRecordId": "b4b410a8-f212-49f8-b3ed-0e2e8c61cdf6",
+      "stratum": "EXCLUDED",
+      "name": "PartSource",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "Just off Stony Plain Rd., Edmonton, AB",
+      "website": "https://partsource.ca",
+      "websiteDomain": "partsource.ca",
+      "websiteDomainIsShared": true,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "HUMAN_REVIEW",
+        "storedReasons": [
+          "NO_AUTOMOTIVE_WORDING"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "OUTSIDE_ICP_CHAIN_OR_CORPORATE",
+          "ICP_PARTS_NETWORK",
+          "ICP_BRAND_PARTSOURCE",
+          "ICP_REGISTRY_V1"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "ADDRESS_INCOMPLETE",
+          "NO_EMAIL",
+          "NO_PHONE",
+          "NO_POSTAL"
+        ],
+        "sourceConfidence": 0.77,
+        "datasets": [
+          "Foursquare",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd33nc0443457d184ucjch",
+      "sourceRecordId": "d1790977-1227-4f4b-9991-a86644c4b1c3",
+      "stratum": "EXCLUDED",
+      "name": "Fountain Tire",
+      "category": "tire_dealer_and_repair",
+      "tier": "PRIMARY",
+      "address": "5811 49 St, Barrhead, AB, T7N 1N1",
+      "website": "https://www.fountaintire.com/stores/barrhead-ab",
+      "websiteDomain": "fountaintire.com",
+      "websiteDomainIsShared": true,
+      "bannerName": true,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "OUTSIDE_ICP_CHAIN_OR_CORPORATE",
+          "ICP_TIRE_NETWORK",
+          "ICP_BRAND_FOUNTAIN_TIRE",
+          "ICP_REGISTRY_V1"
+        ],
+        "classReasons": [
+          "CHAIN_NAME",
+          "TIRE_SERVICE"
+        ],
+        "chainSignal": "CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.9997178945183754,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd32sb03er457d9pd2ywxh",
+      "sourceRecordId": "b1513726-d5d3-4047-8e46-56cb95ded59d",
+      "stratum": "EXCLUDED",
+      "name": "Clean Getaway Carwash",
+      "category": "car_wash",
+      "tier": "SECONDARY",
+      "address": "5 McLeod Ave, Spruce Grove, AB, T7X 4B8",
+      "website": "http://www.cgcw.ca",
+      "websiteDomain": "cgcw.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "EXCLUDED",
+        "storedReasons": [
+          "NON_TARGET_CATEGORY"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "NON_TARGET_CATEGORY"
+        ],
+        "classReasons": [
+          "CAR_WASH"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.9777782720327377,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    }
+  ],
+  "HUMAN_REVIEW": [
+    {
+      "id": "cmvbd32sb03ft457dxgp59tde",
+      "sourceRecordId": "b2b0b4b7-383f-472c-893f-874a6bc66b4c",
+      "stratum": "HUMAN_REVIEW",
+      "name": "The Install Shop",
+      "category": "auto_customization",
+      "tier": "SECONDARY",
+      "address": "9710 94 St #4, Peace River, AB, T8S 1J2",
+      "website": null,
+      "websiteDomain": null,
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "HUMAN_REVIEW",
+        "storedReasons": [
+          "UNCERTAIN_CATEGORY"
+        ],
+        "currentFit": "HUMAN_REVIEW",
+        "currentReasons": [
+          "UNCERTAIN_CATEGORY"
+        ],
+        "classReasons": [
+          "CUSTOMIZATION"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "LOW_CONFIDENCE",
+          "NO_EMAIL",
+          "NO_WEBSITE"
+        ],
+        "sourceConfidence": 0.4839843213558197,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd34ch04k1457d31n69vw5",
+      "sourceRecordId": "e545e458-619c-42e1-9faf-2b37b980c72e",
+      "stratum": "HUMAN_REVIEW",
+      "name": "Showroom PDR Ltd.",
+      "category": "automotive_service",
+      "tier": "AMBIGUOUS",
+      "address": "Calgary, AB",
+      "website": "http://www.showroompdr.com",
+      "websiteDomain": "showroompdr.com",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "HUMAN_REVIEW",
+        "storedReasons": [
+          "INSUFFICIENT_EVIDENCE"
+        ],
+        "currentFit": "HUMAN_REVIEW",
+        "currentReasons": [
+          "INSUFFICIENT_EVIDENCE"
+        ],
+        "classReasons": [
+          "GENERIC_AUTOMOTIVE_SERVICE"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "ADDRESS_INCOMPLETE",
+          "EMAIL_UNVERIFIED",
+          "NO_ADDRESS",
+          "NO_POSTAL"
+        ],
+        "sourceConfidence": 0.5228608250617981,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd33wb046w457dipnhggxy",
+      "sourceRecordId": "d4d10f36-c390-453b-aefb-149e472ed205",
+      "stratum": "HUMAN_REVIEW",
+      "name": "Car Deals 4 U",
+      "category": "automotive_service",
+      "tier": "AMBIGUOUS",
+      "address": "3370 32 Street NE, Calgary, AB, T1Y 6B9",
+      "website": "https://www.cardeals4u.ca",
+      "websiteDomain": "cardeals4u.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "HUMAN_REVIEW",
+        "storedReasons": [
+          "INSUFFICIENT_EVIDENCE"
+        ],
+        "currentFit": "HUMAN_REVIEW",
+        "currentReasons": [
+          "INSUFFICIENT_EVIDENCE"
+        ],
+        "classReasons": [
+          "GENERIC_AUTOMOTIVE_SERVICE"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.85,
+        "datasets": [
+          "Microsoft",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd34k704p4457df1pbkvxd",
+      "sourceRecordId": "ead3599b-c152-4e7c-868c-650eae3d84b2",
+      "stratum": "HUMAN_REVIEW",
+      "name": "NOMAD Motorcycle Services",
+      "category": "motorcycle_repair",
+      "tier": "AMBIGUOUS",
+      "address": "313076 RR 244, Division No. 5, AB, T0M 2A0",
+      "website": "http://nomadmotorcycles.ca",
+      "websiteDomain": "nomadmotorcycles.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "HUMAN_REVIEW",
+        "storedReasons": [
+          "SEGMENT_MOTORCYCLE"
+        ],
+        "currentFit": "HUMAN_REVIEW",
+        "currentReasons": [
+          "SEGMENT_MOTORCYCLE"
+        ],
+        "classReasons": [
+          "UNKNOWN_SUBCATEGORY"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED",
+          "GEO_FROM_POSTAL",
+          "GEO_REGION_MISSING"
+        ],
+        "sourceConfidence": 0.9578940224647522,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd34k704os457d37szz7fb",
+      "sourceRecordId": "ea65e15f-4167-4506-9fe6-647def98b086",
+      "stratum": "HUMAN_REVIEW",
+      "name": "Fix Body Shop Supplies Inc",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "4205 17 St SE, Calgary, AB",
+      "website": null,
+      "websiteDomain": null,
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "HUMAN_REVIEW",
+        "currentReasons": [
+          "NAME_SIGNAL_OTHER_NON_REPAIR"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL",
+          "NO_POSTAL",
+          "NO_WEBSITE"
+        ],
+        "sourceConfidence": 0.5961215496063232,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd31o302ip457dih096urb",
+      "sourceRecordId": "85862867-ec10-4368-a6d7-f66d200d42fc",
+      "stratum": "HUMAN_REVIEW",
+      "name": "Kriegers Kustoms",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "58 Anderson Ave NE, Langdon, AB, T0J 1X1",
+      "website": "http://www.kriegerskustoms.ca",
+      "websiteDomain": "kriegerskustoms.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "HUMAN_REVIEW",
+        "storedReasons": [
+          "NO_AUTOMOTIVE_WORDING"
+        ],
+        "currentFit": "HUMAN_REVIEW",
+        "currentReasons": [
+          "NO_AUTOMOTIVE_WORDING"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.77,
+        "datasets": [
+          "Foursquare",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd34k704pa457d4j9hl1h2",
+      "sourceRecordId": "eb1a0332-c0a4-480e-bf29-de4ef022358e",
+      "stratum": "HUMAN_REVIEW",
+      "name": "Southern AB Propeller & Marine",
+      "category": "boat_service",
+      "tier": "AMBIGUOUS",
+      "address": "1944 11 Ave NW, Medicine Hat, AB, T1C 1T6",
+      "website": "http://www.wetdreamsmarine.ca",
+      "websiteDomain": "wetdreamsmarine.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "HUMAN_REVIEW",
+        "storedReasons": [
+          "SEGMENT_MARINE_RV"
+        ],
+        "currentFit": "HUMAN_REVIEW",
+        "currentReasons": [
+          "SEGMENT_MARINE_RV"
+        ],
+        "classReasons": [
+          "UNKNOWN_SUBCATEGORY"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.8631090521812439,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd32jx035d457d8o5jvvep",
+      "sourceRecordId": "a44c25b4-bc8c-4a45-addb-a801573360b8",
+      "stratum": "HUMAN_REVIEW",
+      "name": "Dealer Direct Ltd",
+      "category": "automotive_service",
+      "tier": "AMBIGUOUS",
+      "address": "412 53 Ave SE # 2, Calgary, AB, T2H 0N4",
+      "website": "http://dealerdirectltd.supersites.ca",
+      "websiteDomain": "dealerdirectltd.supersites.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "HUMAN_REVIEW",
+        "storedReasons": [
+          "SEGMENT_DEALER"
+        ],
+        "currentFit": "HUMAN_REVIEW",
+        "currentReasons": [
+          "SEGMENT_DEALER"
+        ],
+        "classReasons": [
+          "GENERIC_AUTOMOTIVE_SERVICE"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.77,
+        "datasets": [
+          "Foursquare",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd33fi03ve457dz62n2cd0",
+      "sourceRecordId": "c71200ef-9459-430a-968e-6b5b39018948",
+      "stratum": "HUMAN_REVIEW",
+      "name": "Hydro Mods",
+      "category": "auto_customization",
+      "tier": "SECONDARY",
+      "address": "4004 97 St NW Unit 23, Edmonton, AB, T6E 6N1",
+      "website": "https://hydromods.shop/?utm_source=ig&utm_medium=social&utm_content=link_in_bio&fbclid=PAZnRzaARd_yFleHRuA2FlbQIxMQBzcnRjBmFwcF9pZA8xMjQwMjQ1NzQyODc0MTQAAafDKG-ENV7hhJpdR7ju_VL33iSI-NTR58HrQWKGLaSEgwHU17XeQ81rkmPjfQ_aem_-iwdE9tgvZPD-Fwuajf77w",
+      "websiteDomain": "hydromods.shop",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "HUMAN_REVIEW",
+        "storedReasons": [
+          "UNCERTAIN_CATEGORY"
+        ],
+        "currentFit": "HUMAN_REVIEW",
+        "currentReasons": [
+          "UNCERTAIN_CATEGORY"
+        ],
+        "classReasons": [
+          "CUSTOMIZATION"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED",
+          "LOW_CONFIDENCE"
+        ],
+        "sourceConfidence": 0.2867581248283386,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd2z4a00l3457dubsynp14",
+      "sourceRecordId": "20c666e5-db5c-4920-a01f-c178cc6bbe29",
+      "stratum": "HUMAN_REVIEW",
+      "name": "Parts Canada Development Co",
+      "category": "automotive_service",
+      "tier": "AMBIGUOUS",
+      "address": "2916 21 St NE, Calgary, AB, T2E 6Z2",
+      "website": "http://www.partscanada.com",
+      "websiteDomain": "partscanada.com",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "HUMAN_REVIEW",
+        "storedReasons": [
+          "INSUFFICIENT_EVIDENCE"
+        ],
+        "currentFit": "HUMAN_REVIEW",
+        "currentReasons": [
+          "INSUFFICIENT_EVIDENCE"
+        ],
+        "classReasons": [
+          "GENERIC_AUTOMOTIVE_SERVICE"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.5320882201194763,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd32c9030i457d039pkj0v",
+      "sourceRecordId": "9d8a0c5c-c8ef-435f-8776-f329569fc7e6",
+      "stratum": "HUMAN_REVIEW",
+      "name": "J4 Ventures",
+      "category": "truck_repair",
+      "tier": "PRIMARY",
+      "address": "232175 Range Rd 283, Rocky View County, AB, T1X 0J9",
+      "website": "https://www.j4ventures.ca",
+      "websiteDomain": "j4ventures.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "HUMAN_REVIEW",
+        "storedReasons": [
+          "NO_AUTOMOTIVE_WORDING"
+        ],
+        "currentFit": "HUMAN_REVIEW",
+        "currentReasons": [
+          "NO_AUTOMOTIVE_WORDING"
+        ],
+        "classReasons": [
+          "HEAVY_VEHICLE_REPAIR"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED",
+          "LOW_CONFIDENCE"
+        ],
+        "sourceConfidence": 0.31078287959098816,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "HEAVY_DUTY"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd34rg04ua457dfbj4u92m",
+      "sourceRecordId": "f1a084ff-3de3-4d6a-9a2e-7034694bb6b4",
+      "stratum": "HUMAN_REVIEW",
+      "name": "White Stallion Innovations Ltd",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "321 Kaska Rd, Sherwood Park, AB, T8A 4E9",
+      "website": "http://www.wsinnovations.ca",
+      "websiteDomain": "wsinnovations.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "HUMAN_REVIEW",
+        "storedReasons": [
+          "NO_AUTOMOTIVE_WORDING"
+        ],
+        "currentFit": "HUMAN_REVIEW",
+        "currentReasons": [
+          "NO_AUTOMOTIVE_WORDING"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.77,
+        "datasets": [
+          "Foursquare",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd2zbc00nq457dnwfj4ozv",
+      "sourceRecordId": "24d87491-07a5-428a-8ad9-10f5dee7c7d4",
+      "stratum": "HUMAN_REVIEW",
+      "name": "Cartrendz",
+      "category": "tire_dealer_and_repair",
+      "tier": "PRIMARY",
+      "address": "7580 Wagner Rd NW, Edmonton, AB, T6E 5B2",
+      "website": "http://www.cartrendz.ca",
+      "websiteDomain": "cartrendz.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "HUMAN_REVIEW",
+        "storedReasons": [
+          "NO_AUTOMOTIVE_WORDING"
+        ],
+        "currentFit": "HUMAN_REVIEW",
+        "currentReasons": [
+          "NO_AUTOMOTIVE_WORDING"
+        ],
+        "classReasons": [
+          "TIRE_SERVICE"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.8284331420063973,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd30tn01yc457dnek38aaw",
+      "sourceRecordId": "6947716b-65a8-4f29-8d73-ae461b1388f1",
+      "stratum": "HUMAN_REVIEW",
+      "name": "ServiceMaster Clean of Calgary - Commercial",
+      "category": "automotive_service",
+      "tier": "AMBIGUOUS",
+      "address": "1450 28th Street N.E., Unit #4, Calgary, AB, T2A 7W6",
+      "website": "http://smcleancalgary.ca",
+      "websiteDomain": "smcleancalgary.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "HUMAN_REVIEW",
+        "storedReasons": [
+          "INSUFFICIENT_EVIDENCE"
+        ],
+        "currentFit": "HUMAN_REVIEW",
+        "currentReasons": [
+          "INSUFFICIENT_EVIDENCE"
+        ],
+        "classReasons": [
+          "GENERIC_AUTOMOTIVE_SERVICE"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.77,
+        "datasets": [
+          "Foursquare",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd34rg04vm457do8qhupzr",
+      "sourceRecordId": "f3e08fbb-b963-433b-9d69-8459274b2879",
+      "stratum": "HUMAN_REVIEW",
+      "name": "Total Impact Signs",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "304 Stafford Dr N, Lethbridge, AB, T1H 2A6",
+      "website": "http://www.aacleth.com",
+      "websiteDomain": "aacleth.com",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "HUMAN_REVIEW",
+        "storedReasons": [
+          "NO_AUTOMOTIVE_WORDING"
+        ],
+        "currentFit": "HUMAN_REVIEW",
+        "currentReasons": [
+          "NO_AUTOMOTIVE_WORDING"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.77,
+        "datasets": [
+          "Foursquare",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd31o302kz457dodew7blg",
+      "sourceRecordId": "889c9327-debc-4e9c-8837-decc0813dcef",
+      "stratum": "HUMAN_REVIEW",
+      "name": "Exact One Co",
+      "category": "automotive_service",
+      "tier": "AMBIGUOUS",
+      "address": "7004 5 St SE Suite R, Calgary, AB, T2H 2G3",
+      "website": "http://www.exacta.com",
+      "websiteDomain": "exacta.com",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "HUMAN_REVIEW",
+        "storedReasons": [
+          "INSUFFICIENT_EVIDENCE"
+        ],
+        "currentFit": "HUMAN_REVIEW",
+        "currentReasons": [
+          "INSUFFICIENT_EVIDENCE"
+        ],
+        "classReasons": [
+          "GENERIC_AUTOMOTIVE_SERVICE"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.77,
+        "datasets": [
+          "Foursquare",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd2yoq006x457dtzx3qfku",
+      "sourceRecordId": "0aa45674-a4b2-482c-9de5-8d7252c57092",
+      "stratum": "HUMAN_REVIEW",
+      "name": "SWT Titan Mining Services",
+      "category": "tire_shop",
+      "tier": "PRIMARY",
+      "address": "Lot 15 A Caribou Industrial Park, Fort Mackay, AB, T0P 1C0",
+      "website": "https://www.swt-titan.com",
+      "websiteDomain": "swt-titan.com",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "HUMAN_REVIEW",
+        "currentReasons": [
+          "NAME_SIGNAL_INDUSTRIAL_OTHER"
+        ],
+        "classReasons": [
+          "TIRE_SERVICE"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "ADDRESS_INCOMPLETE",
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.85,
+        "datasets": [
+          "Microsoft",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd2zyf01ag457duyeo1x73",
+      "sourceRecordId": "45a21cbe-37b6-4220-9890-9c00952f22b9",
+      "stratum": "HUMAN_REVIEW",
+      "name": "Yola Customs",
+      "category": "auto_customization",
+      "tier": "SECONDARY",
+      "address": "4203 12 St NE #4, Calgary, AB, T2E 4P9",
+      "website": "https://www.yolacustoms.com",
+      "websiteDomain": "yolacustoms.com",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "HUMAN_REVIEW",
+        "storedReasons": [
+          "UNCERTAIN_CATEGORY"
+        ],
+        "currentFit": "HUMAN_REVIEW",
+        "currentReasons": [
+          "UNCERTAIN_CATEGORY"
+        ],
+        "classReasons": [
+          "CUSTOMIZATION"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.9876335567235947,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd32sb03fm457dnvn2xl5i",
+      "sourceRecordId": "b296c6ab-4be1-427a-a2f2-f0d323c10526",
+      "stratum": "HUMAN_REVIEW",
+      "name": "Store-Bracelesta",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "933 48 Ave SE, Calgary, AB",
+      "website": null,
+      "websiteDomain": null,
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "HUMAN_REVIEW",
+        "storedReasons": [
+          "NO_AUTOMOTIVE_WORDING"
+        ],
+        "currentFit": "HUMAN_REVIEW",
+        "currentReasons": [
+          "NO_AUTOMOTIVE_WORDING"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED",
+          "NO_POSTAL",
+          "NO_WEBSITE",
+          "WEBSITE_IS_SOCIAL"
+        ],
+        "sourceConfidence": 0.5974032282829285,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd310y020n457d8mqkvpa1",
+      "sourceRecordId": "6c16dcf3-5cec-41aa-a146-2ee1da12c166",
+      "stratum": "HUMAN_REVIEW",
+      "name": "Canada Car Color Inc",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "4216 10 St NE # 3, Calgary, AB, T2E 6K3",
+      "website": "http://canadacarcolor.com",
+      "websiteDomain": "canadacarcolor.com",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "HUMAN_REVIEW",
+        "storedReasons": [
+          "NO_AUTOMOTIVE_WORDING"
+        ],
+        "currentFit": "HUMAN_REVIEW",
+        "currentReasons": [
+          "NO_AUTOMOTIVE_WORDING"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.77,
+        "datasets": [
+          "Foursquare",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd32jx0369457drf4gbh0t",
+      "sourceRecordId": "a56c2cab-d838-4fca-bd27-74f37f0d5d83",
+      "stratum": "HUMAN_REVIEW",
+      "name": "Navajo Metals",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "5857 12 St SE, Calgary, AB, T2H 2X9",
+      "website": "http://www.navajometals.com",
+      "websiteDomain": "navajometals.com",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "HUMAN_REVIEW",
+        "storedReasons": [
+          "NO_AUTOMOTIVE_WORDING"
+        ],
+        "currentFit": "HUMAN_REVIEW",
+        "currentReasons": [
+          "NO_AUTOMOTIVE_WORDING"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.8847132131457329,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd31vg02p9457dykn0yug7",
+      "sourceRecordId": "8dd3a322-ff26-4d45-bbb0-b2f030237c3d",
+      "stratum": "HUMAN_REVIEW",
+      "name": "Meckenics",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "4601 50 Ave, Valleyview, AB, T0H 0C8",
+      "website": null,
+      "websiteDomain": null,
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "HUMAN_REVIEW",
+        "storedReasons": [
+          "NO_AUTOMOTIVE_WORDING"
+        ],
+        "currentFit": "HUMAN_REVIEW",
+        "currentReasons": [
+          "NO_AUTOMOTIVE_WORDING"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL",
+          "NO_WEBSITE"
+        ],
+        "sourceConfidence": 0.5887710452079773,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd33fh03t5457d61wjzyvv",
+      "sourceRecordId": "c40829a3-034b-4479-a9eb-2b5a3219f9d8",
+      "stratum": "HUMAN_REVIEW",
+      "name": "H20 Adventures",
+      "category": "boat_service",
+      "tier": "AMBIGUOUS",
+      "address": "782 Main St, Pincher Creek, AB",
+      "website": null,
+      "websiteDomain": null,
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "HUMAN_REVIEW",
+        "storedReasons": [
+          "INSUFFICIENT_EVIDENCE"
+        ],
+        "currentFit": "HUMAN_REVIEW",
+        "currentReasons": [
+          "INSUFFICIENT_EVIDENCE"
+        ],
+        "classReasons": [
+          "UNKNOWN_SUBCATEGORY"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "LOW_CONFIDENCE",
+          "NO_EMAIL",
+          "NO_POSTAL",
+          "NO_WEBSITE"
+        ],
+        "sourceConfidence": 0.3332362473011017,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd34rg04v3457dywgltndh",
+      "sourceRecordId": "f2d24615-43f0-4721-aca3-5df10ec15538",
+      "stratum": "HUMAN_REVIEW",
+      "name": "Price 4x4 & Customs",
+      "category": "auto_customization",
+      "tier": "SECONDARY",
+      "address": "130 5 St SE, Sundre, AB, T0M 1X0",
+      "website": "http://www.truckcustomizinginsundreab.ca",
+      "websiteDomain": "truckcustomizinginsundreab.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "HUMAN_REVIEW",
+        "storedReasons": [
+          "UNCERTAIN_CATEGORY"
+        ],
+        "currentFit": "HUMAN_REVIEW",
+        "currentReasons": [
+          "UNCERTAIN_CATEGORY"
+        ],
+        "classReasons": [
+          "CUSTOMIZATION"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.9311581254005432,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd31vh02q5457dzw8yh2qh",
+      "sourceRecordId": "8f0d4f20-dafa-422b-a915-c41e9cd2488f",
+      "stratum": "HUMAN_REVIEW",
+      "name": "MBTech Mobile RV Services",
+      "category": "recreation_vehicle_repair",
+      "tier": "AMBIGUOUS",
+      "address": "109 Gateway Dr NE, Airdrie, AB, T4B 0J6",
+      "website": null,
+      "websiteDomain": null,
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "HUMAN_REVIEW",
+        "storedReasons": [
+          "SEGMENT_MARINE_RV"
+        ],
+        "currentFit": "HUMAN_REVIEW",
+        "currentReasons": [
+          "SEGMENT_MARINE_RV"
+        ],
+        "classReasons": [
+          "UNKNOWN_SUBCATEGORY"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED",
+          "LOW_CONFIDENCE",
+          "NO_WEBSITE",
+          "WEBSITE_IS_SOCIAL"
+        ],
+        "sourceConfidence": 0.2776465117931366,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": null,
+      "websiteChecked": false
+    }
+  ],
+  "MATCHES": [
+    {
+      "id": "cmvbd350b052s457ddi9954z2",
+      "sourceRecordId": "fd0af097-ea9c-4bb0-afc3-64df01f3d4fd",
+      "stratum": "MATCHES",
+      "name": "Lacombe Ford",
+      "category": "automotive_service",
+      "tier": "AMBIGUOUS",
+      "address": "5610 Alberta 2 Alternate, Lacombe, AB, T4L 1A3",
+      "website": "https://www.lacombeford.com",
+      "websiteDomain": "lacombeford.com",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "HUMAN_REVIEW",
+        "storedReasons": [
+          "OEM_BRAND_NAME"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "OUTSIDE_ICP_CHAIN_OR_CORPORATE",
+          "ICP_DEALERSHIP",
+          "ICP_REGISTRY_V1"
+        ],
+        "classReasons": [
+          "GENERIC_AUTOMOTIVE_SERVICE"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.85,
+        "datasets": [
+          "Microsoft",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": {
+        "state": "NEW",
+        "reasons": [],
+        "crmRecord": null,
+        "duplicateOf": {
+          "name": "Lacombe Ford",
+          "city": "Lacombe",
+          "address": "5610 Alberta 2 Alternate",
+          "website": "https://www.lacombeford.com"
+        }
+      },
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd30cc01mh457dubjqo87n",
+      "sourceRecordId": "58ea8f95-a224-4b73-9d50-d4d4df689f1f",
+      "stratum": "MATCHES",
+      "name": "Sheni's Auto-Trend",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "Calgary, AB",
+      "website": "http://www.shenisautotrend.com",
+      "websiteDomain": "shenisautotrend.com",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "ADDRESS_INCOMPLETE",
+          "NO_ADDRESS",
+          "NO_EMAIL",
+          "NO_POSTAL"
+        ],
+        "sourceConfidence": 0.6123162508010864,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": {
+        "state": "NEW",
+        "reasons": [],
+        "crmRecord": null,
+        "duplicateOf": {
+          "name": "Sheni's Auto-Trend",
+          "city": "Calgary",
+          "address": "521 53 Ave SE",
+          "website": "http://www.shenisautotrend.com"
+        }
+      },
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd30kn01s5457ddqtcqk9x",
+      "sourceRecordId": "60489be9-5a15-40a2-a858-bea0eae601e4",
+      "stratum": "MATCHES",
+      "name": "JD's Auto-Tech Services Inc",
+      "category": "automotive_service",
+      "tier": "AMBIGUOUS",
+      "address": "221 Railway Street East, Cochrane, AB, T4C 2C3",
+      "website": "http://www.jdsauto-tech.com",
+      "websiteDomain": "jdsauto-tech.com",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "HUMAN_REVIEW",
+        "storedReasons": [
+          "INSUFFICIENT_EVIDENCE"
+        ],
+        "currentFit": "HUMAN_REVIEW",
+        "currentReasons": [
+          "INSUFFICIENT_EVIDENCE"
+        ],
+        "classReasons": [
+          "GENERIC_AUTOMOTIVE_SERVICE"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.85,
+        "datasets": [
+          "Microsoft",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": {
+        "state": "NEW",
+        "reasons": [],
+        "crmRecord": null,
+        "duplicateOf": {
+          "name": "Jd's Auto-Tech Services Inc",
+          "city": "Cochrane",
+          "address": "221 Railway St East",
+          "website": "http://www.jdsauto-tech.com"
+        }
+      },
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd32jx035t457dvegi0r7e",
+      "sourceRecordId": "a4e906a1-6fe3-464f-bd14-fc0de78237a8",
+      "stratum": "MATCHES",
+      "name": "Groat Road Auto Service",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "11311 143 St NW, Edmonton, AB, T5M 3P8",
+      "website": "http://www.groatroadservice.com",
+      "websiteDomain": "groatroadservice.com",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.9920429825782776,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": {
+        "state": "NEW",
+        "reasons": [],
+        "crmRecord": null,
+        "duplicateOf": {
+          "name": "Groat Road Auto Service",
+          "city": "Edmonton",
+          "address": "11311 143 St NW",
+          "website": null
+        }
+      },
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd31o202hm457d90skvk6d",
+      "sourceRecordId": "83fa637f-054b-49eb-aa49-ccd62181ea93",
+      "stratum": "MATCHES",
+      "name": "Wheels Plus",
+      "category": "automotive_service",
+      "tier": "AMBIGUOUS",
+      "address": "9828 47 Ave NW Unit 1, Edmonton, AB, T6E 5P3",
+      "website": "http://www.wheels-plus.com",
+      "websiteDomain": "wheels-plus.com",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "HUMAN_REVIEW",
+        "storedReasons": [
+          "INSUFFICIENT_EVIDENCE"
+        ],
+        "currentFit": "HUMAN_REVIEW",
+        "currentReasons": [
+          "INSUFFICIENT_EVIDENCE"
+        ],
+        "classReasons": [
+          "GENERIC_AUTOMOTIVE_SERVICE"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.77,
+        "datasets": [
+          "Foursquare",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": {
+        "state": "NEW",
+        "reasons": [],
+        "crmRecord": null,
+        "duplicateOf": {
+          "name": "Wheels Plus",
+          "city": "Edmonton",
+          "address": "9828 47 Ave NW",
+          "website": "http://www.wheels-plus.com"
+        }
+      },
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd30km01n8457do7vjxr6x",
+      "sourceRecordId": "59cc9bd6-3378-4b0b-a77f-c3dfe48e506c",
+      "stratum": "MATCHES",
+      "name": "Evoke Auto Spa",
+      "category": "automotive_service",
+      "tier": "AMBIGUOUS",
+      "address": "4905 30 St SE #3101, Calgary, AB, T2B 0P1",
+      "website": "https://www.evokeautospa.ca",
+      "websiteDomain": "evokeautospa.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "EXCLUDED",
+        "storedReasons": [
+          "NAME_SIGNAL_CAR_WASH"
+        ],
+        "currentFit": "EXCLUDED",
+        "currentReasons": [
+          "NAME_SIGNAL_CAR_WASH",
+          "NAME_SIGNAL_DETAILING"
+        ],
+        "classReasons": [
+          "GENERIC_AUTOMOTIVE_SERVICE"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.77,
+        "datasets": [
+          "Foursquare",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": {
+        "state": "NEW",
+        "reasons": [],
+        "crmRecord": null,
+        "duplicateOf": {
+          "name": "Evoke Auto Spa",
+          "city": "Calgary",
+          "address": "4905 30 St SE #3101",
+          "website": "https://www.evokeautospa.ca"
+        }
+      },
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd34rg04ug457d8ryao6vm",
+      "sourceRecordId": "f1d4cda5-0017-4119-9144-5693661b12b8",
+      "stratum": "MATCHES",
+      "name": "Tire Legend",
+      "category": "tire_dealer_and_repair",
+      "tier": "PRIMARY",
+      "address": "4705 60 St #1, Red Deer, AB, T4N 2N8",
+      "website": null,
+      "websiteDomain": null,
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "TIRE_SERVICE"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED",
+          "NO_WEBSITE"
+        ],
+        "sourceConfidence": 0.973781406879425,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": {
+        "state": "NEW",
+        "reasons": [],
+        "crmRecord": null,
+        "duplicateOf": {
+          "name": "Tire Legend",
+          "city": "Red Deer",
+          "address": "4705 60, Unit 1",
+          "website": null
+        }
+      },
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd33fi03w7457dpsk5qq3h",
+      "sourceRecordId": "c82af77e-657a-48a3-8f62-44e4930baeed",
+      "stratum": "MATCHES",
+      "name": "Crystal Glass Canada Ltd.",
+      "category": "auto_glass_service",
+      "tier": "SECONDARY",
+      "address": "12633 Fort Rd NW, Edmonton, AB, T5C 3C2",
+      "website": "https://www.crystalglass.ca/location/Edmonton-North-East",
+      "websiteDomain": "crystalglass.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "GLASS"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.85,
+        "datasets": [
+          "Microsoft",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": {
+        "state": "NEW",
+        "reasons": [],
+        "crmRecord": null,
+        "duplicateOf": {
+          "name": "Crystal Glass Canada Ltd",
+          "city": "Edmonton",
+          "address": "12633 Fort Rd NW",
+          "website": "http://www.crystalglass.ca"
+        }
+      },
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd30km01nh457dxbod58c0",
+      "sourceRecordId": "5a1454fd-276d-45fe-b62a-77aff7d45cd9",
+      "stratum": "MATCHES",
+      "name": "Action Brake & Mechanical",
+      "category": "automotive_repair",
+      "tier": "PRIMARY",
+      "address": "15691 116 Ave NW, Edmonton, AB, T5M 3W1",
+      "website": "http://actionbrakeandmechanical.ca",
+      "websiteDomain": "actionbrakeandmechanical.ca",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "REPAIR_SHOP"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "EMAIL_UNVERIFIED"
+        ],
+        "sourceConfidence": 0.9624959826469421,
+        "datasets": [
+          "Overture",
+          "meta"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": {
+        "state": "NEW",
+        "reasons": [],
+        "crmRecord": null,
+        "duplicateOf": {
+          "name": "Action Brake & Mechanical",
+          "city": "Edmonton",
+          "address": "15691 116 Avenue NW",
+          "website": "http://actionbrakeandmechanical.ca"
+        }
+      },
+      "websiteChecked": false
+    },
+    {
+      "id": "cmvbd323w02x8457deqaedplm",
+      "sourceRecordId": "9986ecde-8894-48c3-ad8c-085ba0ddb4e5",
+      "stratum": "MATCHES",
+      "name": "Trail Tire Auto Centers",
+      "category": "tire_shop",
+      "tier": "PRIMARY",
+      "address": "9903 90 Ave, Morinville, AB, T8R 1K7",
+      "website": "https://www.trailtire.com/alberta-morinville",
+      "websiteDomain": "trailtire.com",
+      "websiteDomainIsShared": false,
+      "bannerName": false,
+      "evidence": {
+        "storedFit": "VERIFIED_REPAIR",
+        "storedReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "currentFit": "VERIFIED_REPAIR",
+        "currentReasons": [
+          "REPAIR_CATEGORY"
+        ],
+        "classReasons": [
+          "TIRE_SERVICE"
+        ],
+        "chainSignal": "NO_CHAIN_SIGNAL",
+        "qualityFlags": [
+          "NO_EMAIL"
+        ],
+        "sourceConfidence": 0.9655,
+        "datasets": [
+          "Microsoft",
+          "Overture"
+        ],
+        "commercialSegment": "LIGHT_VEHICLE"
+      },
+      "review": {
+        "reviewState": "PENDING",
+        "importState": "NOT_IMPORTED",
+        "release": "2026-09-23.1"
+      },
+      "match": {
+        "state": "NEW",
+        "reasons": [],
+        "crmRecord": null,
+        "duplicateOf": {
+          "name": "Trail Tire Auto Centers",
+          "city": "Morinville",
+          "address": "9903 90 Ave",
+          "website": "http://www.trailtire.com"
+        }
+      },
+      "websiteChecked": false
+    }
+  ]
+}

@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { writeCrmAudit } from "@/lib/sales-crm/audit";
 import { applyImportBatch, type ImportRowResult } from "@/lib/sales-crm/lead-engine";
 import { locateFromSource } from "@/lib/sales-crm/source-location-service";
+import { isIcpExclusion } from "@/domain/lead-radar/icp";
 import { assessRepairFit } from "@/domain/lead-radar/repair-fit";
 import { stampFitAtImport } from "@/lib/sales-crm/repair-fit-service";
 import { CrmError, resolveAssignee } from "@/lib/sales-crm/prospects";
@@ -45,7 +46,8 @@ export async function importApprovedCandidates(actor: PlatformSalesActor, opts: 
     // Fit gate: a candidate that is clearly not a repair business (EV charging, car wash, recycling, bicycle, manufacturer…) is never imported, even if someone approved it.
     // The rejection is durable (a human/system rejection is never reopened by a refresh). A person who really wants it approves it WITH a fit override, which is stamped as a human decision.
     const overrideOf = (c: { reviewState: string; approvedByPolicyVersion: number | null; reviewNote: string | null }) => c.reviewState === "APPROVED" && c.approvedByPolicyVersion === null && !!c.reviewNote?.startsWith(FIT_OVERRIDE_PREFIX);
-    const fitBlocked = claimed.filter((c) => !overrideOf(c) && assessRepairFit({ name: c.name, taxonomyPrimary: c.taxonomyPrimary, classReasons: c.classReasons }).fit === "EXCLUDED");
+    // The discovery ICP (independent repair businesses only) is NOT overridable: a confirmed chain/franchise/dealership never reaches the CRM, even with a fit override.
+    const fitBlocked = claimed.filter((c) => { const a = assessRepairFit({ name: c.name, taxonomyPrimary: c.taxonomyPrimary, classReasons: c.classReasons, website: c.website, city: c.city }); return a.fit === "EXCLUDED" && (isIcpExclusion(a.reasons) || !overrideOf(c)); });
     if (fitBlocked.length) {
       await tx.crmDiscoveryCandidate.updateMany({ where: { id: { in: fitBlocked.map((c) => c.id) }, importState: { in: ["NOT_IMPORTED", "FAILED"] } }, data: { reviewState: "REJECTED", reviewedByUserId: actor.userId, reviewedAt: new Date(), reviewNote: "FIT_EXCLUDED_AT_IMPORT", approvedByPolicyVersion: null } });
       await writeCrmAudit({ actorUserId: actor.userId, action: "LEAD_RADAR_CANDIDATES_REVIEWED", entityType: "CrmDiscoveryCandidate", metadata: { decision: "REJECTED", via: "fit-gate-at-import", count: fitBlocked.length, ids: fitBlocked.slice(0, 200).map((c) => c.id) } }, tx);
@@ -96,7 +98,7 @@ export async function importApprovedCandidates(actor: PlatformSalesActor, opts: 
     }
     // Classify every prospect this import created or linked, the moment it exists (only where no fit is stored; a human decision is never touched).
     const fitItems = cands.filter((c) => c.id in importedBy).map((c) => ({
-      prospectId: importedBy[c.id].prospectId, created: importedBy[c.id].created, name: c.name, industry: c.industry, taxonomyPrimary: c.taxonomyPrimary, classReasons: c.classReasons,
+      prospectId: importedBy[c.id].prospectId, created: importedBy[c.id].created, name: c.name, industry: c.industry, website: c.website, city: c.city, taxonomyPrimary: c.taxonomyPrimary, classReasons: c.classReasons,
       override: overrideOf(c) && c.reviewedByUserId ? { userId: c.reviewedByUserId, note: (c.reviewNote ?? "").slice(FIT_OVERRIDE_PREFIX.length).trim() || "Approved with fit override" } : null,
     }));
     const fitStamped = await stampFitAtImport(tx, fitItems, now);

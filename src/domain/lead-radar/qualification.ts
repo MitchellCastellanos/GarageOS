@@ -14,6 +14,7 @@ import { importEligibility } from "@/domain/lead-radar/record";
 import { canonicalRules, REVIEWABLE_FLAGS, type PolicyRules, type ReviewableFlag } from "@/domain/lead-radar/policy-rules";
 import { classifyBusinessType, independentSources, type BusinessType } from "@/domain/lead-radar/business-type";
 import { OEM_NAME } from "@/domain/lead-radar/taxonomy";
+import { isIcpExclusion } from "@/domain/lead-radar/icp";
 import { assessRepairFit } from "@/domain/lead-radar/repair-fit";
 
 export * from "@/domain/lead-radar/policy-rules";
@@ -21,7 +22,7 @@ export * from "@/domain/lead-radar/policy-rules";
 export type QualificationLane = "AUTO_ELIGIBLE" | "HUMAN_REVIEW" | "BLOCKED";
 type StaticReason =
   // blocked
-  | "LICENSE_BLOCKED" | "EXCLUDED_TIER" | "INSUFFICIENT_CONTACT" | "SOURCE_PROVENANCE_MISSING" | "CHAIN_BLOCKED_BY_POLICY"
+  | "LICENSE_BLOCKED" | "EXCLUDED_TIER" | "INSUFFICIENT_CONTACT" | "SOURCE_PROVENANCE_MISSING" | "CHAIN_BLOCKED_BY_POLICY" | "OUTSIDE_ICP_CHAIN_OR_CORPORATE"
   // human review
   | "AMBIGUOUS_MATCH" | "BRANCH_RELATIONSHIP" | "EXISTING_MATCH_REVIEW" | "QUESTIONABLE_CATEGORY" | "SECONDARY_CATEGORY" | "CHAIN_SIGNAL"
   | "NO_LOCATION" | "NO_REACHABLE_CHANNEL" | "TERRITORY_UNRESOLVED" | "SOURCE_CHANGED"
@@ -34,7 +35,7 @@ type StaticReason =
 export type QualificationReason = StaticReason | `FLAG_${ReviewableFlag}`;
 /** Every reason code the UI must be able to explain (EN/FR completeness is tested against this list). */
 export const QUALIFICATION_REASONS: readonly QualificationReason[] = [
-  "LICENSE_BLOCKED", "EXCLUDED_TIER", "INSUFFICIENT_CONTACT", "SOURCE_PROVENANCE_MISSING", "CHAIN_BLOCKED_BY_POLICY",
+  "LICENSE_BLOCKED", "EXCLUDED_TIER", "INSUFFICIENT_CONTACT", "SOURCE_PROVENANCE_MISSING", "CHAIN_BLOCKED_BY_POLICY", "OUTSIDE_ICP_CHAIN_OR_CORPORATE",
   "AMBIGUOUS_MATCH", "BRANCH_RELATIONSHIP", "EXISTING_MATCH_REVIEW", "QUESTIONABLE_CATEGORY", "SECONDARY_CATEGORY", "CHAIN_SIGNAL",
   "NO_LOCATION", "NO_REACHABLE_CHANNEL", "TERRITORY_UNRESOLVED", "SOURCE_CHANGED",
   ...REVIEWABLE_FLAGS.map((f): QualificationReason => `FLAG_${f}`),
@@ -61,6 +62,7 @@ export interface QualificationFacts {
   stickyReasons?: readonly string[];
   // Business-type facts (V2). Optional so V1 callers and old fixtures keep working; absent ⇒ the business type is UNSPECIFIED (⇒ human review under V2).
   name?: string | null;
+  city?: string | null;
   taxonomyPrimary?: string | null;
   classReasons?: readonly string[];
 }
@@ -99,8 +101,10 @@ export function evaluateQualification(rulesIn: PolicyRules, f: QualificationFact
   if (v2 && bt.capability === "NON_TARGET" && rules.nonTargetBusiness === "BLOCK") blocked.push("NOT_TARGET_BUSINESS");
   // Contradiction gate (every policy, V1 included): a decisive non-repair signal in the name with NO repair wording (EV charging, car wash, recycling, bicycle, taxi
   // equipment, manufacturer/corporate…) blocks, whatever the stored category says; see repair-fit.ts. A known non-repair CATEGORY stays governed by the policy options above.
-  const fit = assessRepairFit({ name: f.name, taxonomyPrimary: f.taxonomyPrimary, classReasons: f.classReasons });
-  if (fit.fit === "EXCLUDED" && fit.reasons.some((r) => r.startsWith("NAME_SIGNAL_"))) blocked.push("NOT_TARGET_BUSINESS");
+  const fit = assessRepairFit({ name: f.name, taxonomyPrimary: f.taxonomyPrimary, classReasons: f.classReasons, website: f.website, city: f.city });
+  // Discovery ICP (every policy): a confirmed chain / franchise / retail / parts network / dealership is permanently outside the target — BLOCKED, never a human review.
+  if (isIcpExclusion(fit.reasons)) blocked.push("OUTSIDE_ICP_CHAIN_OR_CORPORATE");
+  else if (fit.fit === "EXCLUDED" && fit.reasons.some((r) => r.startsWith("NAME_SIGNAL_"))) blocked.push("NOT_TARGET_BUSINESS");
   if (blocked.length) return done({ lane: "BLOCKED", reasons: uniqSorted(blocked), handoff: null });
 
   const review: QualificationReason[] = [];

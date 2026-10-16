@@ -83,15 +83,15 @@ if (!enabled) {
     assert.equal(rep.evaluated, POP.length);
     // V1: only clean primaries are auto; V2 adds repair-capable specialties, name-evidence generics and corroborated low confidence.
     // V1: only the 3 clean primaries are auto (the corroborated low-confidence tires, body/glass/restoration and generic shops all wait for a human).
-    assert.deepEqual([rep.a.lanes.AUTO_ELIGIBLE, rep.a.lanes.BLOCKED], [3, 1], JSON.stringify(rep.a.lanes));
+    assert.deepEqual([rep.a.lanes.AUTO_ELIGIBLE, rep.a.lanes.BLOCKED], [3, 2], JSON.stringify(rep.a.lanes));
     // V2: + body×2, glass, restoration, 2 generic shops with name evidence, 2 corroborated tire shops = 11 auto; 5 blocked (OSM licence + parts×2, wash, towing);
-    // 4 stay with a human (chain, dealer, generic without evidence, low confidence with a single source).
-    assert.deepEqual([rep.b.lanes.AUTO_ELIGIBLE, rep.b.lanes.HUMAN_REVIEW, rep.b.lanes.BLOCKED], [11, 4, 5], JSON.stringify(rep.b.lanes));
+    // 3 stay with a human (chain, generic without evidence, low confidence with a single source).
+    assert.deepEqual([rep.b.lanes.AUTO_ELIGIBLE, rep.b.lanes.HUMAN_REVIEW, rep.b.lanes.BLOCKED], [11, 3, 6], JSON.stringify(rep.b.lanes));
     assert.equal(rep.invariants.ok, true);
     const kinds = Object.fromEntries(rep.movements.map((m: any) => [m.cause, m.count]));
     assert.ok(Object.keys(kinds).some((k) => /NOT_TARGET_BUSINESS/.test(k)));
     assert.ok(rep.movements.flatMap((m: any) => m.examples).some((e: any) => /Carrosserie|Vitres|Restauration/.test(e.name ?? "")), "real example rows appear when names are requested");
-    const dealer = rep.byBusinessType.DEALER; assert.equal(dealer.b.HUMAN_REVIEW, 1);
+    const dealer = rep.byBusinessType.DEALER; assert.equal(dealer.b.BLOCKED, 1, "a dealership is outside the independent-repair ICP: blocked, not a review");
     assert.ok(r.markdown.includes("Nothing was imported, assigned, contacted or modified"));
     assert.equal(await snapshot(), before, "analysis is strictly read-only");
     // names are off unless asked

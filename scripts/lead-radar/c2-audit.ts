@@ -7,7 +7,8 @@
 //
 // sample  Draws 50 VERIFIED_REPAIR, 50 EXCLUDED, 25 HUMAN_REVIEW and 10 duplicate-or-CRM-match candidates, ordered by md5(Overture id || seed) — the same seed yields the same
 //         sample on the same data in any environment. Writes audit-sample.json/.md (name, category, address, website, classification evidence, match reasons and the matched record's name/city/domain)
-//         and audit-labels.template.json for the reviewer. It NEVER fetches a website: nothing is "verified" unless the reviewer sets websiteChecked=true.
+//         and audit-labels.template.json for the reviewer. `--basis current` strata by what the CURRENT rules (shared classifier + independent-repair ICP registry) say rather than by the stored
+//         verdict, which is stale until the owner applies the re-check: use it to audit the real target market (independent repair businesses) before anything is applied. It NEVER fetches a website: nothing is "verified" unless the reviewer sets websiteChecked=true.
 // impact  Counts the candidates whose CRM match could come from a shared directory/banner domain, shared toll-free number or banner name, and lists the already-LINKED
 //         candidates that were linked through the unknown-address paths (the only auto-link paths that depended on a "unique" phone/domain) for a human to look at.
 // score   Computes precision / exclusion error / incorrect matches against the documented thresholds from the reviewer's labels.
@@ -42,6 +43,20 @@ async function sample() {
   const province = arg("province", "AB")!, seed = arg("seed", `c2-${province}-1`)!;
   const data = await withReadOnly(async (c) => {
     const draw = async (where: string, n: number) => (await c.query(`SELECT ${COLS} FROM "garageos"."CrmDiscoveryCandidate" c WHERE c."province" = $1 AND ${where} ORDER BY md5(c."sourceRecordId" || $2) LIMIT ${n}`, [province, seed])).rows;
+    if (arg("basis") === "current") {
+      const all = (await c.query(`SELECT ${COLS} FROM "garageos"."CrmDiscoveryCandidate" c WHERE c."province" = $1 AND c."duplicateOfCandidateId" IS NULL ORDER BY md5(c."sourceRecordId" || $2) LIMIT 100000`, [province, seed])).rows;
+      const cur = (r: any) => assessRepairFit({ name: r.name, taxonomyPrimary: r.taxonomyPrimary, classReasons: r.classReasons, website: r.website, city: r.city }).fit;
+      const pick = (f: string, n: number) => all.filter((r: any) => cur(r) === f).slice(0, n);
+      const matches = await draw(`(c."duplicateOfCandidateId" IS NOT NULL OR c."matchState" <> 'NEW')`, SIZES.MATCHES);
+      const tally: Record<string, number> = {}; for (const r of all) tally[cur(r)] = (tally[cur(r)] ?? 0) + 1;
+      const strata: Record<Stratum, any[]> = { VERIFIED_REPAIR: pick("VERIFIED_REPAIR", SIZES.VERIFIED_REPAIR), EXCLUDED: pick("EXCLUDED", SIZES.EXCLUDED), HUMAN_REVIEW: pick("HUMAN_REVIEW", SIZES.HUMAN_REVIEW), MATCHES: matches };
+      const counts = { staged: all.length, currentRules: tally, basis: "current" };
+      const pids = [...new Set(matches.map((r: any) => r.matchProspectId).filter(Boolean))];
+      const prospects = pids.length ? (await c.query(`SELECT "id","name","city","province","address","websiteDomain",("assignedStaffId" IS NOT NULL) AS owned,"doNotContact" FROM "garageos"."CrmProspect" WHERE "id" = ANY($1)`, [pids])).rows : [];
+      const dids = [...new Set(matches.map((r: any) => r.duplicateOfCandidateId).filter(Boolean))];
+      const originals = dids.length ? (await c.query(`SELECT "id","name","city","address","website" FROM "garageos"."CrmDiscoveryCandidate" WHERE "id" = ANY($1)`, [dids])).rows : [];
+      return { strata, counts, prospects: new Map(prospects.map((p: any) => [p.id, p])), originals: new Map(originals.map((p: any) => [p.id, p])) };
+    }
     const strata: Record<Stratum, any[]> = {
       VERIFIED_REPAIR: await draw(`c."duplicateOfCandidateId" IS NULL AND c."repairFit" = 'VERIFIED_REPAIR'`, SIZES.VERIFIED_REPAIR),
       EXCLUDED: await draw(`c."duplicateOfCandidateId" IS NULL AND c."repairFit" = 'EXCLUDED'`, SIZES.EXCLUDED),
@@ -56,7 +71,7 @@ async function sample() {
     return { strata, counts, prospects: new Map(prospects.map((p: any) => [p.id, p])), originals: new Map(originals.map((p: any) => [p.id, p])) };
   });
   const shape = (r: any, stratum: Stratum) => {
-    const fit = assessRepairFit({ name: r.name, taxonomyPrimary: r.taxonomyPrimary, classReasons: r.classReasons });
+    const fit = assessRepairFit({ name: r.name, taxonomyPrimary: r.taxonomyPrimary, classReasons: r.classReasons, website: r.website, city: r.city });
     const dom = websiteDomain(r.website);
     const m = r.matchProspectId ? data.prospects.get(r.matchProspectId) : null, d = r.duplicateOfCandidateId ? data.originals.get(r.duplicateOfCandidateId) : null;
     return {

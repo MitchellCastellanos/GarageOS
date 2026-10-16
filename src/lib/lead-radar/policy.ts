@@ -29,7 +29,7 @@ export const poolWhere: Prisma.CrmDiscoveryCandidateWhereInput = {
 
 export const FACT_SELECT = {
   id: true, tier: true, licenseOk: true, licenses: true, datasets: true, chainSignal: true, matchState: true, qualityFlags: true, province: true, address: true, postalCode: true,
-  phone: true, website: true, territoryKey: true, reviewState: true, name: true, taxonomyPrimary: true, classReasons: true, qualificationLane: true, qualificationReasons: true, approvedByPolicyVersion: true,
+  phone: true, website: true, city: true, territoryKey: true, reviewState: true, name: true, taxonomyPrimary: true, classReasons: true, qualificationLane: true, qualificationReasons: true, approvedByPolicyVersion: true,
 } satisfies Prisma.CrmDiscoveryCandidateSelect;
 export type FactRow = Prisma.CrmDiscoveryCandidateGetPayload<{ select: typeof FACT_SELECT }>;
 
@@ -37,7 +37,7 @@ export function factsOf(r: FactRow): QualificationFacts {
   return {
     tier: r.tier, licenseOk: r.licenseOk, licenses: r.licenses, datasets: r.datasets, chainSignal: r.chainSignal, matchState: r.matchState, qualityFlags: r.qualityFlags,
     province: r.province, address: r.address, postalCode: r.postalCode, phone: r.phone, website: r.website, territoryKey: r.territoryKey, reviewState: r.reviewState,
-    name: r.name, taxonomyPrimary: r.taxonomyPrimary, classReasons: r.classReasons,
+    name: r.name, city: r.city, taxonomyPrimary: r.taxonomyPrimary, classReasons: r.classReasons,
     stickyReasons: r.reviewState === "PENDING" ? r.qualificationReasons.filter((x) => x === "SOURCE_CHANGED") : [],
   };
 }

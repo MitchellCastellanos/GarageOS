@@ -407,28 +407,29 @@ if (!enabled) {
     assert.equal(done.ok, true, JSON.stringify(done));
     const cands = await Promise.all(recs.map((r: any) => cand(r.id)));
     for (const c of cands) { const m = c.matchProspectId ? await db.crmProspect.findUnique({ where: { id: c.matchProspectId }, select: { name: true, city: true, websiteDomain: true, phoneDigits: true } }) : null; assert.equal(c.matchState, "NEW", `${c.name} ${c.city}: a shared directory/banner domain is not a match (matched ${JSON.stringify(m)})`); assert.equal(c.matchProspectId, null); assert.deepEqual(c.matchReasons, []); }
+    // Identity matching is judged BEFORE (and independently of) the commercial ICP. Under the independent-repair ICP the NAPA AUTOPRO / OK Tire locations are chains: they are EXCLUDED
+    // and can neither be approved nor imported, so only the independent "Dad's Auto Repair Shop" becomes a (separate, unlinked) prospect.
     as(users.Root);
-    assert.equal(((await radar.reviewDiscoveryCandidates({ ids: cands.map((c) => c.id), decision: "APPROVED" })) as any).ok, true);
+    assert.deepEqual(cands.map((c) => c.repairFit), ["VERIFIED_REPAIR", "EXCLUDED", "EXCLUDED", "EXCLUDED"]);
+    await radar.reviewDiscoveryCandidates({ ids: cands.map((c) => c.id), decision: "APPROVED" });
+    assert.deepEqual((await Promise.all(cands.map((c) => db.crmDiscoveryCandidate.findUniqueOrThrow({ where: { id: c.id } })))).map((c) => c.reviewState), ["APPROVED", "PENDING", "PENDING", "PENDING"], "only the independent shop can be approved");
     const imp: any = await radar.importApprovedDiscoveryCandidates({ ids: cands.map((c) => c.id) });
     assert.equal(imp.ok, true, JSON.stringify(imp));
-    assert.deepEqual([imp.result.created, imp.result.linked, imp.result.sentToReview], [4, 0, 0], "four separate new prospects: nothing linked, merged or held");
+    assert.deepEqual([imp.result.created, imp.result.linked, imp.result.sentToReview], [1, 0, 0], "one separate new prospect: nothing linked, merged or held");
     assert.equal(await snap(), before, "existing CRM records (owner, DNC, manual notes, website, timestamps) are untouched");
     assert.equal(await db.crmDuplicateReview.count({ where: { prospectId: { in: [genile.id, rr.id, okp.id] } } }), 0);
     for (const c of cands) assert.notEqual((await db.crmDiscoveryCandidate.findUniqueOrThrow({ where: { id: c.id } })).importedProspectId, genile.id);
-    // The one genuinely uncertain shape (banner name + same city, CRM record without an address) is held for a person, not linked: still no change to the CRM record.
+    // The shape that used to be "held for a person" (banner name + same city, CRM record without an address) is still matched conservatively (AMBIGUOUS, never linked) —
+    // and, being a chain location, it is excluded outright: it consumes no review, import or assignment capacity. The CRM record is untouched.
     const noAddr = await mk("NAPA AUTOPRO", { city: "Edmonton", province: "AB", website: "https://www.napaautopro.com/en/", websiteDomain: "napaautopro.com" });
     extraIds.push(noAddr.id);
     const before2 = await snap();
     const risky = rec("NAPA AUTOPRO", "OTT", { phones: ["+17805550106"], address: ab("1 Test Rd NW", "Edmonton", "T5K 1A1"), websites: ["https://www.napaautopro.com/en/"], geo: { lat: 53.55, lng: -113.5 } });
     assert.equal((await extract([{ ...risky, address: { ...(risky.address as object), freeform: null, postcode: null } }], ["AB"], "2026-11-19.0")).done.ok, true);
     const rc = await cand(risky.id);
-    assert.equal(rc.matchState, "AMBIGUOUS"); assert.ok(rc.matchProspectId, "points at a candidate for a person to compare (the unaddressed record or the NAPA AUTOPRO just imported)");
-    as(users.Root);
-    assert.equal(((await radar.reviewDiscoveryCandidates({ ids: [rc.id], decision: "APPROVED" })) as any).ok, true);
-    const imp2: any = await radar.importApprovedDiscoveryCandidates({ ids: [rc.id] });
-    assert.deepEqual([imp2.result.created, imp2.result.linked, imp2.result.sentToReview], [0, 0, 1], "held for a person: nothing is linked or created");
+    assert.equal(rc.matchState, "AMBIGUOUS"); assert.ok(rc.matchProspectId, "points at a candidate for a person to compare");
+    assert.equal(rc.repairFit, "EXCLUDED");
     assert.equal(await snap(), before2, "the unaddressed CRM record is untouched");
-    assert.equal(await db.crmDuplicateReview.count({ where: { prospectId: rc.matchProspectId! } }), 1);
   });
 
   test("re-check of stale CRM matches (no new extraction): preview writes nothing; apply fixes only the derived match columns of NOT-yet-imported candidates and keeps human decisions, prospects and ownership untouched; Super Admin only; audited", async () => {
@@ -482,5 +483,60 @@ if (!enabled) {
     assert.equal((await db.crmDiscoveryCandidate.findUniqueOrThrow({ where: { id: ca.id } })).importState, "CREATED");
     assert.equal((await db.crmDiscoveryCandidate.findUniqueOrThrow({ where: { id: cb.id } })).importState, "NOT_IMPORTED", "the BC approval was not taken by an AB-scoped import");
     assert.equal(((await radar.importApprovedDiscoveryCandidates({ province: "ZZ" })) as any).ok, false);
+  });
+
+  test("discovery ICP (independent repair businesses only): chains are EXCLUDED at staging, blocked at approval/import even with an override, never reach the CRM across refreshes, and the re-check Preview reports the impact without touching human decisions", async () => {
+    const access = await import("../src/lib/sales-crm/access");
+    const { rematchCandidates } = await import("../src/lib/lead-radar/rematch");
+    const admin = (await access.resolvePlatformSalesActor(users.Root))!;
+    const ab = (name: string, n: number, o: Record<string, unknown> = {}) => rec(name, "OTT", { address: { freeform: `${700 + n} ICP Ave`, locality: "Edmonton", postcode: "T5J 2Z2", region: "AB", country: "CA" }, phones: [`+1780555${String(8100 + n)}`], geo: { lat: 53.5 + n * 0.001, lng: -113.5 }, ...o });
+    const chain = ab("Fountain Tire Edmonton ICP", 1, { websites: ["https://www.fountaintire.com/store/icp1"] });
+    const franchisee = ab("R.R. Station Service ICP Inc.", 2, { websites: ["https://www.napaautopro.com/stations/icp2"] });
+    const supplier = ab("Joe's ICP Garage (NAPA parts available)", 3);
+    const diesel = ab("Prairie ICP Diesel & Truck Repair", 4, { taxonomy: { primary: "truck_repair", hierarchy: ["travel_and_transportation", "vehicle_service", "automotive_service", "truck_repair"], alternates: null } });
+    const recs = [chain, franchisee, supplier, diesel];
+    assert.equal((await extract(recs, ["AB"], "2026-12-01.0")).done.ok, true);
+    const [cc, cf, cs, cd] = [await cand(chain.id), await cand(franchisee.id), await cand(supplier.id), await cand(diesel.id)];
+    for (const c of [cc, cf]) { assert.equal(c.repairFit, "EXCLUDED"); assert.ok(c.repairFitReasons.includes("OUTSIDE_ICP_CHAIN_OR_CORPORATE")); assert.ok(c.repairFitReasons.some((x) => x.startsWith("ICP_REGISTRY_V"))); }
+    assert.ok(cc.repairFitReasons.includes("ICP_BRAND_FOUNTAIN_TIRE")); assert.ok(cf.repairFitReasons.includes("ICP_BRAND_NAPA"));
+    assert.notEqual(cs.repairFit, "EXCLUDED", "an independent shop that only mentions a NAPA parts supply stays eligible");
+    assert.equal(cd.repairFit, "VERIFIED_REPAIR", "heavy-duty / diesel is an eligible specialist segment");
+    // Approval is refused, and a fit override does not reach the ICP.
+    for (const override of [false, true]) {
+      const r: any = await radar.reviewDiscoveryCandidates({ ids: [cc.id, cf.id], decision: "APPROVED", note: "I really want these chain stores", fitOverride: override });
+      assert.ok(r.ok === false || (r.result?.updated ?? r.updated ?? 0) === 0, JSON.stringify(r));
+      assert.equal((await db.crmDiscoveryCandidate.findUniqueOrThrow({ where: { id: cc.id } })).reviewState, "PENDING");
+    }
+    // An approval that already exists (given before this policy) is stopped at import: durable rejection, no prospect, override ignored.
+    await db.crmDiscoveryCandidate.update({ where: { id: cc.id }, data: { reviewState: "APPROVED", reviewNote: "FIT_OVERRIDE: legacy approval", reviewedByUserId: users.Root, reviewedAt: new Date() } });
+    const imp: any = await radar.importApprovedDiscoveryCandidates({ ids: [cc.id] });
+    assert.equal(imp.ok, true, JSON.stringify(imp));
+    const ccAfter = await db.crmDiscoveryCandidate.findUniqueOrThrow({ where: { id: cc.id } });
+    assert.deepEqual([ccAfter.importState, ccAfter.reviewState, ccAfter.reviewNote], ["NOT_IMPORTED", "REJECTED", "FIT_EXCLUDED_AT_IMPORT"]);
+    // Qualification BLOCKS (never human review) with the distinct reason.
+    const { qualifyPending } = await import("../src/lib/lead-radar/qualify");
+    const { getActivePolicy } = await import("../src/lib/lead-radar/policy");
+    const pol = await getActivePolicy();
+    if (pol) {
+      await db.crmDiscoveryCandidate.update({ where: { id: cf.id }, data: { qualificationLane: null, qualificationPolicyVersion: null, qualifiedAt: null, qualificationReasons: [] } });
+      await qualifyPending(pol, { deadline: Date.now() + 20_000 });
+      const q = await db.crmDiscoveryCandidate.findUniqueOrThrow({ where: { id: cf.id } });
+      assert.equal(q.qualificationLane, "BLOCKED"); assert.ok(q.qualificationReasons.includes("OUTSIDE_ICP_CHAIN_OR_CORPORATE"));
+    }
+    // A later release of the same places: still excluded, still not in the CRM, the rejection (exclusion history) is kept.
+    assert.equal((await extract(recs, ["AB"], "2026-12-08.0")).done.ok, true);
+    const cc2 = await cand(chain.id);
+    assert.deepEqual([cc2.repairFit, cc2.reviewState, cc2.importState], ["EXCLUDED", "REJECTED", "NOT_IMPORTED"]);
+    assert.equal(await db.crmProspect.count({ where: { OR: [{ name: { contains: "Fountain Tire Edmonton ICP" } }, { name: { contains: "R.R. Station Service ICP" } }] } }), 0);
+    // Re-check Preview over stale stored verdicts (a chain stored as VERIFIED_REPAIR under the old rules; a person-approved one).
+    await db.crmDiscoveryCandidate.update({ where: { id: cf.id }, data: { repairFit: "VERIFIED_REPAIR", repairFitReasons: ["REPAIR_CATEGORY"], reviewState: "APPROVED", reviewNote: "approved by a person" } });
+    await db.crmDiscoveryCandidate.update({ where: { id: cc.id }, data: { repairFit: "VERIFIED_REPAIR", repairFitReasons: ["REPAIR_CATEGORY"] } });
+    const prev = await rematchCandidates(admin, { province: "AB", apply: false });
+    assert.ok(prev.icp.newlyExcluded >= 2); assert.ok((prev.icp.newlyExcludedByBrand.FOUNTAIN_TIRE ?? 0) >= 1 && (prev.icp.newlyExcludedByBrand.NAPA ?? 0) >= 1);
+    assert.ok(prev.icp.protectedDecisions.examined >= 1 && prev.icp.protectedDecisions.approvedNowBlockedAtImport >= 1 && prev.icp.protectedDecisions.reviewStateTouched === 0);
+    assert.equal((await db.crmDiscoveryCandidate.findUniqueOrThrow({ where: { id: cf.id } })).repairFit, "VERIFIED_REPAIR", "preview writes nothing");
+    await rematchCandidates(admin, { province: "AB", apply: true });
+    const cfAfter = await db.crmDiscoveryCandidate.findUniqueOrThrow({ where: { id: cf.id } });
+    assert.deepEqual([cfAfter.repairFit, cfAfter.reviewState, cfAfter.reviewNote], ["EXCLUDED", "APPROVED", "approved by a person"], "fit corrected; the person's decision is kept (and the import gate still refuses it)");
   });
 }

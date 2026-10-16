@@ -1,0 +1,76 @@
+{
+  "thresholds": {
+    "verifiedPrecisionGo": 0.9,
+    "verifiedPrecisionStop": 0.85,
+    "excludedErrorMax": 0.1,
+    "incorrectMatchesMax": 0,
+    "chainLeakageMax": 0,
+    "icpWrongExclusionMax": 0.05
+  },
+  "sampled": {
+    "VERIFIED_REPAIR": 50,
+    "EXCLUDED": 50,
+    "HUMAN_REVIEW": 25,
+    "MATCHES": 10
+  },
+  "labelled": {
+    "VERIFIED_REPAIR": 50,
+    "EXCLUDED": 50,
+    "HUMAN_REVIEW": 25,
+    "MATCHES": 10
+  },
+  "unlabelled": 0,
+  "verified": {
+    "n": 50,
+    "strictPrecision": 0.44,
+    "lenientPrecision": 0.86,
+    "buckets": {
+      "RELEVANT_SPECIALIZED": 21,
+      "REAL_REPAIR": 22,
+      "AMBIGUOUS": 7
+    }
+  },
+  "excluded": {
+    "n": 50,
+    "wrongExclusionRate": 0,
+    "buckets": {
+      "CORRECT_EXCLUSION_CHAIN": 26,
+      "CORRECT_EXCLUSION": 24
+    }
+  },
+  "review": {
+    "n": 25,
+    "buckets": {
+      "AMBIGUOUS": 11,
+      "RELEVANT_SPECIALIZED": 1,
+      "NOT_REPAIR": 9,
+      "COMMERCIALLY_UNSUITABLE": 3,
+      "REAL_REPAIR": 1
+    }
+  },
+  "matches": {
+    "n": 10,
+    "incorrect": 0,
+    "buckets": {
+      "CORRECT_DUPLICATE": 10
+    }
+  },
+  "icp": {
+    "independentShareOfVerified": 0.86,
+    "chainLeakage": 0,
+    "chainShareOfReview": 0,
+    "excludedByIcp": {
+      "n": 26,
+      "wrong": 0,
+      "wrongRate": 0
+    }
+  },
+  "websitesChecked": 0,
+  "verdicts": {
+    "verifiedPrecision": "BORDERLINE",
+    "excludedError": "GO",
+    "matches": "GO",
+    "chainLeakage": "GO",
+    "icpExclusion": "GO"
+  }
+}

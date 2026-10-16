@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { PlatformSalesActor } from "@/domain/sales-crm/access";
 import { assignedScopeWhere } from "@/domain/sales-crm/access";
 import { importEligibility } from "@/domain/lead-radar/record";
+import { isIcpExclusion } from "@/domain/lead-radar/icp";
 import { assessRepairFit, commercialSegment } from "@/domain/lead-radar/repair-fit";
 import { FIT_OVERRIDE_PREFIX } from "@/lib/lead-radar/import-service";
 import { PRIMARY_RULES, CATEGORY_GROUPS } from "@/domain/lead-radar/taxonomy";
@@ -104,13 +105,14 @@ export async function reviewCandidates(actor: PlatformSalesActor, idsIn: readonl
   if (!ids.length || ids.length > MAX_REVIEW_BATCH) throw new CrmError("BATCH_SIZE");
   if (!["APPROVED", "REJECTED", "PENDING"].includes(decision)) throw new CrmError("INVALID");
   const cleanNote = note ? note.replace(/[\u0000-\u001F\u007F]/g, " ").trim().slice(0, 300) || null : null;
-  const rows = await db.crmDiscoveryCandidate.findMany({ where: { id: { in: ids } }, select: { id: true, reviewState: true, importState: true, licenseOk: true, tier: true, name: true, taxonomyPrimary: true, classReasons: true, duplicateOfCandidateId: true } });
+  const rows = await db.crmDiscoveryCandidate.findMany({ where: { id: { in: ids } }, select: { id: true, reviewState: true, importState: true, licenseOk: true, tier: true, name: true, taxonomyPrimary: true, classReasons: true, website: true, city: true, duplicateOfCandidateId: true } });
   const found = new Set(rows.map((r) => r.id));
   // Fit gate: a candidate that is clearly not a repair business cannot be approved by accident (bulk approvals were how such records reached the CRM).
   // A person who knows better approves it explicitly with `fitOverride` and a reason of at least 10 characters; the import then records a HUMAN fit decision.
   const override = !!opts.fitOverride;
   if (override && decision === "APPROVED" && (cleanNote ?? "").length < 10) throw new CrmError("NOTE_REQUIRED");
-  const fitExcluded = decision === "APPROVED" && !override ? rows.filter((r) => assessRepairFit({ name: r.name, taxonomyPrimary: r.taxonomyPrimary, classReasons: r.classReasons }).fit === "EXCLUDED").map((r) => r.id) : [];
+  // The discovery ICP (independent repair businesses only) is never overridable; any other fit exclusion is, with a reason.
+  const fitExcluded = decision === "APPROVED" ? rows.filter((r) => { const a = assessRepairFit({ name: r.name, taxonomyPrimary: r.taxonomyPrimary, classReasons: r.classReasons, website: r.website, city: r.city }); return a.fit === "EXCLUDED" && (isIcpExclusion(a.reasons) || !override); }).map((r) => r.id) : [];
   // A staged duplicate (same business re-keyed by the source) can never be approved: the original is the one that is reviewed and imported.
   const duplicates = decision === "APPROVED" ? rows.filter((r) => r.duplicateOfCandidateId !== null).map((r) => r.id) : [];
   const blocked = rows.filter((r) => decision === "APPROVED" && (!r.licenseOk || r.tier === "EXCLUDED" || fitExcluded.includes(r.id) || duplicates.includes(r.id)));
