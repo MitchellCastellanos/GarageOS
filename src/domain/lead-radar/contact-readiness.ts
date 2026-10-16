@@ -45,7 +45,7 @@ export function climbLadder(f: LadderFacts): LadderResult {
   return { reached, stuckAt, rungs };
 }
 
-const ROLE_LOCALS = new Set(["info", "contact", "contactez", "admin", "office", "bureau", "reception", "ventes", "vente", "sales", "service", "services", "accueil", "support", "hello", "bonjour", "mail", "garage", "atelier", "rendezvous", "rdv", "soumission", "soumissions", "estimates", "parts", "pieces", "billing", "comptabilite", "accounts"]);
+const ROLE_LOCALS = new Set(["info", "contact", "contactez", "admin", "office", "bureau", "reception", "ventes", "vente", "sales", "service", "services", "accueil", "support", "hello", "bonjour", "mail", "garage", "atelier", "rendezvous", "rdv", "devis", "estimates", "parts", "pieces", "billing", "comptabilite", "accounts"]);
 const FREE_MAIL = new Set(["gmail.com", "googlemail.com", "hotmail.com", "hotmail.ca", "outlook.com", "outlook.fr", "live.com", "live.ca", "yahoo.com", "yahoo.ca", "yahoo.fr", "icloud.com", "me.com", "aol.com", "videotron.ca", "bell.net", "sympatico.ca", "protonmail.com", "proton.me", "msn.com"]);
 
 export interface EmailShape { normalized: string | null; syntaxValid: boolean; roleBased: boolean; freeMailbox: boolean }
