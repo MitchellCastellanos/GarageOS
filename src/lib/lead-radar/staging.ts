@@ -5,6 +5,7 @@ import { classifyAgainstPool, type MatchKey } from "@/domain/sales-crm/dedupe";
 import { normalizeEmail, phoneDigits, websiteDomain } from "@/domain/sales-crm/normalize";
 import { classifyTerritory, cityKey } from "@/domain/sales-crm/territory";
 import { toCandidate, type RecordIssue, type StagedCandidate } from "@/domain/lead-radar/record";
+import { assessRepairFit } from "@/domain/lead-radar/repair-fit";
 import type { DiscoveryScope } from "@/domain/lead-radar/scope";
 import { loadMatchPool } from "@/lib/sales-crm/lead-pool";
 import { loadTerritoryRulesWith } from "@/lib/sales-crm/territory-rules";
@@ -27,6 +28,36 @@ export const matchKeyOf = (c: Pick<StagedCandidate, "nameNormalized" | "city" | 
   const a = canonicalAddress({ address: c.address, city: c.city, province: c.province, postalCode: c.postalCode });
   return { nameNormalized: c.nameNormalized, cityKey: cityKey(c.city), websiteDomain: websiteDomain(c.website), phoneDigits: phoneDigits(c.phone), addressKey: a.addressKey, postalKey: a.postalKey };
 };
+
+/**
+ * Candidate-to-candidate duplicate detection (the same business re-keyed by the source, or reached through two overlapping plans). Reuses the CRM's conservative
+ * classifier: only a STRONG outcome (same name AND the same physical place, or same name+city with a unique phone/domain) is a duplicate; ambiguous or branch-like
+ * matches are never linked. Returns, per new source id, the ORIGINAL candidate id (chains collapsed to the root).
+ */
+export async function findCandidateDuplicates(tx: Tx, news: readonly StagedCandidate[]): Promise<Map<string, { originalId: string; reasons: string[] }>> {
+  const out = new Map<string, { originalId: string; reasons: string[] }>();
+  const names = [...new Set(news.map((c) => c.nameNormalized).filter(Boolean))];
+  if (!names.length) return out;
+  const rows = await tx.crmDiscoveryCandidate.findMany({
+    // Originals only: an earlier duplicate is represented by its original, so a third record never sees a "duplicate pair" (which would read as ambiguous).
+    where: { source: "OVERTURE", nameNormalized: { in: names }, duplicateOfCandidateId: null, sourceRecordId: { notIn: news.map((c) => c.sourceRecordId) } },
+    select: { id: true, nameNormalized: true, city: true, address: true, province: true, postalCode: true, website: true, phone: true, duplicateOfCandidateId: true, createdAt: true },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+  });
+  if (!rows.length) return out;
+  const byName = new Map<string, typeof rows>();
+  for (const r of rows) byName.set(r.nameNormalized, [...(byName.get(r.nameNormalized) ?? []), r]);
+  for (const c of news) {
+    const group = byName.get(c.nameNormalized);
+    if (!group) continue;
+    const pool = group.map((r) => ({ ...matchKeyOf({ ...r, nameNormalized: r.nameNormalized } as Parameters<typeof matchKeyOf>[0]), id: r.id, doNotContact: false }));
+    const cl = classifyAgainstPool(matchKeyOf(c), pool);
+    if (cl.outcome !== "STRONG" || !cl.strong) continue;
+    const hit = group.find((r) => r.id === cl.strong!.id)!;
+    out.set(c.sourceRecordId, { originalId: hit.duplicateOfCandidateId ?? hit.id, reasons: cl.strong.reasons });
+  }
+  return out;
+}
 
 /** Parses one NDJSON chunk, normalises/classifies/geo-filters each record, de-duplicates against the CRM and writes staging rows. Idempotent per record. */
 export async function stageChunk(tx: Tx, run: { id: string; scope: DiscoveryScope; release: string }, text: string): Promise<ChunkTally> {
@@ -57,6 +88,7 @@ export async function stageChunk(tx: Tx, run: { id: string; scope: DiscoveryScop
   const existing = new Map((await tx.crmDiscoveryCandidate.findMany({ where: { source: "OVERTURE", sourceRecordId: { in: cands.map((c) => c.sourceRecordId) } } })).map((e) => [e.sourceRecordId, e]));
   const toMatch = cands.filter((c) => !IMPORTED.has(existing.get(c.sourceRecordId)?.importState ?? ""));
   const pool = await loadMatchPool(toMatch.map(matchKeyOf), tx);
+  const dups = await findCandidateDuplicates(tx, cands.filter((c) => !existing.has(c.sourceRecordId)));
   const rules = await loadTerritoryRulesWith(tx);
   const now = new Date();
 
@@ -75,12 +107,15 @@ export async function stageChunk(tx: Tx, run: { id: string; scope: DiscoveryScop
       territoryKey, taxonomyPrimary: c.taxonomyPrimary, tier: c.tier, industry: c.industry, classReasons: c.classReasons, chainSignal: c.chainSignal, sourceConfidence: c.sourceConfidence,
       completeness: c.completeness, qualityFlags: c.qualityFlags, licenses: c.licenses, datasets: c.datasets, licenseOk: c.licenseOk, contentFingerprint: c.contentFingerprint,
     };
+    // Repair fit is derived from the same facts, so a business is classified the moment it is staged (the first import is never a cleanup afterwards).
+    const fit = assessRepairFit({ name: c.name, taxonomyPrimary: c.taxonomyPrimary, classReasons: c.classReasons });
+    const fitData = { repairFit: fit.fit, repairFitReasons: fit.reasons as string[], repairFitAt: now };
     // The source point is refreshed whenever the extract carries one (never cleared by an extract without one) and is NOT a business fact:
     // it is outside contentFingerprint, so it never re-opens an approval, requalifies, or touches an imported prospect.
     const point = c.sourceLatitude !== null && c.sourceLongitude !== null ? { sourceLatitude: c.sourceLatitude, sourceLongitude: c.sourceLongitude } : {};
     if (prev && IMPORTED.has(prev.importState)) {
       // Already in the CRM: never re-stage or overwrite anything; only note that the source has moved on (and keep the source point fresh).
-      updates.push(tx.crmDiscoveryCandidate.update({ where: { id: prev.id }, data: { lastRunId: run.id, lastSeenRelease: run.release, changedSinceImport: prev.changedSinceImport || prev.contentFingerprint !== c.contentFingerprint, ...point } }));
+      updates.push(tx.crmDiscoveryCandidate.update({ where: { id: prev.id }, data: { lastRunId: run.id, lastSeenRelease: run.release, changedSinceImport: prev.changedSinceImport || prev.contentFingerprint !== c.contentFingerprint, ...point, ...(prev.repairFit === null ? fitData : {}) } }));
       tally.stagedUpdated++;
       continue;
     }
@@ -90,8 +125,10 @@ export async function stageChunk(tx: Tx, run: { id: string; scope: DiscoveryScop
       : cl.branchOf.length ? { matchState: "BRANCH_OF_EXISTING" as const, matchProspectId: cl.branchOf[0], matchReasons: [] as string[] }
       : { matchState: "NEW" as const, matchProspectId: null, matchReasons: [] as string[] };
     if (!prev) {
-      creates.push({ source: "OVERTURE", sourceRecordId: c.sourceRecordId, firstRunId: run.id, lastRunId: run.id, firstSeenRelease: run.release, lastSeenRelease: run.release, ...facts, ...point, ...match, matchedAt: now });
+      const dup = dups.get(c.sourceRecordId);
+      creates.push({ source: "OVERTURE", sourceRecordId: c.sourceRecordId, firstRunId: run.id, lastRunId: run.id, firstSeenRelease: run.release, lastSeenRelease: run.release, ...facts, ...fitData, ...point, ...match, matchedAt: now, ...(dup ? { duplicateOfCandidateId: dup.originalId } : {}) });
       tally.stagedNew++;
+      if (dup) tally.issues.DUPLICATE_OF_STAGED = (tally.issues.DUPLICATE_OF_STAGED ?? 0) + 1;
     } else {
       const changed = prev.contentFingerprint !== c.contentFingerprint;
       // An approval was given on the OLD facts (or an old licence verdict): any material change sends it back to a human.
@@ -106,7 +143,7 @@ export async function stageChunk(tx: Tx, run: { id: string; scope: DiscoveryScop
       updates.push(tx.crmDiscoveryCandidate.update({
         where: { id: prev.id },
         data: {
-          lastRunId: run.id, lastSeenRelease: run.release, ...(changed || licenseMoved ? facts : { qualityFlags: c.qualityFlags }), ...point, ...match, matchedAt: now,
+          lastRunId: run.id, lastSeenRelease: run.release, ...(changed || licenseMoved ? { ...facts, ...fitData } : { qualityFlags: c.qualityFlags, ...(prev.repairFit === null ? fitData : {}) }), ...point, ...match, matchedAt: now,
           ...(invalidated ? { reviewState: "PENDING" as const, reviewedByUserId: null, reviewedAt: null, approvedByPolicyVersion: null } : {}),
           ...(requalify ? { qualificationLane: null, qualificationPolicyVersion: null, qualifiedAt: null, qualificationReasons: humanApprovalInvalidated ? ["SOURCE_CHANGED"] : [] } : {}),
           // A candidate whose import failed on validation/territory grounds gets a fresh chance only when its facts actually changed.

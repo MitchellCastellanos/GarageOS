@@ -27,7 +27,7 @@ export async function qualifyPending(policy: ActivePolicy, opts: { deadline: num
     const n = await db.$transaction(async (tx) => {
       const locked = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`
         SELECT c."id" FROM "garageos"."CrmDiscoveryCandidate" c JOIN "garageos"."CrmDiscoveryRun" r ON r."id" = c."lastRunId"
-        WHERE c."importState" = 'NOT_IMPORTED' AND r."status" = 'COMPLETED' AND (c."reviewState" = 'PENDING' OR c."approvedByPolicyVersion" IS NOT NULL)
+        WHERE c."importState" = 'NOT_IMPORTED' AND r."status" = 'COMPLETED' AND c."duplicateOfCandidateId" IS NULL AND (c."reviewState" = 'PENDING' OR c."approvedByPolicyVersion" IS NOT NULL)
           AND c."qualificationPolicyVersion" IS DISTINCT FROM ${version}
         ORDER BY c."id" LIMIT ${QUALIFY_PAGE} FOR UPDATE OF c SKIP LOCKED`);
       if (!locked.length) return 0;

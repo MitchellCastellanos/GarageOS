@@ -1,6 +1,7 @@
 // EN/FR copy for the National Lead Radar. The French dictionary is typed against the English one (a missing key fails the build);
 // tests/lead-radar-domain.test.ts also enforces that no value is empty and that placeholders match.
 import { autoEn, autoFr } from "@/lib/admin-locale/lead-radar-automation";
+import { nationalCopy } from "@/lib/admin-locale/lead-radar-national";
 
 const en = {
   nav: "Lead Radar",
@@ -194,6 +195,6 @@ export type RadarCopy = Dict;
 export function radarCopy(locale: "en" | "fr"): RadarCopy { return locale === "fr" ? fr : en; }
 export function radarError(locale: "en" | "fr", code: string | undefined): string {
   const c = radarCopy(locale);
-  return c.errors[code ?? ""] ?? c.automation.errors[code ?? ""] ?? c.errors.unexpected;
+  return c.errors[code ?? ""] ?? c.automation.errors[code ?? ""] ?? nationalCopy(locale).errors[code ?? ""] ?? c.errors.unexpected;
 }
 export const fill = (s: string, vars: Record<string, string | number>) => s.replace(/\{(\w+)\}/g, (_, k: string) => String(vars[k] ?? ""));

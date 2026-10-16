@@ -60,5 +60,106 @@ class T(unittest.TestCase):
         with open(fh.name, "w") as f2:
             json.dump({"planVersion": 1, "planHash": "a" * 64, "release": "../../etc", "bboxes": [[0, 0, 1, 1]], "taxonomyPrimaries": [], "hierarchyAny": [], "minConfidence": 0}, f2)
         with self.assertRaises(SystemExit): ex.load_plan(fh.name)   # release id cannot smuggle a path/URL
+
+
+# ── Realistic Overture structures (pyarrow, local file): the layout the production Parquet files really have ──────────────────────────────────────────────────
+try:
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+except ImportError:  # the pure tests above still run without pyarrow
+    pa = pq = None
+
+
+def overture_table(rows):
+    """Builds a table with the real Overture `places` column types: bbox is struct<float32 x4> (this is what produced the 1.1.0 coordinate loss)."""
+    f32 = pa.float32()
+    schema = pa.schema([
+        ("id", pa.string()), ("geometry", pa.binary()), ("bbox", pa.struct([("xmin", f32), ("xmax", f32), ("ymin", f32), ("ymax", f32)])),
+        ("confidence", pa.float64()), ("names", pa.struct([("primary", pa.string()), ("common", pa.map_(pa.string(), pa.string()))])),
+        ("taxonomy", pa.struct([("primary", pa.string()), ("hierarchy", pa.list_(pa.string())), ("alternates", pa.list_(pa.string()))])),
+        ("brand", pa.struct([("wikidata", pa.string())])),
+        ("addresses", pa.list_(pa.struct([("freeform", pa.string()), ("locality", pa.string()), ("postcode", pa.string()), ("region", pa.string()), ("country", pa.string())]))),
+        ("phones", pa.list_(pa.string())), ("websites", pa.list_(pa.string())), ("emails", pa.list_(pa.string())), ("operating_status", pa.string()),
+        ("sources", pa.list_(pa.struct([("property", pa.string()), ("dataset", pa.string()), ("license", pa.string()), ("record_id", pa.string()), ("update_time", pa.string())]))),
+    ])
+    cols = {n: [] for n in schema.names}
+    for r in rows:
+        lng, lat = r["pt"]
+        cols["id"].append(r["id"]); cols["geometry"].append(b"\x01\x01\x00\x00\x00")
+        cols["bbox"].append({"xmin": lng, "xmax": lng, "ymin": lat, "ymax": lat})  # float32 narrowing happens in Arrow, exactly like the real files
+        cols["confidence"].append(r.get("confidence", 0.9)); cols["names"].append({"primary": r["name"], "common": None})
+        cols["taxonomy"].append({"primary": r.get("primary", "automotive_repair"), "hierarchy": ["travel_and_transportation", "vehicle_service", "automotive_repair"], "alternates": None})
+        cols["brand"].append(None)
+        cols["addresses"].append([{"freeform": r["street"], "locality": r["city"], "postcode": r["postcode"], "region": r["region"], "country": r.get("country", "CA")}])
+        cols["phones"].append(["+15145550100"]); cols["websites"].append(None); cols["emails"].append(None); cols["operating_status"].append("open")
+        cols["sources"].append([{"property": "", "dataset": "meta", "license": "CDLA-Permissive-2.0", "record_id": "UPSTREAM-SECRET", "update_time": "2026-01-01"}])
+    return pa.table(cols, schema=schema)
+
+
+ROWS = [
+    {"id": "11111111-aaaa-4aaa-8aaa-000000000001", "name": "Garage Tremblay & Fils", "pt": (-73.5673, 45.5017), "street": "1200 Rue Saint-Denis", "city": "Montréal", "postcode": "H2X 3K4", "region": "QC"},
+    {"id": "11111111-aaaa-4aaa-8aaa-000000000002", "name": "Speedy Auto Service", "pt": (-79.3832, 43.6532), "street": "88 Queen St W", "city": "Toronto", "postcode": "M5H 2M9", "region": "ON"},
+    {"id": "11111111-aaaa-4aaa-8aaa-000000000003", "name": "Pacific Brake & Muffler", "pt": (-123.1207, 49.2827), "street": "1450 W Broadway", "city": "Vancouver", "postcode": "V6H 1H6", "region": "BC"},
+    {"id": "11111111-aaaa-4aaa-8aaa-000000000004", "name": "Northern Lights Auto", "pt": (-135.0568, 60.7212), "street": "4 Main St", "city": "Whitehorse", "postcode": "Y1A 2B5", "region": "YT"},
+    {"id": "11111111-aaaa-4aaa-8aaa-000000000005", "name": "Atlantic Tire & Auto", "pt": (-63.5752, 44.6488), "street": "2000 Barrington St", "city": "Halifax", "postcode": "B3J 3K1", "region": "NS"},
+    {"id": "11111111-aaaa-4aaa-8aaa-000000000006", "name": "Detroit Motors", "pt": (-83.0458, 42.3314), "street": "1 Woodward", "city": "Detroit", "postcode": "48226", "region": "MI", "country": "US"},  # inside the generous Ontario box, but not Canadian
+]
+PLAN_ALL = {"taxonomyPrimaries": ["automotive_repair"], "hierarchyAny": ["vehicle_service"], "minConfidence": 0.0,
+            "bboxes": [[-79.8, 44.9, -57.1, 62.6], [-95.2, 41.6, -74.3, 56.9], [-139.1, 48.2, -114.0, 60.0], [-141.1, 59.9, -123.8, 69.7], [-66.5, 43.3, -59.6, 47.1]]}
+
+
+@unittest.skipIf(pa is None, "pyarrow not installed")
+class RealisticOverture(unittest.TestCase):
+    def setUp(self):
+        import tempfile
+        self.dir = tempfile.mkdtemp()
+        self.path = os.path.join(self.dir, "part.parquet")
+        pq.write_table(overture_table(ROWS), self.path, row_group_size=2)
+
+    def test_float32_bbox_is_really_widened_and_still_yields_points(self):
+        pf = pq.ParquetFile(self.path)
+        row = pf.read_row_groups([0], columns=ex.COLUMNS).to_pylist()[0]
+        b = row["bbox"]
+        self.assertNotEqual(b["xmin"], -73.5673, "float32 storage must differ from the python double (that is the whole point of this fixture)")
+        self.assertIsNotNone(ex.source_point(row))
+        self.assertAlmostEqual(ex.source_point(row)["lng"], -73.5673, places=4)
+
+    def test_extract_shard_emits_points_for_every_province_and_counts_them(self):
+        pf = pq.ParquetFile(self.path)
+        hits = ex.row_group_hits(pf.metadata, {pf.metadata.schema.column(i).path: i for i in range(pf.metadata.num_columns)}, PLAN_ALL["bboxes"])
+        tmp = os.path.join(self.dir, "shard.ndjson")
+        c = ex.extract_shard(pf, hits, PLAN_ALL["bboxes"], PLAN_ALL, 2, tmp)
+        self.assertEqual(c["emitted"], 5)           # the Detroit row sits inside the (generous) Ontario box but is a US address
+        self.assertEqual(c["withPoint"], 5)         # no coordinate may be lost
+        import json
+        recs = [json.loads(l) for l in open(tmp, encoding="utf-8")]
+        self.assertEqual({r["address"]["region"] for r in recs}, {"QC", "ON", "BC", "YT", "NS"})
+        self.assertTrue(all(r["geo"] and 40 < r["geo"]["lat"] < 70 and -142 < r["geo"]["lng"] < -55 for r in recs))
+        self.assertNotIn("UPSTREAM-SECRET", open(tmp, encoding="utf-8").read())
+
+    def test_zero_result_plan_is_distinguishable_from_unreadable_input(self):
+        pf = pq.ParquetFile(self.path)
+        plan = {**PLAN_ALL, "taxonomyPrimaries": ["nothing_matches"], "hierarchyAny": ["nothing_matches"]}
+        tmp = os.path.join(self.dir, "empty.ndjson")
+        hits = list(range(pf.metadata.num_row_groups))
+        c = ex.extract_shard(pf, hits, PLAN_ALL["bboxes"], plan, 2, tmp)
+        self.assertEqual((c["emitted"], c["withPoint"]), (0, 0))
+        self.assertGreater(c["examined"], 0, "rows were read: this is a legitimate zero-result run, which GarageOS distinguishes from a read failure")
+
+    def test_contract_fixture_matches_what_the_extractor_emits(self):
+        """tests/fixtures/lead-radar/overture-records.ndjson is the TypeScript side's input (tests/lead-radar-national-contract.test.ts). It must be exactly what this
+        extractor emits for the realistic Parquet above, so the two languages cannot drift. Regenerate with UPDATE_FIXTURE=1."""
+        pf = pq.ParquetFile(self.path)
+        hits = list(range(pf.metadata.num_row_groups))
+        tmp = os.path.join(self.dir, "contract.ndjson")
+        ex.extract_shard(pf, hits, PLAN_ALL["bboxes"], PLAN_ALL, 2, tmp)
+        got = sorted(open(tmp, encoding="utf-8").read().splitlines())
+        fixture = os.path.join(os.path.dirname(__file__), "..", "..", "tests", "fixtures", "lead-radar", "overture-records.ndjson")
+        if os.environ.get("UPDATE_FIXTURE") == "1":
+            os.makedirs(os.path.dirname(fixture), exist_ok=True)
+            open(fixture, "w", encoding="utf-8", newline="\n").write("\n".join(got) + "\n")
+        self.assertEqual(got, sorted(open(fixture, encoding="utf-8").read().splitlines()))
+
+
 if __name__ == "__main__":
     unittest.main()

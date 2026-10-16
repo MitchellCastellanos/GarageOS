@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import type { PlatformSalesActor } from "@/domain/sales-crm/access";
 import { buildPlan, canonicalScope, estimateWorkload, manifestSchema, NATIONWIDE_MB_THRESHOLD, planHashOf, RELEASE_ID, type DiscoveryScope, type ExtractionManifest } from "@/domain/lead-radar/scope";
 import { db } from "@/lib/db";
+import { evaluateRunQuality } from "@/domain/lead-radar/run-quality";
 import { writeCrmAudit } from "@/lib/sales-crm/audit";
 import { CrmError } from "@/lib/sales-crm/prospects";
 import { isLive, readSettings } from "@/lib/lead-radar/settings";
@@ -103,9 +104,32 @@ export async function completeRun(actor: PlatformSalesActor, runId: string) {
   if (run.status === "COMPLETED") return { runId, alreadyCompleted: true };
   if (run.status !== "INGESTING") throw new CrmError("RUN_NOT_INGESTING");
   if (run.expectedRecords === null || run.receivedRecords !== run.expectedRecords) throw new CrmError("RUN_INCOMPLETE");
-  const r = await db.crmDiscoveryRun.updateMany({ where: { id: runId, status: "INGESTING", receivedRecords: run.receivedRecords }, data: { status: "COMPLETED", finishedAt: new Date() } });
+  // Quality gate: a run that lost its coordinates, read nothing, or was mostly rejected must not look "completed" (and qualification/import only read COMPLETED runs).
+  const quality = evaluateRunQuality({ ...run, stats: (run.manifest as { stats?: Record<string, number> } | null)?.stats ?? null });
+  const status = quality.blocking ? "FAILED" : "COMPLETED";
+  const r = await db.crmDiscoveryRun.updateMany({
+    where: { id: runId, status: "INGESTING", receivedRecords: run.receivedRecords },
+    data: { status, finishedAt: new Date(), qualityVerdict: quality.verdict, qualityDetail: quality as unknown as Prisma.InputJsonValue, errorCode: quality.blocking ? quality.verdict : null },
+  });
   if (r.count !== 1) throw new CrmError("RUN_INCOMPLETE");
-  await writeCrmAudit({ actorUserId: actor.userId, action: "LEAD_RADAR_RUN_COMPLETED", entityType: "CrmDiscoveryRun", entityId: runId, metadata: { received: run.receivedRecords, rejected: run.rejectedRecords } });
+  await writeCrmAudit({ actorUserId: actor.userId, action: quality.blocking ? "LEAD_RADAR_RUN_FAILED_QUALITY" : "LEAD_RADAR_RUN_COMPLETED", entityType: "CrmDiscoveryRun", entityId: runId, metadata: { verdict: quality.verdict, codes: quality.codes, ...quality.counters } });
+  return { runId, alreadyCompleted: false, verdict: quality.verdict, blocking: quality.blocking };
+}
+
+/**
+ * Super Admin acknowledgement of a run the quality gate stopped (e.g. a province that legitimately has no mappable positions). Requires a written reason, is audited, and
+ * is the ONLY way a gate-failed run becomes COMPLETED. It never edits data; it only lets downstream stages read the already-staged candidates.
+ */
+export async function acknowledgeRunQuality(actor: PlatformSalesActor, runId: string, note: string) {
+  const clean = (note ?? "").replace(/[\u0000-\u001F\u007F]/g, " ").trim().slice(0, 300);
+  if (clean.length < 10) throw new CrmError("NOTE_REQUIRED");
+  const run = await db.crmDiscoveryRun.findUnique({ where: { id: runId }, select: { status: true, qualityVerdict: true } });
+  if (!run) throw new CrmError("NOT_FOUND");
+  if (run.status === "COMPLETED") return { runId, alreadyCompleted: true };
+  if (run.status !== "FAILED" || !run.qualityVerdict) throw new CrmError("RUN_NOT_ACKNOWLEDGEABLE");
+  const r = await db.crmDiscoveryRun.updateMany({ where: { id: runId, status: "FAILED", qualityVerdict: run.qualityVerdict }, data: { status: "COMPLETED", errorCode: null, qualityAckByUserId: actor.userId, qualityAckAt: new Date(), qualityAckNote: clean } });
+  if (r.count !== 1) throw new CrmError("RUN_NOT_ACKNOWLEDGEABLE");
+  await writeCrmAudit({ actorUserId: actor.userId, action: "LEAD_RADAR_RUN_QUALITY_ACKNOWLEDGED", entityType: "CrmDiscoveryRun", entityId: runId, metadata: { verdict: run.qualityVerdict, note: clean } });
   return { runId, alreadyCompleted: false };
 }
 

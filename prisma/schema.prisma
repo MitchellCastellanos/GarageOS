@@ -3990,6 +3990,13 @@ model CrmDiscoveryRun {
   /// Capped list of { code, count } diagnostics. Never record contents.
   diagnostics       Json                  @default("[]")
   errorCode         String?
+  /// Quality gate verdict computed when the last chunk is in (RunVerdict). A blocking verdict makes the run FAILED instead of COMPLETED so nothing downstream reads it
+  /// until a Super Admin acknowledges it. `qualityDetail` holds counters and rates only (never record contents).
+  qualityVerdict    String?
+  qualityDetail     Json?
+  qualityAckByUserId String?
+  qualityAckAt      DateTime?
+  qualityAckNote    String?
   cancelRequestedAt DateTime?
   createdByUserId   String
   startedAt         DateTime?
@@ -4056,6 +4063,15 @@ model CrmDiscoveryCandidate {
   /// Set when a later release changed the business facts of an already-imported candidate (the CRM prospect is never overwritten).
   changedSinceImport Boolean  @default(false)
 
+  /// Repair-fit verdict of the shared assessor (domain/lead-radar/repair-fit.ts) on the staged facts, computed at staging so the first import is already classified.
+  /// Derived data only: it never changes review/import state by itself (qualification and the import/review gates still decide). NULL = not computed yet (backfilled by the tick).
+  repairFit        CrmRepairFit?
+  repairFitReasons String[]      @default([])
+  repairFitAt      DateTime?
+  /// Set when another staged candidate (different source id, e.g. the same business re-keyed in a newer release) is the same business. The duplicate is kept as evidence but
+  /// is outside the qualification pool and can be neither approved nor imported. It points at the ORIGINAL (chains are collapsed).
+  duplicateOfCandidateId String?
+
   reviewState      CrmDiscoveryReviewState @default(PENDING)
   reviewedByUserId String?
   reviewedAt       DateTime?
@@ -4096,6 +4112,8 @@ model CrmDiscoveryCandidate {
   @@index([lastRunId])
   @@index([nameNormalized])
   @@index([importedProspectId], map: "CrmDiscoveryCandidate_importedProspectId_all_idx")
+  @@index([duplicateOfCandidateId])
+  @@index([province, repairFit])
   @@schema("garageos")
 }
 

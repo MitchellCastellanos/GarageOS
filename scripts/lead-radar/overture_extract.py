@@ -28,7 +28,7 @@ import time
 from datetime import datetime, timezone
 
 EXTRACTOR = "garageos-overture-extract"
-EXTRACTOR_VERSION = "1.2.0"
+EXTRACTOR_VERSION = "1.3.0"
 BUCKET_HOST = "overturemaps-us-west-2.s3.amazonaws.com"
 BUCKET_BASE = f"https://{BUCKET_HOST}/"
 STAC_ROOT = "https://stac.overturemaps.org/catalog.json"
@@ -204,6 +204,29 @@ def row_group_hits(md, idx, boxes) -> list[int]:
     return hits
 
 
+def extract_shard(pf, hits, boxes, plan, batch, tmp) -> dict:
+    """Reads the given row groups of one Parquet file and writes the plan's records to `tmp` (NDJSON). Returns per-shard counters:
+    examined = rows read, emitted = rows kept, withPoint = emitted rows carrying a valid source point. Pure with respect to the network:
+    `pf` is any pyarrow.parquet.ParquetFile (remote in production, a local file in tests)."""
+    examined = emitted = with_point = 0
+    with open(tmp, "w", encoding="utf-8") as out:
+        for i in range(0, len(hits), batch):
+            table = pf.read_row_groups(hits[i:i + batch], columns=COLUMNS)
+            for row in table.to_pylist():
+                examined += 1
+                b = row.get("bbox") or {}
+                if b.get("xmin") is None or not point_in_any(b["xmin"], b["ymin"], boxes):
+                    continue
+                if not wants(row, plan):
+                    continue
+                rec = to_record(row)
+                if rec["geo"] is not None:
+                    with_point += 1
+                out.write(dump_line(rec) + "\n")
+                emitted += 1
+    return {"examined": examined, "emitted": emitted, "withPoint": with_point}
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--plan", required=True)
@@ -250,29 +273,26 @@ def main() -> int:
         stats["rowGroupsScanned"] += len(hits)
         stats["estimatedMB"] += int(sum(md.row_group(g).total_byte_size for g in hits) / 1e6)
         if args.dry_run or os.path.exists(done):
-            if os.path.exists(done):
+            if os.path.exists(done) and not args.dry_run:
                 log(f"[{n + 1}/{len(files)}] shard already complete, skipping")
+                try:
+                    with open(done, encoding="utf-8") as fh:
+                        prev = json.load(fh)
+                    stats["rowsExamined"] += int(prev.get("examined", 0))
+                    stats["rowsEmitted"] += int(prev.get("emitted", 0))
+                except (ValueError, OSError):
+                    pass  # an old empty marker: counters unknown, never invented
             continue
         if stats["rowGroupsScanned"] > args.max_row_groups:
             raise SystemExit(f"workload exceeds --max-row-groups ({args.max_row_groups}); narrow the plan or raise the limit deliberately")
         tmp = shard + ".tmp"
-        emitted = 0
-        with open(tmp, "w", encoding="utf-8") as out:
-            for i in range(0, len(hits), args.batch):
-                table = pf.read_row_groups(hits[i:i + args.batch], columns=COLUMNS)
-                for row in table.to_pylist():
-                    stats["rowsExamined"] += 1
-                    b = row.get("bbox") or {}
-                    if b.get("xmin") is None or not point_in_any(b["xmin"], b["ymin"], boxes):
-                        continue
-                    if not wants(row, plan):
-                        continue
-                    out.write(dump_line(to_record(row)) + "\n")
-                    emitted += 1
+        c = extract_shard(pf, hits, boxes, plan, args.batch, tmp)
         os.replace(tmp, shard)
-        open(done, "w").close()
-        stats["rowsEmitted"] += emitted
-        log(f"[{n + 1}/{len(files)}] {len(hits)} row groups → {emitted} records ({int(time.time() - started)}s)")
+        with open(done, "w", encoding="utf-8") as fh:
+            json.dump(c, fh)  # per-shard counters survive a resume, so a resumed run still reports what it really read
+        for k_, v_ in (("rowsExamined", "examined"), ("rowsEmitted", "emitted")):
+            stats[k_] += c[v_]
+        log(f"[{n + 1}/{len(files)}] {len(hits)} row groups → {c['emitted']} records ({int(time.time() - started)}s)")
 
     if args.dry_run:
         print(json.dumps({"release": release, **stats}, indent=2))
@@ -295,6 +315,10 @@ def main() -> int:
                 if len(records) > args.max_records:
                     raise SystemExit(f"more than --max-records ({args.max_records}) records; narrow the plan")
     stats["recordsWithPoint"] = len(points)
+    stats["pointsMissing"] = len(records) - len(points)
+    # Read nothing at all although the plan matched row groups: the file layout or the read path is broken, not the province.
+    if stats["rowGroupsScanned"] > 0 and stats["rowsExamined"] == 0:
+        raise SystemExit(f"0 rows were read from {stats['rowGroupsScanned']} matching row groups. Refusing to write an extraction that read nothing (extractor {EXTRACTOR_VERSION}).")
     # Never report a successful extraction whose coordinates failed: GarageOS needs these points to place shops on the map without a paid geocoder.
     if records and not points:
         raise SystemExit(f"0 of {len(records)} records carry a source point. Refusing to write a coordinate-less extraction "
