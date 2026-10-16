@@ -65,8 +65,10 @@ test("dedupe: same name at the same address (or postal) is a strong match; spell
 });
 
 test("dedupe: missing address data is cautious — ambiguous goes to review, a unique phone+name+city is strong, a shared (franchise-like) phone is not", () => {
-  assert.equal(classifyAgainstPool(key(), [pe("a")]).outcome, "STRONG");
-  assert.equal(classifyAgainstPool(key(), [pe("a"), pe("b")]).outcome, "AMBIGUOUS", "two existing look identical: never pick one");
+  const indie = { nameNormalized: "garage tremblay", websiteDomain: "garagetremblay.ca" };
+  assert.equal(classifyAgainstPool(key(indie), [pe("a", indie)]).outcome, "STRONG");
+  assert.equal(classifyAgainstPool(key(indie), [pe("a", indie), pe("b", indie)]).outcome, "AMBIGUOUS", "two existing look identical: never pick one");
+  assert.equal(classifyAgainstPool(key(), [pe("a")]).outcome, "AMBIGUOUS", "a banner name (Speedy) with no address is only ever a question for a person, never an automatic link");
   const franchise = classifyAgainstPool(key({ nameNormalized: "speedy auto laval nord", phoneDigits: "5145550100" }), [pe("a"), pe("b", { nameNormalized: "other" })]);
   assert.equal(franchise.outcome, "AMBIGUOUS");
   assert.equal(classifyAgainstPool(key({ nameNormalized: "totally different", phoneDigits: "5145559999", websiteDomain: null }), [pe("a")]).outcome, "NEW");
@@ -262,4 +264,39 @@ test("Lead Engine copy: every English string has a French counterpart (same keys
     assert.deepEqual((v.match(/\{[a-z]+\}/g) ?? []).sort(), ((fr.get(k) ?? "").match(/\{[a-z]+\}/g) ?? []).sort(), `placeholders at ${k}`);
   }
   for (const f of IMPORT_FIELDS) assert.ok(leadEn.import.fields[f] && leadFr.import.fields[f], `field label ${f}`);
+});
+
+
+// ── shared identifiers are brand/directory relationships, not identity (Alberta C2 audit) ────────────────────────────────────────────────────────────────────
+import { isBannerName, isSharedIdentityDomain, isTollFreeDigits } from "../src/domain/sales-crm/shared-identity";
+import { websiteDomain } from "../src/domain/sales-crm/normalize";
+
+test("shared identity: directory, site-builder and franchise domains and toll-free numbers never identify one business", () => {
+  for (const url of ["http://yp.ca/bus/100892988", "https://www.napaautopro.com/en/auto-repair/alberta/edmonton-village-auto-tire-service/", "http://www.oktire.com/stores/ok-tire-st-albert", "https://commercial.oktire.com/stores/x", "https://mybiz.wixsite.com/shop", "https://www.facebook.com/p/x", "https://www.canadiantire.ca/en/store/x.html"])
+    assert.equal(isSharedIdentityDomain(websiteDomain(url)), true, url);
+  for (const url of ["http://jrsautodetailing.ca", "https://oktiremayfield.ca/", "http://detechauto.com", "https://garagetremblay.ca", "https://notyp.ca", "https://myoktire.example.ca"]) assert.equal(isSharedIdentityDomain(websiteDomain(url)), false, url);
+  assert.equal(isTollFreeDigits("8557390286"), true); assert.equal(isTollFreeDigits("7804607689"), false); assert.equal(isTollFreeDigits(null), false);
+  assert.equal(isBannerName("napa autopro"), true); assert.equal(isBannerName("ok tire"), true); assert.equal(isBannerName("garage tremblay et fils"), false);
+});
+
+test("the four Alberta cases from the C2 review: a shared directory/banner domain is NOT a branch, NOT ambiguous and NOT a link to an unrelated CRM business", () => {
+  const crm = (id: string, name: string, domain: string | null, city = "montreal", extra: Partial<MatchKey> = {}): PoolEntry => ({ id, doNotContact: false, nameNormalized: name, cityKey: city, websiteDomain: domain, phoneDigits: null, addressKey: "10 rue x", postalKey: "H1H1H1", ...extra });
+  const cand = (name: string, domain: string, city: string): MatchKey => ({ nameNormalized: name, cityKey: city, websiteDomain: domain, phoneDigits: "7807051311", addressKey: "14414 118 ave nw", postalKey: "T5L2M5" });
+  // Dad's Auto Repair Shop (website yp.ca/bus/…) vs a Québec body shop that also lists a yp.ca page
+  assert.equal(classifyAgainstPool(cand("dad s auto repair shop", "yp.ca", "edmonton"), [crm("genile", "carrosserie genile inc", "yp.ca")]).outcome, "NEW");
+  assert.deepEqual(classifyAgainstPool(cand("dad s auto repair shop", "yp.ca", "edmonton"), [crm("genile", "carrosserie genile inc", "yp.ca")]).branchOf, []);
+  // NAPA AUTOPRO Edmonton vs a Québec NAPA AUTOPRO franchisee (different legal name, same banner domain)
+  const napa = classifyAgainstPool(cand("napa autopro", "napaautopro.com", "edmonton"), [crm("rr", "r r station service inc", "napaautopro.com")]);
+  assert.equal(napa.outcome, "NEW"); assert.deepEqual(napa.branchOf, []);
+  // OK Tire (oktire.com) vs OK Pneus (Québec)
+  for (const city of ["st albert", "castor"]) { const r = classifyAgainstPool(cand("ok tire", "oktire.com", city), [crm("okp", "ok pneus", "oktire.com")]); assert.equal(r.outcome, "NEW", city); assert.deepEqual(r.branchOf, [], city); }
+  // The unsafe path: banner name + same city + a CRM record with NO address and the banner domain → was STRONG (silent link + enrichment); now a question for a person.
+  const risky = classifyAgainstPool({ ...cand("napa autopro", "napaautopro.com", "edmonton"), addressKey: null, postalKey: null }, [crm("x", "napa autopro", "napaautopro.com", "edmonton", { addressKey: null, postalKey: null })]);
+  assert.equal(risky.outcome, "AMBIGUOUS");
+  // The SAME physical business is still recognised: same banner name at the same address stays a strong match.
+  assert.equal(classifyAgainstPool(cand("napa autopro", "napaautopro.com", "edmonton"), [crm("same", "napa autopro", "napaautopro.com", "edmonton", { addressKey: "14414 118 ave nw", postalKey: "T5L2M5" })]).outcome, "STRONG");
+  // A same-name chain location elsewhere is still an advisory branch (informational only).
+  assert.deepEqual(classifyAgainstPool(cand("ok tire", "oktire.com", "st albert"), [crm("okc", "ok tire", "oktire.com", "calgary", { addressKey: "1 other st", postalKey: "T2T2T2" })]).branchOf, ["okc"]);
+  // Toll-free numbers are call centres: same toll-free number + different name never matches.
+  assert.equal(classifyAgainstPool({ ...cand("tonno cover depot", "tonnocoverdepot.ca", "calgary"), phoneDigits: "8557390286", addressKey: null, postalKey: null }, [crm("tf", "another shop", null, "calgary", { phoneDigits: "8557390286", addressKey: null, postalKey: null })]).outcome, "NEW");
 });

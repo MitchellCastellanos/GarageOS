@@ -4,7 +4,7 @@ import { z } from "zod";
 import type { PlatformSalesActor } from "@/domain/sales-crm/access";
 import { assignedScopeWhere } from "@/domain/sales-crm/access";
 import { importEligibility } from "@/domain/lead-radar/record";
-import { assessRepairFit } from "@/domain/lead-radar/repair-fit";
+import { assessRepairFit, commercialSegment } from "@/domain/lead-radar/repair-fit";
 import { FIT_OVERRIDE_PREFIX } from "@/lib/lead-radar/import-service";
 import { PRIMARY_RULES, CATEGORY_GROUPS } from "@/domain/lead-radar/taxonomy";
 import { PROVINCE_CODES } from "@/domain/lead-radar/geo";
@@ -27,6 +27,7 @@ export const candidateFilterSchema = z.object({
   imp: optEnum(["NOT_IMPORTED", "CREATED", "LINKED", "SENT_TO_REVIEW", "SKIPPED", "FAILED"] as const),
   chain: optEnum(["CHAIN_SIGNAL", "NO_CHAIN_SIGNAL"] as const),
   lane: optEnum(["AUTO_ELIGIBLE", "HUMAN_REVIEW", "BLOCKED"] as const),
+  fit: optEnum(["VERIFIED_REPAIR", "HUMAN_REVIEW", "EXCLUDED", "NONE"] as const),
   reason: z.string().regex(/^[A-Z_]{3,40}$/).optional().catch(undefined),
   minCompleteness: z.coerce.number().int().min(0).max(100).optional().catch(undefined),
   hasPhone: z.enum(["1"]).optional().catch(undefined),
@@ -50,6 +51,7 @@ export function whereFor(f: CandidateFilters): Prisma.CrmDiscoveryCandidateWhere
   if (f.imp) and.push({ importState: f.imp });
   if (f.chain) and.push({ chainSignal: f.chain });
   if (f.lane) and.push({ qualificationLane: f.lane });
+  if (f.fit) and.push({ repairFit: f.fit === "NONE" ? null : f.fit });
   if (f.reason) and.push({ qualificationReasons: { has: f.reason } });
   if (f.minCompleteness !== undefined) and.push({ completeness: { gte: f.minCompleteness } });
   if (f.hasPhone) and.push({ phone: { not: null } });
@@ -71,7 +73,7 @@ export async function listCandidates(actor: PlatformSalesActor, f: CandidateFilt
         id: true, name: true, address: true, city: true, province: true, postalCode: true, phone: true, website: true, email: true, territoryKey: true, taxonomyPrimary: true, tier: true,
         industry: true, classReasons: true, chainSignal: true, sourceConfidence: true, completeness: true, qualityFlags: true, licenses: true, datasets: true, licenseOk: true,
         lastSeenRelease: true, reviewState: true, reviewNote: true, matchState: true, matchProspectId: true, matchReasons: true, importState: true, importedProspectId: true,
-        importErrorCode: true, changedSinceImport: true, qualificationLane: true, qualificationReasons: true, approvedByPolicyVersion: true,
+        importErrorCode: true, changedSinceImport: true, repairFit: true, repairFitReasons: true, duplicateOfCandidateId: true, qualificationLane: true, qualificationReasons: true, approvedByPolicyVersion: true,
       },
     }),
   ]);
@@ -83,6 +85,7 @@ export async function listCandidates(actor: PlatformSalesActor, f: CandidateFilt
     rows: rows.map((r) => ({
       ...r,
       eligibility: importEligibility(r),
+      segment: commercialSegment({ name: r.name, taxonomyPrimary: r.taxonomyPrimary }).segment,
       match: r.matchProspectId ? { id: r.matchProspectId, visible: visible.has(r.matchProspectId), name: visible.get(r.matchProspectId)?.name ?? null, owned: visible.get(r.matchProspectId)?.assignedStaffId != null } : null,
       imported: r.importedProspectId ? { id: r.importedProspectId, visible: visible.has(r.importedProspectId) } : null,
     })),

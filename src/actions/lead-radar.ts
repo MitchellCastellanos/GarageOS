@@ -6,6 +6,7 @@ import { estimateWorkload, canonicalScope, findRunOverlaps, NATIONWIDE_MB_THRESH
 import { db } from "@/lib/db";
 import { toMicro } from "@/domain/lead-radar/budget";
 import { PLATFORM } from "@/lib/routes";
+import { isProvinceCode } from "@/domain/lead-radar/geo";
 import { writeCrmAudit } from "@/lib/sales-crm/audit";
 import { CrmError } from "@/lib/sales-crm/prospects";
 import { crmAction } from "@/lib/sales-crm/result";
@@ -17,6 +18,7 @@ import { acknowledgeRunQuality, attachManifest, cancelRun, completeRun, createRu
 import { saveSettings } from "@/lib/lead-radar/settings";
 import { setProvinceSchedule } from "@/lib/lead-radar/province-state";
 import { queueWorkerRun } from "@/lib/lead-radar/worker";
+import { rematchCandidates } from "@/lib/lead-radar/rematch";
 import { reviewDiscoveredContact } from "@/lib/sales-comms/contact-readiness";
 
 // Every action re-resolves the actor from the session and re-checks the capability on the server. The UI hides controls, but never decides.
@@ -96,12 +98,20 @@ export async function reviewDiscoveryCandidates(input: { ids: string[]; decision
   });
 }
 
-const importSchema = z.object({ ids: z.array(z.string().max(40)).min(1).max(400).optional() });
-export async function importApprovedDiscoveryCandidates(input: { ids?: string[] } = {}) {
+const importSchema = z.object({ ids: z.array(z.string().max(40)).min(1).max(400).optional(), province: z.string().length(2).optional() });
+export async function importApprovedDiscoveryCandidates(input: { ids?: string[]; province?: string } = {}) {
   const actor = await requireLeadRadar("review");
   return crmAction(async () => {
     const p = importSchema.parse(input ?? {});
-    const r = await importApprovedCandidates(actor, { ids: p.ids });
+    // With a province, only approved candidates of THAT province are taken (the button on a province-filtered list must never import another province's approvals).
+    let ids = p.ids;
+    if (p.province) {
+      if (!isProvinceCode(p.province)) throw new CrmError("INVALID");
+      const scoped = (await db.crmDiscoveryCandidate.findMany({ where: { province: p.province, reviewState: "APPROVED", importState: { in: ["NOT_IMPORTED", "FAILED"] }, duplicateOfCandidateId: null, ...(ids ? { id: { in: ids } } : {}) }, select: { id: true }, orderBy: { id: "asc" }, take: 400 })).map((x) => x.id);
+      if (!scoped.length) return { result: { batchId: null, claimed: 0, created: 0, linked: 0, sentToReview: 0, skipped: 0, failed: 0, createdProspectIds: [], linkedProspectIds: [], reviewProspectIds: [], unassignedCreated: 0 } };
+      ids = scoped;
+    }
+    const r = await importApprovedCandidates(actor, { ids });
     touch(); revalidatePath(PLATFORM.salesProspects);
     return { result: r };
   });
@@ -141,4 +151,10 @@ export async function saveProvinceSchedule(input: { province: string; autoRefres
 export async function decideDiscoveredContact(input: { id: string; decision: "ACCEPT" | "REJECT"; note?: string | null }) {
   const actor = await requireLeadRadar("admin");
   return crmAction(async () => { const r = await reviewDiscoveredContact(actor, String(input?.id ?? ""), input?.decision, input?.note ?? null); touch(); return r; });
+}
+
+/** Re-check the CRM match of staged, not-yet-imported candidates of ONE province with the current matching rules. Preview writes nothing; apply writes derived match columns only. */
+export async function rematchProvinceCandidates(input: { province: string; apply: boolean; cursor?: string | null }) {
+  const actor = await requireLeadRadar("admin");
+  return crmAction(async () => { const r = await rematchCandidates(actor, { province: String(input?.province ?? ""), apply: input?.apply === true, cursor: input?.cursor ?? null }); touch(); return { result: r }; });
 }

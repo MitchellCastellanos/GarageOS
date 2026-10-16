@@ -385,4 +385,102 @@ if (!enabled) {
     const seller = await access.resolvePlatformSalesActor(users.Seller);
     if (seller) await assert.rejects(auto.setImportProvinces(seller, ["AB"]), /SALES_FORBIDDEN/);
   });
+
+  test("Alberta C2 matching regression: brand/directory-domain look-alikes in the CRM are NOT matched, branched, linked or enriched; approval + import create separate prospects and leave existing CRM records (owner, DNC, manual edits) byte-identical; the banner/no-address case goes to a person", async () => {
+    const staffUser = await db.user.create({ data: { name: "C2 Owner", email: `c2-${run}@garage-os.ca`, role: "VIEWER", shopId: null } });
+    const owner = await db.platformSalesStaff.create({ data: { userId: staffUser.id, role: "SALES_REP", status: "ACTIVE", displayName: "C2 Owner", timezone: "America/Toronto", salesMode: "REMOTE", leadLanguages: [], uiLocale: "FR" } });
+    const mk = (name: string, o: Record<string, unknown>) => db.crmProspect.create({ data: { name, nameNormalized: name.toLowerCase().replace(/[^a-z ]/g, "").trim(), city: "Montréal", province: "QC", territoryState: "NATIONAL", territoryKey: "canada", createdByUserId: users.Root, notes: "manual edit by a seller", ...o } as any });
+    const genile = await mk("Carrosserie Genile Inc.", { website: "http://yp.ca/bus/55555", websiteDomain: "yp.ca", assignedStaffId: owner.id, doNotContact: true, doNotContactAt: new Date() });
+    const rr = await mk("R.R. Station Service Inc.", { website: "https://www.napaautopro.com/fr/x", websiteDomain: "napaautopro.com", assignedStaffId: owner.id });
+    const okp = await mk("OK Pneus", { website: "http://www.oktire.com/fr/magasins/x", websiteDomain: "oktire.com" });
+    const snap = async () => JSON.stringify(await db.crmProspect.findMany({ where: { id: { in: [genile.id, rr.id, okp.id, ...extraIds] } }, orderBy: { id: "asc" } }));
+    const extraIds: string[] = [];
+    const before = await snap();
+    const ab = (street: string, city: string, postcode: string) => ({ freeform: street, locality: city, postcode, region: "AB", country: "CA" });
+    const recs = [
+      rec("Dad's Auto Repair Shop", "OTT", { phones: ["+17805550102"], address: ab("14414 118 Ave NW", "Edmonton", "T5L 2M5"), websites: ["http://yp.ca/bus/100892988"], geo: { lat: 53.57, lng: -113.55 } }),
+      rec("NAPA AUTOPRO", "OTT", { phones: ["+17805550103"], address: ab("15923 Stony Plain Road N.W.", "Edmonton", "T5P 3Z1"), websites: ["https://www.napaautopro.com/en/", "https://www.napaautopro.com/en/auto-repair/alberta/edmonton-village-auto-tire-service/"], geo: { lat: 53.54, lng: -113.63 } }),
+      rec("OK Tire", "OTT", { phones: ["+17805550104"], address: ab("22 Rayborn Cres", "St Albert", "T8N 4B1"), websites: ["http://www.oktire.com/stores/ok-tire-st-albert"], taxonomy: { primary: "tire_dealer_and_repair", hierarchy: ["travel_and_transportation", "vehicle_service", "tire_dealer_and_repair"], alternates: null }, geo: { lat: 53.63, lng: -113.63 } }),
+      rec("OK Tire", "OTT", { phones: ["+17805550105"], address: ab("5501 50 Ave", "Castor", "T0C 0N0"), websites: ["http://www.oktire.com/stores/ok-tire-castor"], taxonomy: { primary: "tire_dealer_and_repair", hierarchy: ["travel_and_transportation", "vehicle_service", "tire_dealer_and_repair"], alternates: null }, geo: { lat: 52.23, lng: -111.91 } }),
+    ];
+    const { done } = await extract(recs, ["AB"], "2026-11-18.0");
+    assert.equal(done.ok, true, JSON.stringify(done));
+    const cands = await Promise.all(recs.map((r: any) => cand(r.id)));
+    for (const c of cands) { const m = c.matchProspectId ? await db.crmProspect.findUnique({ where: { id: c.matchProspectId }, select: { name: true, city: true, websiteDomain: true, phoneDigits: true } }) : null; assert.equal(c.matchState, "NEW", `${c.name} ${c.city}: a shared directory/banner domain is not a match (matched ${JSON.stringify(m)})`); assert.equal(c.matchProspectId, null); assert.deepEqual(c.matchReasons, []); }
+    as(users.Root);
+    assert.equal(((await radar.reviewDiscoveryCandidates({ ids: cands.map((c) => c.id), decision: "APPROVED" })) as any).ok, true);
+    const imp: any = await radar.importApprovedDiscoveryCandidates({ ids: cands.map((c) => c.id) });
+    assert.equal(imp.ok, true, JSON.stringify(imp));
+    assert.deepEqual([imp.result.created, imp.result.linked, imp.result.sentToReview], [4, 0, 0], "four separate new prospects: nothing linked, merged or held");
+    assert.equal(await snap(), before, "existing CRM records (owner, DNC, manual notes, website, timestamps) are untouched");
+    assert.equal(await db.crmDuplicateReview.count({ where: { prospectId: { in: [genile.id, rr.id, okp.id] } } }), 0);
+    for (const c of cands) assert.notEqual((await db.crmDiscoveryCandidate.findUniqueOrThrow({ where: { id: c.id } })).importedProspectId, genile.id);
+    // The one genuinely uncertain shape (banner name + same city, CRM record without an address) is held for a person, not linked: still no change to the CRM record.
+    const noAddr = await mk("NAPA AUTOPRO", { city: "Edmonton", province: "AB", website: "https://www.napaautopro.com/en/", websiteDomain: "napaautopro.com" });
+    extraIds.push(noAddr.id);
+    const before2 = await snap();
+    const risky = rec("NAPA AUTOPRO", "OTT", { phones: ["+17805550106"], address: ab("1 Test Rd NW", "Edmonton", "T5K 1A1"), websites: ["https://www.napaautopro.com/en/"], geo: { lat: 53.55, lng: -113.5 } });
+    assert.equal((await extract([{ ...risky, address: { ...(risky.address as object), freeform: null, postcode: null } }], ["AB"], "2026-11-19.0")).done.ok, true);
+    const rc = await cand(risky.id);
+    assert.equal(rc.matchState, "AMBIGUOUS"); assert.ok(rc.matchProspectId, "points at a candidate for a person to compare (the unaddressed record or the NAPA AUTOPRO just imported)");
+    as(users.Root);
+    assert.equal(((await radar.reviewDiscoveryCandidates({ ids: [rc.id], decision: "APPROVED" })) as any).ok, true);
+    const imp2: any = await radar.importApprovedDiscoveryCandidates({ ids: [rc.id] });
+    assert.deepEqual([imp2.result.created, imp2.result.linked, imp2.result.sentToReview], [0, 0, 1], "held for a person: nothing is linked or created");
+    assert.equal(await snap(), before2, "the unaddressed CRM record is untouched");
+    assert.equal(await db.crmDuplicateReview.count({ where: { prospectId: rc.matchProspectId! } }), 1);
+  });
+
+  test("re-check of stale CRM matches (no new extraction): preview writes nothing; apply fixes only the derived match columns of NOT-yet-imported candidates and keeps human decisions, prospects and ownership untouched; Super Admin only; audited", async () => {
+    const access = await import("../src/lib/sales-crm/access");
+    const { rematchCandidates } = await import("../src/lib/lead-radar/rematch");
+    const admin = (await access.resolvePlatformSalesActor(users.Root))!;
+    const crmStaff = await db.platformSalesStaff.findFirstOrThrow({ where: { displayName: "C2 Owner" } });
+    const victim = await db.crmProspect.create({ data: { name: "Carrosserie Genile Rematch", nameNormalized: "carrosserie genile rematch", city: "Montréal", province: "QC", website: "http://yp.ca/bus/777", websiteDomain: "yp.ca", assignedStaffId: crmStaff.id, doNotContact: true, territoryState: "NATIONAL", territoryKey: "canada", createdByUserId: users.Root } });
+    const r1 = rec("Dads Auto Rematch", "OTT", { address: { freeform: "14414 118 Ave NW", locality: "Edmonton", postcode: "T5L 2M5", region: "AB", country: "CA" }, websites: ["http://yp.ca/bus/100892988"], phones: ["+17805550777"], geo: { lat: 53.57, lng: -113.55 } });
+    assert.equal((await extract([r1], ["AB"], "2026-11-20.0")).done.ok, true);
+    const c = await cand(r1.id);
+    // Reproduce what production holds today: a stale "branch of existing" verdict from the old rules, on a candidate a person already approved.
+    await db.crmDiscoveryCandidate.update({ where: { id: c.id }, data: { matchState: "BRANCH_OF_EXISTING", matchProspectId: victim.id, reviewState: "APPROVED", reviewNote: "approved by a person", qualificationLane: "HUMAN_REVIEW", qualificationReasons: ["BRANCH_RELATIONSHIP"], qualificationPolicyVersion: 1 } });
+    const prospectsBefore = JSON.stringify(await db.crmProspect.findUnique({ where: { id: victim.id } }));
+    const prev = await rematchCandidates(admin, { province: "AB", apply: false });
+    assert.equal(prev.applied, false); assert.ok(prev.changed >= 1); assert.ok((prev.transitions["match:BRANCH_OF_EXISTING->NEW"] ?? 0) >= 1);
+    assert.equal((await db.crmDiscoveryCandidate.findUniqueOrThrow({ where: { id: c.id } })).matchState, "BRANCH_OF_EXISTING", "preview wrote nothing");
+    const done = await rematchCandidates(admin, { province: "AB", apply: true });
+    assert.equal(done.changed, prev.changed);
+    const after = await db.crmDiscoveryCandidate.findUniqueOrThrow({ where: { id: c.id } });
+    assert.deepEqual([after.matchState, after.matchProspectId, after.reviewState, after.reviewNote], ["NEW", null, "APPROVED", "approved by a person"], "match corrected; the human decision is kept");
+    assert.deepEqual([after.qualificationLane, after.qualificationReasons], [null, []], "the stale verdict is cleared so the policy re-evaluates");
+    assert.equal(JSON.stringify(await db.crmProspect.findUnique({ where: { id: victim.id } })), prospectsBefore, "the CRM prospect is byte-identical");
+    // Stale STORED repair-fit (staged under the old rules) on a candidate a policy had approved: corrected, and the stale policy verdict is cleared so it is re-evaluated (never imported on the old verdict).
+    const tonno = rec("Tonno Cover Depot Rematch", "OTT", { address: { freeform: "115-42 Ave SW", locality: "Calgary", postcode: "T2G 1Z9", region: "AB", country: "CA" }, phones: ["+18557390287"], geo: { lat: 51.03, lng: -114.06 } });
+    assert.equal((await extract([tonno], ["AB"], "2026-11-22.0")).done.ok, true);
+    const tc = await cand(tonno.id);
+    await db.crmDiscoveryCandidate.update({ where: { id: tc.id }, data: { repairFit: "VERIFIED_REPAIR", repairFitReasons: ["REPAIR_CATEGORY"], reviewState: "APPROVED", approvedByPolicyVersion: 1, qualificationLane: "AUTO_ELIGIBLE", qualificationPolicyVersion: 1 } });
+    const fitPrev = await rematchCandidates(admin, { province: "AB", apply: false });
+    assert.ok((fitPrev.transitions["fit:VERIFIED_REPAIR->HUMAN_REVIEW"] ?? 0) >= 1);
+    await rematchCandidates(admin, { province: "AB", apply: true });
+    const tAfter = await db.crmDiscoveryCandidate.findUniqueOrThrow({ where: { id: tc.id } });
+    assert.deepEqual([tAfter.repairFit, tAfter.qualificationLane, tAfter.qualificationPolicyVersion], ["HUMAN_REVIEW", null, null]);
+    assert.deepEqual(tAfter.repairFitReasons, ["NAME_SIGNAL_ACCESSORIES_ONLY"]);
+    assert.equal((await rematchCandidates(admin, { province: "AB", apply: true })).changed, 0, "idempotent");
+    assert.equal(await db.crmAuditEvent.count({ where: { action: "LEAD_RADAR_REMATCH" as any } }), 2, "each applied re-check is audited");
+    const seller = await access.resolvePlatformSalesActor(users.Seller);
+    if (seller) await assert.rejects(rematchCandidates(seller, { province: "AB", apply: false }), /SALES_FORBIDDEN/);
+    await assert.rejects(rematchCandidates(admin, { province: "ZZ", apply: false }), /INVALID/);
+  });
+
+  test("province-scoped manual import: the button on a province-filtered list imports only that province's approved candidates", async () => {
+    const mkc = (name: string, region: string, city: string, post: string, lat: number, lng: number, n: number) => rec(name, "OTT", { address: { freeform: `${n} Scope St`, locality: city, postcode: post, region, country: "CA" }, phones: [`+1780555${String(1000 + n)}`], geo: { lat, lng } });
+    const a = mkc("Scope Test Alberta Garage", "AB", "Edmonton", "T5J 1S9", 53.55, -113.49, 11), b = mkc("Scope Test BC Garage", "BC", "Vancouver", "V6B 1A1", 49.28, -123.12, 12);
+    assert.equal((await extract([a, b], ["AB", "BC"], "2026-11-21.0")).done.ok, true);
+    const [ca, cb] = [await cand(a.id), await cand(b.id)];
+    as(users.Root);
+    assert.equal(((await radar.reviewDiscoveryCandidates({ ids: [ca.id, cb.id], decision: "APPROVED" })) as any).ok, true);
+    const imp: any = await radar.importApprovedDiscoveryCandidates({ province: "AB" });
+    assert.equal(imp.ok, true, JSON.stringify(imp));
+    assert.equal((await db.crmDiscoveryCandidate.findUniqueOrThrow({ where: { id: ca.id } })).importState, "CREATED");
+    assert.equal((await db.crmDiscoveryCandidate.findUniqueOrThrow({ where: { id: cb.id } })).importState, "NOT_IMPORTED", "the BC approval was not taken by an AB-scoped import");
+    assert.equal(((await radar.importApprovedDiscoveryCandidates({ province: "ZZ" })) as any).ok, false);
+  });
 }
