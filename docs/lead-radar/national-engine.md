@@ -68,3 +68,11 @@ Super Admin queues a province  ─┐                                 (or opts a
 * **Manual fallback is unchanged:** the PowerShell wrapper + upload still work for any run.
 
 Tests: `tests/lead-radar-worker-policy.test.ts` (pure), `tests/lead-radar-worker-db.test.ts` (11 DB tests: auth fail-closed, claim/lease, interruption + resume, retry exhaustion, gate stop, pause, cancel, opt-in schedule, audit), `scripts/lead-radar/test_worker.py` (8 protocol tests against an in-memory fake server).
+
+## 7. National readiness dashboard — `/platform/sales/lead-radar/national` (Super Admin)
+
+One card per province/territory (EN/FR). Fields: last successful extraction · Overture release · raw records (only when the last run covered that province alone, otherwise "n/a") · staged candidates · verified repair · human review · excluded · duplicates · not-yet-classified · CRM prospects imported · eligible-unassigned · assigned · with / missing coordinates · import failures · last run failure code (links to the run) · deferred work (awaiting qualification / approved-not-imported / inside an unfinished run) · automatic-refresh earliest date · plus global last automation run, next automation tick (computed from the real cron expression, only while automation is ON) and next worker check. Conversion rates always divide like by like (raw→staged, staged→verified, verified→prospects, prospects→with coordinates).
+
+Stage per province: `NOT_STARTED · QUEUED · EXTRACTING · RETRYING · STOPPED_BY_GATE · EXTRACTION_FAILED · PROCESSING · READY`. **`READY` only when nothing downstream is unfinished**; a completed extraction with deferred work, failed imports or unclassified candidates is `PROCESSING`, and each condition lists a specific action ("automation is OFF, nothing will advance", "open the run and acknowledge or re-extract", …). Owner controls per province: queue a real extraction on the worker (with a confirmation), opt in/out of the automatic refresh, pause, minimum interval.
+
+Code: `domain/lead-radar/national-readiness.ts` (pure, `tests/lead-radar-national-readiness.test.ts`), `lib/lead-radar/national.ts` (aggregates), DB-checked in `tests/lead-radar-national-db.test.ts`.
