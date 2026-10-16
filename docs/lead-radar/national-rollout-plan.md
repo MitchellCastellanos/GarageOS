@@ -18,6 +18,8 @@ Expected size (**Estimate**: Québec staged 10,466 candidates across all automot
 | 6 | Yukon, NT, Nunavut | last | tiny volumes; Nunavut's bounding box is large (79 row groups) for little data. |
 | — | Québec outside Greater Montréal | already extracted; REMOTE import is governed by the import scope | no new extraction needed. |
 
+> Operational detail, real rehearsal numbers, owner click-paths and stop conditions: [alberta-canary-runbook.md](alberta-canary-runbook.md) (it supersedes the threshold table below where they differ).
+
 ## 2. Canary: exact steps (Alberta)
 
 **Prerequisites (owner-only; none verified in production by engineering):**

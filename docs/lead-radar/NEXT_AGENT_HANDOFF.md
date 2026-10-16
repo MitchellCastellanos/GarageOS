@@ -17,7 +17,9 @@ Engineering may merge/deploy verified code and docs. Engineering may **not**: de
 
 **Not verified / blocked (owner-only or unobservable):** GitHub secrets present? workflow enabled? real Actions run (never executed against production or the real Overture bucket from CI); any production counts (engineering has no DB access); automation master switch state; first real canary; real extraction time/minutes; Overture email coverage; website enrichment, MX check and a contact review UI are **not built**. Nothing was launched: no extraction queued, no province opted in, no import scope changed, no email.
 
-**Owner-only next actions:** (1) set `SALES_CRON_SECRET` / `SALES_CRON_BASE_URL` and enable the workflow; (2) follow the Alberta canary in [national-rollout-plan.md](national-rollout-plan.md) with checkpoints C0–C4; (3) decide whether to opt provinces into auto-refresh; (4) everything in §4/§5 below (policy, automation, sender, CASL review) is unchanged.
+**Alberta canary readiness (2026-10-16, PR following #137): read [alberta-canary-runbook.md](alberta-canary-runbook.md).** Verified: #137 production READY on `a193bb2` and aliased; GitHub Actions secrets `SALES_CRON_SECRET`/`SALES_CRON_BASE_URL` are **NOT configured** (existing cron runs log empty values and skip); the worker accepts an optional dedicated `LEAD_RADAR_WORKER_SECRET`; manual dispatch of the worker workflow is a safe **preflight**. Real Alberta extraction rehearsed into a scratch DB (7,783 records, 100 % positions, gate OK).
+
+**Owner-only next actions:** (1) set `SALES_CRON_BASE_URL` + `LEAD_RADAR_WORKER_SECRET` (or `SALES_CRON_SECRET`) in GitHub and run the preflight (exact paths in the canary runbook §3); (2) follow the Alberta canary in [national-rollout-plan.md](national-rollout-plan.md) with checkpoints C0–C4; (3) decide whether to opt provinces into auto-refresh; (4) everything in §4/§5 below (policy, automation, sender, CASL review) is unchanged.
 
 ## 1. Current production state
 | Item | Status |

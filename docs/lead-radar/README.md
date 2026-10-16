@@ -2,7 +2,7 @@
 
 > **Start here if you are a new agent: [NEXT_AGENT_HANDOFF.md](NEXT_AGENT_HANDOFF.md)** (production state, what is OFF, exact next actions).
 >
-> **National engine (clean-first pipeline, automated worker, readiness dashboard, rollout plan): [national-engine.md](national-engine.md) · [national-rollout-plan.md](national-rollout-plan.md) · [email-outreach-readiness.md](email-outreach-readiness.md).**
+> **National engine (clean-first pipeline, automated worker, readiness dashboard, rollout plan): [national-engine.md](national-engine.md) · [national-rollout-plan.md](national-rollout-plan.md) · [alberta-canary-runbook.md](alberta-canary-runbook.md) · [email-outreach-readiness.md](email-outreach-readiness.md).**
 >
 > Automation by approved policy: [automation.md](automation.md) · Qualification policy V2 + read-only comparison: [qualification-v2.md](qualification-v2.md).
 
