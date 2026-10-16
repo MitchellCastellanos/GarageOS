@@ -6,6 +6,19 @@ Legend: **Completed** (done in code/deploy) · **Verified** (checked by tests/bu
 ## 0. Operating rules that still apply
 Engineering may merge/deploy verified code and docs. Engineering may **not**: delete/reset production data; activate a policy; enable automation; import or reassign production prospects; activate campaigns or send commercial email; change paid plans or the CAD 25/month cap; bypass eligibility/CASL checks; invent identities, consent evidence or credentials. Never print secrets. Every one of these is an **owner action** performed in the Super Admin UI.
 
+## 0b. National engine (session 2026-10-16, PRs #133–#137) — read [national-engine.md](national-engine.md) first
+**Verified (code + tests + Vercel Production READY at merge time):**
+* #133 run quality gate (blocking verdicts make a run `FAILED`; Super Admin acknowledgement with reason), candidate `repairFit` stamped at staging (+ derived backfill stage), candidate-to-candidate duplicates (`duplicateOfCandidateId`, outside pool/approval/import), extractor 1.3.0. Migration `20261020090000`.
+* #134 automated province worker: `POST /api/lead-radar/worker` (bearer `CRON_SECRET`), `scripts/lead-radar/worker.py`, `.github/workflows/lead-radar-extract.yml` (every 2 h, `peek` first), leases/heartbeat/resume/retry (3 attempts, 5 min/30 min/2 h), release detection (STAC) and an **opt-in** per-province schedule (default OFF everywhere). Migration `20261021090000`.
+* #135 `/platform/sales/lead-radar/national` readiness dashboard (17 indicators per province; `READY` only with nothing deferred) + per-province owner controls.
+* #136 contact discovery staging (`CrmDiscoveredContact`) + email-readiness ladder/funnel + [email-outreach-readiness.md](email-outreach-readiness.md). Migration `20261022090000`.
+* #137 automatic-import province scope (`CrmLeadAutomation.importProvinces`, empty = all) + [national-rollout-plan.md](national-rollout-plan.md). Migration `20261023090000`.
+* Tests added: `lead-radar-national-db` (16), `lead-radar-worker-db` (11), `contact-readiness-db` (7), unit tests for run quality / worker policy / readiness / contact ladder, Python `test_extract.py` (14) and `test_worker.py` (8). At #136: tsc clean, ESLint 0 errors, `npm test` 985 pass / 0 fail, all 19 DB suites pass on fresh scratch Postgres, `next build` OK.
+
+**Not verified / blocked (owner-only or unobservable):** GitHub secrets present? workflow enabled? real Actions run (never executed against production or the real Overture bucket from CI); any production counts (engineering has no DB access); automation master switch state; first real canary; real extraction time/minutes; Overture email coverage; website enrichment, MX check and a contact review UI are **not built**. Nothing was launched: no extraction queued, no province opted in, no import scope changed, no email.
+
+**Owner-only next actions:** (1) set `SALES_CRON_SECRET` / `SALES_CRON_BASE_URL` and enable the workflow; (2) follow the Alberta canary in [national-rollout-plan.md](national-rollout-plan.md) with checkpoints C0–C4; (3) decide whether to opt provinces into auto-refresh; (4) everything in §4/§5 below (policy, automation, sender, CASL review) is unchanged.
+
 ## 1. Current production state
 | Item | Status |
 |---|---|
@@ -48,7 +61,7 @@ Pause/recovery: see runbook "Recovery quick reference". Gate: nothing runs unles
 * Pilot (`enrollAutomated`): first-touch only, ACTIVE sequence, small daily/total caps, requires `CrmCommsSettings.sendingEnabled`, auto-pauses `REPLY_PATH_UNVERIFIED`. Unsubscribe/reply/booking stop enrollments. **No mass emailing is authorised.** CASL sign-off of the basis rules: **Pending legal review** (product controls, not legal advice).
 
 ## 6. National rollout
-* Per-province extractions: new run for the province (or all, with the acknowledgement checkbox) → `plan.json` → on the founder's Windows PC `.\scripts\lead-radar\Run-LeadRadarExtraction.ps1 -Plan plan.json` (Python/pyarrow venv, no credentials, resumable, deterministic) → upload `manifest.json` + `records.ndjson` (verified, resumable chunks) → Finish run. Nationwide plan ≈ 385 row groups ≈ 364 MB < 800 cap.
+* Per-province extraction is now **queued on the national page and executed by the GitHub Actions worker** (§0b). The PowerShell/upload path (new run → `plan.json` → `Run-LeadRadarExtraction.ps1` → upload `manifest.json` + `records.ndjson`) remains a manual fallback. Nationwide plan ≈ 385 row groups ≈ 364 MB < 800 cap.
 * Cross-run dedupe: candidates are unique per `(source, sourceRecordId)`; overlapping plans cannot duplicate; CRM dedupe uses `classifyAgainstPool`; refresh on a newer release re-evaluates facts and withdraws stale approvals.
 * Cost: open data, CAD 0; budget cap CAD 25 shared; no new paid infrastructure; do not change plans.
 * Not verified: real coverage numbers outside Québec; extraction time on the owner's PC for national scope.

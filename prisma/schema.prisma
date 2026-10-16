@@ -4275,6 +4275,9 @@ model CrmLeadAutomation {
   /// Policy-governed return of UNTOUCHED auto-assigned prospects when their seller pauses or is deactivated.
   releaseUnavailable  Boolean   @default(false)
   importChunkSize     Int       @default(100)
+  /// Province codes the automatic CRM import may take candidates from. EMPTY = every province (the behaviour before this column existed). A canary province rollout sets
+  /// exactly one code so newly extracted data cannot reach the CRM anywhere else until the owner widens it.
+  importProvinces     String[]  @default([])
   // ── Controlled outreach pilot (explicit activation; caps)
   pilotEnabled        Boolean   @default(false)
   pilotSequenceId     String?

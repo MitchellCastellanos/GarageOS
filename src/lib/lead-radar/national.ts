@@ -98,7 +98,7 @@ export async function nationalReadiness(now = new Date()) {
       deferred: sum((r) => r.deferred.total), importFailed: sum((r) => r.errors.importFailed),
     },
     automation: {
-      enabled: automation.enabled, activePolicyVersion: policy?.version ?? null,
+      enabled: automation.enabled, importProvinces: automation.importProvinces, activePolicyVersion: policy?.version ?? null,
       lastExecution: lastTick ? { at: lastTick.startedAt, finishedAt: lastTick.finishedAt, status: lastTick.status, errorCode: lastTick.errorCode } : null,
       nextTick: automation.enabled ? nextAutomationTick(now) : null, nextWorkerCheck: nextWorkerCheck(now),
     },

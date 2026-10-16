@@ -5,7 +5,7 @@ import { PLATFORM } from "@/lib/routes";
 import { CrmError } from "@/lib/sales-crm/prospects";
 import { crmAction } from "@/lib/sales-crm/result";
 import { requireLeadRadar } from "@/lib/lead-radar/access";
-import { runAutomationTick, saveAutomation, setAutomationEnabled, setPilotEnabled, type AutomationInput } from "@/lib/lead-radar/automation";
+import { runAutomationTick, saveAutomation, setAutomationEnabled, setImportProvinces, setPilotEnabled, type AutomationInput } from "@/lib/lead-radar/automation";
 import { activatePolicy, createPolicyDraft, previewPolicy } from "@/lib/lead-radar/policy";
 import { compareRulesOnPool, renderComparisonMarkdown } from "@/lib/lead-radar/compare";
 import { canonicalRules, DEFAULT_POLICY_RULES, RECOMMENDED_V2_RULES } from "@/domain/lead-radar/policy-rules";
@@ -33,6 +33,10 @@ export async function saveLeadAutomation(input: AutomationInput) {
 export async function setLeadAutomationEnabled(enabled: boolean, reason?: string | null) {
   const actor = await requireLeadRadar("admin");
   return crmAction(async () => { await setAutomationEnabled(actor, enabled === true, reason); touch(); return {}; });
+}
+export async function setLeadImportProvinces(provinces: string[]) {
+  const actor = await requireLeadRadar("admin");
+  return crmAction(async () => { await setImportProvinces(actor, Array.isArray(provinces) ? provinces.map(String) : []); revalidatePath(PLATFORM.salesLeadRadarNational); touch(); return {}; });
 }
 export async function setLeadPilotEnabled(enabled: boolean) {
   const actor = await requireLeadRadar("admin");
