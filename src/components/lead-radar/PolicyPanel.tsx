@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { activateLeadPolicy, createLeadPolicy, previewLeadPolicy } from "@/actions/lead-radar-automation";
 import { PROVINCE_CODES, PROVINCE_NAMES } from "@/domain/lead-radar/geo";
-import { DEFAULT_POLICY_RULES, REVIEWABLE_FLAGS } from "@/domain/lead-radar/policy-rules";
+import { DEFAULT_POLICY_RULES, RECOMMENDED_V2_RULES, REVIEWABLE_FLAGS } from "@/domain/lead-radar/policy-rules";
 import { Badge, btnPrimary, btnSecondary, cardCls, inputCls, labelCls } from "@/components/sales-crm/ui";
 import { FormMessage } from "@/components/sales-crm/useCrmAction";
 import { useRadarAction } from "@/components/lead-radar/useRadarAction";
@@ -26,6 +26,11 @@ export function PolicyPanel({ locale, policies }: { locale: "en" | "fr"; policie
   const [needLoc, setNeedLoc] = useState(DEFAULT_POLICY_RULES.requireLocation);
   const [needChan, setNeedChan] = useState(DEFAULT_POLICY_RULES.requireReachableChannel);
   const [flags, setFlags] = useState<string[]>([...DEFAULT_POLICY_RULES.reviewFlags]);
+  const [bt, setBt] = useState<string>(DEFAULT_POLICY_RULES.businessTypes);
+  const [nonTarget, setNonTarget] = useState<string>(DEFAULT_POLICY_RULES.nonTargetBusiness);
+  const [generic, setGeneric] = useState<string>(DEFAULT_POLICY_RULES.genericService);
+  const [lowConf, setLowConf] = useState<string>(DEFAULT_POLICY_RULES.lowConfidence);
+  const applyV2 = () => { setBt(RECOMMENDED_V2_RULES.businessTypes); setNonTarget(RECOMMENDED_V2_RULES.nonTargetBusiness); setGeneric(RECOMMENDED_V2_RULES.genericService); setLowConf(RECOMMENDED_V2_RULES.lowConfidence); setSecondary(RECOMMENDED_V2_RULES.secondaryTier); setChain(RECOMMENDED_V2_RULES.chainSignal); setExisting(RECOMMENDED_V2_RULES.existingMatch); setFlags([...RECOMMENDED_V2_RULES.reviewFlags]); };
   const [previews, setPreviews] = useState<Record<string, Preview>>({});
   const toggle = (list: string[], v: string) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
   const tone = (s: string) => (s === "ACTIVE" ? "bg-emerald-100 text-emerald-800" : s === "DRAFT" ? "bg-blue-100 text-blue-800" : "bg-slate-100 text-slate-600");
@@ -79,7 +84,12 @@ export function PolicyPanel({ locale, policies }: { locale: "en" | "fr"; policie
           <label className={labelCls}>{p.secondary}{sel(secondary, setSecondary, [["REVIEW", p.review], ["AUTO", p.auto]])}</label>
           <label className={labelCls}>{p.chain}{sel(chain, setChain, [["REVIEW", p.review], ["AUTO", p.auto], ["BLOCK", p.block]])}</label>
           <label className={labelCls}>{p.existing}{sel(existing, setExisting, [["AUTO_LINK", p.autoLink], ["REVIEW", p.review]])}</label>
+          <label className={labelCls}>{p.businessTypes}{sel(bt, setBt, [["STORED_TIER", p.btStored], ["REPAIR_CAPABLE", p.btRepair]])}</label>
+          <label className={labelCls}>{p.nonTarget}{sel(nonTarget, setNonTarget, [["BLOCK", p.block], ["REVIEW", p.review]])}</label>
+          <label className={labelCls}>{p.generic}{sel(generic, setGeneric, [["REVIEW", p.genericReview], ["NAME_EVIDENCE", p.genericName]])}</label>
+          <label className={labelCls}>{p.lowConf}{sel(lowConf, setLowConf, [["REVIEW", p.lowConfReview], ["CORROBORATED", p.lowConfCorr]])}</label>
         </div>
+        <div className="flex flex-wrap items-center gap-2"><button type="button" className={btnSecondary} onClick={applyV2}>{p.preset}</button><span className="text-xs text-slate-500">{p.presetHelp}</span></div>
         <label className="flex min-h-11 items-center gap-2 text-sm text-slate-700"><input type="checkbox" className="size-5" checked={needLoc} onChange={(e) => setNeedLoc(e.target.checked)} />{p.requireLocation}</label>
         <label className="flex min-h-11 items-center gap-2 text-sm text-slate-700"><input type="checkbox" className="size-5" checked={needChan} onChange={(e) => setNeedChan(e.target.checked)} />{p.requireChannel}</label>
         <div><p className="text-sm font-medium text-slate-700">{p.flags}</p><div className="grid grid-cols-1 gap-1 sm:grid-cols-2">{REVIEWABLE_FLAGS.map((f) => (
@@ -87,7 +97,7 @@ export function PolicyPanel({ locale, policies }: { locale: "en" | "fr"; policie
         <div><p className="text-sm font-medium text-slate-700">{p.provinces}</p><div className="grid grid-cols-2 gap-1 sm:grid-cols-3 lg:grid-cols-4">{PROVINCE_CODES.map((code) => (
           <label key={code} className="flex min-h-11 items-center gap-2 text-sm text-slate-700"><input type="checkbox" className="size-5" checked={provinces.includes(code)} onChange={() => setProvinces((l) => toggle(l, code))} />{PROVINCE_NAMES[code][locale]} ({code})</label>))}</div></div>
         <button type="button" className={btnPrimary} disabled={pending || name.trim().length < 3}
-          onClick={() => run(() => createLeadPolicy({ name, note, rules: { provinces, secondaryTier: secondary, chainSignal: chain, existingMatch: existing, requireLocation: needLoc, requireReachableChannel: needChan, reviewFlags: flags } }), undefined, p.saved)}>{p.saveDraft}</button>
+          onClick={() => run(() => createLeadPolicy({ name, note, rules: { provinces, secondaryTier: secondary, chainSignal: chain, existingMatch: existing, requireLocation: needLoc, requireReachableChannel: needChan, reviewFlags: flags, businessTypes: bt, nonTargetBusiness: nonTarget, genericService: generic, lowConfidence: lowConf } }), undefined, p.saved)}>{p.saveDraft}</button>
       </fieldset>
       <FormMessage error={error} notice={notice} />
     </section>

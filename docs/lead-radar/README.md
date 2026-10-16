@@ -1,6 +1,17 @@
 # GarageOS National Lead Radar
 
-> New: [Automation by approved policy](automation.md).
+> **Start here if you are a new agent: [NEXT_AGENT_HANDOFF.md](NEXT_AGENT_HANDOFF.md)** (production state, what is OFF, exact next actions).
+>
+> Automation by approved policy: [automation.md](automation.md) · Qualification policy V2 + read-only comparison: [qualification-v2.md](qualification-v2.md).
+
+## Status (code deployed ≠ feature activated)
+| Item | State |
+|---|---|
+| Foundation (PR #126) and automation (PR #127, migration `20261016090000`) | Merged and deployed to Production; migration applied (additive). |
+| Qualification V2 + read-only comparison (PR #128) | Merged and deployed (see handoff for the commit). V2 is **a proposal**: it is not a stored/active policy. |
+| Active qualification policy / automation / pilot / company-wide sending | **None activated by engineering.** Only the owner can do this (Super Admin UI). |
+| Live acquisition switch (`LEAD_RADAR_ENABLED`) | Owner-controlled; used for the Québec extraction. |
+| Emails to prospects | **None sent by this work.** No campaign is authorised. |
 
 Canada-wide discovery of automotive repair businesses → human review → the existing Sales CRM. **Live acquisition is disabled by default.**
 
@@ -33,7 +44,10 @@ Overture release (public Parquet) ──► local extractor (scripts/lead-radar,
 | Shared import | `applyImportBatch` / `loadPlanInputs` in `src/lib/sales-crm/lead-engine.ts` (extracted from the CSV action; CSV behaviour unchanged) |
 | Extractor | `scripts/lead-radar/{overture_extract.py,test_extract.py,profile.ts,requirements.txt}` |
 | UI (EN/FR) | `/platform/sales/lead-radar`, `/candidates`, `/runs/[id]`; `src/components/lead-radar/*`; `src/lib/admin-locale/lead-radar.ts` |
-| Tests | `tests/lead-radar-domain.test.ts`, `tests/lead-radar-db.test.ts` (real PostgreSQL), `scripts/lead-radar/test_extract.py` |
+| Automation (PR #127) | `src/domain/lead-radar/{policy-rules,qualification,qualification-hash,outreach}.ts`, `src/lib/lead-radar/{policy,qualify,automation,eligibility,dashboard}.ts`, `src/actions/lead-radar-automation.ts`, `/platform/sales/lead-radar/automation`, cron `/api/webhooks/cron/lead-radar` |
+| Qualification V2 + comparison (PR #128) | `src/domain/lead-radar/{business-type,policy-compare}.ts`, `src/lib/lead-radar/compare.ts`, `src/components/lead-radar/PolicyComparePanel.tsx`, `scripts/lead-radar/policy-report.ts` |
+| Windows extraction | `scripts/lead-radar/Run-LeadRadarExtraction.ps1` |
+| Tests | `tests/lead-radar-automation-domain.test.ts`, `tests/lead-radar-automation-db.test.ts`, `tests/lead-radar-qualification-v2.test.ts`, `tests/lead-radar-compare-db.test.ts`, `tests/lead-radar-domain.test.ts`, `tests/lead-radar-db.test.ts` (real PostgreSQL), `scripts/lead-radar/test_extract.py` |
 
 ## Design decisions
 * **No second CRM / territory engine / assignment logic.** Territory = `classifyTerritory`; dedupe = `classifyAgainstPool`; import = the shared transaction; assignment = untouched.

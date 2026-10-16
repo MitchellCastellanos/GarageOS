@@ -1,6 +1,6 @@
 # Lead Radar — activation runbook
 
-**Status of this delivery: code complete, live acquisition OFF.** Nothing below has been run against Production.
+**Status:** the foundation (migration `20261015090000`) and automation (migration `20261016090000`) are deployed to Production. The owner has run the Québec extraction (2,084 candidates staged) and one read-only V1 qualification preview. **Automation, policy activation, pilot and email are OFF** and are performed only by the owner. For automation operations see [automation.md](automation.md); for the policy comparison see [qualification-v2.md](qualification-v2.md); for the current state and next steps see [NEXT_AGENT_HANDOFF.md](NEXT_AGENT_HANDOFF.md).
 
 ## Environment
 | Variable | Where | Purpose |
@@ -10,7 +10,7 @@
 
 Plus the database switch (Lead Radar page → Settings → "Enable live discovery"). Both must be on. No new paid infrastructure is required.
 
-## Production migration (owner-gated)
+## Production migration (already applied; kept for reference)
 1. The migration `20261015090000_lead_radar_foundation` is **additive only** (7 enums, 4 tables, 5 CHECK constraints; no existing table/row is touched).
 2. It ships through the normal Vercel Production build (`scripts/deploy-migrations.mjs`, see `docs/db-migrations.md`). Merge → deploy applies it. **Do not merge/deploy without authorization.**
 3. Rollback: the application can be rolled back at any time (old code ignores the tables). To remove the feature entirely: `DROP TABLE` the four `CrmDiscovery*` tables and the 7 enums (nothing else references them; imported prospects keep their `importBatchId`/observations).
@@ -41,3 +41,11 @@ Only after a clean pilot should a nationwide plan (acknowledgement checkbox) be 
 * *"A chunk is missing"* → press Start upload again; it resumes from the last confirmed chunk.
 * *"manifest was produced from a different plan"* → re-download this run's plan and re-extract.
 * A stuck budget reservation (only possible with a future paid adapter) → Super Admin → Budget → Release.
+
+## Recovery quick reference (automation)
+* **Pause everything**: Automation page → *Pause* (or switch off live discovery). The tick exits at once; no data changes.
+* **Stuck lease**: expires by itself (`leaseUntil`); the next tick takes over. Never edit the lease by hand.
+* **Failed candidates** (`FAILED` import): inspect the reason on the Automation dashboard; they are retried only if their source facts change; a human can approve/import them manually.
+* **Wrong policy activated**: create/preview/activate the previous rules again as a new version; candidates re-qualify; human decisions and already-imported prospects are never undone automatically.
+* **Wrongly assigned prospects**: use the existing assignment screens; automation never moves engaged work.
+* **Rollback of code**: Vercel instant rollback is safe; the additive schema is ignored by older code.

@@ -11,6 +11,7 @@ import { loadRadarPage } from "@/lib/lead-radar/page";
 import { Badge, btnSecondary, cardCls, formatDate, PageHeader, PermissionDenied } from "@/components/sales-crm/ui";
 import { AutomationControls } from "@/components/lead-radar/AutomationControls";
 import { PolicyPanel } from "@/components/lead-radar/PolicyPanel";
+import { PolicyComparePanel } from "@/components/lead-radar/PolicyComparePanel";
 
 export const dynamic = "force-dynamic";
 // The manual "Run one cycle now" server action executes under this route's limit.
@@ -165,6 +166,7 @@ export default async function LeadRadarAutomationPage() {
       </Stage>
 
       <PolicyPanel locale={locale} policies={d.policies.map((p) => ({ ...p, previewedAt: p.previewedAt?.toISOString() ?? null, activatedAt: p.activatedAt?.toISOString() ?? null }))} />
+      <PolicyComparePanel locale={locale} policies={d.policies.map((p) => ({ id: p.id, version: p.version, name: p.name, status: p.status }))} />
       <AutomationControls locale={locale} automation={controls} sellers={d.assignment.workload.map((w) => ({ id: w.id, name: w.name, email: w.email, mode: w.mode ?? "REMOTE" }))} sequences={sequences} />
 
       <Stage id="au-runs" title={a.runs.title}>

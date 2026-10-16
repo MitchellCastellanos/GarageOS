@@ -63,8 +63,8 @@ export function hierarchyForGroups(groups: readonly CategoryGroup[]): string[] {
 }
 
 /** Chains that are known not to be independent shops. A hint for the reviewer, never a verdict. */
-const CHAIN_NAME = /\b(midas|monro|meineke|jiffy lube|valvoline|mr\.? lube|speedy|canadian tire|napa auto ?pro|carstar|fix auto|uniglass|lebeau|vitro ?plus|fountain tire|kal tire|ok tire|ici pneu|great canadian oil change|mr\.? tire|pep boys|firestone|goodyear|walmart|costco|petro[- ]canada|esso|shell|ultramar|couche[- ]tard|harnois|boyd|speedee)\b/i;
-const OEM_NAME = /\b(toyota|honda|ford|chevrolet|gmc|buick|cadillac|nissan|hyundai|kia|mazda|subaru|volkswagen|audi|bmw|mercedes|volvo|jeep|dodge|ram|chrysler|lexus|acura|infiniti|mitsubishi|porsche|tesla|genesis|land rover|jaguar|mini)\b/i;
+export const CHAIN_NAME = /\b(midas|monro|meineke|jiffy lube|valvoline|mr\.? lube|speedy|canadian tire|napa auto ?pro|carstar|fix auto|uniglass|lebeau|vitro ?plus|fountain tire|kal tire|ok tire|ici pneu|great canadian oil change|mr\.? tire|pep boys|firestone|goodyear|walmart|costco|petro[- ]canada|esso|shell|ultramar|couche[- ]tard|harnois|boyd|speedee)\b/i;
+export const OEM_NAME = /\b(toyota|honda|ford|chevrolet|gmc|buick|cadillac|nissan|hyundai|kia|mazda|subaru|volkswagen|audi|bmw|mercedes|volvo|jeep|dodge|ram|chrysler|lexus|acura|infiniti|mitsubishi|porsche|tesla|genesis|land rover|jaguar|mini)\b/i;
 
 export interface ClassifyInput {
   primary: string | null | undefined;

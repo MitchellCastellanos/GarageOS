@@ -12,6 +12,8 @@
 //  · A candidate a human rejected is never re-opened by a policy (callers must not evaluate it; `evaluateQualification` also refuses).
 import { importEligibility } from "@/domain/lead-radar/record";
 import { canonicalRules, REVIEWABLE_FLAGS, type PolicyRules, type ReviewableFlag } from "@/domain/lead-radar/policy-rules";
+import { classifyBusinessType, independentSources, type BusinessType } from "@/domain/lead-radar/business-type";
+import { OEM_NAME } from "@/domain/lead-radar/taxonomy";
 
 export * from "@/domain/lead-radar/policy-rules";
 
@@ -22,8 +24,10 @@ type StaticReason =
   // human review
   | "AMBIGUOUS_MATCH" | "BRANCH_RELATIONSHIP" | "EXISTING_MATCH_REVIEW" | "QUESTIONABLE_CATEGORY" | "SECONDARY_CATEGORY" | "CHAIN_SIGNAL"
   | "NO_LOCATION" | "NO_REACHABLE_CHANNEL" | "TERRITORY_UNRESOLVED" | "SOURCE_CHANGED"
+  // V2 (business-type aware)
+  | "NOT_TARGET_BUSINESS"
   // informational on an auto-eligible candidate
-  | "AUTO_LINK_EXISTING"
+  | "AUTO_LINK_EXISTING" | "REPAIR_CAPABLE_SPECIALTY" | "CATEGORY_NAME_EVIDENCE" | "CORROBORATED_LOW_CONFIDENCE"
   // outside the policy's scope (no lane)
   | "OUT_OF_POLICY_SCOPE";
 export type QualificationReason = StaticReason | `FLAG_${ReviewableFlag}`;
@@ -33,7 +37,7 @@ export const QUALIFICATION_REASONS: readonly QualificationReason[] = [
   "AMBIGUOUS_MATCH", "BRANCH_RELATIONSHIP", "EXISTING_MATCH_REVIEW", "QUESTIONABLE_CATEGORY", "SECONDARY_CATEGORY", "CHAIN_SIGNAL",
   "NO_LOCATION", "NO_REACHABLE_CHANNEL", "TERRITORY_UNRESOLVED", "SOURCE_CHANGED",
   ...REVIEWABLE_FLAGS.map((f): QualificationReason => `FLAG_${f}`),
-  "AUTO_LINK_EXISTING", "OUT_OF_POLICY_SCOPE",
+  "NOT_TARGET_BUSINESS", "AUTO_LINK_EXISTING", "REPAIR_CAPABLE_SPECIALTY", "CATEGORY_NAME_EVIDENCE", "CORROBORATED_LOW_CONFIDENCE", "OUT_OF_POLICY_SCOPE",
 ];
 
 /** The only candidate facts qualification reads. Everything here is already stored on the staging row. */
@@ -54,6 +58,10 @@ export interface QualificationFacts {
   reviewState: "PENDING" | "APPROVED" | "REJECTED";
   /** Reasons kept from an earlier decision that only a human may clear (SOURCE_CHANGED set by staging when an approval was invalidated). */
   stickyReasons?: readonly string[];
+  // Business-type facts (V2). Optional so V1 callers and old fixtures keep working; absent ⇒ the business type is UNSPECIFIED (⇒ human review under V2).
+  name?: string | null;
+  taxonomyPrimary?: string | null;
+  classReasons?: readonly string[];
 }
 
 export interface QualificationResult {
@@ -62,6 +70,8 @@ export interface QualificationResult {
   reasons: QualificationReason[];
   /** What the CRM handoff would do for an AUTO_ELIGIBLE candidate. */
   handoff: "CREATE" | "LINK_EXISTING" | null;
+  /** What the business does, as judged by business-type.ts (informational under V1; decisive under V2 REPAIR_CAPABLE). */
+  businessType?: BusinessType;
 }
 
 const uniqSorted = <T extends string>(xs: readonly T[]): T[] => [...new Set(xs)].sort();
@@ -74,20 +84,44 @@ export function evaluateQualification(rulesIn: PolicyRules, f: QualificationFact
     return { lane: null, reasons: ["OUT_OF_POLICY_SCOPE"], handoff: null };
   }
 
+  const bt = classifyBusinessType({ taxonomyPrimary: f.taxonomyPrimary, name: f.name });
+  const v2 = rules.businessTypes === "REPAIR_CAPABLE";
+  const done = (r: Omit<QualificationResult, "businessType">): QualificationResult => ({ ...r, businessType: bt.type });
+
   const blocked: QualificationReason[] = [];
   if (!f.licenseOk) blocked.push("LICENSE_BLOCKED");
   if (f.tier === "EXCLUDED") blocked.push("EXCLUDED_TIER");
   if (!importEligibility({ licenseOk: true, tier: "PRIMARY", address: f.address, phone: f.phone, postalCode: f.postalCode }).eligible) blocked.push("INSUFFICIENT_CONTACT");
   if (f.licenseOk && (f.licenses.length === 0 || f.datasets.length === 0)) blocked.push("SOURCE_PROVENANCE_MISSING"); // provenance is mandatory for attribution
   if (f.chainSignal === "CHAIN_SIGNAL" && rules.chainSignal === "BLOCK") blocked.push("CHAIN_BLOCKED_BY_POLICY");
-  if (blocked.length) return { lane: "BLOCKED", reasons: uniqSorted(blocked), handoff: null };
+  // V2: a business that provably does not repair vehicles (parts-only, wash/detailing-only, towing…) is not a GarageOS target. Only a KNOWN category decides this.
+  if (v2 && bt.capability === "NON_TARGET" && rules.nonTargetBusiness === "BLOCK") blocked.push("NOT_TARGET_BUSINESS");
+  if (blocked.length) return done({ lane: "BLOCKED", reasons: uniqSorted(blocked), handoff: null });
 
   const review: QualificationReason[] = [];
+  const notes: QualificationReason[] = [];
   if (f.matchState === "AMBIGUOUS") review.push("AMBIGUOUS_MATCH");
   if (f.matchState === "BRANCH_OF_EXISTING") review.push("BRANCH_RELATIONSHIP");
   if (f.matchState === "EXISTING_STRONG" && rules.existingMatch === "REVIEW") review.push("EXISTING_MATCH_REVIEW");
-  if (f.tier === "AMBIGUOUS") review.push("QUESTIONABLE_CATEGORY");
-  if (f.tier === "SECONDARY" && rules.secondaryTier === "REVIEW") review.push("SECONDARY_CATEGORY");
+  if (!v2) {
+    if (f.tier === "AMBIGUOUS") review.push("QUESTIONABLE_CATEGORY");
+    if (f.tier === "SECONDARY" && rules.secondaryTier === "REVIEW") review.push("SECONDARY_CATEGORY");
+  } else {
+    const cr = f.classReasons ?? [];
+    // A repair listing under an OEM brand name, or also tagged as a dealer, may be a dealership service department: always a human.
+    const dealerService = cr.includes("POSSIBLE_DEALER_SERVICE") || cr.includes("ALSO_DEALER") || OEM_NAME.test(f.name ?? ""); // incl. a brand-named body shop/glass shop: dealer-affiliated, not independent
+    if (dealerService) review.push("QUESTIONABLE_CATEGORY");
+    else if (bt.capability === "REPAIR" && bt.basis === "TAXONOMY") {
+      // Stored tier AMBIGUOUS on a known repair code without a recorded reason is not something we can explain ⇒ a human decides.
+      if (f.tier === "AMBIGUOUS") review.push("QUESTIONABLE_CATEGORY");
+      else if (f.tier === "SECONDARY") notes.push("REPAIR_CAPABLE_SPECIALTY");
+    } else if (bt.capability === "REPAIR") {
+      // Generic / unmapped category judged from the code's words or the business name (and nothing contrary).
+      if (rules.genericService === "NAME_EVIDENCE") notes.push("CATEGORY_NAME_EVIDENCE"); else review.push("QUESTIONABLE_CATEGORY");
+    } else if (bt.capability === "NON_TARGET") review.push("NOT_TARGET_BUSINESS"); // only reachable when nonTargetBusiness = REVIEW
+    else if (bt.capability === "UNCERTAIN") review.push("SECONDARY_CATEGORY"); // dealers / customization / inspection: always a human under V2, whatever `secondaryTier` says
+    else review.push("QUESTIONABLE_CATEGORY");
+  }
   if (f.chainSignal === "CHAIN_SIGNAL" && rules.chainSignal === "REVIEW") review.push("CHAIN_SIGNAL");
   // Location/channel completeness matters for a record that would CREATE a new prospect. A strong match to an existing prospect only enriches it,
   // so it needs no more than the universal "something usable" floor already enforced above (INSUFFICIENT_CONTACT).
@@ -96,12 +130,19 @@ export function evaluateQualification(rulesIn: PolicyRules, f: QualificationFact
     if (rules.requireReachableChannel && !f.phone && !f.website) review.push("NO_REACHABLE_CHANNEL");
   }
   if (f.territoryKey === "unresolved") review.push("TERRITORY_UNRESOLVED");
-  for (const flag of rules.reviewFlags) if (f.qualityFlags.includes(flag)) review.push(`FLAG_${flag}`);
+  // Low source confidence: independent corroboration may stand in for a human ONLY under `lowConfidence: CORROBORATED`, and only when ALL of it holds:
+  // ≥ 2 distinct upstream datasets (Overture's own label excluded), a phone AND a street address, and a category the platform itself recognises as repair work.
+  const corroborated = independentSources(f.datasets) >= 2 && !!f.phone && !!f.address && bt.capability === "REPAIR" && bt.basis === "TAXONOMY";
+  for (const flag of rules.reviewFlags) {
+    if (!f.qualityFlags.includes(flag)) continue;
+    if (flag === "LOW_CONFIDENCE" && rules.lowConfidence === "CORROBORATED" && corroborated) { notes.push("CORROBORATED_LOW_CONFIDENCE"); continue; }
+    review.push(`FLAG_${flag}`);
+  }
   for (const s of f.stickyReasons ?? []) if (s === "SOURCE_CHANGED") review.push("SOURCE_CHANGED");
-  if (review.length) return { lane: "HUMAN_REVIEW", reasons: uniqSorted(review), handoff: null };
+  if (review.length) return done({ lane: "HUMAN_REVIEW", reasons: uniqSorted(review), handoff: null });
 
   const link = f.matchState === "EXISTING_STRONG";
-  return { lane: "AUTO_ELIGIBLE", reasons: link ? ["AUTO_LINK_EXISTING"] : [], handoff: link ? "LINK_EXISTING" : "CREATE" };
+  return done({ lane: "AUTO_ELIGIBLE", reasons: uniqSorted([...(link ? (["AUTO_LINK_EXISTING"] as const) : []), ...notes]), handoff: link ? "LINK_EXISTING" : "CREATE" });
 }
 
 // ── Preview / dashboard aggregation (pure) ───────────────────────────────────────────────────────────────────────────
