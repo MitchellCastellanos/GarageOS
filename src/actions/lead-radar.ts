@@ -13,7 +13,7 @@ import { requireLeadRadar } from "@/lib/lead-radar/access";
 import { releaseBudget } from "@/lib/lead-radar/budget";
 import { importApprovedCandidates } from "@/lib/lead-radar/import-service";
 import { reviewCandidates, type ReviewDecision } from "@/lib/lead-radar/candidates";
-import { attachManifest, cancelRun, completeRun, createRun, ingestChunk, planFileFor, resumeRun } from "@/lib/lead-radar/runs";
+import { acknowledgeRunQuality, attachManifest, cancelRun, completeRun, createRun, ingestChunk, planFileFor, resumeRun } from "@/lib/lead-radar/runs";
 import { saveSettings } from "@/lib/lead-radar/settings";
 
 // Every action re-resolves the actor from the session and re-checks the capability on the server. The UI hides controls, but never decides.
@@ -68,6 +68,10 @@ export async function ingestDiscoveryChunk(runId: string, seq: number, ndjson: s
 export async function completeDiscoveryRun(runId: string) {
   const actor = await requireLeadRadar("admin");
   return crmAction(async () => { const r = await completeRun(actor, String(runId)); touch(); return r; });
+}
+export async function acknowledgeDiscoveryRunQuality(runId: string, note: string) {
+  const actor = await requireLeadRadar("admin");
+  return crmAction(async () => { const r = await acknowledgeRunQuality(actor, String(runId), String(note ?? "")); touch(); return r; });
 }
 export async function cancelDiscoveryRun(runId: string) {
   const actor = await requireLeadRadar("admin");

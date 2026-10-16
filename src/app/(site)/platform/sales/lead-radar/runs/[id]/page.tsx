@@ -7,6 +7,9 @@ import { loadRadarPage } from "@/lib/lead-radar/page";
 import { Badge, cardCls, formatDate, PageHeader, PermissionDenied } from "@/components/sales-crm/ui";
 import { pointsCopy } from "@/lib/admin-locale/lead-radar-points";
 import { RunControls } from "@/components/lead-radar/RunControls";
+import { RunQualityPanel } from "@/components/lead-radar/RunQualityPanel";
+import { nationalCopy } from "@/lib/admin-locale/lead-radar-national";
+import type { RunQuality } from "@/domain/lead-radar/run-quality";
 
 export const dynamic = "force-dynamic";
 
@@ -43,8 +46,9 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
         {r.status === "COMPLETED" && r.receivedRecords > 0 && r.recordsWithPoint === 0 && (
           <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-800">{pc.run.verdict.NO_POINTS_IN_FILE}</p>
         )}
-        {diag.length > 0 && (<div><h3 className="text-sm font-medium text-slate-700">{k.errors}</h3><ul className="text-sm text-slate-700">{diag.map((d) => <li key={d.code} className="flex justify-between border-t border-slate-100 py-1"><span>{k.diag[d.code] ?? d.code}</span><span className="tabular-nums">{d.count}</span></li>)}</ul></div>)}
+        {diag.length > 0 && (<div><h3 className="text-sm font-medium text-slate-700">{k.errors}</h3><ul className="text-sm text-slate-700">{diag.map((d) => <li key={d.code} className="flex justify-between border-t border-slate-100 py-1"><span>{(k.diag[d.code] ?? nationalCopy(locale).diag[d.code]) ?? d.code}</span><span className="tabular-nums">{d.count}</span></li>)}</ul></div>)}
       </section>
+      <RunQualityPanel locale={locale} runId={r.id} status={r.status} quality={r.qualityDetail as unknown as RunQuality | null} ackNote={r.qualityAckNote} />
       <RunControls locale={locale} run={{ id: r.id, status: r.status, lastChunkSeq: r.lastChunkSeq, expected: r.expectedRecords, received: r.receivedRecords, hasManifest: !!r.manifest }} />
     </div>
   );

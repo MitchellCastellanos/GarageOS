@@ -17,6 +17,7 @@ import { importApprovedCandidates } from "@/lib/lead-radar/import-service";
 import { autoGeocodeStep } from "@/lib/sales-crm/geocoding-admin-service";
 import { getActivePolicy } from "@/lib/lead-radar/policy";
 import { qualifyPending } from "@/lib/lead-radar/qualify";
+import { backfillCandidateFit } from "@/lib/lead-radar/candidate-fit";
 import { isLive, readSettings } from "@/lib/lead-radar/settings";
 
 // Lead Radar automation by approved policy. ONE tick = bounded, idempotent, resumable work over durable queues (the tables themselves):
@@ -27,7 +28,7 @@ const ID = "default";
 export const TICK_BUDGET_MS = 45_000;
 export const LEASE_SLACK_MS = 30_000;
 export const MAX_IMPORT_ATTEMPTS = 3;
-const SHARE = { qualify: 0.3, import: 0.3, assign: 0.15, release: 0.05, locate: 0.1, eligibility: 0.1, pilot: 0.1 } as const;
+const SHARE = { classify: 0.05, qualify: 0.3, import: 0.3, assign: 0.15, release: 0.05, locate: 0.1, eligibility: 0.1, pilot: 0.1 } as const;
 
 export async function readAutomation(client: Pick<typeof db, "crmLeadAutomation"> = db) {
   return (await client.crmLeadAutomation.findUnique({ where: { id: ID } })) ?? (await client.crmLeadAutomation.upsert({ where: { id: ID }, create: { id: ID }, update: {} }));
@@ -115,7 +116,7 @@ export async function importStage(actor: PlatformSalesActor, policyVersion: numb
   };
   const queue = (size: number) => db.crmDiscoveryCandidate.findMany({
     where: {
-      reviewState: "APPROVED", importState: "NOT_IMPORTED", licenseOk: true, tier: { not: "EXCLUDED" }, importAttempts: { lt: MAX_IMPORT_ATTEMPTS },
+      reviewState: "APPROVED", importState: "NOT_IMPORTED", licenseOk: true, tier: { not: "EXCLUDED" }, duplicateOfCandidateId: null, importAttempts: { lt: MAX_IMPORT_ATTEMPTS },
       OR: [{ approvedByPolicyVersion: null }, { approvedByPolicyVersion: policyVersion }],
     },
     orderBy: { id: "asc" }, take: size, select: { id: true },
@@ -322,6 +323,8 @@ export async function runAutomationTick(opts: { trigger: "CRON" | "MANUAL"; budg
       errors.principal = "ACTOR_INVALID";
       counters.note = "AUTOMATION_PRINCIPAL_NOT_SUPER_ADMIN";
     } else {
+      // Derived repair-fit for candidates staged before the national engine (writes only derived columns; always on).
+      await stage("classify", true, (deadline) => backfillCandidateFit({ deadline }));
       if (policy) {
         await stage("qualify", a.qualifyEnabled, (deadline) => qualifyPending(policy, { deadline }));
         await stage("import", a.importEnabled, (deadline) => importStage(admin, policy.version, a.importChunkSize, deadline));

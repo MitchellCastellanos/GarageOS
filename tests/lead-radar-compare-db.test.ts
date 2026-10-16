@@ -39,7 +39,7 @@ if (!enabled) {
       v: 1, id: `00000000-0000-4000-8000-${run.padStart(6, "0")}${String(n).padStart(6, "0")}`, confidence: 0.9, name,
       taxonomy: { primary, hierarchy: HIER, alternates: null },
       address: { freeform: `${100 + n} Rue ${name.split(" ").pop()}`, locality: "Québec", postcode: "G1R 4S9", region: "QC", country: "CA" },
-      phones: [phone(n)], websites: [`https://c-${run}-${n}.example.ca/`], emails: [], sources: SRC2, ...o,
+      phones: [phone(n)], websites: [`https://c-${run}-${n}.example.ca/`], emails: [], sources: SRC2, geo: { lat: 46.81 + n * 0.0001, lng: -71.21 }, ...o,
     };
   };
   const POP = [

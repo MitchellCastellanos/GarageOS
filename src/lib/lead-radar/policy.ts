@@ -22,6 +22,8 @@ export const PREVIEW_MAX_ROWS = 60_000;
 export const poolWhere: Prisma.CrmDiscoveryCandidateWhereInput = {
   importState: "NOT_IMPORTED",
   lastRun: { status: "COMPLETED" },
+  // A staged duplicate of another candidate (same business re-keyed by the source) is evidence, never a second prospect.
+  duplicateOfCandidateId: null,
   OR: [{ reviewState: "PENDING" }, { approvedByPolicyVersion: { not: null } }],
 };
 

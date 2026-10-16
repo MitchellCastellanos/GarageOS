@@ -101,19 +101,21 @@ export async function reviewCandidates(actor: PlatformSalesActor, idsIn: readonl
   if (!ids.length || ids.length > MAX_REVIEW_BATCH) throw new CrmError("BATCH_SIZE");
   if (!["APPROVED", "REJECTED", "PENDING"].includes(decision)) throw new CrmError("INVALID");
   const cleanNote = note ? note.replace(/[\u0000-\u001F\u007F]/g, " ").trim().slice(0, 300) || null : null;
-  const rows = await db.crmDiscoveryCandidate.findMany({ where: { id: { in: ids } }, select: { id: true, reviewState: true, importState: true, licenseOk: true, tier: true, name: true, taxonomyPrimary: true, classReasons: true } });
+  const rows = await db.crmDiscoveryCandidate.findMany({ where: { id: { in: ids } }, select: { id: true, reviewState: true, importState: true, licenseOk: true, tier: true, name: true, taxonomyPrimary: true, classReasons: true, duplicateOfCandidateId: true } });
   const found = new Set(rows.map((r) => r.id));
   // Fit gate: a candidate that is clearly not a repair business cannot be approved by accident (bulk approvals were how such records reached the CRM).
   // A person who knows better approves it explicitly with `fitOverride` and a reason of at least 10 characters; the import then records a HUMAN fit decision.
   const override = !!opts.fitOverride;
   if (override && decision === "APPROVED" && (cleanNote ?? "").length < 10) throw new CrmError("NOTE_REQUIRED");
   const fitExcluded = decision === "APPROVED" && !override ? rows.filter((r) => assessRepairFit({ name: r.name, taxonomyPrimary: r.taxonomyPrimary, classReasons: r.classReasons }).fit === "EXCLUDED").map((r) => r.id) : [];
-  const blocked = rows.filter((r) => decision === "APPROVED" && (!r.licenseOk || r.tier === "EXCLUDED" || fitExcluded.includes(r.id)));
+  // A staged duplicate (same business re-keyed by the source) can never be approved: the original is the one that is reviewed and imported.
+  const duplicates = decision === "APPROVED" ? rows.filter((r) => r.duplicateOfCandidateId !== null).map((r) => r.id) : [];
+  const blocked = rows.filter((r) => decision === "APPROVED" && (!r.licenseOk || r.tier === "EXCLUDED" || fitExcluded.includes(r.id) || duplicates.includes(r.id)));
   const locked = rows.filter((r) => !(CHANGEABLE as readonly string[]).includes(r.importState));
   const unchanged = rows.filter((r) => r.reviewState === decision);
   const upd = await db.crmDiscoveryCandidate.updateMany({
     where: {
-      id: { in: ids.filter((i) => !fitExcluded.includes(i)) }, importState: { in: [...CHANGEABLE] }, reviewState: { not: decision },
+      id: { in: ids.filter((i) => !fitExcluded.includes(i) && !duplicates.includes(i)) }, importState: { in: [...CHANGEABLE] }, reviewState: { not: decision },
       ...(decision === "APPROVED" ? { licenseOk: true, tier: { not: "EXCLUDED" } } : {}),
     },
     // A human decision always takes the candidate out of policy ownership (approvedByPolicyVersion). Re-opening a candidate also clears any sticky
@@ -122,7 +124,7 @@ export async function reviewCandidates(actor: PlatformSalesActor, idsIn: readonl
       ? { reviewState: "PENDING", reviewedByUserId: null, reviewedAt: null, reviewNote: null, approvedByPolicyVersion: null, qualificationLane: null, qualificationPolicyVersion: null, qualifiedAt: null, qualificationReasons: [] }
       : { reviewState: decision, reviewedByUserId: actor.userId, reviewedAt: new Date(), reviewNote: decision === "APPROVED" && override ? `${FIT_OVERRIDE_PREFIX} ${cleanNote}` : cleanNote, approvedByPolicyVersion: null },
   });
-  const result = { requested: ids.length, updated: upd.count, unchanged: unchanged.length, blocked: blocked.length, blockedByFit: fitExcluded.length, alreadyImported: locked.length, notFound: ids.length - found.size };
+  const result = { requested: ids.length, updated: upd.count, unchanged: unchanged.length, blocked: blocked.length, blockedByFit: fitExcluded.length, blockedDuplicate: duplicates.length, alreadyImported: locked.length, notFound: ids.length - found.size };
   if (upd.count > 0) await writeCrmAudit({ actorUserId: actor.userId, action: "LEAD_RADAR_CANDIDATES_REVIEWED", entityType: "CrmDiscoveryCandidate", metadata: { decision, ids: ids.slice(0, MAX_REVIEW_BATCH), ...result } });
   return result;
 }

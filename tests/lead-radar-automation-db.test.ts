@@ -47,13 +47,19 @@ if (!enabled) {
     }
     return s;
   }
-  const rec = (n: number, o: Record<string, unknown> = {}) => ({
-    v: 1, id: `00000000-0000-4000-8000-${run.padStart(6, "0")}${String(n).padStart(6, "0")}`, confidence: 0.9, name: `Atelier Radar ${run} ${n}`,
-    taxonomy: { primary: "automotive_repair", hierarchy: ["travel_and_transportation", "vehicle_service", "automotive_service", "automotive_repair"], alternates: null },
-    address: { freeform: `${100 + n} Rue Radar`, locality: "Montréal", postcode: "H2X 1Y4", region: "QC", country: "CA" },
-    phones: [phone(n)], websites: [`https://radar-${run}-${n}.example.ca/`], emails: [`info${n}@radar-${run}-${n}.example.ca`],
-    sources: [{ dataset: "meta", license: "CDLA-Permissive-2.0" }, { dataset: "Overture", license: "CDLA-Permissive-2.0" }], ...o,
-  });
+  const POINT_BY_REGION: Record<string, [number, number]> = { QC: [45.5, -73.6], AB: [51.05, -114.07] };
+  const rec = (n: number, o: Record<string, unknown> = {}) => {
+    const base = {
+      v: 1, id: `00000000-0000-4000-8000-${run.padStart(6, "0")}${String(n).padStart(6, "0")}`, confidence: 0.9, name: `Atelier Radar ${run} ${n}`,
+      taxonomy: { primary: "automotive_repair", hierarchy: ["travel_and_transportation", "vehicle_service", "automotive_service", "automotive_repair"], alternates: null },
+      address: { freeform: `${100 + n} Rue Radar`, locality: "Montréal", postcode: "H2X 1Y4", region: "QC", country: "CA" },
+      phones: [phone(n)], websites: [`https://radar-${run}-${n}.example.ca/`], emails: [`info${n}@radar-${run}-${n}.example.ca`],
+      sources: [{ dataset: "meta", license: "CDLA-Permissive-2.0" }, { dataset: "Overture", license: "CDLA-Permissive-2.0" }], ...o,
+    };
+    // Real extracts carry the place's point (inside its own province); the run quality gate refuses a coordinate-less or mostly mislocated extraction.
+    const [lat, lng] = POINT_BY_REGION[(base.address as { region: string }).region] ?? POINT_BY_REGION.QC;
+    return { ...base, geo: { lat: Math.round((lat + n * 0.0001) * 1e7) / 1e7, lng }, ...o };
+  };
   const lines = (rs: unknown[]) => rs.map((r) => JSON.stringify(r)).join("\n");
   const CALGARY = { freeform: "5 Calgary Tr", locality: "Calgary", postcode: "T2P 1J9", region: "AB", country: "CA" };
   const QUEBEC = { freeform: "7 Rue Grande Allée", locality: "Québec", postcode: "G1R 4S9", region: "QC", country: "CA" };
