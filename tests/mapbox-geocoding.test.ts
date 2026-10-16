@@ -105,8 +105,10 @@ test("the seller-facing locate path can never reach Mapbox (synthetic only)", ()
   assert.ok(svc.includes("activeGeocoder()") && !svc.includes("liveGeocoder"));
   const gc = readFileSync(new URL("../src/lib/sales-crm/geocoder.ts", import.meta.url), "utf8");
   assert.match(gc, /export function activeGeocoder\(\)[^]*?mode === "SYNTHETIC"/);
-  const planner = readFileSync(new URL("../src/components/sales-field/RoutePlanner.tsx", import.meta.url), "utf8");
-  assert.ok(planner.includes('geocoding.mode === "SYNTHETIC"'), "the seller locate button exists only in synthetic test mode");
+  const planner = readFileSync(new URL("../src/components/sales-field/FieldWorkspace.tsx", import.meta.url), "utf8");
+  assert.ok(!/requestGeocoding|geocode/i.test(planner), "the Field Planner workspace has no seller-triggered geocoding at all (positions arrive automatically)");
+  const map = readFileSync(new URL("../src/lib/sales-crm/field-map-service.ts", import.meta.url), "utf8");
+  assert.ok(!/activeGeocoder|geocodeOwnProspects|\.geocode\(/.test(map), "the map services only read stored positions; they never call a provider");
 });
 
 test("map config: public pk. token only, restricted to a style slug; secret tokens never reach the client", () => {
