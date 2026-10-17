@@ -258,7 +258,7 @@ export async function pilotStage(actor: PlatformSalesActor, a: AutomationSetting
   const t: PilotTally = { considered: 0, enrolled: 0, blocked: {}, remainingToday: 0, remainingTotal: 0 };
   if (!a.pilotEnabled || !a.pilotSequenceId || !a.assignStaffIds.length) { t.note = "PILOT_OFF"; return t; }
   const comms = await getCommsSettings();
-  if (!comms.sendingEnabled) { t.note = "SENDING_DISABLED"; return t; }
+  if (!comms.sendingEnabled || !comms.automatedSendingEnabled) { t.note = "SENDING_DISABLED"; return t; }
   const seq = await db.crmSequence.findUnique({ where: { id: a.pilotSequenceId }, select: { status: true } });
   if (!seq || seq.status !== "ACTIVE") { t.note = "SEQUENCE_NOT_ACTIVE"; return t; }
   const dayAgo = new Date(Date.now() - 24 * 3600_000);

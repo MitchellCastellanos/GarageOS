@@ -48,7 +48,7 @@ export default async function ComposePage({ searchParams }: { searchParams: Prom
           contacts: x.contacts.filter((c) => !c.doNotContact).map((c) => ({ id: c.id, name: c.name, email: c.email, language: c.preferredLanguage === "FR" || c.preferredLanguage === "EN" ? c.preferredLanguage : null, basis: evaluateSendingBasis(c.sendingBases, now).valid ? "valid" as const : "none" as const })),
         }))}
         templates={COMMERCIAL_TEMPLATE_KEYS.map((k) => ({ key: k, label: t.templateNames[k] }))}
-        sender={identity ? { name: identity.fromName, email: identity.fromEmail } : null} bookingEnabled={!!identity?.staff.bookingEnabled} sendReady={!!identity && identity.status === "ACTIVE" && settings.sendingEnabled}
+        sender={identity ? { name: identity.fromName, email: identity.fromEmail } : null} bookingEnabled={!!identity?.staff.bookingEnabled} sendReady={!!identity && identity.status === "ACTIVE" && settings.sendingEnabled && settings.manualSendingEnabled}
         attachments={draft?.attachments ?? []}
       />
     </div>

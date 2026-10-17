@@ -18,7 +18,7 @@ export async function getIdentitySetup(identityId: string, domainsOverride?: Awa
   const find = (name: string | null): DomainFact | null => (!lookup.ok || !name ? null : lookup.domains.get(name.toLowerCase()) ?? { found: false, status: null, sendingEnabled: false, receivingEnabled: false });
   const state = computeSetupState({
     providerKeyConfigured: providerKeyConfigured(), providerSideEffectsEnabled: providerSideEffectsEnabled(), webhookSecretConfigured: webhookSecretConfigured(), unsubscribeSecretConfigured: unsubscribeSecret().length >= 16,
-    settings: { sendingEnabled: settings.sendingEnabled, approvedDomains: settings.approvedDomains, inboundDomain: settings.inboundDomain, mailingAddress: settings.mailingAddress, inboundProvider: settings.inboundProvider, inboundReplyLocal: settings.inboundReplyLocal }, inboundSecretConfigured: inboundSecretConfigured(),
+    settings: { sendingEnabled: settings.sendingEnabled, manualSendingEnabled: settings.manualSendingEnabled, approvedDomains: settings.approvedDomains, inboundDomain: settings.inboundDomain, mailingAddress: settings.mailingAddress, inboundProvider: settings.inboundProvider, inboundReplyLocal: settings.inboundReplyLocal }, inboundSecretConfigured: inboundSecretConfigured(),
     identity: identity ? { fromEmail: identity.fromEmail, status: identity.status, replyToEmail: identity.replyToEmail, inboundVerifiedAt: identity.inboundVerifiedAt, staffActive: identity.staff.status === "ACTIVE" } : null,
     fromDomain: identity ? find(emailDomain(identity.fromEmail)) : null, inboundDomainFact: find(settings.inboundDomain), lookupError: lookup.ok ? null : lookup.error,
   });

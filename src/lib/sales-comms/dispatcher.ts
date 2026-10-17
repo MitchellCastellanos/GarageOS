@@ -5,7 +5,7 @@ import { assertSafeHeaderValue, formatMailbox } from "@/domain/sales-comms/email
 import { buildReplyTo } from "@/domain/sales-comms/tokens";
 import { nextSendInstant } from "@/domain/sales-comms/business-days";
 import { decideStop } from "@/domain/sales-comms/sequences";
-import { evaluateSendingBasis } from "@/domain/sales-comms/casl";
+import { evaluateSendingBasis, isSwitchHold, sendOriginOf } from "@/domain/sales-comms/casl";
 import { downloadSalesEmailAttachment } from "@/lib/storage";
 import { getCommsSettings } from "@/lib/sales-comms/settings";
 import { evaluatePolicy } from "@/lib/sales-comms/policy";
@@ -106,10 +106,13 @@ export async function dispatchMessage(id: string, now = new Date()): Promise<Dis
   const { decision } = await evaluatePolicy({
     identityId: msg.identityId, category: msg.category, recipients, prospectId: msg.prospectId, contactId: msg.contactId,
     languageResolved: msg.category !== "COMMERCIAL" || (msg.language !== null && msg.language !== "UNKNOWN"), excludeMessageId: msg.id, automated: !!msg.sequenceEnrollmentId,
+    // Origin comes from server-set columns (sequence enrollment / meeting / category), so each switch governs exactly its own messages.
+    origin: sendOriginOf(msg),
   }, now);
   // The message itself is already counted in today's total: only a *different* message may trip the cap.
   const policyCode = decision.allowed ? null : decision.code;
-  if (policyCode === "SENDING_DISABLED") {
+  // A switch that is off (kill switch, or the manual / automated / transactional one) HOLDS the message: it stays queued and is re-checked later, never cancelled or failed.
+  if (decision.allowed === false && isSwitchHold(decision.code)) {
     await release(id, { status: "QUEUED", attempts: { decrement: 1 }, nextAttemptAt: new Date(now.getTime() + 30 * 60_000), lockedAt: null });
     return "deferred";
   }

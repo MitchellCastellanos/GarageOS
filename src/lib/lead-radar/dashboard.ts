@@ -107,7 +107,7 @@ export async function automationDashboard(actor: PlatformSalesActor) {
     },
     eligibility: { eligible: toMap(eligRows).ELIGIBLE ?? 0, notEligible: toMap(eligRows).NOT_ELIGIBLE ?? 0, awaitingAssessment: n(eligPending[0]?.c), reasons: toMap(eligReasons) },
     sending: {
-      sendingEnabled: comms.sendingEnabled, enrollments: enr, messages: msg, prospectsWithMessagesSent: sent, replied: stops.REPLIED ?? 0, unsubscribed: stops.OPTED_OUT ?? 0, bounced: stops.BOUNCED ?? 0,
+      sendingEnabled: comms.sendingEnabled && comms.automatedSendingEnabled, enrollments: enr, messages: msg, prospectsWithMessagesSent: sent, replied: stops.REPLIED ?? 0, unsubscribed: stops.OPTED_OUT ?? 0, bounced: stops.BOUNCED ?? 0,
       meetingBooked: stops.MEETING_BOOKED ?? 0, pausedReasons: toMap(pausedBy),
     },
     issues,

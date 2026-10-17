@@ -9,7 +9,7 @@ export interface SetupInput {
   providerSideEffectsEnabled: boolean;
   webhookSecretConfigured: boolean;
   unsubscribeSecretConfigured: boolean;
-  settings: { sendingEnabled: boolean; approvedDomains: string[]; inboundDomain: string | null; mailingAddress: string | null; inboundProvider?: "RESEND" | "CLOUDFLARE"; inboundReplyLocal?: string | null };
+  settings: { sendingEnabled: boolean; manualSendingEnabled: boolean; approvedDomains: string[]; inboundDomain: string | null; mailingAddress: string | null; inboundProvider?: "RESEND" | "CLOUDFLARE"; inboundReplyLocal?: string | null };
   /** CLOUDFLARE inbound: SALES_INBOUND_SECRET (≥32 chars) is configured for the authenticated Worker endpoint. */
   inboundSecretConfigured?: boolean;
   identity: { fromEmail: string; status: "DRAFT" | "ACTIVE" | "DISABLED"; replyToEmail: string | null; inboundVerifiedAt: Date | null; staffActive: boolean } | null;
@@ -21,7 +21,7 @@ export interface SetupInput {
 
 export type SetupStepKey =
   | "provider_key" | "side_effects" | "domain_approved" | "domain_verified" | "identity_active" | "staff_active"
-  | "master_switch" | "footer" | "unsubscribe_secret" | "webhook_secret" | "inbound_domain" | "inbound_receiving" | "inbound_worker" | "inbound_roundtrip";
+  | "master_switch" | "manual_switch" | "footer" | "unsubscribe_secret" | "webhook_secret" | "inbound_domain" | "inbound_receiving" | "inbound_worker" | "inbound_roundtrip";
 
 export interface SetupStep { key: SetupStepKey; ok: boolean; required: "send" | "receive" | "verified"; hint?: string }
 
@@ -47,6 +47,8 @@ export function computeSetupState(i: SetupInput): SetupState {
     { key: "provider_key", ok: i.providerKeyConfigured, required: "send", hint: "RESEND_API_KEY" },
     { key: "side_effects", ok: i.providerSideEffectsEnabled, required: "send", hint: "PROVIDER_SIDE_EFFECTS=enabled" },
     { key: "master_switch", ok: i.settings.sendingEnabled, required: "send" },
+    // This checklist describes a seller's own (manual) sending path; automated outreach and transactional mail have their own switches in the settings form.
+    { key: "manual_switch", ok: i.settings.manualSendingEnabled, required: "send" },
     { key: "footer", ok: !!i.settings.mailingAddress?.trim(), required: "send" },
     { key: "unsubscribe_secret", ok: i.unsubscribeSecretConfigured, required: "send", hint: "NEXTAUTH_SECRET" },
     { key: "staff_active", ok: !!i.identity?.staffActive, required: "send" },

@@ -20,7 +20,9 @@ export async function GET(request: Request) {
   if (!providerSideEffectsEnabled()) return NextResponse.json({ skipped: true, reason: "provider_side_effects_disabled" });
   const settings = await getCommsSettings();
   if (!settings.sendingEnabled) return NextResponse.json({ skipped: true, reason: "sales_sending_disabled" });
-  const sequences = await processDueEnrollments({ limit: 50 });
+  // Automated outreach has its own switch: while it is off no enrollment advances and no sequence message is created. Messages that already exist
+  // are still passed to the dispatcher, which re-checks the switch of each message's origin and HOLDS (never sends, never cancels) the ones that are off.
+  const sequences = settings.automatedSendingEnabled ? await processDueEnrollments({ limit: 50 }) : { skipped: true, reason: "automated_outreach_disabled" };
   const dispatched = await dispatchDue({ limit: 25, paceMs: 550 });
   return NextResponse.json({ ok: true, sequences, dispatched });
 }

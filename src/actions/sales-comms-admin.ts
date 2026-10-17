@@ -19,7 +19,11 @@ const optText = (max: number) => z.string().trim().max(max).optional().transform
 const domainRe = /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}$/;
 
 const settingsSchema = z.object({
+  // Emergency kill switch + one switch per message origin. A field missing from the form is OFF (fail-closed).
   sendingEnabled: z.string().optional().transform((v) => v === "on" || v === "true"),
+  manualSendingEnabled: z.string().optional().transform((v) => v === "on" || v === "true"),
+  automatedSendingEnabled: z.string().optional().transform((v) => v === "on" || v === "true"),
+  transactionalSendingEnabled: z.string().optional().transform((v) => v === "on" || v === "true"),
   approvedDomains: z.string().default("").transform((v) => [...new Set(v.split(/[\s,;]+/).map((d) => d.trim().toLowerCase()).filter(Boolean))]).pipe(z.array(z.string().regex(domainRe)).max(10)),
   inboundDomain: z.string().trim().toLowerCase().optional().transform((v) => v || null).pipe(z.string().regex(domainRe).nullable()),
   inboundProvider: z.enum(["RESEND", "CLOUDFLARE"]).default("RESEND"),
@@ -38,7 +42,7 @@ export async function saveCommsSettings(form: FormData) {
     const v = settingsSchema.parse(Object.fromEntries(form));
     const before = await getCommsSettings();
     await db.crmCommsSettings.update({ where: { id: "default" }, data: { ...v, updatedByUserId: actor.userId } });
-    await writeCrmAudit({ actorUserId: actor.userId, action: "COMMS_SETTINGS_UPDATED", entityType: "CrmCommsSettings", entityId: "default", before: { sendingEnabled: before.sendingEnabled, approvedDomains: before.approvedDomains, inboundDomain: before.inboundDomain }, after: { sendingEnabled: v.sendingEnabled, approvedDomains: v.approvedDomains, inboundDomain: v.inboundDomain, inboundProvider: v.inboundProvider, inboundReplyLocal: v.inboundReplyLocal } });
+    await writeCrmAudit({ actorUserId: actor.userId, action: "COMMS_SETTINGS_UPDATED", entityType: "CrmCommsSettings", entityId: "default", before: { sendingEnabled: before.sendingEnabled, manualSendingEnabled: before.manualSendingEnabled, automatedSendingEnabled: before.automatedSendingEnabled, transactionalSendingEnabled: before.transactionalSendingEnabled, approvedDomains: before.approvedDomains, inboundDomain: before.inboundDomain }, after: { sendingEnabled: v.sendingEnabled, manualSendingEnabled: v.manualSendingEnabled, automatedSendingEnabled: v.automatedSendingEnabled, transactionalSendingEnabled: v.transactionalSendingEnabled, approvedDomains: v.approvedDomains, inboundDomain: v.inboundDomain, inboundProvider: v.inboundProvider, inboundReplyLocal: v.inboundReplyLocal } });
     refresh();
     return {};
   });
