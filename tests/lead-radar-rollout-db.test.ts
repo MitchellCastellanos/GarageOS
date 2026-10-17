@@ -310,25 +310,27 @@ if (!enabled) {
     const suppressedOnly = await mk("SuppressedOnly Garage", `blocked-${run}@example.ca`);
     const archivedOnly = await mk("ArchivedOnly Garage", null);
     await db.crmContact.create({ data: { prospectId: archivedOnly.id, name: "Old", email: `old-${run}@example.ca`, emailNormalized: `old-${run}@example.ca`, archivedAt: new Date() } });
+    const malformedContact = await mk("MalformedContact Garage", null);
+    await db.crmContact.create({ data: { prospectId: malformedContact.id, name: "Bad", email: "bad@@shop", emailNormalized: "bad@@shop", isPrimary: true } });
     const owned = await mk("OwnedNoMail Garage", null, { assignedStaffId: rep, assignmentMode: "REMOTE" });
     const fieldNoMail = await mk("FieldNoMail Garage", null, { city: "Montréal", province: "QC", postalCode: "H2X 3K4", territoryState: "LOCAL", territoryKey: "greater-montreal" });
     const t = await autoLib.assignStage(actor, [rep], Date.now() + 30_000, { provinces: ROLLOUT_ASSIGN_PROVINCES, remoteOnly: true });
     const by = async (id: string) => (await db.crmProspect.findUniqueOrThrow({ where: { id } })).assignedStaffId;
     assert.equal(await by(contactOnly.id), rep, "email stored only on a contact is a usable email");
-    for (const p of [noMail, suppressedOnly, archivedOnly]) assert.equal(await by(p.id), null, `${p.name} is left unassigned (kept, not deleted)`);
+    for (const p of [noMail, suppressedOnly, archivedOnly, malformedContact]) assert.equal(await by(p.id), null, `${p.name} is left unassigned (kept, not deleted)`);
     assert.equal(await by(owned.id), rep, "existing owner untouched");
     assert.equal(await by(fieldNoMail.id), null, "FIELD prospects are still never taken by the REMOTE rollout");
     assert.ok(t.assigned >= 1);
     assert.equal(await db.crmProspect.count({ where: { id: { in: [noMail.id, suppressedOnly.id, archivedOnly.id, owned.id, fieldNoMail.id] } } }), 5, "nothing deleted");
-    cl.noMail = noMail.id; cl.owned = owned.id; cl.fieldNoMail = fieldNoMail.id;
+    cl.suppressedOnly = suppressedOnly.id; cl.archivedOnly = archivedOnly.id; cl.malformedContact = malformedContact.id; cl.noMail = noMail.id; cl.owned = owned.id; cl.fieldNoMail = fieldNoMail.id;
   });
 
   test("email-only: no-email REMOTE prospects leave active queues and workload, but historical totals are unchanged", async () => {
     const actor = (await access.resolvePlatformSalesActor(users.Root))!;
     const ctx = await loadQueueContext();
-    const ids = [cl.noMail, cl.owned, cl.fieldNoMail];
+    const ids = [cl.noMail, cl.owned, cl.fieldNoMail, cl.suppressedOnly, cl.archivedOnly, cl.malformedContact];
     const inQ = async (q: "new" | "mine") => new Set((await db.crmProspect.findMany({ where: { AND: [queueWhere(q, { ...actor, staffId: rep } as any, ctx), { id: { in: ids } }] }, select: { id: true } })).map((r) => r.id));
-    assert.deepEqual([...(await inQ("new"))].sort(), [cl.fieldNoMail], "unassigned no-email REMOTE is not new work; the FIELD one still is");
+    assert.deepEqual([...(await inQ("new"))].sort(), [cl.fieldNoMail], "unassigned REMOTE with no / suppressed / archived-only / malformed-contact email is not new work (one shared predicate); the FIELD one still is");
     assert.equal((await inQ("mine")).has(cl.owned), false, "an owned no-email REMOTE prospect is not an active outreach item");
     const before = await db.crmProspect.count({ where: { assignedStaffId: rep, status: "ACTIVE", doNotContact: false } });
     const sellers = await loadSellers(actor, db, [rep]);

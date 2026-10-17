@@ -20,12 +20,21 @@ export const prospectUsableEmailSql = Prisma.sql`(
   OR EXISTS (SELECT 1 FROM "garageos"."CrmContact" ct WHERE ct."prospectId" = p."id" AND ct."archivedAt" IS NULL AND ct."doNotContact" = false
     AND COALESCE(ct."emailNormalized" ~* ${RE}, false) AND NOT ${SUPPRESSED(Prisma.sql`ct."emailNormalized"`)}))`;
 
-/** Same fact as a Prisma filter (queues / workload). Approximation: an address with "@" on the prospect or an active contact; syntax and suppression are enforced by the SQL above. */
-export const hasEmailWhere: Prisma.CrmProspectWhereInput = {
+/** Prisma-expressible superset of "usable": an address with "@" on the prospect or an active contact. Only used to narrow; the exact predicate is `prospectUsableEmailSql`. */
+const hasEmailWhere: Prisma.CrmProspectWhereInput = {
   OR: [{ email: { contains: "@" } }, { contacts: { some: { archivedAt: null, doNotContact: false, emailNormalized: { contains: "@" } } } }],
 };
-/** REMOTE (national) prospects with no email anywhere: excluded from active outreach queues and workload, never from historical totals. */
-export const remoteNoEmailWhere: Prisma.CrmProspectWhereInput = { territoryState: "NATIONAL", NOT: hasEmailWhere };
+/**
+ * REMOTE (national) active prospects with no USABLE email, as a Prisma filter for queues / workload / the assignment pool. Exact, not approximate: prospects with no "@"
+ * at all are matched structurally, and the few that carry only malformed or suppressed addresses are resolved by the same SQL predicate the import and assignment gates use.
+ */
+export async function loadRemoteNoEmailWhere(): Promise<Prisma.CrmProspectWhereInput> {
+  const rows = await db.$queryRaw<{ id: string }[]>(Prisma.sql`
+    SELECT p."id" FROM "garageos"."CrmProspect" p WHERE p."territoryState" = 'NATIONAL' AND p."status" = 'ACTIVE'
+      AND (p."email" LIKE '%@%' OR EXISTS (SELECT 1 FROM "garageos"."CrmContact" ct WHERE ct."prospectId" = p."id" AND ct."archivedAt" IS NULL AND ct."doNotContact" = false AND ct."emailNormalized" LIKE '%@%'))
+      AND NOT ${prospectUsableEmailSql}`);
+  return { territoryState: "NATIONAL", OR: [{ NOT: hasEmailWhere }, { id: { in: rows.map((r) => r.id) } }] };
+}
 
 /** Ids (of `ids`) that have a usable email. Used by the assignment gate. */
 export async function prospectIdsWithUsableEmail(ids: readonly string[]): Promise<Set<string>> {
