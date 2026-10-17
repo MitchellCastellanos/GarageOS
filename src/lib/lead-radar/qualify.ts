@@ -38,8 +38,11 @@ export async function qualifyPending(policy: ActivePolicy, opts: { deadline: num
       for (const r of rows) {
         const result = evaluateQualification(policy.rules, factsOf(r));
         // Auto-eligible: newly approved, or an earlier policy version's approval carried onto the current version (still not imported).
-        const approve = result.lane === "AUTO_ELIGIBLE" && (r.reviewState === "PENDING" || (r.approvedByPolicyVersion !== null && r.approvedByPolicyVersion !== version));
-        const revoke = result.lane !== "AUTO_ELIGIBLE" && r.approvedByPolicyVersion !== null;
+        // A candidate with no source position is never policy-approved (first import must carry a position; the preflight blocks it as NO_COORDINATES): it keeps its lane and waits, and a
+        // policy approval it somehow holds is revoked. A human can still decide on it.
+        const located = r.sourceLatitude !== null;
+        const approve = result.lane === "AUTO_ELIGIBLE" && located && (r.reviewState === "PENDING" || (r.approvedByPolicyVersion !== null && r.approvedByPolicyVersion !== version));
+        const revoke = (result.lane !== "AUTO_ELIGIBLE" || !located) && r.approvedByPolicyVersion !== null;
         const key = JSON.stringify([result.lane, result.reasons, approve, revoke]);
         const g = groups.get(key) ?? { ids: [], result, approve, revoke };
         g.ids.push(r.id); groups.set(key, g);

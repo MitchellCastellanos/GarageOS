@@ -814,4 +814,42 @@ if (!enabled) {
     assert.equal(await db.crmProspect.count({ where: { province: "MB", assignedStaffId: { not: null } } }), 0, "the importer never assigns");
     assert.equal(after.pool.leadRadarProspectsInProvince, 2);
   });
+
+  test("qualification by the existing policy engine never bypasses the protections: ICP chains blocked, domain-only/ambiguous/branch/unresolved to review, no-position never approved, human decisions and duplicates untouched, idempotent", async () => {
+    const { qualifyPending } = await import("../src/lib/lead-radar/qualify");
+    const q = await import("../src/domain/lead-radar/qualification");
+    const { rulesHashOf } = await import("../src/domain/lead-radar/qualification-hash");
+    as(users.Root);
+    const nb = (name: string, n: number, o: Record<string, unknown> = {}) => rec(name, "OTT", { address: { freeform: `${500 + n} Qualify St`, locality: "Fredericton", postcode: "E3B 1A1", region: "NB", country: "CA" }, phones: [`+1506555${String(8400 + n)}`], geo: { lat: 45.96 + n * 0.001, lng: -66.64 }, ...o });
+    const names = ["Clean Garage", "Kal Tire", "Domain Only Garage", "Ambiguous Garage", "Branch Garage", "Located Garage", "NoPoint Garage", "Human Rejected Garage", "Human Approved Garage", "Filler A", "Filler B", "Filler C"];
+    const recs = names.map((nm, i) => nm === "Domain Only Garage" ? nb(`NB ${nm}`, i, { websites: ["https://www.napaautopro.com/"] }) : nb(nm === "Kal Tire" ? nm : `NB ${nm}`, i));
+    assert.equal((await extract(recs, ["NB"], "2026-12-31.0")).done.ok, true);
+    const c = async (nm: string) => cand(recs[names.indexOf(nm)].id);
+    await db.crmDiscoveryCandidate.update({ where: { id: (await c("Ambiguous Garage")).id }, data: { matchState: "AMBIGUOUS" } });
+    await db.crmDiscoveryCandidate.update({ where: { id: (await c("Branch Garage")).id }, data: { matchState: "BRANCH_OF_EXISTING" } });
+    await db.crmDiscoveryCandidate.update({ where: { id: (await c("NoPoint Garage")).id }, data: { sourceLatitude: null, sourceLongitude: null } });
+    await db.crmDiscoveryCandidate.update({ where: { id: (await c("Human Rejected Garage")).id }, data: { reviewState: "REJECTED", reviewNote: "decided by a person", reviewedByUserId: users.Root, reviewedAt: new Date() } });
+    await db.crmDiscoveryCandidate.update({ where: { id: (await c("Human Approved Garage")).id }, data: { reviewState: "APPROVED", reviewNote: "approved by a person", reviewedByUserId: users.Root, reviewedAt: new Date() } });
+    const dupOf = await c("Clean Garage");
+    const dup = await db.crmDiscoveryCandidate.create({ data: { ...(({ id: _i, createdAt: _c, updatedAt: _u, ...r }) => r)(dupOf as any), sourceRecordId: `dup-${run}`, duplicateOfCandidateId: dupOf.id, qualificationLane: null, qualificationPolicyVersion: null } as never });
+    const rules = q.RECOMMENDED_V2_RULES;
+    const policy = { id: "test-policy", version: 7, rules, rulesHash: rulesHashOf(rules), activatedByUserId: users.Root } as any;
+    const t1 = await qualifyPending(policy, { deadline: Date.now() + 30_000 });
+    assert.ok(t1.evaluated >= 9);
+    const st = async (nm: string) => { const x = await c(nm); return [x.qualificationLane, x.reviewState, x.approvedByPolicyVersion] as const; };
+    assert.deepEqual(await st("Clean Garage"), ["AUTO_ELIGIBLE", "APPROVED", 7]);
+    assert.deepEqual(await st("Located Garage"), ["AUTO_ELIGIBLE", "APPROVED", 7]);
+    assert.deepEqual((await st("Kal Tire")).slice(0, 2), ["BLOCKED", "PENDING"], "ICP chain: blocked, never approved");
+    assert.deepEqual((await st("Domain Only Garage")).slice(0, 2), ["HUMAN_REVIEW", "PENDING"], "franchisor website alone: a person decides");
+    assert.deepEqual((await st("Ambiguous Garage")).slice(0, 2), ["HUMAN_REVIEW", "PENDING"]);
+    assert.deepEqual((await st("Branch Garage")).slice(0, 2), ["HUMAN_REVIEW", "PENDING"]);
+    assert.deepEqual(await st("NoPoint Garage"), ["AUTO_ELIGIBLE", "PENDING", null], "no source position: never policy-approved");
+    const rej = await c("Human Rejected Garage"), apr = await c("Human Approved Garage");
+    assert.deepEqual([rej.reviewState, rej.reviewNote, rej.qualificationLane, apr.reviewNote, apr.approvedByPolicyVersion], ["REJECTED", "decided by a person", null, "approved by a person", null], "human decisions are outside the pool");
+    assert.equal((await db.crmDiscoveryCandidate.findUniqueOrThrow({ where: { id: dup.id } })).qualificationLane, null, "a staged duplicate is never evaluated");
+    assert.equal(await db.crmDiscoveryCandidate.count({ where: { province: "NB", importState: { not: "NOT_IMPORTED" } } }), 0, "qualification imports nothing");
+    assert.equal(await db.crmProspect.count({ where: { province: "NB" } }), 0);
+    const t2 = await qualifyPending(policy, { deadline: Date.now() + 30_000 });
+    assert.equal(t2.evaluated, 0, "idempotent: nothing left under this policy version");
+  });
 }

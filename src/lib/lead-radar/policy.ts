@@ -29,7 +29,7 @@ export const poolWhere: Prisma.CrmDiscoveryCandidateWhereInput = {
 
 export const FACT_SELECT = {
   id: true, tier: true, licenseOk: true, licenses: true, datasets: true, chainSignal: true, matchState: true, qualityFlags: true, province: true, address: true, postalCode: true,
-  phone: true, website: true, city: true, icpOverride: true, repairFitReasons: true, territoryKey: true, reviewState: true, name: true, taxonomyPrimary: true, classReasons: true, qualificationLane: true, qualificationReasons: true, approvedByPolicyVersion: true,
+  phone: true, website: true, city: true, sourceLatitude: true, icpOverride: true, repairFitReasons: true, territoryKey: true, reviewState: true, name: true, taxonomyPrimary: true, classReasons: true, qualificationLane: true, qualificationReasons: true, approvedByPolicyVersion: true,
 } satisfies Prisma.CrmDiscoveryCandidateSelect;
 export type FactRow = Prisma.CrmDiscoveryCandidateGetPayload<{ select: typeof FACT_SELECT }>;
 
