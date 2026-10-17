@@ -15,6 +15,7 @@ import { loadEngagements } from "@/lib/sales-crm/territory";
 import { isProvinceCode } from "@/domain/lead-radar/geo";
 import { assessProspects, refreshEligibility, saveAssessments } from "@/lib/lead-radar/eligibility";
 import { importApprovedCandidates } from "@/lib/lead-radar/import-service";
+import { nextImportIds, prospectIdsWithUsableEmail, scanNoEmailQueue } from "@/lib/lead-radar/remote-email";
 import { autoGeocodeStep } from "@/lib/sales-crm/geocoding-admin-service";
 import { getActivePolicy } from "@/lib/lead-radar/policy";
 import { qualifyPending } from "@/lib/lead-radar/qualify";
@@ -128,13 +129,10 @@ export async function importStage(actor: PlatformSalesActor, policyVersion: numb
   const add = (r: Awaited<ReturnType<typeof importApprovedCandidates>>) => {
     t.claimed += r.claimed; t.created += r.created; t.linked += r.linked; t.sentToReview += r.sentToReview; t.skipped += r.skipped; t.failed += r.failed;
   };
-  const queue = (size: number) => db.crmDiscoveryCandidate.findMany({
-    where: {
-      reviewState: "APPROVED", importState: "NOT_IMPORTED", licenseOk: true, tier: { not: "EXCLUDED" }, duplicateOfCandidateId: null, ...(provinces.length ? { province: { in: [...provinces] } } : {}), importAttempts: { lt: MAX_IMPORT_ATTEMPTS },
-      OR: [{ approvedByPolicyVersion: null }, { approvedByPolicyVersion: policyVersion }],
-    },
-    orderBy: { id: "asc" }, take: size, select: { id: true },
-  });
+  // Email-only REMOTE: a REMOTE candidate without a usable email is deferred here (kept in Lead Radar, never imported, never failed). FIELD territory is unchanged.
+  const scope = { policyVersion, provinces, strict: true, maxAttempts: MAX_IMPORT_ATTEMPTS };
+  const fieldNoEmail = (await scanNoEmailQueue(scope)).field;
+  const queue = async (size: number) => (await nextImportIds(scope, fieldNoEmail, size)).map((id) => ({ id }));
   let size = chunkSize;
   while (Date.now() < deadline - 3_000) {
     const ids = (await queue(size)).map((r) => r.id);
@@ -181,12 +179,19 @@ export async function assignStage(actor: PlatformSalesActor, staffIds: readonly 
   let after: { createdAt: Date; id: string } | null = null;
   let emptyPages = 0;
   while (Date.now() < deadline - 2_000) {
-    const { proposals, considered, next } = await buildAssignmentProposals(actor, { onlyStaffIds: staffIds, leadRadarOnly: true, limit: ASSIGN_PAGE, after, ...(scope ? { provinces: scope.provinces } : {}) });
+    const { proposals, considered, next } = await buildAssignmentProposals(actor, { onlyStaffIds: staffIds, leadRadarOnly: true, limit: ASSIGN_PAGE, after, skipRemoteNoEmail: true, ...(scope ? { provinces: scope.provinces } : {}) });
     t.considered += considered; t.pages++;
     for (const p of proposals) if (p.skip) t.skips[p.skip] = (t.skips[p.skip] ?? 0) + 1;
     // National rollout: only REMOTE-lane prospects are ever taken; a FIELD proposal is left untouched (it keeps its territory rules and its owner decision).
     if (scope?.remoteOnly) for (const p of proposals) if (p.staffId && p.requiredMode !== "REMOTE") t.skips.ROLLOUT_FIELD_NOT_ASSIGNED = (t.skips.ROLLOUT_FIELD_NOT_ASSIGNED ?? 0) + 1;
-    const todo = proposals.filter((p) => p.staffId && (!scope?.remoteOnly || p.requiredMode === "REMOTE"));
+    let todo = proposals.filter((p) => p.staffId && (!scope?.remoteOnly || p.requiredMode === "REMOTE"));
+    // Email-only REMOTE: a REMOTE prospect is auto-assigned only with a usable, non-suppressed email (on the prospect or on a contact). FIELD proposals are untouched.
+    const remote = todo.filter((p) => p.requiredMode === "REMOTE");
+    if (remote.length) {
+      const usable = await prospectIdsWithUsableEmail(remote.map((p) => p.prospectId));
+      const noEmail = new Set(remote.filter((p) => !usable.has(p.prospectId)).map((p) => p.prospectId));
+      if (noEmail.size) { t.skips.REMOTE_NO_USABLE_EMAIL = (t.skips.REMOTE_NO_USABLE_EMAIL ?? 0) + noEmail.size; todo = todo.filter((p) => !noEmail.has(p.prospectId)); }
+    }
     let appliedThisPage = 0;
     for (let i = 0; i < todo.length; i += ASSIGN_APPLY_CHUNK) {
       const r = await db.$transaction((tx) => applyAssignmentProposals(tx, actor, todo.slice(i, i + ASSIGN_APPLY_CHUNK), { via: "lead-radar-automation" }), { timeout: 30_000, maxWait: 10_000 });

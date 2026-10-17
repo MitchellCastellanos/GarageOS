@@ -6,11 +6,13 @@ import {
   type HaltCode, type ProvinceFacts, type SafetyFacts,
 } from "@/domain/lead-radar/rollout";
 import { LEAD_RADAR_SOURCE_KEY } from "@/domain/lead-radar/bridge";
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { MAX_IMPORT_ATTEMPTS, readAutomation, type AutomationSettings } from "@/lib/lead-radar/automation";
 import { isLive, readSettings } from "@/lib/lead-radar/settings";
 import { getActivePolicy } from "@/lib/lead-radar/policy";
 import { nationalReadiness } from "@/lib/lead-radar/national";
+import { deferredNoEmailByProvince, prospectUsableEmailSql } from "@/lib/lead-radar/remote-email";
 import { queueWorkerRun } from "@/lib/lead-radar/worker";
 import { getCommsSettings } from "@/lib/sales-comms/settings";
 import { writeCrmAudit } from "@/lib/sales-crm/audit";
@@ -100,13 +102,15 @@ async function safetyFacts(a: AutomationSettings): Promise<SafetyFacts> {
 
 async function provinceFacts(a: AutomationSettings): Promise<ProvinceFacts[]> {
   const scope = [...ROLLOUT_EXISTING, ...a.rolloutProvinces];
-  const [national, runs, queued, stuck] = await Promise.all([
+  const [national, runs, queued, stuck, noEmail] = await Promise.all([
     nationalReadiness(),
     db.crmDiscoveryRun.findMany({ orderBy: { createdAt: "desc" }, take: 200, select: { status: true, scope: true, qualityVerdict: true, errorCode: true } }),
     // What the importer will actually still take (its own queue filter): approved, not imported, importable, not given up on.
     db.crmDiscoveryCandidate.groupBy({ by: ["province"], where: { province: { in: scope }, reviewState: "APPROVED", importState: "NOT_IMPORTED", licenseOk: true, tier: { not: "EXCLUDED" }, duplicateOfCandidateId: null, importAttempts: { lt: MAX_IMPORT_ATTEMPTS } }, _count: { _all: true } }),
     // Approved candidates the importer gave up on after repeated attempts are import errors, not "pending".
     db.crmDiscoveryCandidate.groupBy({ by: ["province"], where: { province: { in: scope }, reviewState: "APPROVED", importState: "NOT_IMPORTED", duplicateOfCandidateId: null, importAttempts: { gte: MAX_IMPORT_ATTEMPTS } }, _count: { _all: true } }),
+    // Email-only REMOTE: queued candidates the importer intentionally skips (no usable email, REMOTE territory). They stay in Lead Radar but are not pending work, or the rollout could never finish.
+    deferredNoEmailByProvince({ provinces: scope, strict: true, maxAttempts: MAX_IMPORT_ATTEMPTS }),
   ]);
   const count = (rows: { province: string | null; _count: { _all: number } }[], p: string) => rows.find((r) => r.province === p)?._count._all ?? 0;
   return scope.map((province) => {
@@ -117,17 +121,20 @@ async function provinceFacts(a: AutomationSettings): Promise<ProvinceFacts[]> {
       province, existing: ROLLOUT_EXISTING.includes(province), activeRun: mine.some((r) => r.status === "PLANNED" || r.status === "INGESTING"),
       latestRun: latest ? { status: latest.status as "COMPLETED" | "FAILED" | "CANCELLED", verdict: latest.qualityVerdict, errorCode: latest.errorCode } : null,
       staged: row.candidates.staged, duplicates: row.candidates.duplicates, unclassified: row.candidates.unclassified, withPoint: row.candidates.withPoint, verified: row.candidates.verified, review: row.candidates.review, excluded: row.candidates.excluded,
-      importFailed: row.errors.importFailed + count(stuck, province), approvedNotImported: count(queued, province), awaitingQualification: row.deferred.awaitingQualification,
+      importFailed: row.errors.importFailed + count(stuck, province), approvedNotImported: Math.max(0, count(queued, province) - (noEmail.get(province) ?? 0)), awaitingQualification: row.deferred.awaitingQualification,
       inImportScope: a.importProvinces.includes(province),
     };
   });
 }
 
-/** Assignable REMOTE Lead Radar prospects (rollout provinces + ON + AB) still without an owner. Human-owned, FIELD-lane (local territory), Québec and non-Lead-Radar prospects never count. */
+/** Assignable REMOTE Lead Radar prospects (rollout provinces + ON + AB) still without an owner and with a usable email. Human-owned, FIELD-lane (local territory), Québec and non-Lead-Radar prospects never count. */
 async function pendingAssignment() {
-  return db.crmProspect.count({
-    where: { importBatch: { sourceKey: LEAD_RADAR_SOURCE_KEY }, status: "ACTIVE", assignedStaffId: null, doNotContact: false, repairFit: "VERIFIED_REPAIR", territoryState: "NATIONAL", province: { in: [...ROLLOUT_ASSIGN_PROVINCES] } },
-  });
+  // Only prospects the assignment stage can actually take: a REMOTE prospect with no usable email is deferred by policy (email-only), so it must not hold the rollout open.
+  const [row] = await db.$queryRaw<{ n: bigint }[]>(Prisma.sql`
+    SELECT count(*) AS n FROM "garageos"."CrmProspect" p JOIN "garageos"."CrmImportBatch" b ON b."id" = p."importBatchId"
+    WHERE b."sourceKey" = ${LEAD_RADAR_SOURCE_KEY} AND p."status" = 'ACTIVE' AND p."assignedStaffId" IS NULL AND p."doNotContact" = false AND p."repairFit" = 'VERIFIED_REPAIR'
+      AND p."territoryState" = 'NATIONAL' AND p."province" IN (${Prisma.join([...ROLLOUT_ASSIGN_PROVINCES])}) AND ${prospectUsableEmailSql}`);
+  return Number(row?.n ?? 0);
 }
 
 export interface RolloutTally { halted?: { province: string; code: string }; queued?: string; openedImport: string[]; finished?: boolean; waiting?: string }

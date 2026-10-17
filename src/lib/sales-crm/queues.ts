@@ -2,6 +2,7 @@ import "server-only";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { assignedScopeWhere, type PlatformSalesActor } from "@/domain/sales-crm/access";
+import { remoteNoEmailWhere } from "@/lib/lead-radar/remote-email";
 import { loadTerritoryRulesWith } from "@/lib/sales-crm/territory-rules";
 
 /** Commercial lead queues. Every queue is just a `where` fragment ANDed with the actor's scope — one definition drives list, counts and pagination. */
@@ -55,8 +56,9 @@ function usableBasis(now: Date): Prisma.CrmSendingBasisWhereInput {
 export function queueWhere(queue: ProspectQueue, actor: PlatformSalesActor, ctx: QueueContext): Prisma.CrmProspectWhereInput {
   const active: Prisma.CrmProspectWhereInput = { status: "ACTIVE", doNotContact: false };
   switch (queue) {
-    case "new": return { ...active, assignedStaffId: null };
-    case "mine": return actor.staffId ? { ...active, assignedStaffId: actor.staffId } : NONE;
+    // Email-only REMOTE strategy: national prospects with no email are kept (never deleted or reassigned) but are not active work, so they leave these two queues.
+    case "new": return { ...active, assignedStaffId: null, NOT: remoteNoEmailWhere };
+    case "mine": return actor.staffId ? { ...active, assignedStaffId: actor.staffId, NOT: remoteNoEmailWhere } : NONE;
     case "ready":
       return {
         ...active, assignedStaffId: { not: null }, territoryState: { in: ["LOCAL", "NATIONAL"] },

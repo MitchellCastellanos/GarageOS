@@ -692,7 +692,7 @@ if (!enabled) {
     const admin = await root();
     // (a) assignment backlog across pages
     const batch = await db.crmImportBatch.create({ data: { createdByUserId: users.Root, filename: "bulk.csv", fileHash: `h-${run}`, status: "COMPLETED", sourceKey: "overture-places", summary: { origin: "LEAD_RADAR" } } });
-    await db.crmProspect.createMany({ data: Array.from({ length: 450 }, (_, i) => ({ name: `Bulk ${run} ${i}`, nameNormalized: `bulk ${run} ${i}`, province: "AB", city: "Calgary", territoryState: "NATIONAL" as const, territoryKey: "canada", createdByUserId: users.Root, importBatchId: batch.id })) });
+    await db.crmProspect.createMany({ data: Array.from({ length: 450 }, (_, i) => ({ name: `Bulk ${run} ${i}`, nameNormalized: `bulk ${run} ${i}`, province: "AB", city: "Calgary", territoryState: "NATIONAL" as const, territoryKey: "canada", email: `bulk${i}-${run}@example.ca`, createdByUserId: users.Root, importBatchId: batch.id })) });
     await db.platformSalesStaff.updateMany({ where: { id: { in: [staff.Founder, staff.Brother, staff.Wife] } }, data: { maxActiveLeads: null, maxActiveFieldLeads: null, maxActiveRemoteLeads: null, acceptsAutoAssignment: true } });
     const t = await autoLib.assignStage(admin, [staff.Founder, staff.Brother, staff.Wife], soon());
     assert.ok(t.pages >= 3, `pages ${t.pages}`);

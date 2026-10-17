@@ -19,7 +19,7 @@ export function cleanSubject(raw: string): string {
   return assertSafeHeaderValue(collapsed);
 }
 
-const EMAIL_RE = /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]{1,64}@(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}$/i;
+export const EMAIL_RE = /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]{1,64}@(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}$/i;
 
 export function normalizeEmail(raw: string): string {
   return raw.trim().toLowerCase();

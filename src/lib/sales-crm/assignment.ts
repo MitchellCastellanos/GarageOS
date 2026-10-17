@@ -9,6 +9,7 @@ import { assignedScopeWhere } from "@/domain/sales-crm/access";
 import { loadTerritoryRulesWith } from "@/lib/sales-crm/territory-rules";
 import { writeCrmAudit } from "@/lib/sales-crm/audit";
 import { LEAD_RADAR_SOURCE_KEY } from "@/domain/lead-radar/bridge";
+import { remoteNoEmailWhere } from "@/lib/lead-radar/remote-email";
 import { assessIcp } from "@/domain/lead-radar/icp";
 import type { RepairFit } from "@/domain/lead-radar/repair-fit";
 import { candidateEvidence, proposeFit } from "@/lib/sales-crm/repair-fit-service";
@@ -20,7 +21,8 @@ export const ASSIGNMENT_RUN_TTL_MS = 24 * 3600_000;
 /**
  * Sales reps the actor may hand work to (active only), with their current workload. Managers distribute to their own team's reps; Super Admin to all reps.
  * Managers themselves are not auto-assigned (assign them manually). `onlyStaffIds` narrows to an explicit allow-list (Lead Radar automation: nobody is
- * eligible until a Super Admin names them). Workload is also split by the lane (FIELD / REMOTE) the prospect was assigned under.
+ * eligible until a Super Admin names them). Workload is also split by the lane (FIELD / REMOTE) the prospect was assigned under. REMOTE prospects with no email
+ * (email-only strategy: kept, not worked) do not count toward workload or caps; they stay owned and in the historical totals.
  */
 export async function loadSellers(actor: PlatformSalesActor, client: Prisma.TransactionClient | typeof db = db, onlyStaffIds?: readonly string[]): Promise<AssignableSeller[]> {
   const staff = await client.platformSalesStaff.findMany({
@@ -34,8 +36,8 @@ export async function loadSellers(actor: PlatformSalesActor, client: Prisma.Tran
   });
   const ids = staff.map((s) => s.id);
   const [counts, laneCounts] = await Promise.all([
-    client.crmProspect.groupBy({ by: ["assignedStaffId"], where: { assignedStaffId: { in: ids }, status: "ACTIVE", doNotContact: false }, _count: { _all: true } }),
-    client.crmProspect.groupBy({ by: ["assignedStaffId", "assignmentMode"], where: { assignedStaffId: { in: ids }, status: "ACTIVE", doNotContact: false, assignmentMode: { not: null } }, _count: { _all: true } }),
+    client.crmProspect.groupBy({ by: ["assignedStaffId"], where: { assignedStaffId: { in: ids }, status: "ACTIVE", doNotContact: false, NOT: remoteNoEmailWhere }, _count: { _all: true } }),
+    client.crmProspect.groupBy({ by: ["assignedStaffId", "assignmentMode"], where: { assignedStaffId: { in: ids }, status: "ACTIVE", doNotContact: false, assignmentMode: { not: null }, NOT: remoteNoEmailWhere }, _count: { _all: true } }),
   ]);
   const load = new Map(counts.map((c) => [c.assignedStaffId!, c._count._all]));
   const lane = (id: string, m: "FIELD" | "REMOTE") => laneCounts.find((c) => c.assignedStaffId === id && c.assignmentMode === m)?._count._all ?? 0;
@@ -70,6 +72,8 @@ export interface PreviewFilters {
   onlyStaffIds?: readonly string[]; leadRadarOnly?: boolean;
   /** National rollout: only prospects in these provinces are considered. */
   provinces?: readonly string[];
+  /** Lead Radar automation (email-only REMOTE): national prospects without any email are left out of the pool, so they can never starve assignable ones. */
+  skipRemoteNoEmail?: boolean;
   /** Keyset position (createdAt, id) after which to continue, so a caller can walk the whole unassigned pool without re-reading unassignable rows. */
   after?: { createdAt: Date; id: string } | null;
 }
@@ -86,6 +90,7 @@ export async function buildAssignmentProposals(actor: PlatformSalesActor, f: Pre
         f.territoryKey ? { territoryKey: f.territoryKey } : {},
         f.leadRadarOnly ? { importBatch: { sourceKey: LEAD_RADAR_SOURCE_KEY } } : {},
         f.provinces ? { province: { in: [...f.provinces] } } : {},
+        f.skipRemoteNoEmail ? { NOT: remoteNoEmailWhere } : {},
         f.after ? { OR: [{ createdAt: { gt: f.after.createdAt } }, { createdAt: f.after.createdAt, id: { gt: f.after.id } }] } : {},
       ],
     },
