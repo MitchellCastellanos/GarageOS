@@ -8,6 +8,7 @@ import { resolveEffectiveLanguage } from "@/domain/sales-crm/language";
 import { normalizeBusinessName, phoneDigits } from "@/domain/sales-crm/normalize";
 import { loadNeedInputs } from "@/lib/sales-crm/scoring";
 import { loadQueueContext, queueWhere, type ProspectQueue } from "@/lib/sales-crm/queues";
+import { actionableProspectWhere, coldAutomationLaneWhere } from "@/lib/sales-crm/work-lane";
 
 export const PAGE_SIZE = 25;
 const OPEN = BOARD_STAGES as unknown as PipelineStage[];
@@ -37,6 +38,8 @@ export async function listProspects(actor: PlatformSalesActor, f: ProspectFilter
   const where: Prisma.CrmProspectWhereInput = {
     AND: [
       assignedScopeWhere(actor), ownerWhere, queueFragment,
+      // A seller's default book is actionable work. Cold automated REMOTE prospects stay owned/attributed and stay FINDABLE by search or the manager "automated" view, but do not flood the default list.
+      actor.kind === "SALES_REP" && !f.queue && !f.q?.trim() ? actionableProspectWhere : {},
       f.territory === "unresolved" ? { territoryState: "UNRESOLVED" } : f.territory === "national" ? { territoryState: "NATIONAL" } : f.territory ? { territoryState: "LOCAL", territoryKey: f.territory } : {},
       f.q?.trim() ? searchWhere(f.q) : {},
       // Queues define their own status/DNC semantics (e.g. "do not contact"); the status filter only applies outside a queue.
@@ -116,9 +119,10 @@ export async function getProspectDetail(actor: PlatformSalesActor, id: string) {
 export async function pipelineBoard(actor: PlatformSalesActor, owner?: string) {
   const ownerWhere: Prisma.CrmOpportunityWhereInput = owner === "none" ? { assignedStaffId: null } : owner ? { assignedStaffId: owner } : {};
   const where: Prisma.CrmOpportunityWhereInput = { AND: [{ prospect: { AND: [assignedScopeWhere(actor), { status: "ACTIVE" }] } }, ownerWhere] };
+  // Board columns are actionable deals: the untouched NEW opportunities of cold automated REMOTE prospects are not cards (they would also crowd out the 700-card cap). Closed totals stay complete.
   const [cards, closed] = await Promise.all([
     db.crmOpportunity.findMany({
-      where: { AND: [where, { stage: { in: OPEN } }] }, orderBy: [{ stageChangedAt: "desc" }], take: 700,
+      where: { AND: [where, { stage: { in: OPEN } }, { prospect: actionableProspectWhere }] }, orderBy: [{ stageChangedAt: "desc" }], take: 700,
       select: {
         id: true, stage: true, stageChangedAt: true, fitScore: true, fitScoreOverride: true, intentScore: true, intentScoreOverride: true, urgency: true, estimatedMrrCents: true,
         prospect: { select: { id: true, name: true, city: true, preferredLanguage: true, lastActivityAt: true, tasks: { where: { status: "OPEN" }, orderBy: { dueAt: "asc" }, take: 1, select: { dueAt: true } } } },
@@ -163,15 +167,19 @@ export async function dashboardMetrics(actor: PlatformSalesActor, now = new Date
   const prospectScope = assignedScopeWhere(actor);
   const taskScope: Prisma.CrmTaskWhereInput = { AND: [actor.all ? {} : { assignedStaffId: { in: [...actor.scopeStaffIds] } }, { prospect: prospectScope }] };
   const oppScope: Prisma.CrmOpportunityWhereInput = { prospect: { AND: [prospectScope, { status: "ACTIVE" }] } };
+  // Work metrics count actionable deals only; closed stages (WON/LOST/…) always count. Cold automated REMOTE prospects are reported separately for managers.
+  const closedStages = ["WON", "LOST", "UNQUALIFIED", "DO_NOT_CONTACT"] as const;
+  const workOppScope: Prisma.CrmOpportunityWhereInput = { AND: [oppScope, { OR: [{ stage: { in: [...closedStages] } }, { prospect: actionableProspectWhere }] }] };
+  const managerView = actor.all || actor.kind === "SALES_MANAGER";
   const d7 = new Date(now.getTime() - 7 * 86400_000), d14 = new Date(now.getTime() - 14 * 86400_000), d30 = new Date(now.getTime() - 30 * 86400_000);
   const demoScope: Prisma.SalesDemoWhereInput = actor.all ? {} : { createdByUserId: { in: [...actor.scopeUserIds] } };
-  const [totalProspects, newProspects30, byStage, overdue, dueToday, stale, activities7, demosByStatus, unassigned, recentTasks] = await Promise.all([
-    db.crmProspect.count({ where: { AND: [prospectScope, { status: "ACTIVE" }] } }),
-    db.crmProspect.count({ where: { AND: [prospectScope, { status: "ACTIVE", createdAt: { gte: d30 } }] } }),
-    db.crmOpportunity.groupBy({ by: ["stage"], where: oppScope, _count: { _all: true } }),
+  const [totalProspects, newProspects30, byStage, overdue, dueToday, stale, activities7, demosByStatus, unassigned, recentTasks, automatedLane] = await Promise.all([
+    db.crmProspect.count({ where: { AND: [prospectScope, { status: "ACTIVE" }, actionableProspectWhere] } }),
+    db.crmProspect.count({ where: { AND: [prospectScope, { status: "ACTIVE", createdAt: { gte: d30 } }, actionableProspectWhere] } }),
+    db.crmOpportunity.groupBy({ by: ["stage"], where: workOppScope, _count: { _all: true } }),
     db.crmTask.count({ where: { AND: [taskScope, { status: "OPEN", dueAt: { lt: now } }] } }),
     db.crmTask.count({ where: { AND: [taskScope, { status: "OPEN", dueAt: { gte: now, lt: new Date(now.getTime() + 24 * 3600_000) } }] } }),
-    db.crmOpportunity.count({ where: { AND: [oppScope, { stage: { in: OPEN } }, { prospect: { OR: [{ lastActivityAt: null }, { lastActivityAt: { lt: d14 } }] } }] } }),
+    db.crmOpportunity.count({ where: { AND: [oppScope, { stage: { in: OPEN } }, { prospect: actionableProspectWhere }, { prospect: { OR: [{ lastActivityAt: null }, { lastActivityAt: { lt: d14 } }] } }] } }),
     db.crmActivity.count({ where: { prospect: prospectScope, occurredAt: { gte: d7 }, type: { in: ["NOTE", "CALL", "MEETING", "EMAIL_LOGGED"] } } }),
     db.salesDemo.groupBy({ by: ["status"], where: demoScope, _count: { _all: true } }),
     actor.all || actor.kind === "SALES_MANAGER" ? db.crmProspect.count({ where: { assignedStaffId: null, status: "ACTIVE" } }) : Promise.resolve(0),
@@ -179,11 +187,12 @@ export async function dashboardMetrics(actor: PlatformSalesActor, now = new Date
       where: { AND: [taskScope, { status: "OPEN" }] }, orderBy: { dueAt: "asc" }, take: 6,
       select: { id: true, title: true, dueAt: true, priority: true, prospect: { select: { id: true, name: true } } },
     }),
+    managerView ? db.crmProspect.count({ where: { AND: [prospectScope, { status: "ACTIVE", doNotContact: false }, coldAutomationLaneWhere] } }) : Promise.resolve(0),
   ]);
   const stageCounts = Object.fromEntries(byStage.map((g) => [g.stage, g._count._all])) as Record<string, number>;
   const openCount = OPEN.reduce((a, s) => a + (stageCounts[s] ?? 0), 0);
   return {
-    totalProspects, newProspects30, stageCounts, openCount, overdue, dueToday, stale, activities7, unassigned, recentTasks,
+    totalProspects, newProspects30, stageCounts, openCount, overdue, dueToday, stale, activities7, unassigned, recentTasks, automatedLane,
     demosByStatus: Object.fromEntries(demosByStatus.map((g) => [g.status, g._count._all])) as Record<string, number>,
     won: stageCounts.WON ?? 0, lost: stageCounts.LOST ?? 0,
   };

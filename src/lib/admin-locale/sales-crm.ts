@@ -69,7 +69,7 @@ const en = {
   } as Record<string, string>,
   dashboard: {
     title: "Sales dashboard", subtitleAll: "All sales activity across the platform.", subtitleTeam: "Your team’s activity.", subtitleMine: "Your prospects and follow-ups.",
-    prospects: "Active prospects", newThisMonth: "New (30 days)", openOpps: "Open opportunities", overdue: "Overdue follow-ups", dueToday: "Due in 24 h", stale: "No activity in 14+ days",
+    prospects: "Active prospects (actionable)", automatedLane: "Automated REMOTE (campaign, not seller work)", newThisMonth: "New (30 days)", openOpps: "Open opportunities", overdue: "Overdue follow-ups", dueToday: "Due in 24 h", stale: "No activity in 14+ days",
     activities7: "Activities logged (7 days)", unassigned: "Unassigned prospects", funnel: "Pipeline by stage", upcoming: "Next follow-ups", demosTitle: "Demos", openPipeline: "Open the pipeline",
     newProspect: "New prospect", importCsv: "Import CSV", prepareDemo: "Prepare a demo", wonLost: "Won / Lost", honest: "Won is counted only after a confirmed subscription.", viewAll: "View all",
   },
@@ -240,7 +240,7 @@ const fr: Dict = {
   },
   dashboard: {
     title: "Tableau des ventes", subtitleAll: "Toute l’activité de vente de la plateforme.", subtitleTeam: "L’activité de votre équipe.", subtitleMine: "Vos prospects et vos suivis.",
-    prospects: "Prospects actifs", newThisMonth: "Nouveaux (30 jours)", openOpps: "Opportunités ouvertes", overdue: "Suivis en retard", dueToday: "Échéance dans 24 h", stale: "Sans activité depuis 14 j+",
+    prospects: "Prospects actifs (actionnables)", automatedLane: "À DISTANCE automatisés (campagne, pas du travail vendeur)", newThisMonth: "Nouveaux (30 jours)", openOpps: "Opportunités ouvertes", overdue: "Suivis en retard", dueToday: "Échéance dans 24 h", stale: "Sans activité depuis 14 j+",
     activities7: "Activités consignées (7 jours)", unassigned: "Prospects non assignés", funnel: "Pipeline par étape", upcoming: "Prochains suivis", demosTitle: "Démos", openPipeline: "Ouvrir le pipeline",
     newProspect: "Nouveau prospect", importCsv: "Importer un CSV", prepareDemo: "Préparer une démo", wonLost: "Gagnés / Perdus", honest: "« Gagné » n’est compté qu’après la confirmation de l’abonnement.", viewAll: "Voir tout",
   },

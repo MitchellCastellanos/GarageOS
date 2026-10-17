@@ -2,7 +2,7 @@
 const en = {
   errors: {
     FIT_EXCLUDED: "This business was excluded: it is not an automotive repair shop.", STOP_NOT_ALLOWED: "One of the selected prospects is not in your book of business.", PROSPECT_ARCHIVED: "This prospect is archived.", PROSPECT_MERGED: "This prospect was merged into another record.",
-    ALREADY_DO_NOT_CONTACT: "This prospect is marked Do Not Contact.", NOT_ASSIGNED_TO_OWNER: "This prospect is no longer assigned to you.", OUTSIDE_COVERAGE: "This prospect is outside the territories you cover.",
+    ALREADY_DO_NOT_CONTACT: "This prospect is marked Do Not Contact.", NOT_ASSIGNED_TO_OWNER: "This prospect is no longer assigned to you.", OUTSIDE_COVERAGE: "This prospect is outside the territories you cover.", NOT_FIELD_TERRITORY: "This prospect is in a national (REMOTE) territory, not a local FIELD territory.",
     LOCATION_UNAVAILABLE: "A selected prospect has no usable map position (missing, changed, ambiguous or invalid address).", TOO_MANY_STOPS: "A route can have at most 25 stops.", DUPLICATE_STOP: "A prospect can only appear once in a route.",
     INVALID_DATE: "Choose a valid date (from two days ago to one year ahead).", STALE_ROUTE: "This route was changed elsewhere. Reload it before saving again.", ROUTE_NOT_EDITABLE: "Only draft routes can be edited.",
     ROUTE_BAD_STATE: "This action is not available for the route in its current state.", ROUTE_EMPTY: "Add at least one pending stop before starting the route.", ANOTHER_ROUTE_IN_PROGRESS: "You already have a route in progress. Complete or cancel it first.",
@@ -97,7 +97,7 @@ type Dict = typeof en;
 const fr: Dict = {
   errors: {
     FIT_EXCLUDED: "Cette entreprise a été exclue : ce n’est pas un atelier de réparation automobile.", STOP_NOT_ALLOWED: "L’un des prospects sélectionnés ne fait pas partie de votre portefeuille.", PROSPECT_ARCHIVED: "Ce prospect est archivé.", PROSPECT_MERGED: "Ce prospect a été fusionné dans un autre dossier.",
-    ALREADY_DO_NOT_CONTACT: "Ce prospect est marqué Ne pas contacter.", NOT_ASSIGNED_TO_OWNER: "Ce prospect ne vous est plus assigné.", OUTSIDE_COVERAGE: "Ce prospect est hors des territoires que vous couvrez.",
+    ALREADY_DO_NOT_CONTACT: "Ce prospect est marqué Ne pas contacter.", NOT_ASSIGNED_TO_OWNER: "Ce prospect ne vous est plus assigné.", OUTSIDE_COVERAGE: "Ce prospect est hors des territoires que vous couvrez.", NOT_FIELD_TERRITORY: "Ce prospect est dans un territoire national (À DISTANCE), pas dans un territoire TERRAIN local.",
     LOCATION_UNAVAILABLE: "Un prospect sélectionné n’a pas de position utilisable (adresse manquante, modifiée, ambiguë ou invalide).", TOO_MANY_STOPS: "Une route compte au maximum 25 arrêts.", DUPLICATE_STOP: "Un prospect ne peut apparaître qu’une fois dans une route.",
     INVALID_DATE: "Choisissez une date valide (de 2 jours passés à 1 an à venir).", STALE_ROUTE: "Cette route a été modifiée ailleurs. Rechargez-la avant d’enregistrer à nouveau.", ROUTE_NOT_EDITABLE: "Seules les routes en brouillon peuvent être modifiées.",
     ROUTE_BAD_STATE: "Cette action n’est pas disponible dans l’état actuel de la route.", ROUTE_EMPTY: "Ajoutez au moins un arrêt à visiter avant de démarrer la route.", ANOTHER_ROUTE_IN_PROGRESS: "Vous avez déjà une route en cours. Terminez-la ou annulez-la d’abord.",

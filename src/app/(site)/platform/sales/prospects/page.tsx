@@ -67,7 +67,7 @@ export default async function ProspectsPage({ searchParams }: { searchParams: Pr
       <nav aria-label={L.queues.label} className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
         <ul className="flex min-w-max gap-2 pb-1">
           <li><Link href={qs({ queue: undefined, page: 1 })} aria-current={!filters.queue ? "page" : undefined} className={`inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3 text-sm ${!filters.queue ? "border-blue-600 bg-blue-50 text-blue-800" : "border-slate-200 bg-white text-slate-700"}`}>{L.queues.all}</Link></li>
-          {PROSPECT_QUEUES.filter((q) => q !== "new" || actor.all || actor.kind === "SALES_MANAGER").filter((q) => q !== "field" || actor.all || actor.kind === "SALES_MANAGER" || actor.salesMode === "FIELD").map((q) => (
+          {PROSPECT_QUEUES.filter((q) => (q !== "new" && q !== "automated") || actor.all || actor.kind === "SALES_MANAGER").filter((q) => q !== "field" || actor.all || actor.kind === "SALES_MANAGER" || actor.salesMode === "FIELD").map((q) => (
             <li key={q}><Link href={qs({ queue: q, page: 1 })} title={L.queues.hints[q]} aria-current={filters.queue === q ? "page" : undefined} className={`inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3 text-sm ${filters.queue === q ? "border-blue-600 bg-blue-50 text-blue-800" : "border-slate-200 bg-white text-slate-700"}`}>{L.queues.names[q]} <span className="rounded-full bg-slate-100 px-1.5 text-xs tabular-nums text-slate-700">{counts[q]}</span></Link></li>
           ))}
         </ul>

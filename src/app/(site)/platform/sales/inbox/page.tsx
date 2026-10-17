@@ -3,7 +3,7 @@ import { loadCrmPage } from "@/lib/sales-crm/page";
 import { commsCopy } from "@/lib/admin-locale/sales-comms";
 import { PLATFORM } from "@/lib/routes";
 import { Badge, EmptyState, PageHeader, PermissionDenied, Pager, btnPrimary, btnSecondary, cardCls, formatDate, inputCls } from "@/components/sales-crm/ui";
-import { INBOX_VIEWS, listThreads, type InboxView } from "@/lib/sales-comms/queries";
+import { INBOX_VIEWS, canSeeAutomatedInbox, listThreads, type InboxView } from "@/lib/sales-comms/queries";
 import { InboxRealtime } from "@/components/sales-comms/InboxRealtime";
 
 type SP = Record<string, string | string[] | undefined>;
@@ -24,7 +24,7 @@ export default async function SalesInboxPage({ searchParams }: { searchParams: P
       <PageHeader title={t.inbox.title} subtitle={t.inbox.subtitle} actions={<Link className={btnPrimary} href={PLATFORM.salesCompose}>{t.inbox.compose}</Link>} />
       <InboxRealtime userId={actor.userId} locale={locale} />
       <nav className="flex flex-wrap gap-2" aria-label={t.inbox.title}>
-        {INBOX_VIEWS.map((v) => <Link key={v} href={href(v)} className={view === v ? btnPrimary : btnSecondary} aria-current={view === v ? "page" : undefined}>{t.inbox.filters[v]}</Link>)}
+        {INBOX_VIEWS.filter((v) => v !== "automated" || canSeeAutomatedInbox(actor)).map((v) => <Link key={v} href={href(v)} className={view === v ? btnPrimary : btnSecondary} aria-current={view === v ? "page" : undefined}>{t.inbox.filters[v]}</Link>)}
       </nav>
       <form method="get" className="flex gap-2" role="search">
         <input type="hidden" name="view" value={view} />

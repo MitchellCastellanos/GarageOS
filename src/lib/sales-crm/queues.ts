@@ -4,9 +4,10 @@ import { db } from "@/lib/db";
 import { assignedScopeWhere, type PlatformSalesActor } from "@/domain/sales-crm/access";
 import { loadRemoteNoEmailWhere } from "@/lib/lead-radar/remote-email";
 import { loadTerritoryRulesWith } from "@/lib/sales-crm/territory-rules";
+import { actionableProspectWhere, coldAutomationLaneWhere } from "@/lib/sales-crm/work-lane";
 
 /** Commercial lead queues. Every queue is just a `where` fragment ANDed with the actor's scope — one definition drives list, counts and pagination. */
-export const PROSPECT_QUEUES = ["new", "mine", "ready", "eligibility", "field", "followup", "duplicates", "missing", "dnc"] as const;
+export const PROSPECT_QUEUES = ["new", "mine", "ready", "eligibility", "field", "followup", "duplicates", "missing", "dnc", "automated"] as const;
 export type ProspectQueue = (typeof PROSPECT_QUEUES)[number];
 export const isProspectQueue = (v: string | undefined): v is ProspectQueue => !!v && (PROSPECT_QUEUES as readonly string[]).includes(v);
 
@@ -53,12 +54,22 @@ function usableBasis(now: Date): Prisma.CrmSendingBasisWhereInput {
   };
 }
 
+/** Queues a seller works from. Cold automated REMOTE prospects are not seller work, so for sellers (reps) they are removed from every queue that would otherwise list them. */
+const REP_ACTIONABLE_QUEUES: readonly ProspectQueue[] = ["ready", "eligibility", "missing"];
+
 export function queueWhere(queue: ProspectQueue, actor: PlatformSalesActor, ctx: QueueContext): Prisma.CrmProspectWhereInput {
+  const base = baseQueueWhere(queue, actor, ctx);
+  return actor.kind === "SALES_REP" && REP_ACTIONABLE_QUEUES.includes(queue) ? { AND: [base, actionableProspectWhere] } : base;
+}
+
+function baseQueueWhere(queue: ProspectQueue, actor: PlatformSalesActor, ctx: QueueContext): Prisma.CrmProspectWhereInput {
   const active: Prisma.CrmProspectWhereInput = { status: "ACTIVE", doNotContact: false };
   switch (queue) {
     // Email-only REMOTE strategy: national prospects with no email are kept (never deleted or reassigned) but are not active work, so they leave these two queues.
     case "new": return { ...active, assignedStaffId: null, NOT: ctx.remoteNoEmail };
-    case "mine": return actor.staffId ? { ...active, assignedStaffId: actor.staffId, NOT: ctx.remoteNoEmail } : NONE;
+    // "Mine" is ACTIONABLE work only: owned FIELD/local/hand-entered prospects, plus national Lead Radar prospects the moment a human case exists (engaged deal, open task, human reply).
+    // The thousands of cold automated REMOTE prospects a seller may still OWN (attribution is preserved) are not work and never appear here.
+    case "mine": return actor.staffId ? { ...active, assignedStaffId: actor.staffId, NOT: ctx.remoteNoEmail, AND: [actionableProspectWhere] } : NONE;
     case "ready":
       return {
         ...active, assignedStaffId: { not: null }, territoryState: { in: ["LOCAL", "NATIONAL"] },
@@ -80,6 +91,8 @@ export function queueWhere(queue: ProspectQueue, actor: PlatformSalesActor, ctx:
     case "missing":
       return { ...active, OR: [{ addressQuality: { in: ["UNKNOWN", "INCOMPLETE"] } }, { AND: [{ phone: null }, { email: null }] }, { preferredLanguage: "UNKNOWN" }] };
     case "dnc": return { doNotContact: true };
+    // Operational view of the cold automated REMOTE lane for managers / Super Admin (never offered to sellers).
+    case "automated": return actor.all || actor.kind === "SALES_MANAGER" ? { ...active, ...coldAutomationLaneWhere } : NONE;
   }
 }
 

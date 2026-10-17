@@ -20,7 +20,7 @@ const en = {
   },
   inbox: {
     title: "Sales inbox", subtitle: "Every commercial conversation with prospects, in one place.", compose: "New email",
-    filters: { all: "All", unread: "Unread", needsReply: "Needs reply", mine: "Assigned to me", drafts: "Drafts", done: "Done" } as Record<string, string>,
+    filters: { all: "All", unread: "Unread", needsReply: "Needs reply", mine: "Assigned to me", drafts: "Drafts", done: "Done", automated: "Automated (campaign only)" } as Record<string, string>,
     search: "Search subject, name or email", empty: "No conversations match this view.", emptyHint: "Send your first email from a prospect or press “New email”.",
     unreadBadge: "Unread", needsReplyBadge: "Needs reply", automated: "Automatic message", from: "From", to: "To", cc: "Cc", bcc: "Bcc", subject: "Subject", body: "Message",
     noSubject: "(no subject)", prospect: "Prospect", contact: "Contact", unlinked: "Not linked to a CRM prospect", linkToProspect: "Link to a prospect", assignedTo: "Assigned to",
@@ -158,7 +158,7 @@ const fr: CommsCopy = {
   },
   inbox: {
     title: "Boîte de réception ventes", subtitle: "Toutes les conversations commerciales avec les prospects, au même endroit.", compose: "Nouveau courriel",
-    filters: { all: "Toutes", unread: "Non lues", needsReply: "À répondre", mine: "Assignées à moi", drafts: "Brouillons", done: "Terminées" } as Record<string, string>,
+    filters: { all: "Toutes", unread: "Non lues", needsReply: "À répondre", mine: "Assignées à moi", drafts: "Brouillons", done: "Terminées", automated: "Automatisées (campagne seulement)" } as Record<string, string>,
     search: "Rechercher un objet, un nom ou un courriel", empty: "Aucune conversation ne correspond à cette vue.", emptyHint: "Envoyez votre premier courriel depuis un prospect ou appuyez sur « Nouveau courriel ».",
     unreadBadge: "Non lu", needsReplyBadge: "À répondre", automated: "Message automatique", from: "De", to: "À", cc: "Cc", bcc: "Cci", subject: "Objet", body: "Message",
     noSubject: "(sans objet)", prospect: "Prospect", contact: "Contact", unlinked: "Non lié à un prospect du CRM", linkToProspect: "Lier à un prospect", assignedTo: "Assignée à",
