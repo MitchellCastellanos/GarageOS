@@ -160,6 +160,13 @@ export async function releaseDiscoveryExclusion(input: { candidateId: string; no
   return crmAction(async () => { const r = await releaseIcpExclusion(actor, String(input?.candidateId ?? "").slice(0, 40), String(input?.note ?? "")); touch(); return { result: r }; });
 }
 
+/** Apply the re-check to ONE bounded batch (500 candidates) of a province, from `cursor`. The browser repeats it with the returned cursor until it is null. Idempotent (a batch that finds nothing to change writes nothing and is not audited),
+ *  compare-and-set per row, derived candidate columns + tombstones only. Never imports, assigns, deletes or touches review decisions, prospects or ownership. Super Admin only. */
+export async function applyProvinceReclassificationBatch(input: { province: string; cursor?: string | null }) {
+  const actor = await requireLeadRadar("admin");
+  return crmAction(async () => { const r = await rematchCandidates(actor, { province: String(input?.province ?? ""), apply: true, cursor: input?.cursor ?? null, maxPages: 1 }); touch(); return { result: r }; });
+}
+
 /** "Preview all": ONE bounded (500-candidate), strictly read-only batch of the re-check with per-candidate detail. The browser calls it repeatedly with the returned cursor; nothing is written or audited. */
 export async function previewProvinceCandidatesBatch(input: { province: string; cursor?: string | null }) {
   const actor = await requireLeadRadar("admin");

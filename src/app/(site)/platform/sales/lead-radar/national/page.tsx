@@ -9,7 +9,6 @@ import { Badge, cardCls, formatDate, PageHeader, PermissionDenied } from "@/comp
 import { emailReadinessFunnel } from "@/lib/sales-comms/contact-readiness";
 import { LADDER } from "@/domain/lead-radar/contact-readiness";
 import { RematchAllPanel } from "@/components/lead-radar/RematchAllPanel";
-import { RematchPanel } from "@/components/lead-radar/RematchPanel";
 import { ImportScopePanel } from "@/components/lead-radar/ImportScopePanel";
 import { ProvinceControls } from "@/components/lead-radar/ProvinceControls";
 
@@ -45,7 +44,6 @@ export default async function NationalReadinessPage() {
         ))}
       </dl>
       <ImportScopePanel locale={locale} initial={d.automation.importProvinces} />
-      <RematchPanel locale={locale} />
       <RematchAllPanel locale={locale} />
       <section className={`${cardCls} space-y-3`} aria-labelledby="nat-email">
         <h2 id="nat-email" className="font-semibold text-slate-900">{k.email.title}</h2>
