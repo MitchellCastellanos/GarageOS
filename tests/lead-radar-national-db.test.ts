@@ -44,7 +44,7 @@ if (!enabled) {
     return {
       v: 1, id: `00000000-0000-4000-8000-${run.padStart(6, "0")}${String(n).padStart(6, "0")}`, confidence: 0.9, name,
       taxonomy: REPAIR, address: { freeform: `${100 + n} Rue Principale`, locality: c.locality, postcode: c.postcode, region: c.region, country: "CA" },
-      phones: [phone(n)], websites: [`https://nat-${run}-${n}.example.ca/`], emails: [], sources: SRC,
+      phones: [phone(n)], websites: [`https://nat-${run}-${n}.example.ca/`], emails: [`info${n}@nat-${run}-${n}.example.ca`], sources: SRC,
       geo: { lat: Math.round(f32(c.lat + n * 0.0001) * 1e7) / 1e7, lng: Math.round(f32(c.lng) * 1e7) / 1e7 }, ...o,
     };
   }

@@ -13,6 +13,7 @@ import { db } from "@/lib/db";
 import { readAutomation } from "@/lib/lead-radar/automation";
 import { getActivePolicy } from "@/lib/lead-radar/policy";
 import { listProvinceStates } from "@/lib/lead-radar/province-state";
+import { deferredNoEmailByProvince, prospectUsableEmailSql } from "@/lib/lead-radar/remote-email";
 
 // National readiness per province. Three populations are kept strictly apart and labelled as such:
 //   RAW      records the extractor delivered (CrmDiscoveryRun counters)
@@ -26,7 +27,7 @@ const LR = Prisma.sql`EXISTS (SELECT 1 FROM "garageos"."CrmImportBatch" b WHERE 
 export async function nationalReadiness(now = new Date()) {
   const policy = await getActivePolicy();
   const v = policy?.version ?? -1;
-  const [cand, pros, runs, states, automation, lastTick] = await Promise.all([
+  const [cand, pros, runs, states, automation, lastTick, noEmail] = await Promise.all([
     db.$queryRaw<Record<string, bigint | string | null>[]>(Prisma.sql`
       SELECT c."province" AS province,
         count(*) FILTER (WHERE c."duplicateOfCandidateId" IS NULL) AS staged,
@@ -44,7 +45,8 @@ export async function nationalReadiness(now = new Date()) {
     db.$queryRaw<Record<string, bigint | string | null>[]>(Prisma.sql`
       SELECT p."province" AS province, count(*) AS prospects,
         count(*) FILTER (WHERE p."assignedStaffId" IS NOT NULL) AS assigned,
-        count(*) FILTER (WHERE p."assignedStaffId" IS NULL AND p."repairFit" = 'VERIFIED_REPAIR' AND p."doNotContact" = false) AS eligible_unassigned,
+        count(*) FILTER (WHERE p."assignedStaffId" IS NULL AND p."repairFit" = 'VERIFIED_REPAIR' AND p."doNotContact" = false AND NOT (p."territoryState" = 'NATIONAL' AND NOT ${prospectUsableEmailSql})) AS eligible_unassigned,
+        count(*) FILTER (WHERE p."territoryState" = 'NATIONAL' AND NOT ${prospectUsableEmailSql}) AS remote_no_email,
         count(*) FILTER (WHERE l."status" IN ('GEOCODED','VERIFIED') AND l."latitude" IS NOT NULL) AS with_coordinates,
         count(*) FILTER (WHERE l."id" IS NULL OR NOT (l."status" IN ('GEOCODED','VERIFIED') AND l."latitude" IS NOT NULL)) AS missing_coordinates
       FROM "garageos"."CrmProspect" p LEFT JOIN "garageos"."CrmProspectLocation" l ON l."prospectId" = p."id"
@@ -56,6 +58,8 @@ export async function nationalReadiness(now = new Date()) {
     listProvinceStates(),
     readAutomation(),
     db.crmLeadAutomationRun.findFirst({ orderBy: { startedAt: "desc" }, select: { startedAt: true, finishedAt: true, status: true, errorCode: true } }),
+    // Email-only REMOTE: approved candidates the importer intentionally defers (no usable email) are kept for coverage but are not pending import work.
+    deferredNoEmailByProvince({ strict: false, maxAttempts: 0 }),
   ]);
   const by = (rows: Record<string, bigint | string | null>[]) => new Map(rows.map((r) => [String(r.province ?? ""), r]));
   const C = by(cand), P = by(pros);
@@ -69,7 +73,8 @@ export async function nationalReadiness(now = new Date()) {
     const lastOk = mine.find((r) => r.status === "COMPLETED") ?? null;
     // Raw records can only be attributed to a province by a run that covered that province alone.
     const lastOkSolo = mine.find((r) => r.status === "COMPLETED" && provincesOf(r).length === 1) ?? null;
-    const deferred = n(c.approved_not_imported) + n(c.awaiting_qualification) + n(c.in_unfinished_run);
+    const noEmailDeferred = Math.min(noEmail.get(province) ?? 0, n(c.approved_not_imported));
+    const deferred = n(c.approved_not_imported) - noEmailDeferred + n(c.awaiting_qualification) + n(c.in_unfinished_run);
     const stage = deriveStage({
       active: activeRun ? { execution: activeRun.execution, status: activeRun.status, claimed: !!activeRun.workerId, attempts: activeRun.attempts } : null,
       latest: finished ? { status: finished.status, qualityVerdict: finished.qualityVerdict, errorCode: finished.errorCode } : null,
@@ -86,9 +91,9 @@ export async function nationalReadiness(now = new Date()) {
       candidates: {
         staged: n(c.staged), verified: n(c.verified), review: n(c.review), excluded: n(c.excluded), unclassified: n(c.unclassified), duplicates: n(c.duplicates), withPoint: n(c.cand_with_point),
       },
-      crm: { prospects: n(p.prospects), assigned: n(p.assigned), eligibleUnassigned: n(p.eligible_unassigned), withCoordinates: n(p.with_coordinates), missingCoordinates: n(p.missing_coordinates) },
+      crm: { prospects: n(p.prospects), assigned: n(p.assigned), eligibleUnassigned: n(p.eligible_unassigned), remoteNoEmail: n(p.remote_no_email), withCoordinates: n(p.with_coordinates), missingCoordinates: n(p.missing_coordinates) },
       errors: { importFailed: n(c.import_failed), lastRunFailure: finished?.status === "FAILED" ? (finished.qualityVerdict ?? finished.errorCode ?? finished.lastFailureCode ?? "RUN_FAILED") : null, lastRunId: finished?.id ?? null },
-      deferred: { total: deferred, approvedNotImported: n(c.approved_not_imported), awaitingQualification: n(c.awaiting_qualification), inUnfinishedRun: n(c.in_unfinished_run) },
+      deferred: { total: deferred, approvedNotImported: n(c.approved_not_imported) - noEmailDeferred, remoteNoEmail: noEmailDeferred, awaitingQualification: n(c.awaiting_qualification), inUnfinishedRun: n(c.in_unfinished_run) },
       activeRun: activeRun ? { id: activeRun.id, status: activeRun.status, execution: activeRun.execution, claimed: !!activeRun.workerId, attempts: activeRun.attempts, nextAttemptAt: activeRun.nextAttemptAt, scheduled: activeRun.scheduled } : null,
       schedule: { autoRefresh: st.autoRefresh, paused: st.paused, refreshIntervalDays: st.refreshIntervalDays, nextRefreshNotBefore: nextRefresh },
       rates: conversion({ raw, staged: n(c.staged), verified: n(c.verified), prospects: n(p.prospects), withCoordinates: n(p.with_coordinates) }),
@@ -100,7 +105,7 @@ export async function nationalReadiness(now = new Date()) {
     rows,
     totals: {
       staged: sum((r) => r.candidates.staged), verified: sum((r) => r.candidates.verified), review: sum((r) => r.candidates.review), excluded: sum((r) => r.candidates.excluded), duplicates: sum((r) => r.candidates.duplicates),
-      prospects: sum((r) => r.crm.prospects), assigned: sum((r) => r.crm.assigned), eligibleUnassigned: sum((r) => r.crm.eligibleUnassigned), withCoordinates: sum((r) => r.crm.withCoordinates), missingCoordinates: sum((r) => r.crm.missingCoordinates),
+      prospects: sum((r) => r.crm.prospects), assigned: sum((r) => r.crm.assigned), eligibleUnassigned: sum((r) => r.crm.eligibleUnassigned), remoteNoEmail: sum((r) => r.crm.remoteNoEmail), withCoordinates: sum((r) => r.crm.withCoordinates), missingCoordinates: sum((r) => r.crm.missingCoordinates),
       deferred: sum((r) => r.deferred.total), importFailed: sum((r) => r.errors.importFailed),
     },
     automation: {

@@ -43,7 +43,7 @@ if (!enabled) {
     return {
       v: 1, id: `00000000-0000-4000-8000-${run.padStart(6, "0")}${String(n).padStart(6, "0")}`, confidence: 0.9, name, taxonomy: REPAIR,
       address: { freeform: `${100 + n} Main St`, locality: c.locality, postcode: c.postcode, region, country: "CA" },
-      phones: [phone(n)], websites: [`https://ro-${run}-${n}.example.ca/`], emails: [], sources: SRC,
+      phones: [phone(n)], websites: [`https://ro-${run}-${n}.example.ca/`], emails: [`info${n}@ro-${run}-${n}.example.ca`], sources: SRC,
       geo: { lat: Math.round(f32(c.lat + n * 0.0001) * 1e7) / 1e7, lng: Math.round(f32(c.lng) * 1e7) / 1e7 }, ...o,
     };
   }
@@ -119,7 +119,7 @@ if (!enabled) {
     assert.equal(done.blocking, false, JSON.stringify(done));
     // Unrelated pool that must never be assigned by the scoped rollout: an Alberta Lead Radar prospect, a Québec one, and a BC prospect that did not come from Lead Radar.
     const lrBatch = await db.crmImportBatch.create({ data: { createdByUserId: users.Root, filename: "lr.csv", fileHash: `h-${run}`, status: "COMPLETED", sourceKey: "overture-places" } });
-    const mk = (name: string, province: string, batch: string | null) => db.crmProspect.create({ data: { name, nameNormalized: name.toLowerCase(), city: "X", province, territoryState: "NATIONAL", territoryKey: "canada", createdByUserId: users.Root, ...(batch ? { importBatchId: batch } : {}) } });
+    const mk = (name: string, province: string, batch: string | null) => db.crmProspect.create({ data: { name, nameNormalized: name.toLowerCase(), city: "X", province, territoryState: "NATIONAL", territoryKey: "canada", email: `${name.split(" ")[1].toLowerCase()}-${run}@example.ca`, createdByUserId: users.Root, ...(batch ? { importBatchId: batch } : {}) } });
     // AB is in the assignment scope now (the owner asked for its existing REMOTE prospects); QC and non-Lead-Radar prospects must stay untouched.
     unrelated = [(await mk("Unrelated AB Garage", "AB", lrBatch.id)).id, (await mk("Unrelated QC Garage", "QC", lrBatch.id)).id, (await mk("Unrelated BC Manual Garage", "BC", null)).id];
     await tick();
@@ -236,5 +236,124 @@ if (!enabled) {
     await db.crmDiscoveryCandidate.update({ where: { id: one.id }, data: { importState: "CREATED" } });
     const t3 = await roLib.rolloutStage(actor, await state());
     assert.equal(t3.finished, true, "only the human-review candidate remains: it does not block completion");
+  });
+  // ── Email-only REMOTE policy ─────────────────────────────────────────────────────────────────────────────────────────
+  // FIELD (Greater Montréal) keeps importing and assigning prospects without email; REMOTE needs a usable, non-suppressed email (on the candidate, or on a contact of the prospect).
+  // REMOTE candidates without one are DEFERRED: kept in Lead Radar (not deleted, not failed), never imported, and they never hold the rollout open.
+  const { getActivePolicy } = await import("../src/lib/lead-radar/policy");
+  const { loadSellers } = await import("../src/lib/sales-crm/assignment");
+  const { queueWhere, loadQueueContext } = await import("../src/lib/sales-crm/queues");
+  const { nationalReadiness } = await import("../src/lib/lead-radar/national");
+  const { ROLLOUT_ASSIGN_PROVINCES } = await import("../src/domain/lead-radar/rollout");
+  const cl: Record<string, string> = {};
+  let n2 = 0;
+
+  async function clone(tag: string, o: Record<string, unknown>) {
+    const tpl = await db.crmDiscoveryCandidate.findFirstOrThrow({ where: { province: "BC", importState: "CREATED" }, orderBy: { id: "asc" } });
+    const pol = (await getActivePolicy())!;
+    const k = ++n2;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id, importedAt, importedProspectId, importBatchId, matchProspectId, createdAt, updatedAt, ...rest } = tpl as any;
+    const row = await db.crmDiscoveryCandidate.create({ data: {
+      ...rest, sourceRecordId: `re-${run}-${k}`, name: `Re${tag}${run} Auto Repair`, nameNormalized: `re${tag}${run} auto repair`, website: `https://re-${run}-${k}.example.ca/`, phone: `+1778${PH}${String(k).padStart(2, "0")}`.slice(0, 12),
+      address: `${900 + k} Remote St`, importState: "NOT_IMPORTED", importAttempts: 0, importErrorCode: null, reviewState: "APPROVED", approvedByPolicyVersion: pol.version, qualificationPolicyVersion: pol.version,
+      qualificationLane: "AUTO_ELIGIBLE", repairFit: "VERIFIED_REPAIR", duplicateOfCandidateId: null, ...o,
+    } });
+    cl[tag] = row.id;
+    return row;
+  }
+  const impState = async (tag: string) => (await db.crmDiscoveryCandidate.findUniqueOrThrow({ where: { id: cl[tag] } }));
+
+  test("email-only: REMOTE with email imports, FIELD without email still imports, REMOTE without/with malformed/suppressed email is deferred (kept, not failed); re-running is idempotent", async () => {
+    const actor = (await access.resolvePlatformSalesActor(users.Root))!;
+    const pol = (await getActivePolicy())!;
+    await db.crmEmailSuppression.create({ data: { emailNormalized: `blocked-${run}@example.ca`, reason: "UNSUBSCRIBE", source: "test" } });
+    await clone("Mail", { province: "BC", city: "Vancouver", postalCode: "V6H 1H6", email: `Owner-${run}@Example.ca` });
+    await clone("Plain", { province: "BC", city: "Vancouver", postalCode: "V6H 1H6", email: null });
+    await clone("Junk", { province: "BC", city: "Vancouver", postalCode: "V6H 1H6", email: "not-an-email" });
+    await clone("Supp", { province: "BC", city: "Vancouver", postalCode: "V6H 1H6", email: `blocked-${run}@example.ca` });
+    await clone("Field", { province: "QC", city: "Montréal", postalCode: "H2X 3K4", email: null });
+    const t = await autoLib.importStage(actor, pol.version, 50, Date.now() + 40_000, ["BC", "QC"]);
+    assert.equal(t.failed, 0, JSON.stringify(t));
+    assert.equal((await impState("Mail")).importState, "CREATED", "REMOTE with a usable email is imported");
+    assert.equal((await impState("Field")).importState, "CREATED", "FIELD without email keeps the existing import behaviour");
+    for (const k of ["Plain", "Junk", "Supp"]) {
+      const c = await impState(k);
+      assert.deepEqual([c.importState, c.importAttempts, c.importErrorCode, c.reviewState], ["NOT_IMPORTED", 0, null, "APPROVED"], `${k}: deferred, not failed, not deleted`);
+    }
+    const mail = await db.crmProspect.findFirstOrThrow({ where: { id: (await impState("Mail")).importedProspectId! } });
+    assert.equal(mail.email?.toLowerCase(), `owner-${run}@example.ca`);
+    assert.equal(await db.crmSendingBasis.count({ where: { contact: { prospectId: mail.id } } }), 0, "a published email never creates a sending basis");
+    const again = await autoLib.importStage(actor, pol.version, 50, Date.now() + 40_000, ["BC", "QC"]);
+    assert.equal(again.claimed, 0, "nothing left for the importer: deferred candidates do not spin or burn attempts");
+    assert.equal((await impState("Plain")).importAttempts, 0);
+  });
+
+  test("email-only: a deferred candidate can never stall the importer queue even with many of them ahead of an importable one", async () => {
+    const actor = (await access.resolvePlatformSalesActor(users.Root))!;
+    const pol = (await getActivePolicy())!;
+    for (let i = 0; i < 6; i++) await clone(`Q${i}`, { id: `aaa-${run}-${i}`, province: "BC", city: "Vancouver", postalCode: "V6H 1H6", email: null });
+    await clone("Late", { id: `zzz-${run}`, province: "BC", city: "Vancouver", postalCode: "V6H 1H6", email: `late-${run}@example.ca` });
+    const t = await autoLib.importStage(actor, pol.version, 3, Date.now() + 40_000, ["BC"]);
+    assert.equal(t.failed, 0);
+    assert.equal((await impState("Late")).importState, "CREATED", "the importable candidate behind the deferred ones is still reached");
+    assert.equal(await db.crmDiscoveryCandidate.count({ where: { id: { startsWith: `aaa-${run}` }, importState: "NOT_IMPORTED" } }), 6);
+  });
+
+  test("email-only assignment: REMOTE prospects need a usable email (prospect OR contact); contact-only email is accepted; FIELD without email is untouched; existing owners are never reassigned", async () => {
+    const actor = (await access.resolvePlatformSalesActor(users.Root))!;
+    const batch = (await db.crmProspect.findFirstOrThrow({ where: { id: (await impState("Mail")).importedProspectId! } })).importBatchId!;
+    const mk = (name: string, email: string | null, extra: Record<string, unknown> = {}) => db.crmProspect.create({ data: { name, nameNormalized: name.toLowerCase(), city: "Vancouver", province: "BC", territoryState: "NATIONAL", territoryKey: "canada", repairFit: "VERIFIED_REPAIR", repairFitSource: "AUTO", email, createdByUserId: users.Root, importBatchId: batch, ...extra } });
+    const noMail = await mk("NoMail Garage", null);
+    const contactOnly = await mk("ContactOnly Garage", null);
+    await db.crmContact.create({ data: { prospectId: contactOnly.id, name: "Owner", email: `co-${run}@example.ca`, emailNormalized: `co-${run}@example.ca`, isPrimary: true } });
+    const suppressedOnly = await mk("SuppressedOnly Garage", `blocked-${run}@example.ca`);
+    const archivedOnly = await mk("ArchivedOnly Garage", null);
+    await db.crmContact.create({ data: { prospectId: archivedOnly.id, name: "Old", email: `old-${run}@example.ca`, emailNormalized: `old-${run}@example.ca`, archivedAt: new Date() } });
+    const owned = await mk("OwnedNoMail Garage", null, { assignedStaffId: rep, assignmentMode: "REMOTE" });
+    const fieldNoMail = await mk("FieldNoMail Garage", null, { city: "Montréal", province: "QC", postalCode: "H2X 3K4", territoryState: "LOCAL", territoryKey: "greater-montreal" });
+    const t = await autoLib.assignStage(actor, [rep], Date.now() + 30_000, { provinces: ROLLOUT_ASSIGN_PROVINCES, remoteOnly: true });
+    const by = async (id: string) => (await db.crmProspect.findUniqueOrThrow({ where: { id } })).assignedStaffId;
+    assert.equal(await by(contactOnly.id), rep, "email stored only on a contact is a usable email");
+    for (const p of [noMail, suppressedOnly, archivedOnly]) assert.equal(await by(p.id), null, `${p.name} is left unassigned (kept, not deleted)`);
+    assert.equal(await by(owned.id), rep, "existing owner untouched");
+    assert.equal(await by(fieldNoMail.id), null, "FIELD prospects are still never taken by the REMOTE rollout");
+    assert.ok(t.assigned >= 1);
+    assert.equal(await db.crmProspect.count({ where: { id: { in: [noMail.id, suppressedOnly.id, archivedOnly.id, owned.id, fieldNoMail.id] } } }), 5, "nothing deleted");
+    cl.noMail = noMail.id; cl.owned = owned.id; cl.fieldNoMail = fieldNoMail.id;
+  });
+
+  test("email-only: no-email REMOTE prospects leave active queues and workload, but historical totals are unchanged", async () => {
+    const actor = (await access.resolvePlatformSalesActor(users.Root))!;
+    const ctx = await loadQueueContext();
+    const ids = [cl.noMail, cl.owned, cl.fieldNoMail];
+    const inQ = async (q: "new" | "mine") => new Set((await db.crmProspect.findMany({ where: { AND: [queueWhere(q, { ...actor, staffId: rep } as any, ctx), { id: { in: ids } }] }, select: { id: true } })).map((r) => r.id));
+    assert.deepEqual([...(await inQ("new"))].sort(), [cl.fieldNoMail], "unassigned no-email REMOTE is not new work; the FIELD one still is");
+    assert.equal((await inQ("mine")).has(cl.owned), false, "an owned no-email REMOTE prospect is not an active outreach item");
+    const before = await db.crmProspect.count({ where: { assignedStaffId: rep, status: "ACTIVE", doNotContact: false } });
+    const sellers = await loadSellers(actor, db, [rep]);
+    assert.ok(sellers[0].workload < before, "workload excludes no-email REMOTE prospects");
+    const nat = await nationalReadiness();
+    const bc = nat.rows.find((r) => r.province === "BC")!;
+    assert.ok(bc.crm.remoteNoEmail >= 3, "identified for reporting");
+    assert.equal(bc.crm.prospects, await db.crmProspect.count({ where: { province: "BC", status: "ACTIVE", importBatch: { sourceKey: "overture-places" } } }), "historical totals unchanged");
+    assert.ok(bc.deferred.remoteNoEmail >= 8, "deferred REMOTE no-email candidates are reported, not hidden");
+  });
+
+  test("email-only completion: deferred no-email candidates and unassignable no-email prospects do not hold the rollout open; a usable one still does", async () => {
+    const actor = (await access.resolvePlatformSalesActor(users.Root))!;
+    await db.crmLeadAutomation.update({ where: { id: "default" }, data: { rolloutProvinces: ["BC"], rolloutEnabled: true, rolloutFinishedAt: null, rolloutHaltCode: null, rolloutHaltProvince: null, rolloutPaused: false, enabled: true, pausedReason: null, importProvinces: ["AB", "BC", "ON"], assignStaffIds: [rep] } });
+    // An emailed REMOTE prospect still unassigned = real work left.
+    const emailed = await db.crmProspect.create({ data: { name: "Emailed Pending Garage", nameNormalized: "emailed pending garage", city: "Vancouver", province: "BC", territoryState: "NATIONAL", territoryKey: "canada", repairFit: "VERIFIED_REPAIR", repairFitSource: "AUTO", email: `pend-${run}@example.ca`, createdByUserId: users.Root, importBatchId: (await db.crmProspect.findFirstOrThrow({ where: { id: cl.noMail } })).importBatchId! } });
+    const t1 = await roLib.rolloutStage(actor, await state());
+    assert.equal(t1.halted, undefined, JSON.stringify(t1));
+    assert.deepEqual([t1.finished, t1.waiting], [undefined, "ASSIGNMENT"], "a usable-email prospect awaiting assignment keeps it open");
+    assert.equal((await roLib.rolloutStatus()).pendingAssignment, 1, "deferred no-email prospects are not counted as pending");
+    await db.crmProspect.update({ where: { id: emailed.id }, data: { assignedStaffId: rep } });
+    const t2 = await roLib.rolloutStage(actor, await state());
+    assert.equal(t2.finished, true, "only deferred no-email candidates/prospects remain: the rollout completes instead of stalling");
+    assert.ok(await db.crmDiscoveryCandidate.count({ where: { province: "BC", importState: "NOT_IMPORTED", reviewState: "APPROVED" } }) >= 8, "deferred candidates are still there for coverage / future enrichment");
+    const s = await state();
+    assert.deepEqual([s.pilotEnabled, s.eligibilityEnabled, s.releaseUnavailable, s.enabled], [false, false, false, false], "outreach/release/pilot stay OFF");
   });
 }
