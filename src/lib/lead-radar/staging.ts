@@ -6,6 +6,9 @@ import { normalizeEmail, phoneDigits, websiteDomain } from "@/domain/sales-crm/n
 import { classifyTerritory, cityKey } from "@/domain/sales-crm/territory";
 import { toCandidate, type RecordIssue, type StagedCandidate } from "@/domain/lead-radar/record";
 import { assessRepairFit } from "@/domain/lead-radar/repair-fit";
+import { isIcpExclusion } from "@/domain/lead-radar/icp";
+import { exclusionIdentityKey, tombstoneReasons, withTombstoneMarker } from "@/domain/lead-radar/icp-tombstone";
+import { decideFor, loadExclusions, recordExclusions, type ExclusionInput } from "@/lib/lead-radar/exclusions";
 import type { DiscoveryScope } from "@/domain/lead-radar/scope";
 import { loadMatchPool } from "@/lib/sales-crm/lead-pool";
 import { loadTerritoryRulesWith } from "@/lib/sales-crm/territory-rules";
@@ -91,6 +94,10 @@ export async function stageChunk(tx: Tx, run: { id: string; scope: DiscoveryScop
   const dups = await findCandidateDuplicates(tx, cands.filter((c) => !existing.has(c.sourceRecordId)));
   const rules = await loadTerritoryRulesWith(tx);
   const now = new Date();
+  // Exclusion tombstones for this batch (by exact source id and by exact place+name): a business excluded earlier — even under another id — is excluded again, never re-reviewed.
+  const keyOf = (c: StagedCandidate) => exclusionIdentityKey({ nameNormalized: c.nameNormalized, address: c.address, city: c.city, province: c.province, postalCode: c.postalCode });
+  const tombs = await loadExclusions(tx, cands.map((c) => ({ sourceRecordId: c.sourceRecordId, identityKey: keyOf(c) })));
+  const toRecord: ExclusionInput[] = [];
 
   const creates: Prisma.CrmDiscoveryCandidateCreateManyInput[] = [];
   const updates: Prisma.PrismaPromise<unknown>[] = [];
@@ -108,7 +115,16 @@ export async function stageChunk(tx: Tx, run: { id: string; scope: DiscoveryScop
       completeness: c.completeness, qualityFlags: c.qualityFlags, licenses: c.licenses, datasets: c.datasets, licenseOk: c.licenseOk, contentFingerprint: c.contentFingerprint,
     };
     // Repair fit is derived from the same facts, so a business is classified the moment it is staged (the first import is never a cleanup afterwards).
-    const fit = assessRepairFit({ name: c.name, taxonomyPrimary: c.taxonomyPrimary, classReasons: c.classReasons, website: c.website, city: c.city });
+    // The independent-repair ICP is durable: a tombstone (same source id, or the same exact place+name re-keyed) keeps the business excluded; a Super Admin release (tombstone RELEASED /
+    // candidate.icpOverride) keeps it released. Neither depends on the registry still listing the brand.
+    const identityKey = keyOf(c);
+    const dec = decideFor(tombs, { sourceRecordId: c.sourceRecordId, identityKey });
+    const icpOverride = !!prev?.icpOverride || dec.kind === "OVERRIDE";
+    let fit = assessRepairFit({ name: c.name, taxonomyPrimary: c.taxonomyPrimary, classReasons: c.classReasons, website: c.website, city: c.city, icpOverride, storedReasons: dec.kind === "EXCLUDE" ? tombstoneReasons(dec.tomb, dec.rekeyed) : null });
+    if (!icpOverride && isIcpExclusion(fit.reasons)) {
+      fit = { ...fit, reasons: (dec.kind === "EXCLUDE" && dec.rekeyed && !fit.reasons.includes("ICP_TOMBSTONE_REKEYED") ? [...withTombstoneMarker(fit.reasons), "ICP_TOMBSTONE_REKEYED"] : withTombstoneMarker(fit.reasons)) as typeof fit.reasons };
+      if (!(prev && IMPORTED.has(prev.importState))) toRecord.push({ sourceRecordId: c.sourceRecordId, province: c.province, name: c.name, city: c.city, identityKey, reasons: fit.reasons, release: run.release });
+    }
     const fitData = { repairFit: fit.fit, repairFitReasons: fit.reasons as string[], repairFitAt: now };
     // The source point is refreshed whenever the extract carries one (never cleared by an extract without one) and is NOT a business fact:
     // it is outside contentFingerprint, so it never re-opens an approval, requalifies, or touches an imported prospect.
@@ -126,7 +142,7 @@ export async function stageChunk(tx: Tx, run: { id: string; scope: DiscoveryScop
       : { matchState: "NEW" as const, matchProspectId: null, matchReasons: [] as string[] };
     if (!prev) {
       const dup = dups.get(c.sourceRecordId);
-      creates.push({ source: "OVERTURE", sourceRecordId: c.sourceRecordId, firstRunId: run.id, lastRunId: run.id, firstSeenRelease: run.release, lastSeenRelease: run.release, ...facts, ...fitData, ...point, ...match, matchedAt: now, ...(dup ? { duplicateOfCandidateId: dup.originalId } : {}) });
+      creates.push({ source: "OVERTURE", sourceRecordId: c.sourceRecordId, icpOverride, firstRunId: run.id, lastRunId: run.id, firstSeenRelease: run.release, lastSeenRelease: run.release, ...facts, ...fitData, ...point, ...match, matchedAt: now, ...(dup ? { duplicateOfCandidateId: dup.originalId } : {}) });
       tally.stagedNew++;
       if (dup) tally.issues.DUPLICATE_OF_STAGED = (tally.issues.DUPLICATE_OF_STAGED ?? 0) + 1;
     } else {
@@ -145,7 +161,7 @@ export async function stageChunk(tx: Tx, run: { id: string; scope: DiscoveryScop
       updates.push(tx.crmDiscoveryCandidate.update({
         where: { id: prev.id },
         data: {
-          lastRunId: run.id, lastSeenRelease: run.release, ...(changed || licenseMoved ? { ...facts, ...fitData } : { qualityFlags: c.qualityFlags, ...(prev.repairFit === null || fitMoved ? fitData : {}) }), ...point, ...match, matchedAt: now,
+          lastRunId: run.id, lastSeenRelease: run.release, ...(icpOverride && !prev.icpOverride ? { icpOverride } : {}), ...(changed || licenseMoved ? { ...facts, ...fitData } : { qualityFlags: c.qualityFlags, ...(prev.repairFit === null || fitMoved ? fitData : {}) }), ...point, ...match, matchedAt: now,
           ...(invalidated ? { reviewState: "PENDING" as const, reviewedByUserId: null, reviewedAt: null, approvedByPolicyVersion: null } : {}),
           ...(requalify ? { qualificationLane: null, qualificationPolicyVersion: null, qualifiedAt: null, qualificationReasons: humanApprovalInvalidated ? ["SOURCE_CHANGED"] : [] } : {}),
           // A candidate whose import failed on validation/territory grounds gets a fresh chance only when its facts actually changed.
@@ -157,5 +173,6 @@ export async function stageChunk(tx: Tx, run: { id: string; scope: DiscoveryScop
   }
   if (creates.length) await tx.crmDiscoveryCandidate.createMany({ data: creates, skipDuplicates: true });
   for (const u of updates) await u;
+  await recordExclusions(tx, toRecord, tombs);
   return tally;
 }

@@ -36,13 +36,15 @@ export const candidateFilterSchema = z.object({
   hasEmail: z.enum(["1"]).optional().catch(undefined),
   licenseBlocked: z.enum(["1"]).optional().catch(undefined),
   runId: z.string().max(40).optional().catch(undefined),
+  /** Super Admin audit view: include the businesses excluded by the independent-repair ICP (hidden by default; never shown to anyone else). */
+  icp: z.enum(["all"]).optional().catch(undefined),
   page: z.coerce.number().int().min(1).max(10_000).optional().catch(undefined),
 });
 export type CandidateFilters = z.infer<typeof candidateFilterSchema>;
 
 export function whereFor(f: CandidateFilters): Prisma.CrmDiscoveryCandidateWhereInput {
   const and: Prisma.CrmDiscoveryCandidateWhereInput[] = [];
-  if (f.q) and.push({ OR: [{ nameNormalized: { contains: f.q.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, ""), mode: "insensitive" } }, { phone: { contains: f.q.replace(/\D/g, "") || "\u0000" } }, { website: { contains: f.q, mode: "insensitive" } }] });
+  if (f.q) and.push({ OR: [{ nameNormalized: { contains: f.q.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, ""), mode: "insensitive" } }, ...(f.q.replace(/\D/g, "") ? [{ phone: { contains: f.q.replace(/\D/g, "") } }] : []), { website: { contains: f.q, mode: "insensitive" } }] });
   if (f.province) and.push({ province: f.province });
   if (f.city) and.push({ city: { equals: f.city, mode: "insensitive" } });
   if (f.tier) and.push({ tier: f.tier });
@@ -63,8 +65,15 @@ export function whereFor(f: CandidateFilters): Prisma.CrmDiscoveryCandidateWhere
   return and.length ? { AND: and } : {};
 }
 
+/** ICP-excluded businesses (chains, franchises, dealerships, parts networks) are out of every normal workflow. Only a Super Admin who asks (icp=all, or the EXCLUDED fit filter) sees them. */
+export function visibleWhere(actor: PlatformSalesActor, f: CandidateFilters): Prisma.CrmDiscoveryCandidateWhereInput {
+  const base = whereFor(f);
+  const audit = actor.all && (f.icp === "all" || f.fit === "EXCLUDED");
+  return audit ? base : { AND: [base, { NOT: { repairFitReasons: { has: "OUTSIDE_ICP_CHAIN_OR_CORPORATE" } } }] };
+}
+
 export async function listCandidates(actor: PlatformSalesActor, f: CandidateFilters) {
-  const where = whereFor(f);
+  const where = visibleWhere(actor, f);
   const page = f.page ?? 1;
   const [total, rows] = await Promise.all([
     db.crmDiscoveryCandidate.count({ where }),
@@ -105,14 +114,14 @@ export async function reviewCandidates(actor: PlatformSalesActor, idsIn: readonl
   if (!ids.length || ids.length > MAX_REVIEW_BATCH) throw new CrmError("BATCH_SIZE");
   if (!["APPROVED", "REJECTED", "PENDING"].includes(decision)) throw new CrmError("INVALID");
   const cleanNote = note ? note.replace(/[\u0000-\u001F\u007F]/g, " ").trim().slice(0, 300) || null : null;
-  const rows = await db.crmDiscoveryCandidate.findMany({ where: { id: { in: ids } }, select: { id: true, reviewState: true, importState: true, licenseOk: true, tier: true, name: true, taxonomyPrimary: true, classReasons: true, website: true, city: true, duplicateOfCandidateId: true } });
+  const rows = await db.crmDiscoveryCandidate.findMany({ where: { id: { in: ids } }, select: { id: true, reviewState: true, importState: true, licenseOk: true, tier: true, name: true, taxonomyPrimary: true, classReasons: true, website: true, city: true, icpOverride: true, repairFitReasons: true, duplicateOfCandidateId: true } });
   const found = new Set(rows.map((r) => r.id));
   // Fit gate: a candidate that is clearly not a repair business cannot be approved by accident (bulk approvals were how such records reached the CRM).
   // A person who knows better approves it explicitly with `fitOverride` and a reason of at least 10 characters; the import then records a HUMAN fit decision.
   const override = !!opts.fitOverride;
   if (override && decision === "APPROVED" && (cleanNote ?? "").length < 10) throw new CrmError("NOTE_REQUIRED");
   // The discovery ICP (independent repair businesses only) is never overridable; any other fit exclusion is, with a reason.
-  const fitExcluded = decision === "APPROVED" ? rows.filter((r) => { const a = assessRepairFit({ name: r.name, taxonomyPrimary: r.taxonomyPrimary, classReasons: r.classReasons, website: r.website, city: r.city }); return a.fit === "EXCLUDED" && (isIcpExclusion(a.reasons) || !override); }).map((r) => r.id) : [];
+  const fitExcluded = decision === "APPROVED" ? rows.filter((r) => { const a = assessRepairFit({ name: r.name, taxonomyPrimary: r.taxonomyPrimary, classReasons: r.classReasons, website: r.website, city: r.city, icpOverride: r.icpOverride, storedReasons: r.repairFitReasons }); return a.fit === "EXCLUDED" && (isIcpExclusion(a.reasons) || !override); }).map((r) => r.id) : [];
   // A staged duplicate (same business re-keyed by the source) can never be approved: the original is the one that is reviewed and imported.
   const duplicates = decision === "APPROVED" ? rows.filter((r) => r.duplicateOfCandidateId !== null).map((r) => r.id) : [];
   const blocked = rows.filter((r) => decision === "APPROVED" && (!r.licenseOk || r.tier === "EXCLUDED" || fitExcluded.includes(r.id) || duplicates.includes(r.id)));

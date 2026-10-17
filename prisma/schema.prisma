@@ -4109,6 +4109,8 @@ model CrmDiscoveryCandidate {
   repairFit        CrmRepairFit?
   repairFitReasons String[]      @default([])
   repairFitAt      DateTime?
+  /// A Super Admin released this business from the independent-repair ICP exclusion (audited, with a note). The commercial ICP gate is skipped for it; every other rule still applies.
+  icpOverride      Boolean       @default(false)
   /// Set when another staged candidate (different source id, e.g. the same business re-keyed in a newer release) is the same business. The duplicate is kept as evidence but
   /// is outside the qualification pool and can be neither approved nor imported. It points at the ORIGINAL (chains are collapsed).
   duplicateOfCandidateId String?
@@ -4155,6 +4157,42 @@ model CrmDiscoveryCandidate {
   @@index([importedProspectId], map: "CrmDiscoveryCandidate_importedProspectId_all_idx")
   @@index([duplicateOfCandidateId])
   @@index([province, repairFit])
+  @@schema("garageos")
+}
+
+/// Minimal, auditable exclusion tombstone for a business that is definitively outside the independent-repair ICP (chain, franchise, corporate retailer, dealership, parts network).
+/// The staged candidate is NEVER deleted; this row additionally survives re-extraction, re-keying (a new source id for the same place) and new releases, so the business is
+/// excluded again at staging instead of being re-reviewed. Holds no phone, email or street address. `identityKey` is a hash of the exact place + name (never a name, brand or website alone).
+model CrmDiscoveryExclusion {
+  id              String   @id @default(cuid())
+  source          CrmDiscoverySource
+  /// Provider record id this tombstone was created for (one row per source id; a re-keyed id gets its own row linked by identityKey).
+  sourceRecordId  String
+  province        String?
+  name            String
+  city            String?
+  /// sha256(place fingerprint | normalized name); NULL when the record has no street address (then only the exact source id is remembered).
+  identityKey     String?
+  reasonCode      String
+  category        String?
+  brandId         String?
+  evidence        String[]  @default([])
+  registryVersion Int
+  /// ACTIVE = excluded; RELEASED = a Super Admin overrode it (releasedBy/At/Note); kept as history.
+  status          String    @default("ACTIVE")
+  firstExcludedAt DateTime  @default(now())
+  lastSeenAt      DateTime  @default(now())
+  lastSeenRelease String?
+  seenCount       Int       @default(1)
+  releasedByUserId String?
+  releasedAt      DateTime?
+  releaseNote     String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([source, sourceRecordId])
+  @@index([identityKey])
+  @@index([province, status])
   @@schema("garageos")
 }
 

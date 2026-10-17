@@ -491,7 +491,7 @@ if (!enabled) {
     const admin = (await access.resolvePlatformSalesActor(users.Root))!;
     const ab = (name: string, n: number, o: Record<string, unknown> = {}) => rec(name, "OTT", { address: { freeform: `${700 + n} ICP Ave`, locality: "Edmonton", postcode: "T5J 2Z2", region: "AB", country: "CA" }, phones: [`+1780555${String(8100 + n)}`], geo: { lat: 53.5 + n * 0.001, lng: -113.5 }, ...o });
     const chain = ab("Fountain Tire Edmonton ICP", 1, { websites: ["https://www.fountaintire.com/store/icp1"] });
-    const franchisee = ab("R.R. Station Service ICP Inc.", 2, { websites: ["https://www.napaautopro.com/stations/icp2"] });
+    const franchisee = ab("R.R. Station Service ICP Inc.", 2, { websites: ["https://www.napaautopro.com/en/auto-repair/alberta/edmonton/icp2"] });
     const supplier = ab("Joe's ICP Garage (NAPA parts available)", 3);
     const diesel = ab("Prairie ICP Diesel & Truck Repair", 4, { taxonomy: { primary: "truck_repair", hierarchy: ["travel_and_transportation", "vehicle_service", "automotive_service", "truck_repair"], alternates: null } });
     const recs = [chain, franchisee, supplier, diesel];
@@ -535,7 +535,12 @@ if (!enabled) {
     assert.ok(prev.icp.newlyExcluded >= 2); assert.ok((prev.icp.newlyExcludedByBrand.FOUNTAIN_TIRE ?? 0) >= 1 && (prev.icp.newlyExcludedByBrand.NAPA ?? 0) >= 1);
     assert.ok(prev.icp.protectedDecisions.examined >= 1 && prev.icp.protectedDecisions.approvedNowBlockedAtImport >= 1 && prev.icp.protectedDecisions.reviewStateTouched === 0);
     assert.equal((await db.crmDiscoveryCandidate.findUniqueOrThrow({ where: { id: cf.id } })).repairFit, "VERIFIED_REPAIR", "preview writes nothing");
+    await db.crmDiscoveryExclusion.deleteMany({ where: { sourceRecordId: chain.id } }); // simulate a candidate staged before tombstones existed
+    assert.ok(prev.icp.tombstonesToWrite >= 2);
     await rematchCandidates(admin, { province: "AB", apply: true });
+    const tombAfter = await db.crmDiscoveryExclusion.findFirstOrThrow({ where: { sourceRecordId: chain.id } });
+    assert.deepEqual([tombAfter.status, tombAfter.brandId, tombAfter.seenCount], ["ACTIVE", "FOUNTAIN_TIRE", 1], "Apply records the missing tombstone");
+    assert.ok((await db.crmDiscoveryCandidate.findUniqueOrThrow({ where: { id: cc.id } })).repairFitReasons.includes("ICP_TOMBSTONE"), "and marks the stored verdict as durable");
     const cfAfter = await db.crmDiscoveryCandidate.findUniqueOrThrow({ where: { id: cf.id } });
     assert.deepEqual([cfAfter.repairFit, cfAfter.reviewState, cfAfter.reviewNote], ["EXCLUDED", "APPROVED", "approved by a person"], "fit corrected; the person's decision is kept (and the import gate still refuses it)");
   });
@@ -545,7 +550,7 @@ if (!enabled) {
     const { rematchCandidates, REMATCH_PAGE } = await import("../src/lib/lead-radar/rematch");
     const prev = await import("../src/domain/lead-radar/icp-preview");
     const admin = (await access.resolvePlatformSalesActor(users.Root))!;
-    // 1,100 more Alberta candidates (3 batches in total): clones of an existing row, so every column is realistic. A fifth carry a stale VERIFIED verdict on a franchisor-site-only business.
+    // 1,100 more Alberta candidates (3 batches in total): clones of an existing row, so every column is realistic. A fifth carry a stale VERIFIED verdict on a franchisor-site-only business (now a review, not an exclusion).
     const tpl = await db.crmDiscoveryCandidate.findFirstOrThrow({ where: { province: "AB", importState: "NOT_IMPORTED", duplicateOfCandidateId: null } });
     const { id: _id, ...rest } = tpl as any; void _id;
     const mk = (i: number) => ({ ...rest, sourceRecordId: `pa-${run}-${i}`, name: i % 5 === 0 ? `Pa Station ${i}` : `Pa Garage ${i}`, nameNormalized: `pa garage ${i}`, website: i % 5 === 0 ? `https://www.napaautopro.com/stations/pa${i}` : `https://pa-${run}-${i}.example.ca`,
@@ -572,14 +577,13 @@ if (!enabled) {
     const single = await rematchCandidates(admin, { province: "AB", apply: false });
     assert.equal(single.nextCursor, null);
     assert.deepEqual([acc.examined, acc.changed, acc.transitions], [single.examined, single.changed, single.transitions]);
-    assert.deepEqual([acc.icp.newlyExcluded, acc.icp.newlyExcludedDomainOnly, acc.icp.verifiedAfter, acc.icp.excludedAfter, acc.icp.remainingHumanReview], [single.icp.newlyExcluded, single.icp.newlyExcludedDomainOnly, single.icp.verifiedAfter, single.icp.excludedAfter, single.icp.remainingHumanReview]);
+    assert.deepEqual([acc.icp.newlyExcluded, acc.icp.newlyDomainOnlyReview, acc.icp.verifiedAfter, acc.icp.excludedAfter, acc.icp.remainingHumanReview], [single.icp.newlyExcluded, single.icp.newlyDomainOnlyReview, single.icp.verifiedAfter, single.icp.excludedAfter, single.icp.remainingHumanReview]);
     // The franchisor-site-only exclusions are listed with business, domain, brand and reason; approved candidates are reported as protected decisions and never changed.
-    assert.ok(acc.icp.newlyExcludedDomainOnly >= 220, "every fifth clone");
-    assert.equal(acc.detail.domainOnly.length, acc.icp.newlyExcludedDomainOnly);
-    assert.deepEqual([acc.detail.domainOnly[0].domain, acc.detail.domainOnly[0].brand, acc.detail.domainOnly[0].reason], ["napaautopro.com", "NAPA", "ICP_EVIDENCE_DOMAIN_ONLY"]);
-    assert.ok(acc.detail.review.some((x) => x.kind === "QUESTIONABLE_EXCLUSION" && x.flags.includes("DOMAIN_ONLY")));
-    assert.ok(acc.icp.protectedDecisions.examined >= 20 && acc.icp.protectedDecisions.reviewStateTouched === 0);
-    assert.equal(prev.recommendApply(acc).verdict, "NO_GO", "a fifth of the exclusions rest on the domain alone");
+    assert.ok(acc.icp.newlyDomainOnlyReview >= 220, "every fifth clone is routed to review on a franchisor site alone");
+    assert.equal(acc.detail.domainOnly.length, acc.icp.newlyDomainOnlyReview);
+    assert.deepEqual([acc.detail.domainOnly[0].domain, acc.detail.domainOnly[0].brand, acc.detail.domainOnly[0].reason], ["napaautopro.com", "NAPA", "ICP_DOMAIN_ONLY_REVIEW"]);
+        assert.ok(acc.icp.protectedDecisions.examined >= 20 && acc.icp.protectedDecisions.reviewStateTouched === 0);
+    assert.equal(prev.recommendApply(acc).verdict, "NO_GO", "a fifth of the candidates would be sent to review on a franchisor site alone");
     const csv = prev.toCsv(acc.detail.domainOnly, prev.DOMAIN_ONLY_CSV_COLUMNS);
     assert.ok(csv.split("\r\n").length > acc.detail.domainOnly.length);
     // Resumable: restarting from a mid-way cursor yields the remaining batches only.
@@ -591,5 +595,97 @@ if (!enabled) {
     if (seller) await assert.rejects(rematchCandidates(seller, { province: "AB", apply: false, detail: true }), /SALES_FORBIDDEN/);
     await assert.rejects(rematchCandidates(admin, { province: "AB", apply: true, detail: true }), /INVALID/);
     assert.equal(await snap(), before);
+  });
+
+  test("ICP tombstones: an exclusion survives re-extraction, a registry change and re-keying; a different independent business is never suppressed; a Super Admin release is audited and inherited; CRM records and review decisions are untouched", async () => {
+    as(users.Root);
+    const reg = await import("../src/domain/lead-radar/icp-registry");
+    const brands = reg.ICP_BRANDS as unknown as { id: string }[];
+    brands.push({ id: "ZEBRA_WHEEL", category: "FRANCHISE_SERVICE_CHAIN", aliases: ["zebra wheel works"] } as never);
+    const abAt = (name: string, n: number, street: string, o: Record<string, unknown> = {}) => rec(name, "OTT", { address: { freeform: street, locality: "Calgary", postcode: "T2P 1J9", region: "AB", country: "CA" }, phones: [`+1403555${8200 + n}`], geo: { lat: 51.04 + n * 0.001, lng: -114.06 }, websites: [`https://tomb-${run}-${n}.example.ca`], ...o });
+    const z1 = abAt("Zebra Wheel Works Calgary Centre", 1, "101 Tomb Ave SW");
+    const mgr = await db.user.create({ data: { name: "Tomb Manager", email: `tomb-mgr-${run}@garage-os.ca`, role: "VIEWER", shopId: null } });
+    await db.platformSalesStaff.create({ data: { userId: mgr.id, role: "SALES_MANAGER", status: "ACTIVE", displayName: "Tomb Manager", timezone: "America/Toronto", salesMode: "REMOTE", leadLanguages: [], uiLocale: "EN" } });
+    // an existing, owned CRM record with the very same name: must never be touched by any of this
+    const owner = await db.platformSalesStaff.findFirstOrThrow({ where: { displayName: "C2 Owner" } });
+    const crm = await db.crmProspect.create({ data: { name: "Zebra Wheel Works Calgary Centre", nameNormalized: "zebra wheel works calgary centre", city: "Calgary", province: "AB", assignedStaffId: owner.id, doNotContact: true, territoryState: "NATIONAL", territoryKey: "canada", createdByUserId: users.Root } });
+    const crmSnap = async () => JSON.stringify([await db.crmProspect.findUnique({ where: { id: crm.id } }), await db.crmProspect.count({ where: { name: { contains: "Zebra Wheel" } } })]);
+    const crmBefore = await crmSnap();
+    try {
+      assert.equal((await extract([z1], ["AB"], "2026-12-10.0")).done.ok, true);
+      const c1 = await cand(z1.id);
+      assert.equal(c1.repairFit, "EXCLUDED"); assert.ok(c1.repairFitReasons.includes("ICP_TOMBSTONE") && c1.repairFitReasons.includes("ICP_BRAND_ZEBRA_WHEEL"));
+      const t1 = await db.crmDiscoveryExclusion.findUniqueOrThrow({ where: { source_sourceRecordId: { source: "OVERTURE", sourceRecordId: z1.id } } });
+      assert.deepEqual([t1.status, t1.seenCount, t1.brandId, t1.category, t1.province, !!t1.identityKey], ["ACTIVE", 1, "ZEBRA_WHEEL", "FRANCHISE_SERVICE_CHAIN", "AB", true]);
+      // a person's earlier decision on the staged record is preserved by everything below
+      await db.crmDiscoveryCandidate.update({ where: { id: c1.id }, data: { reviewState: "REJECTED", reviewNote: "decided by a person", reviewedByUserId: users.Root, reviewedAt: new Date() } });
+
+      // The registry no longer lists the brand (or never knew this variant): the tombstone alone keeps it excluded across a new release, and across a re-keyed id.
+      brands.pop();
+      const rekeyed = { ...z1, id: z1.id.replace(/.$/, "z") };
+      const sameAddressOtherBusiness = abAt("Foothills Tire Service", 2, "101 Tomb Ave SW");
+      const sameNameOtherPlace = abAt("Zebra Wheel Works Calgary Centre", 3, "88 Elsewhere Rd NW", { websites: [z1.websites[0]] }); // even sharing the SAME website
+      const sameNameOtherProvince = rec("Zebra Wheel Works Calgary Centre", "TOR", { phones: ["+14165558211"], websites: [z1.websites[0]] });
+      assert.equal((await extract([z1, rekeyed, sameAddressOtherBusiness, sameNameOtherPlace], ["AB"], "2026-12-17.0")).done.ok, true);
+      assert.equal((await extract([sameNameOtherProvince], ["ON"], "2026-12-17.0")).done.ok, true);
+      const again = await cand(z1.id);
+      assert.deepEqual([again.repairFit, again.reviewState, again.reviewNote], ["EXCLUDED", "REJECTED", "decided by a person"], "still excluded without the registry; the person's decision is kept; the row was not deleted");
+      const t2 = await db.crmDiscoveryExclusion.findUniqueOrThrow({ where: { id: t1.id } });
+      assert.equal(t2.seenCount, 2); assert.equal(t2.lastSeenRelease, "2026-12-17.0"); assert.equal(t2.firstExcludedAt.getTime(), t1.firstExcludedAt.getTime());
+      const rk = await cand(rekeyed.id);
+      assert.equal(rk.repairFit, "EXCLUDED"); assert.ok(rk.repairFitReasons.includes("ICP_TOMBSTONE_REKEYED"), "the same exact place+name under a new id is recognised");
+      assert.equal(await db.crmDiscoveryExclusion.count({ where: { sourceRecordId: rekeyed.id, status: "ACTIVE" } }), 1, "the re-keyed id gets its own tombstone");
+      // false-positive prevention: a different business is NOT suppressed by sharing the address, the name, the website domain or the name in another province
+      for (const r of [sameAddressOtherBusiness, sameNameOtherPlace, sameNameOtherProvince]) {
+        const c = await cand(r.id);
+        assert.ok(!c.repairFitReasons.includes("OUTSIDE_ICP_CHAIN_OR_CORPORATE"), `${r.name} @ ${(r.address as any).freeform}`);
+        assert.equal(await db.crmDiscoveryExclusion.count({ where: { sourceRecordId: r.id } }), 0);
+      }
+      assert.equal((await cand(sameNameOtherProvince.id)).repairFit, "VERIFIED_REPAIR");
+
+      // Super Admin release: a seller cannot; the note is mandatory; history stays; the decision is inherited by a later re-keyed record.
+      as(users.Seller);
+      await assert.rejects(radar.releaseDiscoveryExclusion({ candidateId: again.id, note: "this is an independent shop" }), /SALES_FORBIDDEN/);
+      as(users.Root);
+      assert.equal(((await radar.releaseDiscoveryExclusion({ candidateId: again.id, note: "short" })) as any).ok, false);
+      const rel: any = await radar.releaseDiscoveryExclusion({ candidateId: again.id, note: "Verified by phone: independent owner-operated shop" });
+      assert.equal(rel.ok, true, JSON.stringify(rel));
+      const released = await cand(z1.id);
+      assert.equal(released.icpOverride, true); assert.notEqual(released.repairFit, "EXCLUDED"); assert.equal(released.reviewNote, "decided by a person");
+      const t3 = await db.crmDiscoveryExclusion.findUniqueOrThrow({ where: { id: t1.id } });
+      assert.deepEqual([t3.status, t3.releasedByUserId, !!t3.releasedAt, t3.releaseNote], ["RELEASED", users.Root, true, "Verified by phone: independent owner-operated shop"]);
+      assert.ok((await db.crmAuditEvent.count({ where: { action: "LEAD_RADAR_EXCLUSION_RELEASED" as any, entityId: again.id } })) >= 1);
+      const rekeyed2 = { ...z1, id: z1.id.replace(/.$/, "y") };
+      assert.equal((await extract([z1, rekeyed2], ["AB"], "2026-12-24.0")).done.ok, true);
+      const r2 = await cand(rekeyed2.id), r1 = await cand(z1.id);
+      assert.ok(!r1.repairFitReasons.includes("OUTSIDE_ICP_CHAIN_OR_CORPORATE") && !r2.repairFitReasons.includes("OUTSIDE_ICP_CHAIN_OR_CORPORATE"), "the release survives a refresh and is inherited by the re-keyed record");
+      assert.equal((await db.crmDiscoveryExclusion.findUniqueOrThrow({ where: { id: t1.id } })).status, "RELEASED", "a refresh never silently re-activates a released tombstone");
+      assert.equal(await crmSnap(), crmBefore, "the existing CRM record (owner, DNC) and the CRM population are untouched");
+    } finally { const i = brands.findIndex((b) => b.id === "ZEBRA_WHEEL"); if (i >= 0) brands.splice(i, 1); }
+  });
+
+  test("seller visibility: ICP-excluded businesses are invisible in the shared pool and the candidate list for everyone except a Super Admin; an owned record stays visible to its owner", async () => {
+    const access = await import("../src/lib/sales-crm/access");
+    const { assignedScopeWhere } = await import("../src/domain/sales-crm/access");
+    const { listCandidates, candidateFilterSchema } = await import("../src/lib/lead-radar/candidates");
+    const root = (await access.resolvePlatformSalesActor(users.Root))!;
+    const mgrUser = await db.user.findFirstOrThrow({ where: { email: `tomb-mgr-${run}@garage-os.ca` } });
+    const mgr = (await access.resolvePlatformSalesActor(mgrUser.id))!;
+    assert.ok(mgr && !mgr.all);
+    const mgrStaff = await db.platformSalesStaff.findFirstOrThrow({ where: { userId: mgrUser.id } });
+    const mk = (name: string, o: Record<string, unknown>) => db.crmProspect.create({ data: { name: `Vis ${name} ${run}`, nameNormalized: `vis ${name.toLowerCase()} ${run}`, city: "Calgary", province: "AB", territoryState: "NATIONAL", territoryKey: "canada", createdByUserId: users.Root, ...o } });
+    await mk("Chain", { repairFit: "EXCLUDED", repairFitSource: "AUTO", repairFitReasons: ["OUTSIDE_ICP_CHAIN_OR_CORPORATE"] });
+    await mk("Independent", { repairFit: "VERIFIED_REPAIR", repairFitSource: "AUTO" });
+    await mk("Unlabelled", {});
+    await mk("OwnedExcluded", { repairFit: "EXCLUDED", repairFitSource: "HUMAN", repairFitByUserId: users.Root, repairFitAt: new Date(), assignedStaffId: mgrStaff.id });
+    const names = async (actor: typeof root) => (await db.crmProspect.findMany({ where: { AND: [assignedScopeWhere(actor), { name: { endsWith: ` ${run}` } }, { name: { startsWith: "Vis " } }] }, select: { name: true } })).map((p) => p.name.replace(` ${run}`, "").replace("Vis ", "")).sort();
+    assert.deepEqual(await names(mgr), ["Independent", "OwnedExcluded", "Unlabelled"], "the shared pool hides the chain; the owner keeps their own record");
+    assert.deepEqual(await names(root), ["Chain", "Independent", "OwnedExcluded", "Unlabelled"], "Super Admin keeps full audit visibility");
+    // Lead Radar candidate list
+    const f = (o: Record<string, string>) => candidateFilterSchema.parse({ q: "Fountain Tire Edmonton ICP", ...o });
+    assert.equal((await listCandidates(root, f({}))).total, 0, "hidden by default");
+    assert.ok((await listCandidates(root, f({ icp: "all" }))).total >= 1, "Super Admin audit view");
+    assert.ok((await listCandidates(root, f({ fit: "EXCLUDED" }))).total >= 1, "the EXCLUDED fit filter is an audit view too");
+    assert.equal((await listCandidates(mgr, f({ icp: "all", fit: "EXCLUDED" }))).total, 0, "never shown to a non-Super-Admin, whatever the URL says");
   });
 }

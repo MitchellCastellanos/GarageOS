@@ -26,11 +26,55 @@ test("explicit corporate/chain brands are EXCLUDED with the distinct ICP reason"
   assert.ok(fit("Fountain Tire").reasons.includes("ICP_TIRE_NETWORK"));
 });
 
-test("branded location with its own name is excluded through the franchisor website host", () => {
-  const r = fit("R.R. Station Service Inc.", { website: "https://www.napaautopro.com/stations/rr" });
-  assert.equal(r.fit, "EXCLUDED");
-  assert.ok(r.reasons.includes("ICP_BRAND_NAPA"));
-  assert.equal(fit("Peace Valley Tire", { website: "http://oktire.ca/store/123" }).fit, "EXCLUDED");
+test("a franchisor website ALONE never excludes: it goes to HUMAN_REVIEW unless something independent confirms the affiliation", () => {
+  // bare franchisor home page, no brand in the name: a person decides
+  for (const [name, website, brand] of [["R.R. Station Service Inc.", "https://www.napaautopro.com/", "NAPA"], ["Tiger Tire & Auto Ltd", "http://integratire.com", "INTEGRA_TIRE"], ["Fairmount Auto", "https://fountaintire.com/en", "FOUNTAIN_TIRE"]] as const) {
+    const r = fit(name, { website });
+    assert.equal(r.fit, "HUMAN_REVIEW", name);
+    assert.ok(r.reasons.includes("ICP_DOMAIN_ONLY_REVIEW") && r.reasons.includes(`ICP_BRAND_${brand}`) && !r.reasons.includes("OUTSIDE_ICP_CHAIN_OR_CORPORATE"), name);
+  }
+  // the franchisor's own page for ONE location confirms it
+  for (const website of ["https://www.napaautopro.com/en/auto-repair/alberta/edmonton-village-auto-tire-service/", "http://oktire.ca/store/123", "https://www.midas.com/calgary/store.aspx?shopnum=9304"]) {
+    const r = fit("Peace Valley Tire", { website });
+    assert.equal(r.fit, "EXCLUDED", website);
+    assert.ok(r.reasons.includes("ICP_CONFIRMED_BY_LOCATOR_PAGE"), website);
+  }
+  // the source's own brand link confirms it too
+  const linked = assessRepairFit({ name: "Peace Valley Tire", taxonomyPrimary: REPAIR, classReasons: ["BRAND_LINKED"], website: "https://www.kaltire.com/" });
+  assert.equal(linked.fit, "EXCLUDED"); assert.ok(linked.reasons.includes("ICP_CONFIRMED_BY_SOURCE_BRAND_LINK"));
+  // a brand in the NAME is still sufficient on its own
+  assert.equal(fit("Kal Tire").fit, "EXCLUDED");
+  // an OEM home page on a repair-named listing is a hint; a dealer's own sub-domain is confirmation
+  assert.equal(fit("Kia Auto Repair Specialists", { website: "http://www.kia.ca" }).fit === "EXCLUDED", false);
+  assert.equal(fit("Kingsway Auto Centre", { website: "http://www.kingsway.toyota.ca" }).fit, "EXCLUDED");
+});
+
+test("a human release (icpOverride) skips the commercial gate only; every other rule still applies", () => {
+  assert.equal(assessRepairFit({ name: "Midas", taxonomyPrimary: REPAIR, icpOverride: true }).fit, "VERIFIED_REPAIR");
+  assert.equal(assessRepairFit({ name: "Sparkle Car Wash", taxonomyPrimary: "car_wash", icpOverride: true }).fit, "EXCLUDED", "non-repair rules are unaffected by the release");
+});
+
+test("a stored tombstone keeps a business excluded even if the registry no longer lists the brand", () => {
+  const stored = ["OUTSIDE_ICP_CHAIN_OR_CORPORATE", "ICP_TIRE_NETWORK", "ICP_BRAND_REMOVED_BRAND", "ICP_TOMBSTONE", "ICP_REGISTRY_V1"];
+  const r = assessRepairFit({ name: "Roadside Tire Centre", taxonomyPrimary: REPAIR, storedReasons: stored });
+  assert.equal(r.fit, "EXCLUDED"); assert.deepEqual(r.reasons, stored);
+  assert.equal(assessRepairFit({ name: "Roadside Tire Centre", taxonomyPrimary: REPAIR, storedReasons: stored, icpOverride: true }).fit, "VERIFIED_REPAIR", "released by a Super Admin");
+  assert.equal(assessRepairFit({ name: "Roadside Tire Centre", taxonomyPrimary: REPAIR, storedReasons: ["REPAIR_CATEGORY"] }).fit, "VERIFIED_REPAIR", "no tombstone marker, no durable exclusion");
+});
+
+test("brand/domain associations are exact: every registry domain resolves to its own brand, no domain belongs to two brands (esso.ca is Esso, not Petro-Canada)", () => {
+  const seen = new Map<string, string>();
+  for (const b of ICP_BRANDS) for (const d of b.domains ?? []) {
+    assert.ok(!seen.has(d), `${d} is listed under ${seen.get(d)} and ${b.id}`); seen.set(d, b.id);
+    const r = assessIcp({ name: "Some Local Garage", website: `https://${d}/` });
+    assert.equal(r.brandId, b.id, `${d} resolves to ${r.brandId}, expected ${b.id}`);
+  }
+  assert.equal(assessIcp({ name: "Whatever", website: "https://www.esso.ca/en" }).brandId, "ESSO");
+  assert.equal(assessIcp({ name: "Whatever", website: "https://www.petro-canada.ca/en" }).brandId, "PETRO_CANADA");
+  assert.equal(assessIcp({ name: "Whatever", website: "https://www.shell.ca/" }).brandId, "SHELL");
+  assert.equal(assessIcp({ name: "Whatever", website: "https://www.speedyglass.ca/en" }).brandId, "SPEEDY_GLASS");
+  assert.equal(assessIcp({ name: "Speedy Glass Calgary" }).brandId, "SPEEDY_GLASS");
+  assert.equal(assessIcp({ name: "Esso Valley Mechanical", city: "Edmonton" }).outside, false);
 });
 
 test("independent shops that merely mention a supplier, certification or affiliation stay eligible", () => {
@@ -93,7 +137,7 @@ test("registry integrity: unique ids, normalised aliases, and every franchisor d
   const ids = new Set<string>();
   for (const b of ICP_BRANDS) {
     assert.ok(!ids.has(b.id), b.id); ids.add(b.id);
-    assert.ok(b.aliases.length > 0, b.id);
+    assert.ok(b.aliases.length + (b.weakAliases?.length ?? 0) > 0, b.id);
     for (const a of [...b.aliases, ...(b.weakAliases ?? [])]) assert.equal(a, a.toLowerCase(), `${b.id}:${a}`);
     for (const d of b.domains ?? []) assert.equal(d, d.toLowerCase());
   }
