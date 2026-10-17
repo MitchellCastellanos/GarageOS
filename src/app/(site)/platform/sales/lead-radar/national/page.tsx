@@ -13,6 +13,8 @@ import { LADDER } from "@/domain/lead-radar/contact-readiness";
 import { RematchAllPanel } from "@/components/lead-radar/RematchAllPanel";
 import { ImportScopePanel } from "@/components/lead-radar/ImportScopePanel";
 import { ProvinceControls } from "@/components/lead-radar/ProvinceControls";
+import { RolloutControls } from "@/components/lead-radar/RolloutControls";
+import { rolloutStatus } from "@/lib/lead-radar/rollout";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +34,8 @@ export default async function NationalReadinessPage({ searchParams }: { searchPa
   const pf = pfProvince ? await c3Preflight(pfProvince) : null;
   const selected = pfProvince ?? "AB";
   const c3 = k.c3;
-  const [d, settings, funnel] = await Promise.all([nationalReadiness(), readSettings(), emailReadinessFunnel()]);
+  const [d, settings, funnel, ro] = await Promise.all([nationalReadiness(), readSettings(), emailReadinessFunnel(), rolloutStatus()]);
+  const rk = k.rollout;
   const live = isLive(settings);
   const at = (x: Date | null) => (x ? formatDate(x, locale) : k.k.never);
   return (
@@ -50,6 +53,18 @@ export default async function NationalReadinessPage({ searchParams }: { searchPa
           <div key={label} className="min-w-0 rounded-xl border border-slate-200 bg-white p-3"><dt className="text-xs text-slate-500">{label}</dt><dd className="text-xl font-semibold text-slate-900">{num(v, locale)}</dd></div>
         ))}
       </dl>
+      <section className={`${cardCls} space-y-3`} aria-labelledby="nat-rollout">
+        <h2 id="nat-rollout" className="font-semibold text-slate-900">{rk.title} · {rk.state[ro.state]}</h2>
+        <p className="text-xs text-slate-600">{rk.help}</p>
+        {ro.halt && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800"><p className="font-semibold">{rk.haltTitle}: {fill(rk.haltAt, { province: ro.halt.province ?? "—", code: rk.codes[ro.halt.code as keyof typeof rk.codes] ?? ro.halt.code })}</p><p className="text-xs">{rk.haltHelp}</p></div>}
+        <p className="text-xs text-slate-500">{rk.started}: {at(ro.startedAt)} · {rk.finished}: {at(ro.finishedAt)}</p>
+        <div className="overflow-x-auto"><table className="w-full min-w-[640px] text-left text-xs">
+          <thead className="text-slate-500"><tr>{Object.values(rk.cols).map((c) => <th key={c} className="pr-3 py-1">{c}</th>)}</tr></thead>
+          <tbody>{ro.provinces.map((p) => <tr key={p.province} className="border-t border-slate-100"><td className="py-1 pr-3 font-medium">{p.province}</td><td className="pr-3">{p.stage}{p.activeRun ? " …" : ""}</td><td className="pr-3 tabular-nums">{num(p.staged, locale)}</td><td className="pr-3 tabular-nums">{num(p.verified, locale)}</td><td className="pr-3 tabular-nums">{num(p.prospects, locale)}</td><td className="pr-3 tabular-nums">{num(p.assigned, locale)}</td><td className="pr-3 tabular-nums">{num(p.failed, locale)}</td><td className="pr-3 tabular-nums">{num(p.deferred, locale)}</td><td>{p.inImportScope ? rk.yes : rk.no}</td></tr>)}</tbody></table></div>
+        <p className="text-xs text-slate-500">{rk.onNote}</p>
+        <p className="text-sm"><strong>{rk.totals}:</strong> {rk.cols.staged} {num(ro.totals.staged, locale)} · {rk.cols.verified} {num(ro.totals.verified, locale)} · {rk.cols.prospects} {num(ro.totals.prospects, locale)} · {rk.cols.assigned} {num(ro.totals.assigned, locale)} · {rk.cols.failed} {num(ro.totals.failed, locale)}</p>
+        <RolloutControls locale={locale} state={ro.state} />
+      </section>
       <ImportScopePanel locale={locale} initial={d.automation.importProvinces} />
       <RematchAllPanel locale={locale} />
       <section className={`${cardCls} space-y-3`} aria-labelledby="nat-c3">

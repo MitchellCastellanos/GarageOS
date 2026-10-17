@@ -19,6 +19,7 @@ import { saveSettings } from "@/lib/lead-radar/settings";
 import { setProvinceSchedule } from "@/lib/lead-radar/province-state";
 import { queueWorkerRun } from "@/lib/lead-radar/worker";
 import { rematchCandidates } from "@/lib/lead-radar/rematch";
+import { activateNationalRollout, pauseNationalRollout, resumeNationalRollout } from "@/lib/lead-radar/rollout";
 import { releaseIcpExclusion } from "@/lib/lead-radar/exclusions";
 import { reviewDiscoveredContact } from "@/lib/sales-comms/contact-readiness";
 
@@ -177,4 +178,18 @@ export async function previewProvinceCandidatesBatch(input: { province: string; 
 export async function rematchProvinceCandidates(input: { province: string; apply: boolean; cursor?: string | null }) {
   const actor = await requireLeadRadar("admin");
   return crmAction(async () => { const r = await rematchCandidates(actor, { province: String(input?.province ?? ""), apply: input?.apply === true, cursor: input?.cursor ?? null }); touch(); return { result: r }; });
+}
+
+/** One-time national rollout controls (Super Admin). Activation is the single authorisation; Pause/Resume are always available. Nothing here imports, assigns or sends by itself: the automation tick does, under the rollout's safety checks. */
+export async function activateNationalRolloutAction() {
+  const actor = await requireLeadRadar("admin");
+  return crmAction(async () => { await activateNationalRollout(actor); touch(); return {}; });
+}
+export async function pauseNationalRolloutAction() {
+  const actor = await requireLeadRadar("admin");
+  return crmAction(async () => { await pauseNationalRollout(actor); touch(); return {}; });
+}
+export async function resumeNationalRolloutAction() {
+  const actor = await requireLeadRadar("admin");
+  return crmAction(async () => { await resumeNationalRollout(actor); touch(); return {}; });
 }

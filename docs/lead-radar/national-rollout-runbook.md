@@ -39,3 +39,22 @@ Proven end to end: worker extraction → run quality gate → staging with ICP/t
 
 ## 5. Volume expectations (estimates — measure on Ontario)
 Candidates ≈ 15–19 k (ON), 6–7 k (BC), 1.5–2.5 k each (MB, SK), 1–2 k each (NS, NB), < 1 k each (NL, PE, territories). Alberta's ratio (≈ 45 % verified, ≈ 99 % of verified importable) gives roughly **8 k ON + 3 k BC + 3–4 k others ≈ 15 k prospects** assigned to one rep. Throughput is bounded by the cron (every 15 min, weekdays) and the per-cycle budget; the first Ontario cycle tells the real rate — if import drains slower than ~1,000/day, raise the chunk to 200 and press *Run one cycle now* more often. One rep owning ≈ 15 k leads is an operating decision for the owner, not an engine limit (no cap is set).
+
+## 6. One-time automatic rollout (replaces the province-by-province loop)
+
+National page → **National rollout (one time)** card. One activation, then it runs by itself and stops by itself.
+
+**Preconditions (checked at activation; it refuses otherwise):** live discovery ON, an active qualification policy, pilot OFF, company-wide email sending OFF, import scope non-empty (it keeps its current provinces, e.g. AB + ON), and mcastellanos@garage-os.ca is an active Sales Rep that accepts auto-assignment (never the Super Admin login).
+
+**Activation (the only owner step):** click **Start the national rollout**. It sets master + Qualify + Import + Assign ON; eligibility, Release and Pilot OFF; the assignment allow-list to that one seller. It does not touch the import scope.
+
+**What the existing automation cycle (every 15 min, weekdays 11–23 UTC) then does:**
+1. Safety checks first (see below). Any failure halts everything (master OFF) and shows the province and reason on the card.
+2. Queues ONE province at a time for the GitHub worker (order BC, MB, SK, NS, NB, NL, PE, YT, NT, NU; the worker picks it up on its 2-hourly schedule). AB, QC and ON are never queued. Nothing is queued while a rollout province is extracting.
+3. When a province's run passes the extraction quality gate and the staged data passes the ICP/duplicate/coordinate checks, that province is added to the import scope, the next province is queued, and the existing qualification (policy AUTO_ELIGIBLE only) and importer take the clearly eligible candidates in bounded batches. Uncertain candidates stay in review and never block the rollout.
+4. Imported REMOTE prospects of the rollout provinces (and ON) are assigned only to the one seller. FIELD-lane prospects, AB, QC and non-Lead-Radar prospects are never assigned by the rollout.
+5. When every province is done, the rollout switches the automation master OFF and shows the final totals.
+
+**Halts (never skipped silently):** extraction failed/cancelled or blocked by the quality gate; extraction staged nothing; fewer than 80 % of candidates have coordinates; more than 50 % duplicates; ICP anomaly (≥100 staged and no verified shop, or >95 % excluded); import failures; any automation assignment to another seller, in FIELD mode or outside the allowed provinces; pilot or sending turned ON; allow-list not exactly the one seller; no active policy.
+
+**After a halt:** fix the cause (acknowledge a run's quality with a written reason, or re-queue the province from its card), then **Resume**. Resume only clears the halt and turns the automation back on; every check re-runs, so an unfixed cause halts again. **Pause** switches the automation master OFF at once; extraction already running only stages candidates.
