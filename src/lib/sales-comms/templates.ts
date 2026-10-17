@@ -17,7 +17,18 @@ export async function resolveTemplate(key: TemplateKey, language: TemplateLangua
   return { key, language, version: 0, subject: b.subject, body: b.body, category: categoryOfTemplate(key), source: "builtin" };
 }
 
+/**
+ * Stand-in contact names the CRM stores when only an address is known (a discovered business e-mail accepted by a reviewer). They are not a person's name: a greeting must
+ * never read "Hi Business," / "Bonjour General,". Matching is on the WHOLE normalised name, so a real person called "General" is unaffected by "General contact".
+ */
+const PLACEHOLDER_CONTACT_NAMES = new Set([
+  "business contact", "general contact", "contact", "info", "information", "sales", "service", "support", "office", "reception", "admin", "team", "staff", "owner",
+  "contact general", "contact général", "contact d'affaires", "contact commercial", "bureau", "equipe", "équipe", "proprietaire", "propriétaire", "garage",
+]);
+export const isPlaceholderContactName = (full: string | null | undefined): boolean => PLACEHOLDER_CONTACT_NAMES.has((full ?? "").trim().toLowerCase().replace(/\s+/g, " "));
+
 export function firstNameOf(full: string | null | undefined): string | null {
+  if (isPlaceholderContactName(full)) return null;
   const t = full?.trim().split(/\s+/)[0];
   return t || null;
 }

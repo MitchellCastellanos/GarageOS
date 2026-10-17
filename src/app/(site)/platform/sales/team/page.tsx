@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { listStaff } from "@/lib/sales-crm/queries";
+import { listPlatformPeople } from "@/lib/sales-crm/person";
+import { PersonLinksPanel } from "@/components/sales-crm/PersonLinksPanel";
 import { loadCrmPage } from "@/lib/sales-crm/page";
 import { can } from "@/domain/sales-crm/access";
 import { PLATFORM } from "@/lib/routes";
@@ -9,6 +11,7 @@ export default async function TeamPage() {
   const { actor, t, locale } = await loadCrmPage("view_team_reporting");
   if (!actor) return <PermissionDenied t={t} />;
   const staff = await listStaff(actor);
+  const people = actor.all ? await listPlatformPeople() : null;
   const m = t.team;
   const manage = can(actor, "manage_team");
   const tone = (s: string) => (s === "ACTIVE" ? "bg-emerald-100 text-emerald-800" : s === "INVITED" ? "bg-amber-100 text-amber-800" : "bg-slate-200 text-slate-700");
@@ -40,6 +43,7 @@ export default async function TeamPage() {
           </li>
         ))}</ul>
       </>)}
+      {people && <PersonLinksPanel locale={locale} rows={people} />}
     </div>
   );
 }

@@ -97,7 +97,7 @@ if (!enabled) {
     assert.equal(evaluateSendingBasis(await db.crmSendingBasis.findMany({ where: { contactId: c2.id } }), new Date()).valid, false);
   });
 
-  test("new address-based bases still require structured evidence AND approval, even next to a valid legacy row; new non-address kinds are explicit NOT_REQUIRED", async () => {
+  test("new address-based bases still require structured evidence AND approval, even next to a valid legacy row; every other kind a person records now needs structured evidence and review too (no free-text consent)", async () => {
     as(users.FieldA);
     const own: any = await prospects.createProspect(fd({ name: `NewBasis ${run}`, city: "Laval", province: "QC", address: "9 rue N", postalCode: "H7A 9N9" }));
     const contact: any = await prospects.addContact(own.prospectId, fd({ name: "Nia", email: `nia-${run}@new.test`, isPrimary: "on" }));
@@ -110,8 +110,15 @@ if (!enabled) {
     const stored = await db.crmSendingBasis.findUniqueOrThrow({ where: { id: rec.basisId } });
     assert.equal(stored.reviewStatus, "PENDING_REVIEW");
     assert.equal(evaluateSendingBasis(await db.crmSendingBasis.findMany({ where: { contactId: contact.contactId } }), new Date()).valid, false, "the new pending row (newest) shadows the legacy one: no shortcut around approval");
-    const express: any = await inbox.recordSendingBasis(fd({ contactId: contact.contactId, kind: "EXPRESS_CONSENT", evidence: "Nia wrote to ask for our emails" }));
-    assert.equal((await db.crmSendingBasis.findUniqueOrThrow({ where: { id: express.basisId } })).reviewStatus, "NOT_REQUIRED");
+    // The bypass is closed: a one-line free-text "express consent" / "exempt" / "existing relationship" is refused; with structured evidence it is stored PENDING_REVIEW and authorises nothing.
+    for (const kind of ["EXPRESS_CONSENT", "EXEMPT", "IMPLIED_EXISTING_RELATIONSHIP"]) {
+      const bareFree: any = await inbox.recordSendingBasis(fd({ contactId: contact.contactId, kind, evidence: "Nia wrote to ask for our emails" }));
+      assert.deepEqual([bareFree.ok, bareFree.error], [false, "EVIDENCE_INCOMPLETE"], `${kind}: free text alone cannot create a basis`);
+    }
+    const express: any = await inbox.recordSendingBasis(fd({ contactId: contact.contactId, kind: "EXPRESS_CONSENT", evidence: "Nia wrote to ask for our emails", evidenceType: "EMAIL_THREAD", capturedAt: new Date().toISOString().slice(0, 10), supportingFacts: "Thread dated today in which Nia asks to receive our emails." }));
+    assert.equal(express.pendingReview, true);
+    assert.equal((await db.crmSendingBasis.findUniqueOrThrow({ where: { id: express.basisId } })).reviewStatus, "PENDING_REVIEW");
+    assert.equal(evaluateSendingBasis(await db.crmSendingBasis.findMany({ where: { contactId: contact.contactId } }), new Date()).valid, false, "pending consent authorises nothing");
   });
 
   test("legacy reclassification procedure: Super Admin only, preview with real policy impact, token-bound idempotent execute, audited, revertible, never touches other kinds' behaviour", async () => {
@@ -386,7 +393,7 @@ if (!enabled) {
     assert.ok(dnc.rows.some((r) => r.id === ids.Optout) && dnc.rows.every((r) => r.doNotContact));
   });
 
-  test("CASL evidence: structured, approval-gated, scoped; rep cannot approve; other team cannot; own evidence cannot be self-approved (manager); Super Admin can; one decision only; nothing is sent or enrolled", async () => {
+  test("CASL evidence: structured, approval-gated, scoped; rep cannot approve; other team cannot; own evidence cannot be self-approved (manager); an independent Super Admin can; one decision only; nothing is sent or enrolled", async () => {
     as(users.FieldA);
     const created: any = await prospects.createProspect(fd({ name: `Evidence Garage ${run}`, city: "Laval", province: "QC", address: "3 rue E", postalCode: "H7A 3E3" }));
     assert.equal(created.ok, true, JSON.stringify(created));
@@ -428,10 +435,13 @@ if (!enabled) {
     assert.deepEqual(await caslActions.rejectSendingBasis(third.basisId, "x"), { ok: false, error: "NOTE_REQUIRED" });
     assert.equal(((await caslActions.rejectSendingBasis(third.basisId, "Directory is not conspicuous publication")) as any).ok, true);
     assert.deepEqual(evaluateSendingBasis(await rows(), new Date()), { valid: false, reason: "REJECTED_EVIDENCE" });
-    // express consent (no review needed) keeps working as before and stays NOT_REQUIRED
+    // express consent now follows the same rule: structured evidence, PENDING_REVIEW, valid only once an independent person approved it
     as(users.FieldA);
-    const express: any = await inbox.recordSendingBasis(fd({ contactId: contact.contactId, kind: "EXPRESS_CONSENT", evidence: "Pat asked in writing to receive our emails" }));
-    assert.equal(express.ok, true); assert.equal(express.pendingReview, false);
+    const express: any = await inbox.recordSendingBasis(fd({ contactId: contact.contactId, kind: "EXPRESS_CONSENT", evidence: "Pat asked in writing to receive our emails", evidenceType: "EMAIL_THREAD", capturedAt: "2026-10-04", supportingFacts: "Written request from Pat in the thread dated 4 Oct 2026." }));
+    assert.equal(express.ok, true); assert.equal(express.pendingReview, true);
+    assert.equal(evaluateSendingBasis(await rows(), new Date()).valid, false);
+    as(users.MgrA);
+    assert.equal(((await caslActions.approveSendingBasis(express.basisId)) as any).ok, true);
     assert.equal(evaluateSendingBasis(await rows(), new Date()).valid, true);
     // audit history, and nothing was sent or enrolled by any of this
     const hist = await db.crmAuditEvent.findMany({ where: { entityType: "CrmSendingBasis", entityId: { in: [rec.basisId, own.basisId, third.basisId] } }, select: { action: true } });

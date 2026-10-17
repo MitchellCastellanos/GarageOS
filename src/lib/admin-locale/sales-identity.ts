@@ -37,6 +37,10 @@ const en = {
     key: "Stable key", language: "Language", titleField: "Title", description: "Description", url: "Video URL (https)", thumb: "Thumbnail URL (optional, https)", status: "Status", statuses: { DRAFT: "Draft", PUBLISHED: "Published" } as Record<string, string>,
     website: "Website", outreach: "Outreach", save: "Save video", saved: "Video saved.", publish: "Published", empty: "No videos yet. The video email templates stay blocked until one is published for the right language.", add: "Add or update a video",
   },
+  people: {
+    title: "Same-person links", help: "If one human holds more than one platform account (for example a Super Admin login and a Sales Rep login), give those accounts the SAME key. CASL evidence recorded by one of them can then never be approved by the other. Accounts that share a verified recovery mailbox are linked automatically.",
+    key: "Person key", keyHelp: "Lowercase letters, digits, dot, dash or underscore (3–64). Leave empty to remove the link.", save: "Save", saved: "Saved.", account: "Account", role: "Role", superAdmin: "Super Admin", none: "—",
+  },
   tester: {
     title: "Internal test recipient", help: "Prepares a clearly labelled TEST prospect for an address you control (SALES_TEST_RECIPIENTS or your own login), with a documented sending basis. Then write to it from the normal composer — signature, footer, unsubscribe and queue are the real ones. Nothing is sent from here.",
     to: "Test recipient email", prepare: "Prepare test recipient", ready: "Test recipient ready.", open: "Open the test prospect",
@@ -82,6 +86,10 @@ const fr: Dict = {
     title: "Vidéos", help: "Vidéos réutilisables pour le site et les courriels. Utilisez les clés « commercial » (60 s) et « teaser » (15 s), une ligne par langue; l’URL est le lien CDN du fichier MP4. Seules les vidéos PUBLIÉES sont affichées ou envoyées. Les courriels renvoient à la page vidéo de GarageOS (lien suivi et à durée limitée), jamais directement au MP4.",
     key: "Clé stable", language: "Langue", titleField: "Titre", description: "Description", url: "URL de la vidéo (https)", thumb: "URL de la vignette (facultatif, https)", status: "Statut", statuses: { DRAFT: "Brouillon", PUBLISHED: "Publiée" },
     website: "Site web", outreach: "Prospection", save: "Enregistrer la vidéo", saved: "Vidéo enregistrée.", publish: "Publiée", empty: "Aucune vidéo. Les modèles de courriel avec vidéo restent bloqués jusqu’à la publication d’une vidéo dans la bonne langue.", add: "Ajouter ou mettre à jour une vidéo",
+  },
+  people: {
+    title: "Liens « même personne »", help: "Si une même personne détient plusieurs comptes de la plateforme (par exemple un compte Super Admin et un compte Représentant), donnez à ces comptes la MÊME clé. Une preuve LCAP consignée par l’un ne pourra alors jamais être approuvée par l’autre. Les comptes qui partagent une adresse de récupération vérifiée sont liés automatiquement.",
+    key: "Clé de personne", keyHelp: "Lettres minuscules, chiffres, point, tiret ou soulignement (3–64). Laissez vide pour retirer le lien.", save: "Enregistrer", saved: "Enregistré.", account: "Compte", role: "Rôle", superAdmin: "Super Admin", none: "—",
   },
   tester: {
     title: "Destinataire de test interne", help: "Prépare un prospect TEST clairement identifié pour une adresse que vous contrôlez (SALES_TEST_RECIPIENTS ou votre propre identifiant), avec une base d’envoi documentée. Écrivez-lui ensuite depuis le compositeur habituel — signature, pied de page, désabonnement et file sont les vrais. Rien n’est envoyé d’ici.",

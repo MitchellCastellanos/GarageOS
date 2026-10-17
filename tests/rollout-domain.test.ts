@@ -70,9 +70,10 @@ test("safety: pilot, sending, an empty import scope, a wrong allow-list/seller a
   for (const v of [{ outOfScope: 1 }, { otherSeller: 1 }, { fieldMode: 1 }]) assert.equal(code({ violations: { ...okSafety.violations, ...v } }), "ASSIGNMENT_SAFETY");
 });
 
-test("wiring: the tick forces eligibility, release and pilot OFF during the rollout and scopes assignment to REMOTE rollout provinces; no outreach import exists in the rollout module", () => {
+test("wiring: the tick forces release and pilot OFF during the rollout, lets read-only eligibility follow its own switch (contact-bearing prospects only), and and scopes assignment to REMOTE rollout provinces; no outreach import exists in the rollout module", () => {
   const auto = readFileSync("src/lib/lead-radar/automation.ts", "utf8");
-  assert.match(auto, /stage\("eligibility", a\.eligibilityEnabled && !a\.rolloutEnabled/);
+  // Eligibility is read-only advice: it follows its OWN switch (activation still sets it OFF; nothing here turns it on) and, during the rollout, only assesses prospects with an emailable contact.
+  assert.match(auto, /stage\("eligibility", a\.eligibilityEnabled, \(deadline\) => refreshEligibility\(\{ deadline, requireContact: a\.rolloutEnabled \}\)\)/);
   assert.match(auto, /stage\("release", a\.releaseUnavailable && !a\.rolloutEnabled/);
   assert.match(auto, /stage\("pilot", a\.pilotEnabled && !a\.rolloutEnabled/);
   assert.match(auto, /a\.rolloutEnabled \? \{ provinces: ROLLOUT_ASSIGN_PROVINCES, remoteOnly: true \} : null/);

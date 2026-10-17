@@ -2,7 +2,7 @@ import "server-only";
 import { Prisma } from "@prisma/client";
 import { LEAD_RADAR_SOURCE_KEY } from "@/domain/lead-radar/bridge";
 import { evaluateOutreachEligibility, type OutreachContactFacts, type OutreachDecisionResult } from "@/domain/lead-radar/outreach";
-import { evaluateSendingBasis } from "@/domain/sales-comms/casl";
+import { evaluateAutomationBasis } from "@/domain/sales-comms/casl";
 import { emailDomain } from "@/domain/sales-comms/email";
 import { evaluateColdEmail, requiredMode, resolveTerritory } from "@/domain/sales-crm/territory";
 import { db } from "@/lib/db";
@@ -52,7 +52,7 @@ export async function assessProspects(ids: readonly string[], now = new Date()):
     const pc = contacts.filter((c) => c.prospectId === p.id);
     const cf: OutreachContactFacts[] = pc.map((c) => ({
       id: c.id, email: c.emailNormalized, doNotContact: c.doNotContact || (!!c.emailNormalized && dnc.has(c.emailNormalized)), archived: false, isPrimary: c.isPrimary,
-      language: c.preferredLanguage ?? "UNKNOWN", basis: evaluateSendingBasis(bases.filter((b) => b.contactId === c.id), now), suppression: c.emailNormalized ? supp.get(c.emailNormalized) ?? null : null,
+      language: c.preferredLanguage ?? "UNKNOWN", basis: evaluateAutomationBasis(bases.filter((b) => b.contactId === c.id), now), suppression: c.emailNormalized ? supp.get(c.emailNormalized) ?? null : null,
     }));
     const po = opps.filter((o) => o.prospectId === p.id);
     const hasOpen = po.some((o) => OPEN.has(o.stage));
@@ -88,7 +88,7 @@ export interface EligibilityTally { assessed: number; eligible: number; notEligi
  * Assesses Lead Radar prospects that have no assessment yet (first), then the stalest ones. Bounded per tick; the queue is the table itself, so an interrupted
  * run resumes by construction.
  */
-export async function refreshEligibility(opts: { deadline: number; now?: Date }): Promise<EligibilityTally> {
+export async function refreshEligibility(opts: { deadline: number; now?: Date; requireContact?: boolean }): Promise<EligibilityTally> {
   const tally: EligibilityTally = { assessed: 0, eligible: 0, notEligible: 0, pages: 0 };
   const now = opts.now ?? new Date();
   const staleBefore = new Date(now.getTime() - ELIGIBILITY_STALE_MS);
@@ -96,7 +96,8 @@ export async function refreshEligibility(opts: { deadline: number; now?: Date })
     const batch = await db.$queryRaw<{ id: string }[]>(Prisma.sql`
       SELECT p."id" FROM "garageos"."CrmProspect" p JOIN "garageos"."CrmImportBatch" b ON b."id" = p."importBatchId"
       LEFT JOIN "garageos"."CrmOutreachEligibility" e ON e."prospectId" = p."id"
-      WHERE b."sourceKey" = ${LEAD_RADAR_SOURCE_KEY} AND p."status" = 'ACTIVE' AND (
+      WHERE b."sourceKey" = ${LEAD_RADAR_SOURCE_KEY} AND p."status" = 'ACTIVE'
+        ${opts.requireContact ? Prisma.sql`AND EXISTS (SELECT 1 FROM "garageos"."CrmContact" k WHERE k."prospectId" = p."id" AND k."archivedAt" IS NULL AND k."emailNormalized" IS NOT NULL)` : Prisma.empty} AND (
         e."id" IS NULL OR e."evaluatedAt" < ${staleBefore}
         -- new evidence since the last assessment (a contact added/changed, a CASL basis recorded or reviewed) is picked up on the next tick, not 6 hours later
         OR EXISTS (SELECT 1 FROM "garageos"."CrmContact" c WHERE c."prospectId" = p."id" AND c."updatedAt" > e."evaluatedAt")

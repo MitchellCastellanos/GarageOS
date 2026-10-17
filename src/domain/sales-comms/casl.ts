@@ -14,7 +14,7 @@ export interface BasisRow {
 
 export type BasisEvaluation =
   | { valid: true; kind: CrmSendingBasisKind; expiresAt: Date | null }
-  | { valid: false; reason: "NONE" | "EXPIRED" | "REVOKED" | "WEAK_EVIDENCE" | "PENDING_REVIEW" | "REJECTED_EVIDENCE" | "UNREVIEWED" };
+  | { valid: false; reason: "NONE" | "EXPIRED" | "REVOKED" | "WEAK_EVIDENCE" | "PENDING_REVIEW" | "REJECTED_EVIDENCE" | "UNREVIEWED" | "KIND_NOT_ALLOWED" };
 
 /** Published/disclosed-address bases only authorise a send once a second person approved their structured evidence. */
 const NEEDS_APPROVAL: readonly CrmSendingBasisKind[] = ["IMPLIED_PUBLISHED_ADDRESS", "IMPLIED_DISCLOSED_ADDRESS"];
@@ -36,6 +36,31 @@ export function evaluateSendingBasis(rows: BasisRow[], now: Date): BasisEvaluati
   if (newest.reviewStatus === "PENDING_REVIEW") return { valid: false, reason: "PENDING_REVIEW" };
   if (NEEDS_APPROVAL.includes(newest.kind) && newest.reviewStatus !== "APPROVED" && newest.reviewStatus !== null) return { valid: false, reason: "UNREVIEWED" };
   return { valid: true, kind: newest.kind, expiresAt: newest.expiresAt };
+}
+
+/**
+ * Basis kinds an AUTOMATED (sequence) send may rely on. Anything else — in particular EXEMPT, and a bare existing-relationship claim — may still back a person's
+ * own one-to-one message after review, but never a system-originated one. Product control pending counsel; one place to change it.
+ */
+export const AUTOMATION_BASIS_KINDS: readonly CrmSendingBasisKind[] = ["IMPLIED_PUBLISHED_ADDRESS", "IMPLIED_DISCLOSED_ADDRESS", "EXPRESS_CONSENT"];
+
+/**
+ * Stricter reading used for every system-originated send (sequence enrollment, scheduled steps, eligibility): the NEWEST row must be of an allowed kind and
+ * explicitly APPROVED by an independent reviewer. Legacy rows (reviewStatus null), NOT_REQUIRED and LEGACY_UNREVIEWED rows keep working for a person's manual
+ * email exactly as before (history is never rewritten) but can never authorise automation. Fails closed.
+ */
+export function evaluateAutomationBasis(rows: BasisRow[], now: Date): BasisEvaluation {
+  const base = evaluateSendingBasis(rows, now);
+  if (!base.valid) return base;
+  const newest = [...rows].sort((a, b) => b.recordedAt.getTime() - a.recordedAt.getTime())[0];
+  if (!AUTOMATION_BASIS_KINDS.includes(newest.kind)) return { valid: false, reason: "KIND_NOT_ALLOWED" };
+  if (newest.reviewStatus !== "APPROVED") return { valid: false, reason: "UNREVIEWED" };
+  return base;
+}
+
+/** The reading that applies to a message origin: AUTOMATED ⇒ strict; MANUAL / TRANSACTIONAL ⇒ the long-standing rule. */
+export function evaluateBasisForOrigin(origin: "MANUAL" | "AUTOMATED" | "TRANSACTIONAL", rows: BasisRow[], now: Date): BasisEvaluation {
+  return origin === "AUTOMATED" ? evaluateAutomationBasis(rows, now) : evaluateSendingBasis(rows, now);
 }
 
 /** Suggested lapse dates. Existing-relationship implied consent lapses; a recorded inquiry is shorter-lived. */

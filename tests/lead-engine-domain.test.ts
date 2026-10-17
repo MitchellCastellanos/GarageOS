@@ -227,17 +227,25 @@ test("CASL evidence: completeness rules per basis kind", () => {
   assert.deepEqual(evidenceGaps({ ...complete, sourceUrl: null, publishedConditionsConfirmed: false }).sort(), ["PUBLISHED_CONDITIONS", "SOURCE_URL"]);
   assert.deepEqual(evidenceGaps({ ...complete, kind: "IMPLIED_DISCLOSED_ADDRESS", sourceUrl: null, publishedConditionsConfirmed: false }), [], "disclosed address needs no URL");
   assert.deepEqual(evidenceGaps({ ...complete, evidenceType: null, capturedAt: null, supportingFacts: "short", roleRelevance: "" }).sort(), ["CAPTURED_AT", "EVIDENCE_TYPE", "ROLE_RELEVANCE", "SUPPORTING_FACTS"]);
-  assert.equal(requiresApproval("IMPLIED_PUBLISHED_ADDRESS"), true); assert.equal(requiresApproval("EXPRESS_CONSENT"), false);
+  for (const k of ["IMPLIED_PUBLISHED_ADDRESS", "IMPLIED_DISCLOSED_ADDRESS", "EXPRESS_CONSENT", "IMPLIED_EXISTING_RELATIONSHIP", "EXEMPT"]) assert.equal(requiresApproval(k), true, `${k}: every basis a person records needs structured evidence and independent review`);
+  assert.deepEqual(evidenceGaps({ ...complete, kind: "EXPRESS_CONSENT", sourceUrl: null, publishedConditionsConfirmed: false, roleRelevance: null }), [], "role relevance is an address-kind condition only");
+  assert.deepEqual(evidenceGaps({ ...complete, kind: "EXEMPT", evidenceType: null, capturedAt: null, supportingFacts: "x" }).sort(), ["CAPTURED_AT", "EVIDENCE_TYPE", "SUPPORTING_FACTS"], "EXEMPT is no longer a free-text one-liner");
 });
 
-test("CASL approval authority: manager only inside their team, Super Admin globally, reps never, nobody (but Super Admin) approves their own", () => {
+test("CASL approval authority: manager only inside their team, Super Admin globally, reps never, nobody approves their own or another account of the same person", () => {
   assert.deepEqual(canApproveEvidence(actorOf("SALES_REP", "u1", ["s1"]), basis(), "s1"), { allowed: false, code: "NOT_AUTHORIZED" });
   assert.deepEqual(canApproveEvidence(actorOf("SALES_MANAGER", "mgr", ["m", "s1"]), basis(), "s1"), { allowed: true, selfApproved: false });
   assert.deepEqual(canApproveEvidence(actorOf("SALES_MANAGER", "mgr", ["m", "s1"]), basis(), "other-team"), { allowed: false, code: "OUT_OF_TEAM" });
   assert.deepEqual(canApproveEvidence(actorOf("SALES_MANAGER", "mgr", ["m", "s1"]), basis(), null), { allowed: false, code: "OUT_OF_TEAM" }, "unassigned pool is Super Admin only");
   assert.deepEqual(canApproveEvidence(actorOf("SALES_MANAGER", "rep-user", ["m", "s1"]), basis(), "s1"), { allowed: false, code: "SELF_APPROVAL" });
   assert.deepEqual(canApproveEvidence(actorOf("SUPER_ADMIN", "root"), basis(), "anyone"), { allowed: true, selfApproved: false });
-  assert.deepEqual(canApproveEvidence(actorOf("SUPER_ADMIN", "rep-user"), basis(), null), { allowed: true, selfApproved: true });
+  assert.deepEqual(canApproveEvidence(actorOf("SUPER_ADMIN", "rep-user"), basis(), null), { allowed: false, code: "SELF_APPROVAL" }, "the Super Admin exception is closed: review is independent for everyone");
+  // Another account of the SAME person (explicit link or shared verified recovery mailbox) is a self-review too, for managers and Super Admin alike.
+  const same = { recorderIsSamePerson: true };
+  assert.deepEqual(canApproveEvidence(actorOf("SUPER_ADMIN", "root"), basis(), "s1", same), { allowed: false, code: "SELF_APPROVAL" });
+  assert.deepEqual(canApproveEvidence(actorOf("SALES_MANAGER", "mgr", ["m", "s1"]), basis(), "s1", same), { allowed: false, code: "SELF_APPROVAL" });
+  assert.deepEqual(canApproveEvidence(actorOf("SUPER_ADMIN", "root"), basis(), "s1", { recorderIsSamePerson: false }), { allowed: true, selfApproved: false });
+  assert.equal(canRejectEvidence(actorOf("SUPER_ADMIN", "root"), basis(), "s1", same).allowed, false, "rejecting your own other account's evidence is no more independent");
   assert.deepEqual(canApproveEvidence(actorOf("SUPER_ADMIN", "root"), basis({ reviewStatus: "APPROVED" }), "s1"), { allowed: false, code: "NOT_PENDING" });
   assert.deepEqual(canApproveEvidence(actorOf("SUPER_ADMIN", "root"), basis({ supportingFacts: null }), "s1"), { allowed: false, code: "EVIDENCE_INCOMPLETE" });
 });

@@ -59,5 +59,5 @@ export function checkEmailShape(raw: string | null | undefined): EmailShape {
   return { normalized, syntaxValid: true, roleBased: ROLE_LOCALS.has(local.replace(/[._-]/g, "")), freeMailbox: FREE_MAIL.has(domain) };
 }
 
-export const BASIS_REASONS = ["NO_SENDING_BASIS", "BASIS_EXPIRED", "BASIS_REVOKED", "BASIS_WEAK_EVIDENCE", "BASIS_PENDING_REVIEW", "BASIS_REJECTED", "BASIS_UNREVIEWED"] as const;
+export const BASIS_REASONS = ["NO_SENDING_BASIS", "BASIS_EXPIRED", "BASIS_REVOKED", "BASIS_WEAK_EVIDENCE", "BASIS_PENDING_REVIEW", "BASIS_REJECTED", "BASIS_UNREVIEWED", "BASIS_KIND_NOT_ALLOWED"] as const;
 export const SUPPRESSION_REASONS = ["PROSPECT_DNC", "CONTACT_DNC", "ADDRESS_SUPPRESSED", "ADDRESS_BOUNCED"] as const;

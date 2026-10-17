@@ -1,8 +1,8 @@
 // CASL evidence & approval rules — pure (no DB). Product controls, not legal advice (see docs/compliance/casl-matrix.md).
 //   · An imported email, a CSV row or a FIELD visit never creates a sending basis by itself.
-//   · Published/disclosed-address bases (the ones Lead Engine data tends to rely on) need STRUCTURED evidence and a second
-//     person's approval before they can authorise a send.
-//   · Approval authority: Sales Manager within their team, Super Admin globally. Nobody but a Super Admin approves their own.
+//   · Every basis a person records needs STRUCTURED evidence and an INDEPENDENT person's approval before it can authorise a send
+//     (independent = a different human, not merely a different account). Older rows keep their stored status.
+//   · Approval authority: Sales Manager within their team, Super Admin globally. Nobody approves evidence they (or another account of theirs) recorded.
 import { z } from "zod";
 import { cleanText, neutralizeFormula } from "@/domain/sales-crm/csv";
 import type { PlatformSalesActor } from "@/domain/sales-crm/access";
@@ -12,8 +12,19 @@ export const BASIS_KINDS = ["EXPRESS_CONSENT", "IMPLIED_EXISTING_RELATIONSHIP", 
 export const EVIDENCE_TYPES = ["WEBSITE_PUBLICATION", "DIRECTORY_LISTING", "BUSINESS_CARD", "EMAIL_THREAD", "FORM_SUBMISSION", "IN_PERSON_CONVERSATION", "OTHER"] as const;
 export type BasisKind = (typeof BASIS_KINDS)[number];
 
-/** Kinds whose evidence a second person must approve before they can authorise a send. */
-export const APPROVAL_REQUIRED_KINDS: readonly BasisKind[] = ["IMPLIED_PUBLISHED_ADDRESS", "IMPLIED_DISCLOSED_ADDRESS"];
+/**
+ * Kinds whose evidence an INDEPENDENT person must approve before they can authorise a send. Every kind a person can record now needs structured evidence and
+ * review: an unreviewed free-text "express consent" / "exempt" claim is exactly the path that would let consent be asserted without any check.
+ * Rows recorded before this rule keep their stored status (history is preserved); only NEW rows are affected. Product control pending counsel.
+ */
+export const APPROVAL_REQUIRED_KINDS: readonly BasisKind[] = ["EXPRESS_CONSENT", "IMPLIED_EXISTING_RELATIONSHIP", "IMPLIED_PUBLISHED_ADDRESS", "IMPLIED_DISCLOSED_ADDRESS", "EXEMPT"];
+/** Address-based kinds additionally need the role-relevance statement (the CASL "relevant to the recipient's role" condition). */
+const ADDRESS_KINDS: readonly string[] = ["IMPLIED_PUBLISHED_ADDRESS", "IMPLIED_DISCLOSED_ADDRESS"];
+/**
+ * Solo-operator exception: when true a Super Admin may approve evidence they recorded themselves (audited as selfApproved). OFF: review must be independent for everyone,
+ * including a Super Admin, and "independent" means a different PERSON (see personKey), not merely a different account.
+ */
+export const ALLOW_SUPER_ADMIN_SELF_REVIEW = false;
 export const requiresApproval = (kind: string): boolean => (APPROVAL_REQUIRED_KINDS as readonly string[]).includes(kind);
 
 const text = (min: number, max: number) => z.string().transform((v) => neutralizeFormula(cleanText(v))).pipe(z.string().min(min).max(max));
@@ -53,7 +64,7 @@ export function evidenceGaps(e: EvidenceFacts): EvidenceGap[] {
   if (!e.evidenceType) gaps.push("EVIDENCE_TYPE");
   if (!e.capturedAt) gaps.push("CAPTURED_AT");
   if ((e.supportingFacts ?? "").length < 20) gaps.push("SUPPORTING_FACTS");
-  if ((e.roleRelevance ?? "").length < 10) gaps.push("ROLE_RELEVANCE");
+  if (ADDRESS_KINDS.includes(e.kind) && (e.roleRelevance ?? "").length < 10) gaps.push("ROLE_RELEVANCE");
   if (e.kind === "IMPLIED_PUBLISHED_ADDRESS") {
     if (!e.sourceUrl) gaps.push("SOURCE_URL");
     if (!e.publishedConditionsConfirmed) gaps.push("PUBLISHED_CONDITIONS");
@@ -71,25 +82,26 @@ type ReviewTarget = { reviewStatus: string | null; recordedByUserId: string };
  * CURRENT owner (null = unassigned pool, Super Admin only), and no self-review except by a Super Admin.
  * Deliberately knows nothing about the evidence content: rejection must not depend on completeness.
  */
-export function reviewAuthority(actor: ReviewActor, basis: ReviewTarget, prospectOwnerStaffId: string | null): { allowed: true; selfReviewed: boolean } | { allowed: false; code: ReviewDenial } {
+export function reviewAuthority(actor: ReviewActor, basis: ReviewTarget, prospectOwnerStaffId: string | null, ctx: { recorderIsSamePerson?: boolean } = {}): { allowed: true; selfReviewed: boolean } | { allowed: false; code: ReviewDenial } {
   if (!can(actor as PlatformSalesActor, "approve_casl_evidence")) return { allowed: false, code: "NOT_AUTHORIZED" };
   if (basis.reviewStatus !== "PENDING_REVIEW") return { allowed: false, code: "NOT_PENDING" };
   if (!actor.all && (!prospectOwnerStaffId || !actor.scopeStaffIds.includes(prospectOwnerStaffId))) return { allowed: false, code: "OUT_OF_TEAM" };
-  const own = basis.recordedByUserId === actor.userId;
-  if (own && !actor.all) return { allowed: false, code: "SELF_APPROVAL" };
+  // Same account OR another account of the same human (personKey / shared verified recovery mailbox) is a self-review.
+  const own = basis.recordedByUserId === actor.userId || ctx.recorderIsSamePerson === true;
+  if (own && !(actor.all && ALLOW_SUPER_ADMIN_SELF_REVIEW)) return { allowed: false, code: "SELF_APPROVAL" };
   return { allowed: true, selfReviewed: own };
 }
 
 /** Approval = review authority AND complete evidence. */
-export function canApproveEvidence(actor: ReviewActor, basis: ReviewTarget & EvidenceFacts, prospectOwnerStaffId: string | null): ReviewDecision {
-  const a = reviewAuthority(actor, basis, prospectOwnerStaffId);
+export function canApproveEvidence(actor: ReviewActor, basis: ReviewTarget & EvidenceFacts, prospectOwnerStaffId: string | null, ctx: { recorderIsSamePerson?: boolean } = {}): ReviewDecision {
+  const a = reviewAuthority(actor, basis, prospectOwnerStaffId, ctx);
   if (!a.allowed) return a;
   if (evidenceGaps(basis).length) return { allowed: false, code: "EVIDENCE_INCOMPLETE" };
   return { allowed: true, selfApproved: a.selfReviewed };
 }
 
 /** Rejection = review authority only (incomplete or even absent evidence can always be rejected by someone entitled to review it). */
-export function canRejectEvidence(actor: ReviewActor, basis: ReviewTarget, prospectOwnerStaffId: string | null): { allowed: true; selfRejected: boolean } | { allowed: false; code: ReviewDenial } {
-  const a = reviewAuthority(actor, basis, prospectOwnerStaffId);
+export function canRejectEvidence(actor: ReviewActor, basis: ReviewTarget, prospectOwnerStaffId: string | null, ctx: { recorderIsSamePerson?: boolean } = {}): { allowed: true; selfRejected: boolean } | { allowed: false; code: ReviewDenial } {
+  const a = reviewAuthority(actor, basis, prospectOwnerStaffId, ctx);
   return a.allowed ? { allowed: true, selfRejected: a.selfReviewed } : a;
 }
