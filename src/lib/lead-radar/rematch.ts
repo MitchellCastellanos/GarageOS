@@ -24,7 +24,7 @@ export const REMATCH_MAX_PAGES = 4;
 type RematchRow = { sourceRecordId: string; lastSeenRelease: string; icpOverride: boolean; id: string; name: string; taxonomyPrimary: string | null; classReasons: string[]; repairFit: "VERIFIED_REPAIR" | "HUMAN_REVIEW" | "EXCLUDED" | null; nameNormalized: string; city: string | null; website: string | null; phone: string | null; address: string | null; postalCode: string | null; province: string | null; matchState: "NEW" | "EXISTING_STRONG" | "AMBIGUOUS" | "BRANCH_OF_EXISTING"; matchProspectId: string | null; reviewState: "PENDING" | "APPROVED" | "REJECTED"; repairFitReasons: string[] };
 
 export type { RematchIcp };
-export interface RematchResult { applied: boolean; examined: number; changed: number; transitions: Record<string, number>; nextCursor: string | null; icp: RematchIcp; /** Only when `detail` was requested (read-only preview). */ poolSize?: number; detail?: PreviewDetail }
+export interface RematchResult { applied: boolean; examined: number; changed: number; transitions: Record<string, number>; nextCursor: string | null; icp: RematchIcp; /** Candidates in the province's re-check pool (progress denominator). */ poolSize?: number; /** APPLY only: rows really rewritten, rows skipped because they changed meanwhile (compare-and-set), tombstones created. */ written?: number; skipped?: number; tombstonesCreated?: number; detail?: PreviewDetail }
 
 /**
  * Re-evaluates, for STAGED NOT-YET-IMPORTED candidates, (a) the CRM match and (b) the stored repair-fit with the CURRENT rules (after the shared-identifier / classifier fixes),
@@ -39,7 +39,7 @@ export async function rematchCandidates(actor: PlatformSalesActor, opts: { provi
   if (opts.detail && opts.apply) throw new CrmError("INVALID"); // detail is a read-only preview feature
   const detail: PreviewDetail | null = opts.detail ? emptyDetail() : null;
   const icp: RematchIcp = emptyIcp(ICP_REGISTRY_VERSION);
-  const out: RematchResult = { applied: opts.apply, examined: 0, changed: 0, transitions: {}, nextCursor: null, icp };
+  const out: RematchResult = { applied: opts.apply, examined: 0, changed: 0, transitions: {}, nextCursor: null, icp, written: 0, skipped: 0, tombstonesCreated: 0 };
   let cursor: string | null = opts.cursor ?? null;
   const pages = Math.min(Math.max(opts.maxPages ?? REMATCH_MAX_PAGES, 1), REMATCH_MAX_PAGES);
   for (let page = 0; page < pages; page++) {
@@ -68,7 +68,7 @@ export async function rematchCandidates(actor: PlatformSalesActor, opts: { provi
       const wasTomb = r.repairFitReasons.includes(TOMBSTONE_REASON), wasReview = isIcpDomainReview(r.repairFitReasons), nowReview = isIcpDomainReview(fit.reasons);
       const icpOf = (a: readonly string[]) => a.filter((x) => x === "OUTSIDE_ICP_CHAIN_OR_CORPORATE" || x.startsWith("ICP_")).join();
       const icpReasonsMoved = icpOf(fit.reasons) !== icpOf(r.repairFitReasons);
-      if (nowIcp && !wasTomb) { icp.tombstonesToWrite++; if (opts.apply) toRecord.push({ sourceRecordId: r.sourceRecordId, province: opts.province, name: r.name, city: r.city, identityKey: exclusionIdentityKey(r), reasons: fit.reasons, release: r.lastSeenRelease }); }
+      if (nowIcp && !wasTomb) icp.tombstonesToWrite++;
       if (nowReview && !wasReview) icp.newlyDomainOnlyReview++;
       if (fit.fit === "VERIFIED_REPAIR") icp.verifiedAfter++; else if (fit.fit === "EXCLUDED") icp.excludedAfter++; else { icp.remainingHumanReview++; for (const x of new Set(fit.reasons)) icp.remainingReviewByReason[x] = (icp.remainingReviewByReason[x] ?? 0) + 1; }
       if (r.reviewState !== "PENDING") { icp.protectedDecisions.examined++; if (fit.fit !== r.repairFit) icp.protectedDecisions.fitWouldChange++; if (r.reviewState === "APPROVED" && fit.fit === "EXCLUDED" && nowIcp) icp.protectedDecisions.approvedNowBlockedAtImport++; }
@@ -121,14 +121,19 @@ export async function rematchCandidates(actor: PlatformSalesActor, opts: { provi
       if (matchMoved) { const key = `match:${r.matchState}->${next.matchState}`; out.transitions[key] = (out.transitions[key] ?? 0) + 1; }
       if (fitMoved) { const key = fit.fit === r.repairFit ? "fit:icp-reasons-only" : `fit:${r.repairFit ?? "NONE"}->${fit.fit}`; out.transitions[key] = (out.transitions[key] ?? 0) + 1; }
       if (opts.apply) {
-        await db.crmDiscoveryCandidate.updateMany({
+        const w = await db.crmDiscoveryCandidate.updateMany({
           // compare-and-set on the state we evaluated: a candidate imported or re-staged meanwhile is left alone
           where: { id: r.id, importState: "NOT_IMPORTED", matchState: r.matchState, matchProspectId: r.matchProspectId, repairFit: r.repairFit },
           data: { ...(matchMoved ? { ...next, matchedAt: now } : {}), ...(fitMoved ? { repairFit: fit.fit, repairFitReasons: fit.reasons as string[], repairFitAt: now } : {}), qualificationLane: null, qualificationPolicyVersion: null, qualifiedAt: null, qualificationReasons: [] },
         });
+        if (w.count === 1) {
+          out.written = (out.written ?? 0) + 1;
+          // the durable tombstone is recorded only for a row this call really rewrote (a row imported or re-staged meanwhile is left alone, and so is its exclusion bookkeeping)
+          if (nowIcp && !wasTomb) toRecord.push({ sourceRecordId: r.sourceRecordId, province: opts.province, name: r.name, city: r.city, identityKey: exclusionIdentityKey(r), reasons: fit.reasons, release: r.lastSeenRelease });
+        } else out.skipped = (out.skipped ?? 0) + 1;
       }
     }
-    if (opts.apply && toRecord.length) await recordExclusions(db, toRecord);
+    if (opts.apply && toRecord.length) out.tombstonesCreated = (out.tombstonesCreated ?? 0) + (await recordExclusions(db, toRecord, undefined, { refreshExisting: false })).created;
     if (detail && pendingMatch.length) {
       const ids = [...new Set(pendingMatch.flatMap((m) => [m.r.matchProspectId, m.toId]).filter((x): x is string => !!x))];
       const names = new Map((await db.crmProspect.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, city: true } })).map((p) => [p.id, `${p.name}${p.city ? ` (${p.city})` : ""}`]));
@@ -138,7 +143,9 @@ export async function rematchCandidates(actor: PlatformSalesActor, opts: { provi
     if (!cursor) break;
   }
   out.nextCursor = cursor;
-  if (detail) { out.detail = detail; out.poolSize = await db.crmDiscoveryCandidate.count({ where: { province: opts.province, importState: "NOT_IMPORTED", duplicateOfCandidateId: null } }); }
-  if (opts.apply && out.changed > 0) await writeCrmAudit({ actorUserId: actor.userId, action: "LEAD_RADAR_REMATCH", entityType: "CrmDiscoveryCandidate", metadata: { province: opts.province, examined: out.examined, changed: out.changed, transitions: out.transitions, icpNewlyExcluded: icp.newlyExcluded, icpTombstonesWritten: icp.tombstonesToWrite, icpRegistryVersion: icp.registryVersion } });
+  if (detail) out.detail = detail;
+  // progress denominator for the browser (cheap indexed count; the pool only changes by staging/import, never by this re-check)
+  out.poolSize = await db.crmDiscoveryCandidate.count({ where: { province: opts.province, importState: "NOT_IMPORTED", duplicateOfCandidateId: null } });
+  if (opts.apply && out.changed > 0) await writeCrmAudit({ actorUserId: actor.userId, action: "LEAD_RADAR_REMATCH", entityType: "CrmDiscoveryCandidate", metadata: { province: opts.province, examined: out.examined, changed: out.changed, written: out.written ?? 0, skipped: out.skipped ?? 0, tombstonesCreated: out.tombstonesCreated ?? 0, cursorFrom: opts.cursor ?? null, cursorTo: out.nextCursor, transitions: out.transitions, icpNewlyExcluded: icp.newlyExcluded, icpTombstonesWritten: icp.tombstonesToWrite, icpRegistryVersion: icp.registryVersion } });
   return out;
 }

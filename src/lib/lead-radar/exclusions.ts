@@ -35,11 +35,12 @@ const brandOf = (r: readonly string[]) => r.find((x) => x.startsWith("ICP_BRAND_
 const evidenceOf = (r: readonly string[]) => r.filter((x) => x.startsWith("ICP_CONFIRMED_") || x.startsWith("ICP_EVIDENCE_"));
 
 /** Records (or refreshes) the tombstones of ICP-excluded businesses. Never deletes, never un-releases a Super Admin release, never touches a candidate or a CRM record. */
-export async function recordExclusions(client: Client, items: readonly ExclusionInput[], index?: ExclusionIndex): Promise<{ created: number; refreshed: number }> {
+export async function recordExclusions(client: Client, items: readonly ExclusionInput[], index?: ExclusionIndex, opts: { refreshExisting?: boolean } = {}): Promise<{ created: number; refreshed: number }> {
   if (!items.length) return { created: 0, refreshed: 0 };
   const idx = index ?? (await loadExclusions(client, items));
   const fresh = items.filter((i) => !idx.byId.has(i.sourceRecordId));
-  const seen = items.filter((i) => idx.byId.get(i.sourceRecordId)?.status === "ACTIVE").map((i) => i.sourceRecordId);
+  // Re-seeing a record in an extraction refreshes its tombstone; a re-check (no extraction) must not inflate "seen" counts.
+  const seen = opts.refreshExisting === false ? [] : items.filter((i) => idx.byId.get(i.sourceRecordId)?.status === "ACTIVE").map((i) => i.sourceRecordId);
   const now = new Date();
   let created = 0;
   if (fresh.length) {

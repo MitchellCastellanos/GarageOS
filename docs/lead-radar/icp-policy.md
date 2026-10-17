@@ -62,3 +62,14 @@ Founder decision: businesses definitively outside the independent-repair ICP are
 * **CRM records.** No CRM prospect, contact, activity, ownership or DNC row is deleted or rewritten by the ICP, the tombstones or the re-check.
 
 Incidental fix: the Lead Radar candidate search used a NUL character as its "no phone digits" sentinel, which PostgreSQL rejects; a name-only search now simply skips the phone clause.
+
+
+## Applying the reclassification (bounded, resumable, idempotent)
+**Root cause of the "2000 examined / would change 0 / more candidates remain / Apply disabled" report** — a UI state defect, not a backend one. The old "Re-check" panel called the service with no cursor every time, so each Preview re-read the first 2,000 candidates; the service returned `nextCursor` but the panel ignored it, and Apply was enabled only when *that first slice* had changes. Once the first 2,000 were current (nothing left to change there) the panel could never reach the changes behind the cursor. The service's cursor, ordering (`id > cursor`) and compare-and-set were correct and are unchanged. The panel is removed.
+
+Now (National → Re-check CRM matches and repair fit):
+1. **Preview all (read-only)** walks the whole province (500 per request, cursor driven). Apply stays **locked, with the reason stated**, until a *complete* preview exists; "nothing to apply" is only ever said after a complete preview found nothing.
+2. **Apply reclassification (N changes)** becomes available when the complete preview found changes (a NO-GO recommendation additionally needs an explicit acknowledgement). It walks the same cursor, one 500-candidate batch per request, with a progress bar and exact counters (walked / rewritten / skipped because the row changed meanwhile / tombstones recorded). **Stop** keeps the cursor; **Resume apply** continues from it (also after a reload, within the tab). A replayed batch is ignored whole.
+3. It is **idempotent**: a batch that finds nothing to change writes nothing and is not audited; each row is a compare-and-set on the state that was evaluated; an existing tombstone is neither rewritten nor inflated. Tombstones are recorded only for rows the batch really rewrote.
+4. When the walk finishes, a **fresh read-only province-wide preview** runs automatically and states either "nothing left to change" or how many candidates still change (apply again to finish them).
+5. It never imports, assigns, deletes, or touches review decisions, prospects, ownership, DNC, activities or opportunities, and never re-extracts.

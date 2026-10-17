@@ -688,4 +688,78 @@ if (!enabled) {
     assert.ok((await listCandidates(root, f({ fit: "EXCLUDED" }))).total >= 1, "the EXCLUDED fit filter is an audit view too");
     assert.equal((await listCandidates(mgr, f({ icp: "all", fit: "EXCLUDED" }))).total, 0, "never shown to a non-Super-Admin, whatever the URL says");
   });
+
+  test("Apply in bounded, resumable batches (the reported production symptom): a first batch with no change is not 'nothing to apply'; the cursor walk previews and applies EVERY change, stops and resumes safely, is idempotent, and preserves tombstones, manual decisions and CRM records", async () => {
+    const access = await import("../src/lib/sales-crm/access");
+    const { rematchCandidates, REMATCH_PAGE } = await import("../src/lib/lead-radar/rematch");
+    const prev = await import("../src/domain/lead-radar/icp-preview");
+    const ap = await import("../src/domain/lead-radar/icp-apply");
+    const admin = (await access.resolvePlatformSalesActor(users.Root))!;
+    as(users.Root);
+    // 1,300 Saskatchewan candidates: the FIRST 1,000 are already current (nothing to change), the LAST 300 are stale chain listings still stored as VERIFIED — so the first two batches show
+    // "0 changes, more remain" exactly like production, and every change sits behind the cursor.
+    const tpl = await db.crmDiscoveryCandidate.findFirstOrThrow({ where: { importState: "NOT_IMPORTED", duplicateOfCandidateId: null } });
+    const { id: _id, createdAt: _c, updatedAt: _u, ...rest } = tpl as any; void _id; void _c; void _u;
+    const row = (i: number) => ({ ...rest, id: `zz-apply-${run}-${String(i).padStart(5, "0")}`, sourceRecordId: `ap-${run}-${i}`, province: "SK", city: "Regina", postalCode: "S4P 3Y2", name: i <= 1000 ? `Apply Garage ${i}` : `Kal Tire Apply ${i}`, nameNormalized: i <= 1000 ? `apply garage ${i}` : `kal tire apply ${i}`,
+      website: `https://ap-${run}-${i}.example.ca`, phone: null, address: `${i} Apply Rd`, repairFit: "VERIFIED_REPAIR", repairFitReasons: ["REPAIR_CATEGORY"], taxonomyPrimary: "automotive_repair", classReasons: ["REPAIR_SHOP"], chainSignal: "NO_CHAIN_SIGNAL",
+      reviewState: "PENDING", reviewNote: null, importState: "NOT_IMPORTED", importedProspectId: null, matchState: "NEW", matchProspectId: null, matchReasons: [], duplicateOfCandidateId: null, icpOverride: false, qualificationLane: null, qualificationReasons: [] });
+    await db.crmDiscoveryCandidate.createMany({ data: Array.from({ length: 1300 }, (_, i) => row(i + 1)) });
+    const stale = (i: number) => db.crmDiscoveryCandidate.findFirstOrThrow({ where: { sourceRecordId: `ap-${run}-${i}` } });
+    // a person's decision on a stale chain listing, an earlier tombstone with its own history, and an existing CRM record: all must survive
+    await db.crmDiscoveryCandidate.update({ where: { id: (await stale(1100)).id }, data: { reviewState: "APPROVED", reviewNote: "approved by a person", reviewedByUserId: users.Root, reviewedAt: new Date() } });
+    await db.crmDiscoveryExclusion.create({ data: { source: "OVERTURE", sourceRecordId: `ap-${run}-1150`, province: "SK", name: "Kal Tire Apply 1150", reasonCode: "OUTSIDE_ICP_CHAIN_OR_CORPORATE", registryVersion: 2, seenCount: 5 } });
+    const crm = await db.crmProspect.create({ data: { name: "Kal Tire Apply 1200", nameNormalized: "kal tire apply 1200", city: "Regina", province: "SK", assignedStaffId: (await db.platformSalesStaff.findFirstOrThrow({ where: { displayName: "C2 Owner" } })).id, doNotContact: true, territoryState: "NATIONAL", territoryKey: "canada", createdByUserId: users.Root } });
+    const crmSnap = async () => JSON.stringify([await db.crmProspect.findUnique({ where: { id: crm.id } }), await db.crmProspect.count(), await db.crmContact.count(), await db.crmActivity.count()]);
+    const crmBefore = await crmSnap();
+
+    // 1) The symptom, reproduced at the service level: the first batch has no change although changes exist behind the cursor.
+    const firstOnly = await rematchCandidates(admin, { province: "SK", apply: false, maxPages: 1 });
+    assert.deepEqual([firstOnly.examined, firstOnly.changed, firstOnly.nextCursor !== null, firstOnly.poolSize], [REMATCH_PAGE, 0, true, 1300]);
+    const gate1 = ap.applyGate(prev.mergeBatch(prev.newAcc("SK"), { examined: firstOnly.examined, changed: firstOnly.changed, transitions: firstOnly.transitions, icp: firstOnly.icp, detail: prev.emptyDetail(), poolSize: firstOnly.poolSize!, nextCursor: firstOnly.nextCursor }, null), null, false, null);
+    assert.deepEqual([gate1.state, gate1.canApply], ["NEEDS_PREVIEW", false], "locked for a stated reason, not 'nothing to apply'");
+
+    // 2) A cursor-driven Preview all finds every change.
+    let pv = prev.newAcc("SK");
+    for (let g = 0; !pv.done && g < 20; g++) { const from = pv.cursor; const r: any = await radar.previewProvinceCandidatesBatch({ province: "SK", cursor: from }); assert.equal(r.ok, true, JSON.stringify(r)); pv = prev.mergeBatch(pv, r.result, from); }
+    assert.deepEqual([pv.done, pv.examined, pv.poolSize, pv.changed], [true, 1300, 1300, 300]);
+    const gate2 = ap.applyGate(pv, null, false, prev.recommendApply(pv).verdict);
+    assert.deepEqual([gate2.state, gate2.canApply, gate2.expectedChanges], ["READY", true, 300]);
+    const snapBefore = JSON.stringify(await db.crmDiscoveryCandidate.findMany({ where: { province: "SK" }, orderBy: { id: "asc" }, select: { id: true, repairFit: true, repairFitReasons: true } }));
+
+    // 3) Apply in bounded batches, interrupted after two batches and resumed from the saved cursor.
+    await assert.rejects(async () => { as(users.Seller); try { await radar.applyProvinceReclassificationBatch({ province: "SK", cursor: null }); } finally { as(users.Root); } }, /SALES_FORBIDDEN/);
+    const auditBefore = await db.crmAuditEvent.count({ where: { action: "LEAD_RADAR_REMATCH" as any } });
+    let a = ap.newApplyAcc("SK");
+    const step = async () => { const from = a.cursor; const r: any = await radar.applyProvinceReclassificationBatch({ province: "SK", cursor: from }); assert.equal(r.ok, true, JSON.stringify(r)); assert.ok(r.result.examined <= REMATCH_PAGE, "bounded"); a = ap.mergeApplyBatch(a, r.result, from); return r.result; };
+    const b1 = await step(), b2 = await step();
+    assert.deepEqual([b1.changed, b1.written, b2.changed, b2.written, a.done], [0, 0, 0, 0, false], "no change in the first 1,000: nothing written, nothing audited");
+    assert.equal(await db.crmAuditEvent.count({ where: { action: "LEAD_RADAR_REMATCH" as any } }), auditBefore);
+    const savedCursor = a.cursor; // the browser tab is closed here; the cursor is all that is needed
+    a = ap.newApplyAcc("SK"); a = { ...a, cursor: savedCursor, batches: 2, examined: b1.examined + b2.examined, poolSize: 1300 };
+    for (let g = 0; !a.done && g < 10; g++) await step();
+    assert.deepEqual([a.done, a.examined, a.changed, a.written, a.skipped], [true, 1300, 300, 300, 0]);
+    assert.equal(a.tombstonesCreated, 299, "one candidate already had its tombstone");
+
+    // 4) Idempotent: a second full walk changes and writes nothing; the verification preview finds nothing left.
+    let again = ap.newApplyAcc("SK");
+    for (let g = 0; !again.done && g < 10; g++) { const from = again.cursor; const r: any = await radar.applyProvinceReclassificationBatch({ province: "SK", cursor: from }); again = ap.mergeApplyBatch(again, r.result, from); }
+    assert.deepEqual([again.changed, again.written, again.tombstonesCreated], [0, 0, 0]);
+    let verify = prev.newAcc("SK");
+    for (let g = 0; !verify.done && g < 20; g++) { const from = verify.cursor; const r: any = await radar.previewProvinceCandidatesBatch({ province: "SK", cursor: from }); verify = prev.mergeBatch(verify, r.result, from); }
+    assert.equal(verify.changed, 0);
+    assert.equal(ap.applyGate(verify, null, false, "GO").state, "NOTHING_TO_APPLY", "only a COMPLETE preview with no change reads 'nothing to apply'");
+
+    // 5) Result and preservation.
+    const after = await db.crmDiscoveryCandidate.findMany({ where: { province: "SK" }, orderBy: { id: "asc" }, select: { id: true, name: true, repairFit: true, repairFitReasons: true, reviewState: true, reviewNote: true } });
+    assert.notEqual(JSON.stringify(after.map(({ id, repairFit, repairFitReasons }) => ({ id, repairFit, repairFitReasons }))), snapBefore);
+    assert.equal(after.filter((r) => r.repairFit === "EXCLUDED").length, 300); assert.equal(after.filter((r) => r.name.startsWith("Apply Garage") && r.repairFit === "VERIFIED_REPAIR").length, 1000, "current rows untouched");
+    const decided = after.find((r) => r.name === "Kal Tire Apply 1100")!;
+    assert.deepEqual([decided.reviewState, decided.reviewNote, decided.repairFit], ["APPROVED", "approved by a person", "EXCLUDED"], "the person's decision is kept (the import gate still refuses it)");
+    const t5 = await db.crmDiscoveryExclusion.findUniqueOrThrow({ where: { source_sourceRecordId: { source: "OVERTURE", sourceRecordId: `ap-${run}-1150` } } });
+    assert.deepEqual([t5.seenCount, t5.registryVersion, t5.status], [5, 2, "ACTIVE"], "an existing tombstone is not rewritten or inflated by a re-check");
+    assert.equal(await db.crmDiscoveryExclusion.count({ where: { province: "SK", status: "ACTIVE" } }), 300);
+    assert.equal(await db.crmDiscoveryCandidate.count({ where: { province: "SK" } }), 1300, "no staged record was deleted");
+    assert.equal(await crmSnap(), crmBefore, "CRM prospects, contacts, activities, ownership and DNC are untouched");
+    assert.equal(await db.crmDiscoveryCandidate.count({ where: { province: "SK", importState: { not: "NOT_IMPORTED" } } }), 0, "nothing was imported");
+  });
 }

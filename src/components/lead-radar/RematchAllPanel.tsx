@@ -1,16 +1,20 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { previewProvinceCandidatesBatch } from "@/actions/lead-radar";
+import { applyProvinceReclassificationBatch, previewProvinceCandidatesBatch } from "@/actions/lead-radar";
 import { PROVINCE_CODES, PROVINCE_NAMES, type ProvinceCode } from "@/domain/lead-radar/geo";
 import {
   APPLY_THRESHOLDS, DOMAIN_ONLY_CSV_COLUMNS, MATCH_CSV_COLUMNS, PREVIEW_BATCH, REVIEW_CSV_COLUMNS, mergeBatch, newAcc, recommendApply, toCsv, type PreviewAcc, type PreviewBatch,
 } from "@/domain/lead-radar/icp-preview";
+import { applyGate, mergeApplyBatch, newApplyAcc, progressPct, type ApplyAcc } from "@/domain/lead-radar/icp-apply";
 import { btnPrimary, btnSecondary, cardCls, inputCls, labelCls } from "@/components/sales-crm/ui";
 import { fill, radarError } from "@/lib/admin-locale/lead-radar";
 import { fitReasonLabel, nationalCopy } from "@/lib/admin-locale/lead-radar-national";
 
 const KEY = (p: string) => `lead-radar:preview-all:${p}`;
+const AKEY = (p: string) => `lead-radar:apply-all:${p}`;
+const saveApply = (a: ApplyAcc) => { try { sessionStorage.setItem(AKEY(a.province), JSON.stringify(a)); } catch { /* resumable only within this tab */ } };
+const loadApply = (p: string): ApplyAcc | null => { try { const v = sessionStorage.getItem(AKEY(p)); return v ? (JSON.parse(v) as ApplyAcc) : null; } catch { return null; } };
 const pct = (v: number | null) => (v === null ? "—" : `${Math.round(v * 1000) / 10}%`);
 const save = (acc: PreviewAcc) => { try { sessionStorage.setItem(KEY(acc.province), JSON.stringify(acc)); } catch { /* storage unavailable or full: the preview still works, it just cannot be resumed after a reload */ } };
 const load = (p: string): PreviewAcc | null => { try { const v = sessionStorage.getItem(KEY(p)); return v ? (JSON.parse(v) as PreviewAcc) : null; } catch { return null; } };
@@ -28,6 +32,12 @@ export function RematchAllPanel({ locale }: { locale: "en" | "fr" }) {
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const stop = useRef(false);
+  const stopApply = useRef(false);
+  const [applyAcc, setApplyAcc] = useState<ApplyAcc | null>(null);
+  const [applying, setApplying] = useState(false);
+  const [ack, setAck] = useState(false);
+  const [lastApplied, setLastApplied] = useState<ApplyAcc | null>(null);
+  const ap = nationalCopy(locale).dash.rematch.all.apply;
 
   async function drive(start: PreviewAcc) {
     stop.current = false; setRunning(true); setError(null); setAcc(start);
@@ -45,17 +55,41 @@ export function RematchAllPanel({ locale }: { locale: "en" | "fr" }) {
     setRunning(false);
   }
 
+  async function driveApply(start: ApplyAcc) {
+    stopApply.current = false; setApplying(true); setError(null); setApplyAcc(start);
+    let cur = start;
+    try {
+      while (!cur.done && !stopApply.current) {
+        const from = cur.cursor;
+        const r = await applyProvinceReclassificationBatch({ province: cur.province, cursor: from });
+        if (!r.ok) { setError(radarError(locale, r.error)); break; }
+        const res = (r as unknown as { result: { examined: number; changed: number; written?: number; skipped?: number; tombstonesCreated?: number; transitions: Record<string, number>; poolSize?: number; nextCursor: string | null } }).result;
+        cur = mergeApplyBatch(cur, { examined: res.examined, changed: res.changed, written: res.written ?? 0, skipped: res.skipped ?? 0, tombstonesCreated: res.tombstonesCreated ?? 0, transitions: res.transitions, poolSize: res.poolSize ?? 0, nextCursor: res.nextCursor }, from);
+        setApplyAcc(cur); saveApply(cur);
+      }
+    } catch { setError(k.failed); }
+    setApplying(false);
+    if (cur.done) {
+      // The walk is finished: keep its summary, drop the resumable state and prove the result with a FRESH read-only province-wide preview.
+      setLastApplied(cur); setApplyAcc(null);
+      try { sessionStorage.removeItem(AKEY(cur.province)); sessionStorage.removeItem(KEY(cur.province)); } catch { /* ignore */ }
+      const fresh = newAcc(cur.province); setAcc(fresh); setAck(false);
+      await drive(fresh);
+    }
+  }
+
   const started = acc.batches > 0;
   const rec = recommendApply(acc);
+  const gate = applyGate(started ? acc : null, applyAcc, applying, started && acc.done ? rec.verdict : null);
   const m = rec.metrics, th = APPLY_THRESHOLDS;
   const questionable = acc.detail.review.filter((r) => r.kind === "QUESTIONABLE_EXCLUSION"), ambiguous = acc.detail.review.filter((r) => r.kind === "AMBIGUOUS_VERIFIED");
   return (
     <section className={`${cardCls} space-y-3`} aria-labelledby="nat-rematch-all">
-      <h2 id="nat-rematch-all" className="font-semibold text-slate-900">{k.button}</h2>
+      <h2 id="nat-rematch-all" className="font-semibold text-slate-900">{nationalCopy(locale).dash.rematch.title}</h2>
       <p className="text-xs text-slate-600">{fill(k.readOnly, { size: PREVIEW_BATCH })}</p>
-      <label className={labelCls}>{nationalCopy(locale).dash.rematch.province}<select className={inputCls} value={province} disabled={running} onChange={(e) => { const p = e.target.value as ProvinceCode; setProvince(p); setAcc(load(p) ?? newAcc(p)); setError(null); }}>{PROVINCE_CODES.map((p) => <option key={p} value={p}>{PROVINCE_NAMES[p][locale]} ({p})</option>)}</select></label>
+      <label className={labelCls}>{nationalCopy(locale).dash.rematch.province}<select className={inputCls} value={province} disabled={running} onChange={(e) => { const p = e.target.value as ProvinceCode; setProvince(p); setAcc(load(p) ?? newAcc(p)); setApplyAcc(loadApply(p)); setLastApplied(null); setAck(false); setError(null); }}>{PROVINCE_CODES.map((p) => <option key={p} value={p}>{PROVINCE_NAMES[p][locale]} ({p})</option>)}</select></label>
       <div className="flex flex-wrap gap-2">
-        {!running && !acc.done && <button type="button" className={btnPrimary} onClick={() => drive(acc.batches > 0 ? acc : load(province) ?? acc)}>{started ? k.resume : k.button}</button>}
+        {!running && !applying && !acc.done && <button type="button" className={btnPrimary} onClick={() => drive(acc.batches > 0 ? acc : load(province) ?? acc)}>{started ? k.resume : k.button}</button>}
         {running && <button type="button" className={btnSecondary} onClick={() => { stop.current = true; }}>{k.stop}</button>}
         {started && !running && <button type="button" className={btnSecondary} onClick={() => { try { sessionStorage.removeItem(KEY(province)); } catch { /* ignore */ } setAcc(newAcc(province)); }}>{k.restart}</button>}
       </div>
@@ -99,6 +133,23 @@ export function RematchAllPanel({ locale }: { locale: "en" | "fr" }) {
           <div className="rounded border border-slate-200 p-3">
             <p className="font-semibold text-slate-900">{k.protectedTitle}</p>
             <p className="text-xs">{fill(k.protectedLine, { n: acc.icp.protectedDecisions.examined, m: acc.icp.protectedDecisions.fitWouldChange, k: acc.icp.protectedDecisions.approvedNowBlockedAtImport })}</p>
+          </div>
+
+          <div className="space-y-2 rounded border border-slate-200 p-3" aria-live="polite">
+            <p className="font-semibold text-slate-900">{ap.title}</p>
+            <p className="text-xs">{fill(ap.why[gate.state], { n: gate.expectedChanges, size: PREVIEW_BATCH })}</p>
+            {applyAcc && applyAcc.batches > 0 && !applyAcc.done && (
+              <>
+                <div className="h-2 w-full overflow-hidden rounded bg-slate-200" role="progressbar" aria-valuenow={progressPct(applyAcc.examined, applyAcc.poolSize, applyAcc.done)} aria-valuemin={0} aria-valuemax={100}><div className="h-2 bg-blue-600" style={{ width: `${progressPct(applyAcc.examined, applyAcc.poolSize, applyAcc.done)}%` }} /></div>
+                <p className="text-xs">{applying ? fill(ap.progress, { b: applyAcc.batches, n: applyAcc.examined, t: applyAcc.poolSize, w: applyAcc.written, s: applyAcc.skipped, x: applyAcc.tombstonesCreated }) : fill(ap.paused, { n: applyAcc.examined, t: applyAcc.poolSize, w: applyAcc.written })}</p>
+              </>
+            )}
+            {lastApplied && <p className="text-xs">{fill(ap.done, { w: lastApplied.written, c: lastApplied.changed, s: lastApplied.skipped, x: lastApplied.tombstonesCreated })}{acc.done ? ` ${acc.changed === 0 ? ap.verified0 : fill(ap.verifiedLeft, { n: acc.changed })}` : ""}</p>}
+            {gate.needsAcknowledgement && gate.canApply && <label className="flex min-h-11 items-center gap-2 text-xs text-slate-700"><input type="checkbox" className="size-5" checked={ack} onChange={(e) => setAck(e.target.checked)} />{ap.ack}</label>}
+            <div className="flex flex-wrap gap-2">
+              {gate.canApply && <button type="button" className={btnPrimary} disabled={running || (gate.needsAcknowledgement && !ack)} onClick={() => { if (!window.confirm(fill(ap.confirm, { province: PROVINCE_NAMES[province][locale] }))) return; driveApply(applyAcc ?? loadApply(province) ?? newApplyAcc(province)); }}>{applyAcc && applyAcc.batches > 0 ? ap.resume : fill(ap.button, { n: gate.expectedChanges })}</button>}
+              {applying && <button type="button" className={btnSecondary} onClick={() => { stopApply.current = true; }}>{ap.stop}</button>}
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-2">
