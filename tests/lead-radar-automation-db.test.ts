@@ -708,7 +708,7 @@ if (!enabled) {
     const rows = Array.from({ length: 2600 }, (_, i) => ({
       source: "OVERTURE" as const, sourceRecordId: `bulk-${run}-${String(i).padStart(5, "0")}`, firstRunId: run1.id, lastRunId: run1.id, firstSeenRelease: R1, lastSeenRelease: R1, name: `Bulk Candidate ${i}`, nameNormalized: `bulk candidate ${i}`,
       address: `${i} Rue Bulk`, city: "Calgary", province: "AB", postalCode: "T2P1J9", phone: `+1403${String(5550000 + i)}`, territoryKey: "national", taxonomyPrimary: "automotive_repair", tier: "PRIMARY" as const, industry: "GENERAL_REPAIR",
-      chainSignal: "NO_CHAIN_SIGNAL", completeness: 70, qualityFlags: [] as string[], licenses: ["CDLA-Permissive-2.0"], datasets: ["meta"], licenseOk: true, contentFingerprint: `fp-${run}-${i}`,
+      chainSignal: "NO_CHAIN_SIGNAL", completeness: 70, qualityFlags: [] as string[], licenses: ["CDLA-Permissive-2.0"], datasets: ["meta"], licenseOk: true, sourceLatitude: 51.04, sourceLongitude: -114.06, contentFingerprint: `fp-${run}-${i}`,
     }));
     await db.crmDiscoveryCandidate.createMany({ data: rows });
     const policy = (await policyLib.getActivePolicy())!;
