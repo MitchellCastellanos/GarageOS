@@ -6,7 +6,7 @@ import {
   CANADA_BBOX, FEW_POINTS, MAP_STATUSES, MAX_POINTS, POINT_ZOOM, bboxOfRadius, clusterPoints, mapStatusOf, normalizePostalQuery, withinRadius,
   type Bbox, type Cluster, type MapPointDto, type MapStatus,
 } from "@/domain/sales-crm/field-map";
-import { stopBlock } from "@/domain/sales-crm/field-route";
+import { fieldTerritoryBlock, stopBlock } from "@/domain/sales-crm/field-route";
 import { OPEN_STAGES } from "@/domain/sales-crm/pipeline";
 import { resolveTerritory } from "@/domain/sales-crm/territory";
 import { db } from "@/lib/db";
@@ -15,6 +15,7 @@ import { isProductionEnvironment } from "@/lib/sales-crm/geocoder";
 import { resolveLocationStates } from "@/lib/sales-crm/location-service";
 import { CrmError } from "@/lib/sales-crm/prospects";
 import { loadTerritoryRules } from "@/lib/sales-crm/territory";
+import { fieldTerritoryWhere } from "@/lib/sales-crm/work-lane";
 
 // Viewport-based territory map. Nothing here caps the map at the route size (25): the server returns every located prospect of the
 // seller's authorized book inside the viewport — as individual markers when few, otherwise as grid clusters with exact counts.
@@ -39,7 +40,7 @@ const emptyCounts = (): Record<MapStatus, number> => Object.fromEntries(MAP_STAT
 
 /** Prospects a FIELD seller may see on the map: own book only (never a manager's team or the pool), active, not DNC/merged/archived. */
 // Businesses excluded as not-a-repair-shop are not FIELD opportunities and never reach the map; prospects under review stay visible (flagged in the panel) so existing work is not lost.
-const bookWhere = (staffId: string): Prisma.CrmProspectWhereInput => ({ assignedStaffId: staffId, status: "ACTIVE", doNotContact: false, mergedIntoId: null, archivedAt: null, AND: [{ OR: [{ repairFit: null }, { repairFit: { in: ["VERIFIED_REPAIR", "HUMAN_REVIEW"] } }] }] });
+const bookWhere = (staffId: string): Prisma.CrmProspectWhereInput => ({ assignedStaffId: staffId, status: "ACTIVE", doNotContact: false, mergedIntoId: null, archivedAt: null, AND: [{ OR: [{ repairFit: null }, { repairFit: { in: ["VERIFIED_REPAIR", "HUMAN_REVIEW"] } }] }, fieldTerritoryWhere] });
 
 async function statusFacts(ids: readonly string[]) {
   const lastVisit = new Map<string, string>(), openTasks = new Map<string, number>(), activities = new Map<string, number>();
@@ -140,7 +141,7 @@ export async function territorySummary(actor: PlatformSalesActor, now = new Date
   const staffId = requirePlanner(actor);
   const [rows, fitRows] = await Promise.all([
     db.crmProspect.findMany({ where: bookWhere(staffId), select: { id: true, name: true, address: true, city: true, province: true, postalCode: true }, orderBy: [{ city: "asc" }, { name: "asc" }], take: 30000 }),
-    db.crmProspect.groupBy({ by: ["repairFit"], where: { assignedStaffId: staffId, status: "ACTIVE", doNotContact: false, mergedIntoId: null, archivedAt: null }, _count: { _all: true } }),
+    db.crmProspect.groupBy({ by: ["repairFit"], where: { assignedStaffId: staffId, status: "ACTIVE", doNotContact: false, mergedIntoId: null, archivedAt: null, AND: [fieldTerritoryWhere] }, _count: { _all: true } }),
   ]);
   const nFit = (k: string | null) => fitRows.find((r) => r.repairFit === k)?._count._all ?? 0;
   const [rules, states] = await Promise.all([loadTerritoryRules(), resolveLocationStates(rows, now)]);
@@ -199,7 +200,7 @@ export async function getMapProspect(actor: PlatformSalesActor, prospectId: stri
   const staffId = requirePlanner(actor);
   const p = await db.crmProspect.findFirst({
     where: { id: prospectId, assignedStaffId: staffId },
-    select: { id: true, name: true, repairFit: true, repairFitReasons: true, address: true, city: true, province: true, postalCode: true, phone: true, status: true, archivedAt: true, mergedIntoId: true, doNotContact: true, assignedStaffId: true, location: true, opportunities: { select: { stage: true }, orderBy: { stageChangedAt: "desc" } } },
+    select: { territoryState: true, id: true, name: true, repairFit: true, repairFitReasons: true, address: true, city: true, province: true, postalCode: true, phone: true, status: true, archivedAt: true, mergedIntoId: true, doNotContact: true, assignedStaffId: true, location: true, opportunities: { select: { stage: true }, orderBy: { stageChangedAt: "desc" } } },
   });
   if (!p) throw new CrmError("NOT_FOUND");
   const [f, visit, task, stop] = await Promise.all([
@@ -214,6 +215,6 @@ export async function getMapProspect(actor: PlatformSalesActor, prospectId: stri
     status: mapStatusOf({ stage: bestStage(p.opportunities), lastVisitOutcome: f.lastVisit.get(p.id) ?? null, openTaskCount: f.openTasks.get(p.id) ?? 0, activityCount: f.activities.get(p.id) ?? 0 }),
     lastVisit: visit?.fieldVisitOutcome ? { outcome: visit.fieldVisitOutcome, at: visit.occurredAt.toISOString() } : null,
     nextTask: task ? { title: task.title, dueAt: task.dueAt.toISOString() } : null,
-    activeStopId: stop?.id ?? null, blocked: stopBlock(p, staffId), fit: p.repairFit, fitReasons: p.repairFitReasons,
+    activeStopId: stop?.id ?? null, blocked: stopBlock(p, staffId) ?? fieldTerritoryBlock(p), fit: p.repairFit, fitReasons: p.repairFitReasons,
   };
 }

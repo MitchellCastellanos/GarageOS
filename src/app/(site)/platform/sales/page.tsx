@@ -20,6 +20,7 @@ export default async function SalesDashboardPage() {
     { label: d.dueToday, value: m.dueToday, href: `${PLATFORM.salesTasks}?view=today` },
     { label: d.stale, value: m.stale, tone: m.stale ? "text-amber-700" : undefined },
     { label: d.activities7, value: m.activities7 },
+    ...(actor.all || actor.kind === "SALES_MANAGER" ? [{ label: d.automatedLane, value: m.automatedLane, href: `${PLATFORM.salesProspects}?queue=automated` }] : []),
     ...(actor.all || actor.kind === "SALES_MANAGER" ? [{ label: d.unassigned, value: m.unassigned, tone: m.unassigned ? "text-amber-700" : undefined, href: `${PLATFORM.salesProspects}?owner=none` }] : []),
   ];
   return (

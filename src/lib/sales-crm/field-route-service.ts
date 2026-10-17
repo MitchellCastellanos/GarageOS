@@ -2,7 +2,7 @@ import "server-only";
 import type { Prisma } from "@prisma/client";
 import type { PlatformSalesActor } from "@/domain/sales-crm/access";
 import {
-  MAX_ROUTE_STOPS, canExecuteVisits, canMutateRoute, canPlanRoutes, canTransitionRoute, canViewRoutes, parsePlannedDate, routeIsEditable, routeScopeWhere, stopBlock, type RouteStatus,
+  MAX_ROUTE_STOPS, canExecuteVisits, canMutateRoute, fieldTerritoryBlock, canPlanRoutes, canTransitionRoute, canViewRoutes, parsePlannedDate, routeIsEditable, routeScopeWhere, stopBlock, type RouteStatus,
 } from "@/domain/sales-crm/field-route";
 import { REACHED_OUTCOMES, SUBMISSION_ID_RE, visitResultSchema, type FieldVisitOutcome } from "@/domain/sales-crm/field-visit";
 import { resolveTerritory } from "@/domain/sales-crm/territory";
@@ -14,6 +14,7 @@ import { resolveLocations, resolveLocationStates } from "@/lib/sales-crm/locatio
 import type { LocationCoverage } from "@/domain/sales-crm/source-location";
 import { CrmError } from "@/lib/sales-crm/prospects";
 import { loadTerritoryRules } from "@/lib/sales-crm/territory";
+import { fieldTerritoryWhere } from "@/lib/sales-crm/work-lane";
 
 const isUnique = (e: unknown) => typeof e === "object" && !!e && (e as { code?: string }).code === "P2002";
 
@@ -22,7 +23,7 @@ export function requirePlanner(actor: PlatformSalesActor): string {
   return actor.staffId!;
 }
 
-export const PROSPECT_FACTS = { id: true, name: true, address: true, city: true, province: true, postalCode: true, status: true, archivedAt: true, mergedIntoId: true, doNotContact: true, assignedStaffId: true, repairFit: true } as const;
+export const PROSPECT_FACTS = { territoryState: true, id: true, name: true, address: true, city: true, province: true, postalCode: true, status: true, archivedAt: true, mergedIntoId: true, doNotContact: true, assignedStaffId: true, repairFit: true } as const;
 
 export async function coverageOk(actor: PlatformSalesActor, p: { province: string | null; city: string | null; postalCode: string | null }, rules: Awaited<ReturnType<typeof loadTerritoryRules>>) {
   const keys = actor.coverageTerritoryKeys ?? [];
@@ -47,6 +48,8 @@ export async function listCandidates(actor: PlatformSalesActor, filter: { city?:
   const rows = await db.crmProspect.findMany({
     where: {
       assignedStaffId: staffId, status: "ACTIVE", doNotContact: false, mergedIntoId: null, archivedAt: null, OR: [{ repairFit: null }, { repairFit: { in: ["VERIFIED_REPAIR", "HUMAN_REVIEW"] } }],
+      // FIELD candidates are local-territory work: national (REMOTE) prospects a FIELD seller may own are not visit candidates.
+      AND: [fieldTerritoryWhere],
       ...(filter.city ? { city: { equals: filter.city, mode: "insensitive" as const } } : {}),
       ...(filter.q ? { name: { contains: filter.q.slice(0, 80), mode: "insensitive" as const } } : {}),
     },
@@ -88,7 +91,7 @@ export async function saveRouteDraft(actor: PlatformSalesActor, input: SaveRoute
     const p = byId.get(id);
     // A prospect outside the seller's book is indistinguishable from a missing one (no cross-seller probing).
     if (!p || p.assignedStaffId !== staffId) throw new CrmError("STOP_NOT_ALLOWED");
-    const block = stopBlock(p, staffId, await coverageOk(actor, p, rules));
+    const block = stopBlock(p, staffId, await coverageOk(actor, p, rules)) ?? fieldTerritoryBlock(p);
     if (block) throw new CrmError(block);
     const loc = locs.get(id)!;
     if (!loc.usable) throw new CrmError("LOCATION_UNAVAILABLE");

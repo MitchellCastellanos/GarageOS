@@ -4,7 +4,7 @@ import test from "node:test";
 import { fieldCopy } from "../src/lib/admin-locale/sales-field";
 import { FIELD_VISIT_OUTCOMES, ROUTE_VISIT_OUTCOMES } from "../src/domain/sales-crm/field-visit";
 import { capabilitiesFor, type PlatformSalesActor } from "../src/domain/sales-crm/access";
-import { canExecuteVisits, canMutateRoute, canPlanRoutes, canTransitionRoute, canViewRoutes, parsePlannedDate, routeScopeWhere, stopBlock } from "../src/domain/sales-crm/field-route";
+import { canExecuteVisits, canMutateRoute, canPlanRoutes, canTransitionRoute, canViewRoutes, parsePlannedDate, routeScopeWhere, stopBlock, fieldTerritoryBlock } from "../src/domain/sales-crm/field-route";
 import "./helpers/action-harness";
 
 const { geocodingStatus } = await import("../src/lib/sales-crm/geocoder");
@@ -53,6 +53,10 @@ test("route lifecycle, stop eligibility and dates", () => {
   assert.equal(stopBlock({ ...ok, status: "ARCHIVED" }, "s1"), "PROSPECT_ARCHIVED");
   assert.equal(stopBlock({ ...ok, assignedStaffId: null }, "s1"), "NOT_ASSIGNED_TO_OWNER");
   assert.equal(stopBlock(ok, "s1", false), "OUTSIDE_COVERAGE");
+  assert.equal(fieldTerritoryBlock({ territoryState: "NATIONAL" }), "NOT_FIELD_TERRITORY");
+  assert.equal(fieldTerritoryBlock({ territoryState: "LOCAL" }), null);
+  assert.equal(fieldTerritoryBlock({ territoryState: null }), null, "unclassified territory is not excluded");
+  assert.equal(fieldTerritoryBlock({}), null);
   const today = new Date("2026-10-10T15:00:00Z");
   assert.ok(parsePlannedDate("2026-10-10", today) && parsePlannedDate("2027-01-01", today));
   for (const bad of ["2026-02-30", "2026-10-1", "2020-01-01", "2030-01-01", "x"]) assert.equal(parsePlannedDate(bad, today), null, bad);

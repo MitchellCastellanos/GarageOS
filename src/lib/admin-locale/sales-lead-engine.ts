@@ -3,11 +3,11 @@
 export const leadEn = {
   queues: {
     label: "Queues", all: "All prospects",
-    names: { new: "New / unassigned", mine: "Assigned to me", ready: "Ready for outreach", eligibility: "Eligibility review", field: "FIELD visit candidates", followup: "Follow-up due", duplicates: "Duplicate review", missing: "Missing information", dnc: "Do not contact" } as Record<string, string>,
+    names: { new: "New / unassigned", mine: "Assigned to me", ready: "Ready for outreach", eligibility: "Eligibility review", field: "FIELD visit candidates", followup: "Follow-up due", duplicates: "Duplicate review", missing: "Missing information", dnc: "Do not contact", automated: "Automated REMOTE (not seller work)" } as Record<string, string>,
     hints: {
-      new: "Active prospects without an owner.", mine: "Your active prospects.", ready: "Owned, reachable, language known and a sending basis on file. Pre-check only: the full send policy still runs at send time.",
+      new: "Active prospects without an owner.", mine: "Your actionable work: owned local/FIELD prospects and any national prospect with a human case (engaged deal, open task or a human reply). Cold automated REMOTE prospects you own are not listed here.", ready: "Owned, reachable, language known and a sending basis on file. Pre-check only: the full send policy still runs at send time.",
       eligibility: "Contacts whose sending basis awaits review or pre-dates the review workflow.", field: "Local FIELD territory, usable address, unassigned or owned by a FIELD seller.",
-      followup: "An open follow-up task is overdue.", duplicates: "Possible duplicate or branch awaiting a decision.", missing: "No usable address, no phone or email, or language unknown.", dnc: "Persistent opt-outs. Never contacted.",
+      followup: "An open follow-up task is overdue.", duplicates: "Possible duplicate or branch awaiting a decision.", missing: "No usable address, no phone or email, or language unknown.", dnc: "Persistent opt-outs. Never contacted.", automated: "National Lead Radar prospects with no human involvement yet. Handled by the campaign, not by a seller. Managers and Super Admin only.",
     } as Record<string, string>,
     territoryFilter: "Territory", anyTerritory: "Any territory", national: "Rest of Canada", unresolved: "Unresolved address",
   },
@@ -105,11 +105,11 @@ type Dict = typeof leadEn;
 export const leadFr: Dict = {
   queues: {
     label: "Files", all: "Tous les prospects",
-    names: { new: "Nouveaux / non assignés", mine: "Qui m’est assigné", ready: "Prêts pour une prise de contact", eligibility: "Admissibilité à vérifier", field: "Visites TERRAIN à faire", followup: "Suivi en retard", duplicates: "Doublons à vérifier", missing: "Informations manquantes", dnc: "Ne pas contacter" },
+    names: { new: "Nouveaux / non assignés", mine: "Qui m’est assigné", ready: "Prêts pour une prise de contact", eligibility: "Admissibilité à vérifier", field: "Visites TERRAIN à faire", followup: "Suivi en retard", duplicates: "Doublons à vérifier", missing: "Informations manquantes", dnc: "Ne pas contacter", automated: "À DISTANCE automatisés (pas du travail vendeur)" },
     hints: {
-      new: "Prospects actifs sans responsable.", mine: "Vos prospects actifs.", ready: "Avec responsable, joignable, langue connue et base d’envoi au dossier. Simple pré-contrôle : la politique d’envoi complète s’applique à l’envoi.",
+      new: "Prospects actifs sans responsable.", mine: "Votre travail actionnable : prospects locaux/TERRAIN et tout prospect national avec un dossier humain (opportunité engagée, tâche ouverte ou réponse humaine). Les prospects À DISTANCE automatisés qui vous sont attribués n’y figurent pas.", ready: "Avec responsable, joignable, langue connue et base d’envoi au dossier. Simple pré-contrôle : la politique d’envoi complète s’applique à l’envoi.",
       eligibility: "Contacts dont la base d’envoi attend une vérification ou précède le processus de vérification.", field: "Territoire TERRAIN local, adresse utilisable, non assigné ou détenu par un vendeur TERRAIN.",
-      followup: "Une tâche de suivi ouverte est en retard.", duplicates: "Doublon ou succursale possible en attente de décision.", missing: "Pas d’adresse utilisable, ni téléphone ni courriel, ou langue inconnue.", dnc: "Désabonnements permanents. Jamais contactés.",
+      followup: "Une tâche de suivi ouverte est en retard.", duplicates: "Doublon ou succursale possible en attente de décision.", missing: "Pas d’adresse utilisable, ni téléphone ni courriel, ou langue inconnue.", dnc: "Désabonnements permanents. Jamais contactés.", automated: "Prospects nationaux Lead Radar sans intervention humaine. Gérés par la campagne, pas par un vendeur. Gestionnaires et Super Admin seulement.",
     },
     territoryFilter: "Territoire", anyTerritory: "Tout territoire", national: "Reste du Canada", unresolved: "Adresse non résolue",
   },

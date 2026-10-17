@@ -32,7 +32,7 @@ This document is the permanent record of the v2 audit and the dependency-ordered
 | Block | Status |
 |---|---|
 | PR-0 docs | This file |
-| **PR-2 workspace separation** | **Authorized — in progress** (see its PR) |
+| **PR-2 workspace separation** | **Implemented — in review.** View-layer only: no schema change, no ownership change, no sending/CASL/rollout change. See *PR-2 as built* below |
 | PR-1, PR-3 … PR-10 | Not started; each needs a review of the previous outcome |
 
 ---
@@ -463,3 +463,31 @@ Interpretation: H/I confirm or refute H1/H2 [P]; J feeds N-10/D-12.
 | G-25 | No alerts/heartbeat/ageing; seeding silent when idle | `contact-readiness.ts:34`, `rollout.ts halt()` | HIGH | PR-9 |
 | G-26 | Seeding runs after the 45 s tick inside `maxDuration=60`; full-queue no-email scan per tick | `cron/lead-radar/route.ts:11,25`, `remote-email.ts scanNoEmailQueue` | MED | PR-8/9 |
 | G-27 | Only source is Overture; e-mail field sparse | `automation.md` [D] | MED | measure first (App. 1 B) |
+
+
+---
+
+## PR-2 as built (workspace separation)
+
+**Principle.** Ownership (`assignedStaffId`) and attribution are never modified. A new module, `src/lib/sales-crm/work-lane.ts`, defines what is *actionable seller work*:
+
+- **Cold automated REMOTE lane** = `territoryState = NATIONAL` ∧ imported by Lead Radar ∧ *no human case*. A **human case** = an opportunity at `CONTACTED…DECISION`, an open task, or an open email thread containing a non-automated inbound message. Fragments are written positively (no `NOT` over nullable columns), so prospects whose territory is not computed yet never disappear.
+- **FIELD candidates** = territory not `NATIONAL` (local or not yet classified).
+
+**Where it applies.**
+
+| Surface | Change |
+|---|---|
+| Prospects → *Mine* | actionable work only (local/FIELD, hand-entered, unclassified, and national prospects with a human case) |
+| Prospects → default list (sellers) | actionable only; an explicit search still finds any owned prospect; managers/Super Admin keep the full book |
+| Prospects → *Ready / Eligibility / Missing* (sellers) | cold lane removed |
+| Prospects → new *Automated REMOTE* queue | managers / Super Admin only; sellers get an empty result |
+| Dashboard | work totals, stage funnel, open and stale counts are actionable-only; closed stages always counted; managers get a separate *Automated REMOTE* tile |
+| Pipeline board | cold untouched NEW deals are not cards (also removes the 700-card crowd-out); closed totals complete |
+| Field planner candidates / map viewport / search / territory summary | national prospects excluded |
+| Field route **new stops** | `NOT_FIELD_TERRITORY` for national prospects (already-planned stops and logged visits are unaffected) |
+| Inbox | campaign-only threads (no human inbound, no manual/meeting outbound) leave seller views and unread counts; managers get an *Automated* view; any human reply makes the thread a normal conversation |
+
+**Permissions unchanged:** REMOTE-only sellers still have no field capability, queue or planner; FIELD sellers keep both lanes in one workspace; assignment, caps, rollout, sequences, sending switches, CASL decisions and suppression are not touched.
+
+**Known follow-ups (intentionally not in PR-2):** team/staff pages still show raw owned-prospect counts (attribution); `loadSellers` workload (assignment caps) still counts owned prospects; transferring a FIELD-lane prospect to a REMOTE-only rep is still possible by explicit transfer (N-08, PR-5).

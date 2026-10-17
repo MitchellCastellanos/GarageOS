@@ -4,14 +4,20 @@ import { db } from "@/lib/db";
 import { assignedScopeWhere, type PlatformSalesActor } from "@/domain/sales-crm/access";
 import { threadScopeWhere } from "@/lib/sales-comms/threads";
 import { meetingScope } from "@/lib/sales-comms/meetings";
+import { automationOnlyThreadWhere, humanThreadWhere } from "@/lib/sales-crm/work-lane";
 
-export type InboxView = "all" | "unread" | "needsReply" | "mine" | "drafts" | "done";
-export const INBOX_VIEWS: InboxView[] = ["all", "unread", "needsReply", "mine", "drafts", "done"];
+export type InboxView = "all" | "unread" | "needsReply" | "mine" | "drafts" | "done" | "automated";
+export const INBOX_VIEWS: InboxView[] = ["all", "unread", "needsReply", "mine", "drafts", "done", "automated"];
+/** The "automated" view (campaign-only threads, no human involved) is an operations view for managers and Super Admin. */
+export const canSeeAutomatedInbox = (actor: PlatformSalesActor) => actor.all || actor.kind === "SALES_MANAGER";
 export const PAGE_SIZE = 25;
 
 /** Inbox rows. Always intersected with the actor's scope; a thread with nothing but drafts shows only in "drafts". */
 export async function listThreads(actor: PlatformSalesActor, o: { view: InboxView; q: string; page: number }) {
   const and: Prisma.CrmEmailThreadWhereInput[] = [threadScopeWhere(actor)];
+  // Threads only automation touched (a running campaign) are not seller work: they leave every seller view and live in the manager "automated" view. A human reply, a manual message or a meeting makes the thread a normal conversation again.
+  if (o.view === "automated") { if (!canSeeAutomatedInbox(actor)) return { total: 0, pages: 1, rows: [] }; and.push(automationOnlyThreadWhere); }
+  else and.push(humanThreadWhere);
   if (o.view === "drafts") and.push({ messages: { some: { status: "DRAFT", authorUserId: actor.userId } } });
   else and.push({ messages: { some: { status: { not: "DRAFT" } } } });
   if (o.view === "unread") and.push({ lastInboundAt: { not: null }, ownerSeenAt: null, ownerStaffId: actor.staffId ?? "none" });
@@ -38,7 +44,7 @@ export async function listThreads(actor: PlatformSalesActor, o: { view: InboxVie
 
 export async function unreadCount(actor: PlatformSalesActor): Promise<number> {
   if (!actor.staffId) return 0;
-  return db.crmEmailThread.count({ where: { ownerStaffId: actor.staffId, lastInboundAt: { not: null }, ownerSeenAt: null, status: "OPEN" } });
+  return db.crmEmailThread.count({ where: { AND: [{ ownerStaffId: actor.staffId, lastInboundAt: { not: null }, ownerSeenAt: null, status: "OPEN" }, humanThreadWhere] } });
 }
 
 export async function getThreadDetail(actor: PlatformSalesActor, id: string) {
