@@ -762,4 +762,56 @@ if (!enabled) {
     assert.equal(await crmSnap(), crmBefore, "CRM prospects, contacts, activities, ownership and DNC are untouched");
     assert.equal(await db.crmDiscoveryCandidate.count({ where: { province: "SK", importState: { not: "NOT_IMPORTED" } } }), 0, "nothing was imported");
   });
+
+  test("C3 preflight (read-only): totals reconcile with the verified pool, every blocker is named, sellers are classified (a Super Admin login is never a target), and the real importer agrees and is idempotent", async () => {
+    const { c3Preflight } = await import("../src/lib/lead-radar/national");
+    as(users.Root);
+    const mb = (name: string, n: number, o: Record<string, unknown> = {}) => rec(name, "OTT", { address: { freeform: `${300 + n} Preflight Ave`, locality: "Winnipeg", postcode: "R3C 0A5", region: "MB", country: "CA" }, phones: [`+1204555${String(8300 + n)}`], geo: { lat: 49.89 + n * 0.001, lng: -97.14 }, ...o });
+    const names = ["Ready One", "Ready Two", "Pending Auto", "Pending Person", "Not Qualified", "Rejected Shop", "No Contact Shop", "Ambiguous Shop", "Branch Shop", "Link Shop", "License Shop", "Filler One", "Filler Two"];
+    const recs = names.map((nm, i) => mb(`MB ${nm} Garage`, i + 1));
+    assert.equal((await extract(recs, ["MB"], "2026-12-30.0")).done.ok, true);
+    const c = async (nm: string) => cand(recs[names.indexOf(nm)].id);
+    const upd = async (nm: string, data: Record<string, unknown>) => db.crmDiscoveryCandidate.update({ where: { id: (await c(nm)).id }, data: data as never });
+    await upd("Pending Auto", { qualificationLane: "AUTO_ELIGIBLE" }); await upd("Pending Person", { qualificationLane: "HUMAN_REVIEW" });
+    await upd("No Contact Shop", { phone: null, address: null, postalCode: null }); await upd("Ambiguous Shop", { matchState: "AMBIGUOUS" }); await upd("Branch Shop", { matchState: "BRANCH_OF_EXISTING" });
+    await upd("License Shop", { licenseOk: false });
+    const linkTarget = await db.crmProspect.create({ data: { name: "Existing Link Target", nameNormalized: "existing link target", city: "Winnipeg", province: "MB", territoryState: "NATIONAL", territoryKey: "canada", createdByUserId: users.Root } });
+    await upd("Link Shop", { matchState: "EXISTING_STRONG", matchProspectId: linkTarget.id });
+    assert.equal(((await radar.reviewDiscoveryCandidates({ ids: [(await c("Ready One")).id, (await c("Ready Two")).id], decision: "APPROVED" })) as any).ok, true);
+    assert.equal(((await radar.reviewDiscoveryCandidates({ ids: [(await c("Rejected Shop")).id], decision: "REJECTED", note: "not a shop" })) as any).ok, true);
+    // a Super Admin login that also holds a Sales Rep row, and a plain Sales Rep: only the second may ever receive prospects
+    const sa = await db.user.create({ data: { name: "PF Admin", email: `pf-admin-${run}@garage-os.ca`, role: "SUPER_ADMIN" } });
+    const rep = await db.user.create({ data: { name: "PF Rep", email: `pf-rep-${run}@garage-os.ca`, role: "VIEWER", shopId: null } });
+    await db.platformSalesStaff.create({ data: { userId: sa.id, role: "SALES_REP", status: "ACTIVE", displayName: "PF Admin Row", timezone: "America/Toronto", salesMode: "REMOTE", leadLanguages: [], uiLocale: "EN" } });
+    const repStaff = await db.platformSalesStaff.create({ data: { userId: rep.id, role: "SALES_REP", status: "ACTIVE", displayName: "PF Rep", timezone: "America/Toronto", salesMode: "REMOTE", leadLanguages: ["EN"], uiLocale: "EN" } });
+    const snap = async () => JSON.stringify([await db.crmDiscoveryCandidate.findMany({ where: { province: "MB" }, orderBy: { id: "asc" } }), await db.crmProspect.count(), await db.crmAuditEvent.count()]);
+    const before = await snap();
+
+    const pf = await c3Preflight("MB");
+    assert.equal(await snap(), before, "the preflight writes nothing");
+    const verified = await db.crmDiscoveryCandidate.count({ where: { province: "MB", duplicateOfCandidateId: null, repairFit: "VERIFIED_REPAIR", importState: "NOT_IMPORTED" } });
+    assert.equal(pf.verifiedEvaluated, verified);
+    assert.equal(pf.importable + Object.values(pf.blockers).reduce((a, b) => a + b, 0), pf.verifiedEvaluated, "importable + blocked = every verified candidate, nothing lost or double counted");
+    assert.deepEqual(pf.blockers, { REJECTED_BY_PERSON: 1, INSUFFICIENT_CONTACT: 1, MATCH_AMBIGUOUS: 1, MATCH_BRANCH: 1, LICENSE_BLOCKED: 1 });
+    assert.deepEqual([pf.newProspects, pf.linksToExisting], [pf.importable - 1, 1]);
+    assert.equal(pf.approvals.APPROVED, 2); assert.equal(pf.approvals.POLICY_AUTO, 1); assert.equal(pf.approvals.NEEDS_PERSON, 1);
+    assert.equal(pf.approvals.NOT_QUALIFIED + pf.approvals.APPROVED + pf.approvals.POLICY_AUTO + pf.approvals.NEEDS_PERSON, pf.importable);
+    assert.equal(pf.readyNow.newProspects + pf.readyNow.links, 3, "two approved + one AUTO_ELIGIBLE (link/new split reported)");
+    assert.equal(Object.values(pf.modes).reduce((a, b) => a + b, 0), pf.importable); assert.ok(pf.modes.REMOTE === pf.importable, "a non-Montréal province resolves to REMOTE (national) territory");
+    const mine = pf.sellers.find((x) => x.id === repStaff.id)!, adminRow = pf.sellers.find((x) => x.email === sa.email)!;
+    assert.deepEqual([mine.superAdminLogin, mine.wouldReceiveRemoteProspect, mine.mode], [false, true, "REMOTE"]);
+    assert.deepEqual([adminRow.superAdminLogin, adminRow.wouldReceiveRemoteProspect], [true, false], "a Super Admin login is never an assignment target");
+    await assert.rejects(c3Preflight("ZZ"), /INVALID/);
+
+    // The real importer agrees with the preflight and is idempotent: the two approved importable candidates become prospects; the approved-then-blocked one does not; a second run does nothing.
+    const imp1: any = await radar.importApprovedDiscoveryCandidates({ province: "MB" });
+    assert.equal(imp1.ok, true, JSON.stringify(imp1));
+    assert.deepEqual([imp1.result.created, imp1.result.linked, imp1.result.sentToReview], [2, 0, 0]);
+    const after = await c3Preflight("MB");
+    assert.equal(after.pool.verifiedAlreadyImported, 2); assert.equal(after.verifiedEvaluated, verified - 2);
+    const imp2: any = await radar.importApprovedDiscoveryCandidates({ province: "MB" });
+    assert.deepEqual([imp2.result.claimed, imp2.result.created], [0, 0], "idempotent: nothing left to claim");
+    assert.equal(await db.crmProspect.count({ where: { province: "MB", assignedStaffId: { not: null } } }), 0, "the importer never assigns");
+    assert.equal(after.pool.leadRadarProspectsInProvince, 2);
+  });
 }
