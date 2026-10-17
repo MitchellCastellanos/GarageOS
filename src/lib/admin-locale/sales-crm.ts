@@ -9,6 +9,7 @@ const en = {
     shops: "Shops", analytics: "Analytics", messages: "Messages", openMenu: "Open menu", closeMenu: "Close menu",
     roles: { SUPER_ADMIN: "Super admin", SALES_MANAGER: "Sales manager", SALES_REP: "Sales rep" },
     session: "Signed in as", signOut: "Sign out", sales: "Sales workspace", platform: "Platform",
+    home: "Dashboard", crm: "Sales CRM", admin: "Administration", expandGroup: "Expand section", collapseGroup: "Collapse section",
   },
   common: {
     save: "Save", saving: "Saving…", cancel: "Cancel", create: "Create", edit: "Edit", back: "Back", search: "Search", clear: "Clear", apply: "Apply", filters: "Filters",
@@ -179,6 +180,7 @@ const fr: Dict = {
     shops: "Ateliers", analytics: "Analytique", messages: "Messages", openMenu: "Ouvrir le menu", closeMenu: "Fermer le menu",
     roles: { SUPER_ADMIN: "Super admin", SALES_MANAGER: "Gestionnaire des ventes", SALES_REP: "Représentant" },
     session: "Connecté en tant que", signOut: "Se déconnecter", sales: "Espace ventes", platform: "Plateforme",
+    home: "Tableau de bord", crm: "CRM des ventes", admin: "Administration", expandGroup: "Développer la section", collapseGroup: "Réduire la section",
   },
   common: {
     save: "Enregistrer", saving: "Enregistrement…", cancel: "Annuler", create: "Créer", edit: "Modifier", back: "Retour", search: "Rechercher", clear: "Effacer", apply: "Appliquer", filters: "Filtres",
