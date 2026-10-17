@@ -1,92 +1,93 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
-import { Radar, LayoutDashboard, LogOut, Shield, BarChart3, MessagesSquare, X, Users, Kanban, ListChecks, MonitorPlay, Contact, SlidersHorizontal, Store, Mail, Send, CalendarDays, Settings2, MapPin, Video, UserCog, Route, LocateFixed } from "lucide-react";
+import { LogOut, Shield, X, ChevronDown } from "lucide-react";
 import { ADMIN, PLATFORM } from "@/lib/routes";
 import { APP_NAME } from "@/config/app";
 import { crmCopy } from "@/lib/admin-locale/sales-crm";
-import { commsCopy } from "@/lib/admin-locale/sales-comms";
-import { identityCopy } from "@/lib/admin-locale/sales-identity";
-import { fieldCopy } from "@/lib/admin-locale/sales-field";
-import { radarCopy } from "@/lib/admin-locale/lead-radar";
-import type { PlatformSalesKind } from "@/domain/sales-crm/access";
+import { activeGroupId, isNavItemActive, navFor, type NavGroup, type NavItem, type PlatformNavContext } from "@/components/admin/platform-nav";
 
-export interface PlatformNavContext { kind: PlatformSalesKind; locale: "en" | "fr"; /** National Lead Radar entry: Super Admin, and managers only while review is allowed. Convenience only. */ leadRadar?: boolean; /** Field planner link: FIELD sellers and managers/Super Admin (read-only for non-FIELD). Convenience only; pages re-check. */ fieldPlanner?: boolean }
-
-interface NavItem { href: string; label: string; icon: typeof Shield; exact?: boolean; also?: string[] }
-
-/** Navigation is built from the platform role. Hiding is only convenience: every page and action re-checks on the server. */
-function navFor({ kind, locale, fieldPlanner, leadRadar }: PlatformNavContext): { sales: NavItem[]; platform: NavItem[] } {
-  const t = crmCopy(locale).nav;
-  const c = commsCopy(locale).nav;
-  const ic = identityCopy(locale);
-  const sales: NavItem[] = [
-    { href: PLATFORM.sales, label: t.dashboard, icon: LayoutDashboard, exact: true },
-    { href: PLATFORM.salesProspects, label: t.prospects, icon: Contact },
-    { href: PLATFORM.salesPipeline, label: t.pipeline, icon: Kanban },
-    { href: PLATFORM.salesTasks, label: t.tasks, icon: ListChecks },
-    ...(fieldPlanner ? [{ href: PLATFORM.salesField, label: fieldCopy(locale).nav, icon: Route }] : []),
-    { href: PLATFORM.salesInbox, label: c.inbox, icon: Mail },
-    { href: PLATFORM.salesOutreach, label: c.outreach, icon: Send },
-    { href: PLATFORM.salesCalendar, label: c.calendar, icon: CalendarDays },
-    { href: PLATFORM.salesDemos, label: t.demos, icon: MonitorPlay, also: [PLATFORM.salesNew] },
-  ];
-  if (kind === "SUPER_ADMIN" || kind === "SALES_MANAGER") sales.push({ href: PLATFORM.salesTeam, label: t.team, icon: Users });
-  if (leadRadar) sales.push({ href: PLATFORM.salesLeadRadar, label: radarCopy(locale).nav, icon: Radar });
-  if (kind === "SUPER_ADMIN") sales.push({ href: PLATFORM.salesNeeds, label: t.needs, icon: SlidersHorizontal }, { href: PLATFORM.salesComms, label: c.comms, icon: Settings2 }, { href: PLATFORM.salesTerritories, label: ic.territories.title, icon: MapPin }, { href: PLATFORM.salesGeocoding, label: fieldCopy(locale).geocodingAdmin.nav, icon: LocateFixed }, { href: PLATFORM.salesVideos, label: ic.videos.title, icon: Video });
-  sales.push({ href: PLATFORM.salesAccount, label: ic.account.title, icon: UserCog });
-  const platform: NavItem[] = kind === "SUPER_ADMIN" ? [
-    { href: PLATFORM.home, label: t.shops, icon: Store, exact: true },
-    { href: PLATFORM.analytics, label: t.analytics, icon: BarChart3 },
-    { href: PLATFORM.messages, label: t.messages, icon: MessagesSquare },
-  ] : [];
-  return { sales, platform };
-}
+export type { PlatformNavContext };
 
 function SidebarBody({ nav, onNavigate, hasWaitingMessages }: { nav: PlatformNavContext; onNavigate?: () => void; hasWaitingMessages?: boolean }) {
   const pathname = usePathname();
   const t = crmCopy(nav.locale).nav;
-  const groups = navFor(nav);
+  const model = navFor(nav);
+  const currentGroup = activeGroupId(model, pathname);
+  const [open, setOpen] = useState<Set<string>>(() => new Set(currentGroup ? [currentGroup] : []));
+  // Navigating (also by deep link or back/forward) always reveals the section that holds the current page.
+  const [seenGroup, setSeenGroup] = useState(currentGroup);
+  if (seenGroup !== currentGroup) {
+    setSeenGroup(currentGroup);
+    if (currentGroup && !open.has(currentGroup)) setOpen(new Set(open).add(currentGroup));
+  }
+  const toggle = (id: string) => setOpen((prev) => { const next = new Set(prev); if (!next.delete(id)) next.add(id); return next; });
+
+  const linkClass = (active: boolean) => cn(
+    "flex min-h-11 md:min-h-9 items-center gap-3 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+    active ? "bg-amber-500 text-slate-950" : "text-slate-400 hover:text-white hover:bg-slate-800"
+  );
   const renderItem = (item: NavItem) => {
-    const active = item.exact ? pathname === item.href : [item.href, ...(item.also ?? [])].some((h) => pathname.startsWith(h));
+    const active = isNavItemActive(item, pathname);
     return (
-      <Link
-        key={item.href}
-        href={item.href}
-        onClick={onNavigate}
-        aria-current={active ? "page" : undefined}
-        className={cn(
-          "flex min-h-11 items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-          active ? "bg-amber-500 text-slate-950" : "text-slate-400 hover:text-white hover:bg-slate-800"
-        )}
-      >
+      <Link key={item.href} href={item.href} onClick={onNavigate} aria-current={active ? "page" : undefined} className={linkClass(active)}>
         <item.icon className="w-4 h-4 flex-shrink-0" />
-        {item.label}
-        {item.href === PLATFORM.messages && hasWaitingMessages && (
-          <span className="ml-auto w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
-        )}
+        <span className="min-w-0 truncate">{item.label}</span>
+        {item.href === PLATFORM.messages && hasWaitingMessages && <span className="ml-auto w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />}
       </Link>
+    );
+  };
+  const renderGroup = (group: NavGroup) => {
+    const expanded = open.has(group.id);
+    const hasActive = currentGroup === group.id;
+    const panelId = `platform-nav-${group.id}`;
+    const dot = !expanded && group.id === "platform" && hasWaitingMessages;
+    return (
+      <div key={group.id}>
+        <button
+          type="button"
+          onClick={() => toggle(group.id)}
+          aria-expanded={expanded}
+          aria-controls={panelId}
+          title={expanded ? t.collapseGroup : t.expandGroup}
+          className={cn(
+            "flex min-h-11 md:min-h-9 w-full items-center gap-3 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors hover:bg-slate-800 hover:text-white",
+            hasActive ? "text-white" : "text-slate-300"
+          )}
+        >
+          <group.icon className="w-4 h-4 flex-shrink-0" />
+          <span className="min-w-0 truncate">{group.label}</span>
+          {dot && <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />}
+          <ChevronDown className={cn("ml-auto w-4 h-4 flex-shrink-0 text-slate-500 transition-transform", expanded && "rotate-180")} />
+        </button>
+        {expanded && (
+          <div id={panelId} className="mt-0.5 ml-4 space-y-0.5 border-l border-slate-800 pl-2">
+            {group.items.map(renderItem)}
+          </div>
+        )}
+      </div>
     );
   };
   return (
     <>
-      <nav className="flex-1 px-3 py-4 space-y-1" aria-label={t.sales}>
-        <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">{t.sales}</p>
-        {groups.sales.map(renderItem)}
-        {groups.platform.length > 0 && <p className="px-3 pb-1 pt-4 text-xs font-semibold uppercase tracking-wide text-slate-500">{t.platform}</p>}
-        {groups.platform.map(renderItem)}
+      <nav className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 py-3 space-y-1" aria-label={t.sales}>
+        {model.top.slice(0, 1).map(renderItem)}
+        {model.groups.filter((g) => g.id === "crm").map(renderGroup)}
+        {model.top.slice(1).map(renderItem)}
+        {model.groups.filter((g) => g.id !== "crm").map(renderGroup)}
       </nav>
 
-      <div className="px-3 py-4 border-t border-slate-800">
+      <div className="flex-shrink-0 px-3 py-3 border-t border-slate-800 space-y-0.5">
+        {renderItem(model.account)}
         <button
           type="button"
           onClick={() => signOut({ callbackUrl: ADMIN.login })}
-          className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-400 hover:text-white transition-colors"
+          className="flex min-h-11 md:min-h-9 items-center gap-3 w-full px-3 py-1.5 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
         >
           <LogOut className="w-4 h-4 flex-shrink-0" />
           {t.signOut}
@@ -154,8 +155,8 @@ export function AdminSidebar({
   return (
     <>
       {/* Desktop — siempre visible */}
-      <aside className="no-print hidden md:flex w-64 flex-shrink-0 min-h-screen bg-slate-950 flex-col">
-        <div className="px-6 py-5 border-b border-slate-800">
+      <aside className="no-print hidden md:flex w-64 flex-shrink-0 sticky top-0 self-start h-screen h-dvh bg-slate-950 flex-col">
+        <div className="flex-shrink-0 px-6 py-4 border-b border-slate-800">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center flex-shrink-0">
               <Shield className="w-4 h-4 text-slate-950" />
@@ -194,9 +195,9 @@ export function AdminSidebar({
               animate={{ x: 0 }}
               exit={{ x: reducedMotion ? 0 : "-100%" }}
               transition={{ type: "tween", duration: reducedMotion ? 0 : 0.2, ease: "easeOut" }}
-              className="no-print md:hidden fixed inset-y-0 left-0 w-64 max-w-[85vw] bg-slate-950 z-50 flex flex-col overflow-y-auto"
+              className="no-print md:hidden fixed inset-y-0 left-0 w-64 max-w-[85vw] bg-slate-950 z-50 flex flex-col h-dvh overflow-hidden"
             >
-              <div className="px-4 py-5 border-b border-slate-800 flex items-center justify-between">
+              <div className="flex-shrink-0 px-4 py-4 border-b border-slate-800 flex items-center justify-between">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center flex-shrink-0">
                     <Shield className="w-4 h-4 text-slate-950" />
