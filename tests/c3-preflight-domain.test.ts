@@ -24,3 +24,18 @@ test("C3 verdict: every blocker, in a fixed order (the first one wins), and a pe
   assert.deepEqual(c3Verdict({ ...ok, liveFit: "EXCLUDED", licenseOk: false, reviewState: "REJECTED" }), { importable: false, blocker: "FIT_CHANGED" }, "first blocker wins");
   assert.equal(C3_BLOCKERS.length, new Set(C3_BLOCKERS).size);
 });
+
+test("C3 preflight card: the province selector drives the button, URL and seller label (no hardcoded Alberta)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const page = readFileSync("src/app/(site)/platform/sales/lead-radar/national/page.tsx", "utf8");
+  const locale = readFileSync("src/lib/admin-locale/lead-radar-national.ts", "utf8");
+  assert.ok(!/preflight=AB/.test(page), "no hardcoded ?preflight=AB link");
+  assert.ok(!/province: "AB"/.test(page), "button label is not pinned to AB");
+  assert.match(page, /<select name="preflight" defaultValue=\{selected\}/);
+  assert.match(page, /PROVINCE_CODES\.map/, "every province is offered");
+  assert.match(page, /const selected = pfProvince \?\? "AB"/, "defaults to AB, otherwise the URL province");
+  assert.match(page, /fill\(c3\.run, \{ province: selected \}\)/);
+  assert.match(page, /fill\(c3\.sellerCols\.receives, \{ province: selected \}\)/);
+  assert.ok(!/Alberta|l’Alberta/.test(locale.slice(locale.indexOf("c3:"), locale.indexOf("sections:"))), "no Alberta wording left in the EN preflight labels");
+  assert.equal((locale.match(/receives: "[^"]*\{province\}/g) ?? []).length, 2, "EN and FR seller labels take the province");
+});
