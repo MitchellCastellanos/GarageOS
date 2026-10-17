@@ -2,11 +2,12 @@ import "server-only";
 import type { PlatformSalesActor } from "@/domain/sales-crm/access";
 import { can } from "@/domain/sales-crm/access";
 import {
-  HALT_CODES, ROLLOUT_ASSIGN_PROVINCES, ROLLOUT_NEVER, ROLLOUT_PROVINCES, ROLLOUT_SELLER_EMAIL, planRollout, safetyViolation,
+  HALT_CODES, ROLLOUT_ASSIGN_PROVINCES, ROLLOUT_EXISTING, ROLLOUT_NEVER, ROLLOUT_PROVINCES, ROLLOUT_SELLER_EMAIL, planRollout, safetyViolation,
   type HaltCode, type ProvinceFacts, type SafetyFacts,
 } from "@/domain/lead-radar/rollout";
+import { LEAD_RADAR_SOURCE_KEY } from "@/domain/lead-radar/bridge";
 import { db } from "@/lib/db";
-import { readAutomation, type AutomationSettings } from "@/lib/lead-radar/automation";
+import { MAX_IMPORT_ATTEMPTS, readAutomation, type AutomationSettings } from "@/lib/lead-radar/automation";
 import { isLive, readSettings } from "@/lib/lead-radar/settings";
 import { getActivePolicy } from "@/lib/lead-radar/policy";
 import { nationalReadiness } from "@/lib/lead-radar/national";
@@ -98,21 +99,34 @@ async function safetyFacts(a: AutomationSettings): Promise<SafetyFacts> {
 }
 
 async function provinceFacts(a: AutomationSettings): Promise<ProvinceFacts[]> {
-  const [national, runs] = await Promise.all([
+  const scope = [...ROLLOUT_EXISTING, ...a.rolloutProvinces];
+  const [national, runs, queued, stuck] = await Promise.all([
     nationalReadiness(),
     db.crmDiscoveryRun.findMany({ orderBy: { createdAt: "desc" }, take: 200, select: { status: true, scope: true, qualityVerdict: true, errorCode: true } }),
+    // What the importer will actually still take (its own queue filter): approved, not imported, importable, not given up on.
+    db.crmDiscoveryCandidate.groupBy({ by: ["province"], where: { province: { in: scope }, reviewState: "APPROVED", importState: "NOT_IMPORTED", licenseOk: true, tier: { not: "EXCLUDED" }, duplicateOfCandidateId: null, importAttempts: { lt: MAX_IMPORT_ATTEMPTS } }, _count: { _all: true } }),
+    // Approved candidates the importer gave up on after repeated attempts are import errors, not "pending".
+    db.crmDiscoveryCandidate.groupBy({ by: ["province"], where: { province: { in: scope }, reviewState: "APPROVED", importState: "NOT_IMPORTED", duplicateOfCandidateId: null, importAttempts: { gte: MAX_IMPORT_ATTEMPTS } }, _count: { _all: true } }),
   ]);
-  return a.rolloutProvinces.map((province) => {
+  const count = (rows: { province: string | null; _count: { _all: number } }[], p: string) => rows.find((r) => r.province === p)?._count._all ?? 0;
+  return scope.map((province) => {
     const row = national.rows.find((r) => r.province === province)!;
     const mine = runs.filter((r) => (((r.scope as { provinces?: string[] }).provinces) ?? []).includes(province));
     const latest = mine.find((r) => r.status === "COMPLETED" || r.status === "FAILED" || r.status === "CANCELLED") ?? null;
     return {
-      province, activeRun: mine.some((r) => r.status === "PLANNED" || r.status === "INGESTING"),
+      province, existing: ROLLOUT_EXISTING.includes(province), activeRun: mine.some((r) => r.status === "PLANNED" || r.status === "INGESTING"),
       latestRun: latest ? { status: latest.status as "COMPLETED" | "FAILED" | "CANCELLED", verdict: latest.qualityVerdict, errorCode: latest.errorCode } : null,
       staged: row.candidates.staged, duplicates: row.candidates.duplicates, unclassified: row.candidates.unclassified, withPoint: row.candidates.withPoint, verified: row.candidates.verified, review: row.candidates.review, excluded: row.candidates.excluded,
-      importFailed: row.errors.importFailed, approvedNotImported: row.deferred.approvedNotImported, awaitingQualification: row.deferred.awaitingQualification,
+      importFailed: row.errors.importFailed + count(stuck, province), approvedNotImported: count(queued, province), awaitingQualification: row.deferred.awaitingQualification,
       inImportScope: a.importProvinces.includes(province),
     };
+  });
+}
+
+/** Assignable REMOTE Lead Radar prospects (rollout provinces + ON + AB) still without an owner. Human-owned, FIELD-lane (local territory), Québec and non-Lead-Radar prospects never count. */
+async function pendingAssignment() {
+  return db.crmProspect.count({
+    where: { importBatch: { sourceKey: LEAD_RADAR_SOURCE_KEY }, status: "ACTIVE", assignedStaffId: null, doNotContact: false, repairFit: "VERIFIED_REPAIR", territoryState: "NATIONAL", province: { in: [...ROLLOUT_ASSIGN_PROVINCES] } },
   });
 }
 
@@ -124,7 +138,7 @@ export async function rolloutStage(actor: PlatformSalesActor, a: AutomationSetti
   if (!a.rolloutEnabled || a.rolloutPaused) return { ...t, waiting: "ROLLOUT_OFF" };
   const unsafe = safetyViolation(await safetyFacts(a));
   if (unsafe) { await halt(actor, "*", unsafe.code, unsafe.detail); t.halted = { province: "*", code: unsafe.code }; return t; }
-  const plan = planRollout(await provinceFacts(a));
+  const plan = planRollout(await provinceFacts(a), await pendingAssignment());
   if (plan.halt) { await halt(actor, plan.halt.province, plan.halt.code, plan.halt.detail); t.halted = { province: plan.halt.province, code: plan.halt.code }; return t; }
   if (plan.openImport.length) {
     const next = [...new Set([...a.importProvinces, ...plan.openImport])].sort();
@@ -142,6 +156,7 @@ export async function rolloutStage(actor: PlatformSalesActor, a: AutomationSetti
       await halt(actor, plan.queue, "EXTRACTION_FAILED", detail); t.halted = { province: plan.queue, code: "EXTRACTION_FAILED" }; return t;
     }
   }
+  if (plan.waitingForAssignment) t.waiting = "ASSIGNMENT";
   if (plan.finished) {
     await db.crmLeadAutomation.update({ where: { id: ID }, data: { rolloutEnabled: false, rolloutFinishedAt: new Date(), enabled: false, pausedAt: new Date(), pausedReason: "ROLLOUT_COMPLETE" } });
     await writeCrmAudit({ actorUserId: actor.userId, action: "LEAD_RADAR_ROLLOUT_FINISHED", entityType: "CrmLeadAutomation", entityId: ID, metadata: { provinces: a.rolloutProvinces } });
@@ -152,13 +167,13 @@ export async function rolloutStage(actor: PlatformSalesActor, a: AutomationSetti
 
 /** Read-only status for the National page: per-province progress (from the existing readiness rows), the halt, and the final totals. */
 export async function rolloutStatus() {
-  const [a, national] = await Promise.all([readAutomation(), nationalReadiness()]);
+  const [a, national, pending] = await Promise.all([readAutomation(), nationalReadiness(), pendingAssignment()]);
   const scope = a.rolloutProvinces.length ? a.rolloutProvinces : [...ROLLOUT_PROVINCES];
-  const rows = [...scope, "ON"].map((p) => national.rows.find((r) => r.province === p)!).filter(Boolean);
+  const rows = [...ROLLOUT_EXISTING, ...scope].map((p) => national.rows.find((r) => r.province === p)!).filter(Boolean);
   const sum = (f: (r: (typeof rows)[number]) => number) => rows.reduce((x, r) => x + f(r), 0);
   return {
     state: a.rolloutFinishedAt ? ("FINISHED" as const) : a.rolloutHaltCode ? ("HALTED" as const) : a.rolloutEnabled && a.rolloutPaused ? ("PAUSED" as const) : a.rolloutEnabled ? ("RUNNING" as const) : ("NOT_STARTED" as const),
-    startedAt: a.rolloutStartedAt, finishedAt: a.rolloutFinishedAt, halt: a.rolloutHaltCode ? { province: a.rolloutHaltProvince, code: a.rolloutHaltCode, at: a.rolloutHaltAt } : null,
+    pendingAssignment: pending, startedAt: a.rolloutStartedAt, finishedAt: a.rolloutFinishedAt, halt: a.rolloutHaltCode ? { province: a.rolloutHaltProvince, code: a.rolloutHaltCode, at: a.rolloutHaltAt } : null,
     provinces: rows.map((r) => ({ province: r.province, stage: r.stage, staged: r.candidates.staged, verified: r.candidates.verified, prospects: r.crm.prospects, assigned: r.crm.assigned, failed: r.errors.importFailed, deferred: r.deferred.total, inImportScope: a.importProvinces.includes(r.province), activeRun: !!r.activeRun, lastRunFailure: r.errors.lastRunFailure })),
     totals: { staged: sum((r) => r.candidates.staged), verified: sum((r) => r.candidates.verified), review: sum((r) => r.candidates.review), excluded: sum((r) => r.candidates.excluded), prospects: sum((r) => r.crm.prospects), assigned: sum((r) => r.crm.assigned), failed: sum((r) => r.errors.importFailed) },
     haltCodes: HALT_CODES,

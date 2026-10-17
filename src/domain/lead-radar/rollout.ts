@@ -5,9 +5,12 @@ import type { ProvinceCode } from "@/domain/lead-radar/geo";
 
 /** Remaining provinces/territories, in extraction order. AB and QC are never extracted again; ON is already extracted and importing. */
 export const ROLLOUT_PROVINCES: readonly ProvinceCode[] = ["BC", "MB", "SK", "NS", "NB", "NL", "PE", "YT", "NT", "NU"];
+/** Never extracted (again) by the rollout. */
 export const ROLLOUT_NEVER: readonly string[] = ["AB", "QC"];
-/** Provinces whose imported REMOTE prospects the rollout may assign: the rollout provinces plus ON (extracted before the rollout, imported under it). Never AB or QC. */
-export const ROLLOUT_ASSIGN_PROVINCES: readonly string[] = [...ROLLOUT_PROVINCES, "ON"];
+/** Already extracted before the rollout: never queued or gated here, but their candidates must still finish qualification, import and assignment before the rollout can complete. */
+export const ROLLOUT_EXISTING: readonly string[] = ["ON", "AB"];
+/** Provinces whose REMOTE prospects the rollout may assign: the rollout provinces plus ON and AB. Never QC; FIELD prospects are never assigned. */
+export const ROLLOUT_ASSIGN_PROVINCES: readonly string[] = [...ROLLOUT_PROVINCES, ...ROLLOUT_EXISTING];
 export const ROLLOUT_SELLER_EMAIL = "mcastellanos@garage-os.ca";
 
 export const ROLLOUT_MIN_POINT_SHARE = 0.8;
@@ -23,6 +26,8 @@ export type HaltCode = (typeof HALT_CODES)[number];
 
 export interface ProvinceFacts {
   province: string;
+  /** Extracted before the rollout (ON, AB): no queue, no extraction gates; only import errors and the remaining work count. */
+  existing?: boolean;
   activeRun: boolean;
   /** Latest finished/cancelled run covering this province (null = never extracted). */
   latestRun: { status: "COMPLETED" | "FAILED" | "CANCELLED"; verdict: string | null; errorCode: string | null } | null;
@@ -41,6 +46,13 @@ export type RolloutStep =
 
 /** What the rollout does next for ONE province. Order matters: the first failing safety check wins and nothing is skipped silently. */
 export function provinceStep(f: ProvinceFacts): RolloutStep {
+  if (f.existing) {
+    if (f.importFailed > 0) return { kind: "HALT", code: "IMPORT_ERRORS", detail: String(f.importFailed) };
+    if (f.activeRun) return { kind: "WAIT", why: "EXTRACTING" };
+    if (f.unclassified > 0) return { kind: "WAIT", why: "CLASSIFYING" };
+    if (!f.inImportScope) return { kind: "OPEN_IMPORT" };
+    return f.approvedNotImported + f.awaitingQualification > 0 ? { kind: "IMPORTING" } : { kind: "DONE" };
+  }
   if (ROLLOUT_NEVER.includes(f.province)) return { kind: "HALT", code: "SETTINGS_UNSAFE", detail: "NEVER_EXTRACT" };
   if (f.activeRun) return { kind: "WAIT", why: "EXTRACTING" };
   if (!f.latestRun) return { kind: "QUEUE" };
@@ -66,13 +78,15 @@ export interface RolloutPlan {
   /** Provinces to add to the automatic-import scope now (their extraction passed every gate). */
   openImport: string[];
   halt: { province: string; code: HaltCode; detail?: string } | null;
+  /** True only when every province is DONE (qualified and imported) AND no assignable REMOTE prospect is left unassigned. Finishing extractions never completes the rollout. */
   finished: boolean;
+  waitingForAssignment: boolean;
   steps: { province: string; step: RolloutStep }[];
 }
 
 /** Walks the provinces in order. Extraction is sequential (nothing is queued while a rollout province is extracting); import/qualification of finished provinces proceeds in parallel. */
-export function planRollout(facts: readonly ProvinceFacts[]): RolloutPlan {
-  const plan: RolloutPlan = { queue: null, openImport: [], halt: null, finished: false, steps: [] };
+export function planRollout(facts: readonly ProvinceFacts[], pendingAssignment = 0): RolloutPlan {
+  const plan: RolloutPlan = { queue: null, openImport: [], halt: null, finished: false, waitingForAssignment: false, steps: [] };
   let extractionBusy = facts.some((f) => f.activeRun);
   for (const f of facts) {
     const step = provinceStep(f);
@@ -81,7 +95,9 @@ export function planRollout(facts: readonly ProvinceFacts[]): RolloutPlan {
     if (step.kind === "OPEN_IMPORT") plan.openImport.push(f.province);
     if (step.kind === "QUEUE" && !extractionBusy && !plan.queue) { plan.queue = f.province; extractionBusy = true; }
   }
-  plan.finished = plan.steps.every((s) => s.step.kind === "DONE");
+  const allDone = plan.steps.every((s) => s.step.kind === "DONE");
+  plan.waitingForAssignment = allDone && pendingAssignment > 0;
+  plan.finished = allDone && pendingAssignment === 0;
   return plan;
 }
 

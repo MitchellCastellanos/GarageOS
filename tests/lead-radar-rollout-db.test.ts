@@ -94,7 +94,7 @@ if (!enabled) {
     assert.deepEqual([a.enabled, a.qualifyEnabled, a.importEnabled, a.assignEnabled, a.eligibilityEnabled, a.releaseUnavailable, a.pilotEnabled], [true, true, true, true, false, false, false]);
     assert.deepEqual(a.assignStaffIds, [rep]); assert.equal(a.rolloutStaffId, rep);
     assert.deepEqual(a.rolloutProvinces, ["BC", "MB", "SK", "NS", "NB", "NL", "PE", "YT", "NT", "NU"]);
-    assert.deepEqual(a.importProvinces, ["ON"], "activation does not widen the import scope");
+    assert.deepEqual(a.importProvinces, ["ON"], "activation itself does not widen the import scope");
     await assert.rejects(roLib.activateNationalRollout(actor), /ROLLOUT_ALREADY_ACTIVE/);
   });
 
@@ -120,10 +120,11 @@ if (!enabled) {
     // Unrelated pool that must never be assigned by the scoped rollout: an Alberta Lead Radar prospect, a Québec one, and a BC prospect that did not come from Lead Radar.
     const lrBatch = await db.crmImportBatch.create({ data: { createdByUserId: users.Root, filename: "lr.csv", fileHash: `h-${run}`, status: "COMPLETED", sourceKey: "overture-places" } });
     const mk = (name: string, province: string, batch: string | null) => db.crmProspect.create({ data: { name, nameNormalized: name.toLowerCase(), city: "X", province, territoryState: "NATIONAL", territoryKey: "canada", createdByUserId: users.Root, ...(batch ? { importBatchId: batch } : {}) } });
+    // AB is in the assignment scope now (the owner asked for its existing REMOTE prospects); QC and non-Lead-Radar prospects must stay untouched.
     unrelated = [(await mk("Unrelated AB Garage", "AB", lrBatch.id)).id, (await mk("Unrelated QC Garage", "QC", lrBatch.id)).id, (await mk("Unrelated BC Manual Garage", "BC", null)).id];
     await tick();
     const s = await state();
-    assert.deepEqual(s.importProvinces.sort(), ["BC", "ON"], "only BC was added");
+    assert.deepEqual(s.importProvinces.sort(), ["AB", "BC", "ON"], "BC passed its gate; AB and ON (extracted before the rollout) are opened so their candidates also finish");
     const runs = await workerRuns();
     assert.deepEqual(runs.map((r) => provOf(r)[0]), ["BC", "MB"], "next province queued, still never AB/QC");
     for (let i = 0; i < 4; i++) await tick();
@@ -132,7 +133,7 @@ if (!enabled) {
     assert.ok(!bc.some((p) => /kal tire/i.test(p.name)), "a chain is never imported");
     for (const p of bc) assert.ok(p.assignedStaffId === null || (p.assignedStaffId === rep && p.assignmentMode === "REMOTE"), "only the one seller, only REMOTE");
     assert.ok(bc.some((p) => p.assignedStaffId === rep), "REMOTE prospects were assigned to the rollout seller");
-    assert.equal(await db.crmProspect.count({ where: { id: { in: unrelated }, assignedStaffId: { not: null } } }), 0, "unrelated unassigned prospects (AB, QC, non-Lead-Radar) are never assigned");
+    assert.equal(await db.crmProspect.count({ where: { id: { in: [unrelated[1], unrelated[2]] }, assignedStaffId: { not: null } } }), 0, "unrelated unassigned prospects (QC, non-Lead-Radar) are never assigned");
     const st = await state();
     assert.equal(st.rolloutHaltCode, null);
   });
@@ -188,9 +189,52 @@ if (!enabled) {
     const paused = await roLib.pauseNationalRollout(actor);
     assert.deepEqual([paused.enabled, paused.rolloutPaused], [false, true]);
     assert.equal((await tick()).status, "SKIPPED");
-    const ab = await db.crmProspect.count({ where: { province: "AB", assignedStaffId: { not: null }, autoAssignedAt: { not: null } } });
-    assert.equal(ab, 0, "Alberta prospects are never auto-assigned by the rollout");
+    const qc = await db.crmProspect.count({ where: { province: "QC", assignedStaffId: { not: null }, autoAssignedAt: { not: null } } });
+    assert.equal(qc, 0, "Québec prospects are never auto-assigned by the rollout");
     await roLib.resumeNationalRollout(actor);
     assert.equal((await state()).enabled, true);
+  });
+
+  test("completion: extractions finishing is not enough; ON/AB/new provinces must finish assignment too (REMOTE only, no QC); only then it completes and the master goes OFF", async () => {
+    const actor = (await access.resolvePlatformSalesActor(users.Root))!;
+    // Narrow the extraction scope to BC (already extracted and imported above) so every province is DONE; ON and AB have no pending candidates.
+    await db.crmLeadAutomation.update({ where: { id: "default" }, data: { rolloutProvinces: ["BC"], rolloutHaltCode: null, rolloutHaltProvince: null, rolloutPaused: false, enabled: true, importProvinces: ["AB", "BC", "ON"] } });
+    const [abId, qcId] = unrelated;
+    // An Alberta Lead Radar REMOTE prospect (verified, unassigned) and a Québec one: only the first counts as work left.
+    await db.crmProspect.update({ where: { id: abId }, data: { repairFit: "VERIFIED_REPAIR", repairFitSource: "AUTO" } });
+    await db.crmProspect.update({ where: { id: qcId }, data: { repairFit: "VERIFIED_REPAIR", repairFitSource: "AUTO" } });
+    await db.crmProspect.update({ where: { id: abId }, data: { assignedStaffId: null, assignmentMode: null, autoAssignedAt: null } });
+    const t1 = await roLib.rolloutStage(actor, await state());
+    assert.equal(t1.halted, undefined, JSON.stringify(t1));
+    let s = await state();
+    assert.deepEqual([t1.finished, t1.waiting, s.rolloutEnabled, s.enabled, s.rolloutFinishedAt], [undefined, "ASSIGNMENT", true, true, null], "all extractions/imports done but an AB REMOTE prospect is unassigned: NOT complete, master stays ON");
+    assert.equal((await roLib.rolloutStatus()).pendingAssignment, 1, "Québec never counts as work left");
+    // The automation assigns it (the scoped assignment stage includes AB).
+    const asg = await autoLib.assignStage(actor, [rep], Date.now() + 20_000, { provinces: (await import("../src/domain/lead-radar/rollout")).ROLLOUT_ASSIGN_PROVINCES, remoteOnly: true });
+    void asg;
+    s = await state();
+    assert.equal((await db.crmProspect.findUniqueOrThrow({ where: { id: qcId } })).assignedStaffId, null, "Québec is never assigned");
+    await db.crmProspect.updateMany({ where: { id: abId, assignedStaffId: null }, data: { assignedStaffId: rep } });
+    const t2 = await roLib.rolloutStage(actor, await state());
+    s = await state();
+    assert.deepEqual([t2.finished, s.rolloutEnabled, s.enabled, s.pausedReason], [true, false, false, "ROLLOUT_COMPLETE"]);
+    assert.ok(s.rolloutFinishedAt);
+  });
+
+  test("completion is blocked by pending ON/AB work: approved candidates not yet imported keep the rollout running", async () => {
+    const actor = (await access.resolvePlatformSalesActor(users.Root))!;
+    await db.crmLeadAutomation.update({ where: { id: "default" }, data: { rolloutEnabled: true, rolloutFinishedAt: null, enabled: true, pausedReason: null, importProvinces: ["BC", "ON"] } });
+    const t = await roLib.rolloutStage(actor, await state());
+    assert.deepEqual(t.openedImport, ["AB"], "AB is opened for import by the rollout");
+    // A pending (not yet imported) approved AB candidate keeps the rollout from finishing; a human-review one does not.
+    const [one, two] = await db.crmDiscoveryCandidate.findMany({ where: { province: "BC", importState: "CREATED" }, orderBy: { id: "asc" }, take: 2 });
+    await db.crmDiscoveryCandidate.update({ where: { id: one.id }, data: { province: "AB", reviewState: "APPROVED", importState: "NOT_IMPORTED", importAttempts: 0, qualificationLane: "AUTO_ELIGIBLE" } });
+    await db.crmDiscoveryCandidate.update({ where: { id: two.id }, data: { province: "AB", reviewState: "PENDING", importState: "NOT_IMPORTED", qualificationLane: "HUMAN_REVIEW", approvedByPolicyVersion: null } });
+    const t2 = await roLib.rolloutStage(actor, await state());
+    assert.equal(t2.finished, undefined, "an approved AB candidate is not yet imported");
+    assert.equal((await state()).rolloutEnabled, true);
+    await db.crmDiscoveryCandidate.update({ where: { id: one.id }, data: { importState: "CREATED" } });
+    const t3 = await roLib.rolloutStage(actor, await state());
+    assert.equal(t3.finished, true, "only the human-review candidate remains: it does not block completion");
   });
 }
