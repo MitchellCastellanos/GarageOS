@@ -4,6 +4,7 @@ import type { PlatformSalesActor } from "@/domain/sales-crm/access";
 import { can } from "@/domain/sales-crm/access";
 import { LEAD_RADAR_SOURCE_KEY } from "@/domain/lead-radar/bridge";
 import { BASIS_REASONS, checkEmailShape, climbLadder, LADDER, SUPPRESSION_REASONS, type Rung } from "@/domain/lead-radar/contact-readiness";
+import { EMAIL_RE } from "@/domain/sales-comms/email";
 import { db } from "@/lib/db";
 import { activeSuppressions } from "@/lib/sales-comms/suppression";
 import { writeCrmAudit } from "@/lib/sales-crm/audit";
@@ -16,51 +17,73 @@ import { isLive, readSettings } from "@/lib/lead-radar/settings";
 // existing reviewed CASL basis, a decided language, a verified sender and no suppression before the eligibility engine says ELIGIBLE.
 
 const SEED_PAGE = 500;
+/** Per-run ceiling (pages x SEED_PAGE rows). A backlog larger than this is simply continued by the next cron run (the queue is "not yet seeded", so it is resumable). */
+const SEED_MAX_PAGES = 20;
+/** Transaction-scoped advisory lock: an overlapping run skips instead of racing (the unique index would also absorb it, this keeps the audit trail and the work clean). */
+const SEED_LOCK = 7_204_150_013;
 
 export interface SeedTally { considered: number; stored: number; flagged: number; suppressedSkipped: number; pages: number }
 
 /**
- * Records, as PENDING discovered contacts, the published business emails that Overture carried on candidates already imported into the CRM. Idempotent
- * (unique per prospect+address), bounded, provenance on every row. Addresses on the suppression list are stored as REJECTED (we saw it; we will not use it).
+ * Records, as PENDING discovered contacts, the published business emails that Overture carried on candidates already imported into the CRM (newly imported AND
+ * previously imported: the queue is simply "imported, active, not yet recorded"). Idempotent (unique per prospect+address), bounded, resumable (stable id order,
+ * keyset cursor inside a run, already-recorded rows drop out of the queue between runs), one transaction per page under an advisory lock, provenance on every row.
+ * Addresses on the suppression list, on a do-not-contact prospect or on a do-not-contact contact are stored as REJECTED (we saw it; we will not use it).
+ * Staging only: no CRM contact, no sending basis, no eligibility change, no enrollment, no message.
  */
-export async function seedDiscoveredContacts(opts: { deadline: number; maxPages?: number }): Promise<SeedTally> {
+export async function seedDiscoveredContacts(opts: { deadline: number; maxPages?: number; pageSize?: number }): Promise<SeedTally> {
   const t: SeedTally = { considered: 0, stored: 0, flagged: 0, suppressedSkipped: 0, pages: 0 };
-  for (let page = 0; page < (opts.maxPages ?? 20) && Date.now() < opts.deadline; page++) {
-    const rows = await db.$queryRaw<{ id: string; prospectId: string; email: string; datasets: string[]; seen: Date }[]>(Prisma.sql`
-      SELECT c."id", c."importedProspectId" AS "prospectId", c."email", c."datasets", c."createdAt" AS seen
-      FROM "garageos"."CrmDiscoveryCandidate" c JOIN "garageos"."CrmProspect" p ON p."id" = c."importedProspectId"
-      WHERE c."email" IS NOT NULL AND c."importState" IN ('CREATED','LINKED') AND p."status" = 'ACTIVE'
-        AND NOT EXISTS (SELECT 1 FROM "garageos"."CrmDiscoveredContact" d WHERE d."prospectId" = p."id" AND d."emailNormalized" = lower(c."email"))
-      ORDER BY c."id" LIMIT ${SEED_PAGE}`);
-    if (!rows.length) break;
-    t.pages++; t.considered += rows.length;
-    const shaped = rows.map((r) => ({ r, s: checkEmailShape(r.email) }));
-    const supp = await activeSuppressions(shaped.map((x) => x.s.normalized).filter((e): e is string => !!e));
-    const data: Prisma.CrmDiscoveredContactCreateManyInput[] = [];
-    for (const { r, s } of shaped) {
-      if (!s.normalized) continue; // not a usable address: nothing to store
-      const suppressed = supp.has(s.normalized);
-      if (suppressed) t.suppressedSkipped++;
-      if (s.roleBased || s.freeMailbox) t.flagged++;
-      data.push({
-        prospectId: r.prospectId, emailNormalized: s.normalized, source: "OVERTURE_PUBLISHED", sourceDataset: r.datasets.join(",").slice(0, 200) || null, capturedAt: r.seen,
-        syntaxValid: s.syntaxValid, roleBased: s.roleBased, freeMailbox: s.freeMailbox, ...(suppressed ? { status: "REJECTED", reviewNote: "SUPPRESSED_ADDRESS" } : {}),
-      });
-    }
-    const res = data.length ? await db.crmDiscoveredContact.createMany({ data, skipDuplicates: true }) : { count: 0 };
-    t.stored += res.count;
-    // Rows that produced no insert (unusable addresses) would be re-read forever: they have no candidate-side marker, so stop when a page made no progress.
-    if (res.count === 0 || rows.length < SEED_PAGE) break;
+  const size = Math.min(Math.max(1, opts.pageSize ?? SEED_PAGE), SEED_PAGE);
+  let after = "";
+  for (let page = 0; page < (opts.maxPages ?? SEED_MAX_PAGES) && Date.now() < opts.deadline; page++) {
+    const r = await db.$transaction(async (tx) => {
+      const [{ got }] = await tx.$queryRaw<{ got: boolean }[]>(Prisma.sql`SELECT pg_try_advisory_xact_lock(${SEED_LOCK}) AS got`);
+      if (!got) return { locked: true as const };
+      // The regex prefilter is the same address syntax as checkEmailShape, so rows that can never be stored do not sit at the head of the queue.
+      const rows = await tx.$queryRaw<{ id: string; prospectId: string; email: string; datasets: string[]; seen: Date; dnc: boolean }[]>(Prisma.sql`
+        SELECT c."id", c."importedProspectId" AS "prospectId", c."email", c."datasets", c."createdAt" AS seen,
+          (p."doNotContact" OR EXISTS (SELECT 1 FROM "garageos"."CrmContact" k WHERE k."prospectId" = p."id" AND k."doNotContact" = true AND k."emailNormalized" = lower(btrim(c."email")))) AS dnc
+        FROM "garageos"."CrmDiscoveryCandidate" c JOIN "garageos"."CrmProspect" p ON p."id" = c."importedProspectId"
+        WHERE c."email" IS NOT NULL AND c."importState" IN ('CREATED','LINKED') AND p."status" = 'ACTIVE' AND c."id" > ${after}
+          AND length(btrim(c."email")) <= 254 AND btrim(c."email") ~* ${EMAIL_RE.source}
+          AND NOT EXISTS (SELECT 1 FROM "garageos"."CrmDiscoveredContact" d WHERE d."prospectId" = p."id" AND d."emailNormalized" = lower(btrim(c."email")))
+        ORDER BY c."id" LIMIT ${size}`);
+      if (!rows.length) return { locked: false as const, rows, stored: 0, flagged: 0, suppressedSkipped: 0 };
+      const shaped = rows.map((x) => ({ x, s: checkEmailShape(x.email) }));
+      const supp = await activeSuppressions(shaped.map((y) => y.s.normalized).filter((e): e is string => !!e), tx);
+      const data: Prisma.CrmDiscoveredContactCreateManyInput[] = [];
+      let flagged = 0, suppressedSkipped = 0;
+      for (const { x, s } of shaped) {
+        if (!s.normalized) continue; // not a usable address: nothing to store
+        const suppressed = supp.has(s.normalized);
+        if (suppressed || x.dnc) suppressedSkipped++;
+        if (s.roleBased || s.freeMailbox) flagged++;
+        data.push({
+          prospectId: x.prospectId, emailNormalized: s.normalized, source: "OVERTURE_PUBLISHED", sourceDataset: x.datasets.join(",").slice(0, 200) || null, capturedAt: x.seen,
+          syntaxValid: s.syntaxValid, roleBased: s.roleBased, freeMailbox: s.freeMailbox,
+          ...(suppressed || x.dnc ? { status: "REJECTED", reviewNote: suppressed ? "SUPPRESSED_ADDRESS" : "DO_NOT_CONTACT" } : {}),
+        });
+      }
+      const res = data.length ? await tx.crmDiscoveredContact.createMany({ data, skipDuplicates: true }) : { count: 0 };
+      return { locked: false as const, rows, stored: res.count, flagged, suppressedSkipped };
+    }, { timeout: 20_000 });
+    if (r.locked || !r.rows.length) break;
+    t.pages++; t.considered += r.rows.length; t.stored += r.stored; t.flagged += r.flagged; t.suppressedSkipped += r.suppressedSkipped;
+    after = r.rows[r.rows.length - 1].id;
+    if (r.rows.length < size) break;
   }
   if (t.stored > 0) await writeCrmAudit({ actorUserId: "system", action: "CONTACT_DISCOVERY_SEEDED", entityType: "CrmDiscoveredContact", metadata: { ...t } });
   return t;
 }
 
-/** Cron entry point: only while live discovery AND the automation master switch AND the eligibility stage are ON; otherwise a no-op. */
+/**
+ * Cron entry point: only while live discovery (settings + LEAD_RADAR_ENABLED) AND the automation master switch are ON; otherwise a no-op. Deliberately NOT gated on the
+ * outreach-eligibility stage (`eligibilityEnabled`): recording a published address as a PENDING discovered contact is staging for human review and grants no permission,
+ * so it must run during the national rollout (where eligibility stays off). It creates no CRM contact, basis, eligibility, enrollment or message.
+ */
 export async function seedDiscoveredContactsIfEnabled(): Promise<SeedTally | null> {
   if (!isLive(await readSettings())) return null;
-  const a = await readAutomation();
-  if (!a.enabled || !a.eligibilityEnabled) return null;
+  if (!(await readAutomation()).enabled) return null;
   return seedDiscoveredContacts({ deadline: Date.now() + 15_000 });
 }
 
