@@ -76,11 +76,15 @@ export async function scanNoEmailQueue(s: QueueScope): Promise<{ remote: { id: s
   return out;
 }
 
-/** Next importer chunk: candidates with a usable email, or without one but in FIELD / unresolved territory (`fieldIds`). REMOTE no-email candidates are never returned. */
+/**
+ * Next importer chunk: candidates with a usable email, or without one but in FIELD / unresolved territory (`fieldIds`). REMOTE no-email candidates are never returned.
+ * Usable-email candidates come first (then stable id order), so a FIELD/unresolved no-email tail never takes chunk capacity from candidates that can become contactable
+ * REMOTE prospects. Email validity is a data-quality property only; it is not permission to send (the CASL basis and eligibility engine stay separate).
+ */
 export async function nextImportIds(s: QueueScope, fieldIds: readonly string[], size: number): Promise<string[]> {
   const rows = await db.$queryRaw<{ id: string }[]>(Prisma.sql`
     SELECT c."id" FROM "garageos"."CrmDiscoveryCandidate" c
-    WHERE ${queueBaseSql(s)} AND (${candidateUsableEmailSql} OR c."id" = ANY(${[...fieldIds]}::text[])) ORDER BY c."id" LIMIT ${size}`);
+    WHERE ${queueBaseSql(s)} AND (${candidateUsableEmailSql} OR c."id" = ANY(${[...fieldIds]}::text[])) ORDER BY ${candidateUsableEmailSql} DESC, c."id" LIMIT ${size}`);
   return rows.map((r) => r.id);
 }
 
