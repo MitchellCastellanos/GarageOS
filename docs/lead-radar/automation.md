@@ -39,7 +39,7 @@ Human approval of a **policy**, human review of **exceptions**.
 
 ## 4. Owner-gated (NOT done by engineering)
 
-Activate a policy; turn automation on; name sellers; start the pilot; enable company-wide sending; set GitHub secrets `SALES_CRON_SECRET`/`SALES_CRON_BASE_URL` for the 15-minute caller; legal sign-off of CASL basis rules (product controls, **not legal advice**); other provinces. No production data was read, imported, assigned or emailed.
+Activate a policy; turn automation on; name sellers; start the pilot; enable company-wide sending; set GitHub secrets `LEAD_RADAR_CRON_SECRET` (same value as the Vercel Production env var of the same name; authorizes only the Lead Radar endpoint)/`SALES_CRON_BASE_URL` for the 15-minute caller; legal sign-off of CASL basis rules (product controls, **not legal advice**); other provinces. No production data was read, imported, assigned or emailed.
 
 ## 5. GO / NO-GO
 
@@ -54,7 +54,7 @@ Eligibility re-assessed every 6 h or when contacts/bases change. Preview scans �
 1. Policy panel: activate the chosen policy (preview ≤24 h old is required).
 2. Sellers: founder **Sales Rep** account allow-listed (never the Super Admin account); lane caps and languages set.
 3. Leave stage 5 (eligibility) off or on as wished, **leave the pilot OFF** and `CrmCommsSettings.sendingEnabled` OFF. Import and assignment never email anyone.
-4. Cron needs `CRON_SECRET` in Vercel and GitHub secrets `SALES_CRON_SECRET` / `SALES_CRON_BASE_URL` for the 15-minute caller; otherwise only the daily Vercel cron and *Run one cycle now* run it.
+4. Cron needs `CRON_SECRET` in Vercel (daily Vercel cron) and `LEAD_RADAR_CRON_SECRET` in Vercel + GitHub secrets, plus GitHub secret `SALES_CRON_BASE_URL` for the 15-minute caller; otherwise only the daily Vercel cron and *Run one cycle now* run it.
 5. Verify: run history on the dashboard (counts per stage, errors), imported prospects appear in the CRM unassigned→assigned to the allow-listed seller, exceptions list by lane/reason.
 
 ## Addendum — eligibility gates (CRM quality audit)
