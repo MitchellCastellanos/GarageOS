@@ -425,3 +425,20 @@ test("every English string of the sales-comms copy has a French counterpart (and
     assert.ok(commsEn.errors[code] && commsFr.errors[code], code);
   }
 });
+
+test("REMOTE email campaign (intro → follow-up 1 → follow-up 2): EN and FR render completely, carry the booking CTA, a way out, and no spammy phrasing", () => {
+  const vars = { greeting: "Hello,", "prospect.name": "Garage Roy", "seller.name": "Alex", "booking.link": "https://x.ca/sales/book/abc", "video.cta": "Watch: https://x.ca/watch/en?t=abc" };
+  for (const language of ["EN", "FR"] as const) {
+    for (const key of ["INTRODUCTION", "FOLLOW_UP_1", "FOLLOW_UP_2"] as const) {
+      const t = builtinTemplate(key, language)!;
+      const r = renderTemplate(t.subject, t.body, vars);
+      assert.deepEqual(r.missing, [], `${key}/${language}`);
+      assert.ok(r.body.includes(vars["booking.link"]) && !r.body.includes("{{"), `${key}/${language} CTA`);
+      assert.ok(!/!{2,}|\b(free|gratuit|act now|limited time|guarantee|garanti|100%)\b/i.test(r.subject + r.body), `${key}/${language} spammy`);
+      assert.ok(r.body.split(/\s+/).length < 150, `${key}/${language} short`);
+    }
+    // First touch and last touch both give the recipient an explicit way to stop.
+    assert.match(builtinTemplate("INTRODUCTION", language)!.body, language === "EN" ? /won't write again/ : /ne vous écrirai plus/);
+    assert.match(builtinTemplate("FOLLOW_UP_2", language)!.body, language === "EN" ? /won't write again/ : /ne vous écrirai plus/);
+  }
+});
