@@ -4,6 +4,8 @@
 >
 > **National engine (clean-first pipeline, automated worker, readiness dashboard, rollout plan): [national-engine.md](national-engine.md) · [national-rollout-plan.md](national-rollout-plan.md) · [alberta-canary-runbook.md](alberta-canary-runbook.md) · [alberta-c2-audit.md](alberta-c2-audit.md) · [email-outreach-readiness.md](email-outreach-readiness.md).**
 >
+> **C3 Alberta import (preflight + controlled run): [c3-alberta-import.md](c3-alberta-import.md).**
+>
 > **Discovery ICP — independent repair businesses only (chains/franchises/dealerships excluded): [icp-policy.md](icp-policy.md).**
 >
 > Automation by approved policy: [automation.md](automation.md) · Qualification policy V2 + read-only comparison: [qualification-v2.md](qualification-v2.md).

@@ -72,3 +72,26 @@ export function nextWorkerCheck(now: Date): Date {
   }
   return t;
 }
+
+
+// ── C3 import preflight (pure). One candidate → exactly one verdict, using the SAME gates the import path enforces, so the totals the owner approves are the totals the import will see. ──
+export const C3_BLOCKERS = ["FIT_CHANGED", "LICENSE_BLOCKED", "TIER_EXCLUDED", "REJECTED_BY_PERSON", "INSUFFICIENT_CONTACT", "NO_COORDINATES", "MATCH_AMBIGUOUS", "MATCH_BRANCH", "TERRITORY_UNRESOLVED"] as const;
+export type C3Blocker = (typeof C3_BLOCKERS)[number];
+export const C3_APPROVALS = ["APPROVED", "POLICY_AUTO", "NEEDS_PERSON", "NOT_QUALIFIED"] as const;
+export type C3Approval = (typeof C3_APPROVALS)[number];
+export interface C3Row {
+  liveFit: string; licenseOk: boolean; tier: string; reviewState: string; qualificationLane: string | null; matchState: string; hasPoint: boolean;
+  phone: string | null; address: string | null; postalCode: string | null; territoryState: "LOCAL" | "NATIONAL" | "UNRESOLVED" | null;
+}
+export type C3Verdict = { importable: false; blocker: C3Blocker } | { importable: true; kind: "NEW" | "LINK"; approval: C3Approval };
+
+/** First blocking reason wins (order = C3_BLOCKERS). A row with no blocker is importable; `kind` says whether it creates a prospect or only enriches an existing one, `approval` what must still happen before the importer may take it. */
+export function c3Verdict(r: C3Row): C3Verdict {
+  const blocker: C3Blocker | null =
+    r.liveFit !== "VERIFIED_REPAIR" ? "FIT_CHANGED" : !r.licenseOk ? "LICENSE_BLOCKED" : r.tier === "EXCLUDED" ? "TIER_EXCLUDED" : r.reviewState === "REJECTED" ? "REJECTED_BY_PERSON"
+    : !r.phone && !r.address && !r.postalCode ? "INSUFFICIENT_CONTACT" : !r.hasPoint ? "NO_COORDINATES" : r.matchState === "AMBIGUOUS" ? "MATCH_AMBIGUOUS" : r.matchState === "BRANCH_OF_EXISTING" ? "MATCH_BRANCH"
+    : r.territoryState !== "LOCAL" && r.territoryState !== "NATIONAL" ? "TERRITORY_UNRESOLVED" : null;
+  if (blocker) return { importable: false, blocker };
+  const approval: C3Approval = r.reviewState === "APPROVED" ? "APPROVED" : r.qualificationLane === "AUTO_ELIGIBLE" ? "POLICY_AUTO" : r.qualificationLane === null ? "NOT_QUALIFIED" : "NEEDS_PERSON";
+  return { importable: true, kind: r.matchState === "EXISTING_STRONG" ? "LINK" : "NEW", approval };
+}

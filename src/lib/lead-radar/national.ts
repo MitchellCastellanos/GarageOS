@@ -1,8 +1,14 @@
 import "server-only";
 import { Prisma } from "@prisma/client";
 import { LEAD_RADAR_SOURCE_KEY } from "@/domain/lead-radar/bridge";
-import { PROVINCE_CODES, type ProvinceCode } from "@/domain/lead-radar/geo";
-import { actionsFor, conversion, deriveStage, nextAutomationTick, nextWorkerCheck } from "@/domain/lead-radar/national-readiness";
+import { PROVINCE_CODES, isProvinceCode, type ProvinceCode } from "@/domain/lead-radar/geo";
+import { assessRepairFit } from "@/domain/lead-radar/repair-fit";
+import { ICP_REGISTRY_VERSION } from "@/domain/lead-radar/icp-registry";
+import { planAssignments } from "@/domain/sales-crm/assignment";
+import { classifyTerritory, NO_ENGAGEMENT, requiredMode, resolveTerritory } from "@/domain/sales-crm/territory";
+import { loadTerritoryRulesWith } from "@/lib/sales-crm/territory-rules";
+import { CrmError } from "@/lib/sales-crm/prospects";
+import { actionsFor, c3Verdict, conversion, deriveStage, nextAutomationTick, nextWorkerCheck } from "@/domain/lead-radar/national-readiness";
 import { db } from "@/lib/db";
 import { readAutomation } from "@/lib/lead-radar/automation";
 import { getActivePolicy } from "@/lib/lead-radar/policy";
@@ -105,3 +111,74 @@ export async function nationalReadiness(now = new Date()) {
   };
 }
 export type NationalReadiness = Awaited<ReturnType<typeof nationalReadiness>>;
+
+// ── C3 import preflight (READ-ONLY) ────────────────────────────────────────────────────────────────────────────────────
+// Answers, for one province and BEFORE anything is imported: of the VERIFIED_REPAIR candidates, how many can the existing importer take, why the others are blocked, what still needs approval,
+// which territory/mode they resolve to, and whether the named Sales Rep could receive them. It evaluates the same gates the import path enforces (c3Verdict) and writes nothing.
+const PREFLIGHT_PAGE = 500;
+export async function c3Preflight(provinceIn: string) {
+  if (!isProvinceCode(provinceIn)) throw new CrmError("INVALID");
+  const province = provinceIn;
+  const rules = await loadTerritoryRulesWith(db);
+  const [pool, tombs, crmExisting, imported] = await Promise.all([
+    db.$queryRaw<Record<string, bigint>[]>(Prisma.sql`
+      SELECT count(*) FILTER (WHERE "duplicateOfCandidateId" IS NULL) AS staged, count(*) FILTER (WHERE "duplicateOfCandidateId" IS NOT NULL) AS duplicates,
+        count(*) FILTER (WHERE "duplicateOfCandidateId" IS NULL AND "repairFit" = 'VERIFIED_REPAIR') AS verified,
+        count(*) FILTER (WHERE "duplicateOfCandidateId" IS NULL AND "repairFit" = 'HUMAN_REVIEW') AS review,
+        count(*) FILTER (WHERE "duplicateOfCandidateId" IS NULL AND "repairFit" = 'EXCLUDED') AS excluded,
+        count(*) FILTER (WHERE "duplicateOfCandidateId" IS NULL AND "repairFit" = 'EXCLUDED' AND 'OUTSIDE_ICP_CHAIN_OR_CORPORATE' = ANY("repairFitReasons")) AS icp_excluded,
+        count(*) FILTER (WHERE "duplicateOfCandidateId" IS NULL AND "repairFit" IS NULL) AS unclassified,
+        count(*) FILTER (WHERE "duplicateOfCandidateId" IS NULL AND "repairFit" = 'VERIFIED_REPAIR' AND "importState" <> 'NOT_IMPORTED') AS verified_already_imported
+      FROM "garageos"."CrmDiscoveryCandidate" WHERE "province" = ${province}`),
+    db.crmDiscoveryExclusion.count({ where: { province, status: "ACTIVE" } }),
+    db.crmProspect.count({ where: { province, status: "ACTIVE" } }),
+    db.crmProspect.count({ where: { province, status: "ACTIVE", importBatch: { sourceKey: LEAD_RADAR_SOURCE_KEY } } }),
+  ]);
+  const blockers: Record<string, number> = {}, approvals: Record<string, number> = { APPROVED: 0, POLICY_AUTO: 0, NEEDS_PERSON: 0, NOT_QUALIFIED: 0 }, kinds = { NEW: 0, LINK: 0 }, territories: Record<string, number> = {}, modes: Record<string, number> = {};
+  let evaluated = 0, importable = 0, readyNew = 0, readyLink = 0;
+  const now = new Date();
+  let cursor: string | null = null;
+  for (;;) {
+    const rows: { id: string; name: string; city: string | null; province: string | null; postalCode: string | null; address: string | null; phone: string | null; website: string | null; taxonomyPrimary: string | null; classReasons: string[]; licenseOk: boolean; tier: string; reviewState: string; qualificationLane: string | null; matchState: string; sourceLatitude: number | null; repairFit: string | null; repairFitReasons: string[]; icpOverride: boolean }[] = await db.crmDiscoveryCandidate.findMany({
+      where: { province, duplicateOfCandidateId: null, repairFit: "VERIFIED_REPAIR", importState: "NOT_IMPORTED", ...(cursor ? { id: { gt: cursor } } : {}) }, orderBy: { id: "asc" }, take: PREFLIGHT_PAGE,
+      select: { id: true, name: true, city: true, province: true, postalCode: true, address: true, phone: true, website: true, taxonomyPrimary: true, classReasons: true, licenseOk: true, tier: true, reviewState: true, qualificationLane: true, matchState: true, sourceLatitude: true, repairFit: true, repairFitReasons: true, icpOverride: true },
+    });
+    if (!rows.length) break;
+    for (const r of rows) {
+      evaluated++;
+      const live = assessRepairFit({ name: r.name, taxonomyPrimary: r.taxonomyPrimary, classReasons: r.classReasons, website: r.website, city: r.city, icpOverride: r.icpOverride, storedReasons: r.repairFitReasons });
+      const terr = classifyTerritory(rules, { province: r.province, city: r.city, postalCode: r.postalCode });
+      const v = c3Verdict({ liveFit: live.fit, licenseOk: r.licenseOk, tier: r.tier, reviewState: r.reviewState, qualificationLane: r.qualificationLane, matchState: r.matchState, hasPoint: r.sourceLatitude !== null, phone: r.phone, address: r.address, postalCode: r.postalCode, territoryState: terr.state });
+      if (!v.importable) { blockers[v.blocker] = (blockers[v.blocker] ?? 0) + 1; continue; }
+      importable++; kinds[v.kind]++; approvals[v.approval]++;
+      const key = terr.rule?.key ?? "national"; territories[key] = (territories[key] ?? 0) + 1;
+      const mode = requiredMode(terr.rule, NO_ENGAGEMENT, now); modes[mode] = (modes[mode] ?? 0) + 1;
+      if (v.approval === "APPROVED" || v.approval === "POLICY_AUTO") { if (v.kind === "NEW") readyNew++; else readyLink++; }
+    }
+    cursor = rows[rows.length - 1].id;
+    if (rows.length < PREFLIGHT_PAGE) break;
+  }
+  // Sellers: every active Sales Rep, whether the automation names them, and whether the existing engine would give them a NATIONAL (remote) prospect from this province.
+  const [automation, policy, staff] = await Promise.all([
+    readAutomation(), getActivePolicy(),
+    db.platformSalesStaff.findMany({ where: { status: "ACTIVE", role: { in: ["SALES_REP", "SALES_MANAGER"] } }, select: { id: true, role: true, displayName: true, salesMode: true, acceptsAutoAssignment: true, maxActiveLeads: true, maxActiveRemoteLeads: true, leadLanguages: true, coverageTerritoryKeys: true, user: { select: { email: true, role: true } } }, orderBy: { displayName: "asc" } }),
+  ]);
+  const sample = { province, city: null, postalCode: null };
+  const rule = resolveTerritory(rules, sample);
+  const sellers = staff.map((s) => {
+    const probe = planAssignments([{ id: "probe", status: "ACTIVE", doNotContact: false, assignedStaffId: null, territoryState: "NATIONAL", rule, engagement: NO_ENGAGEMENT, repairFit: "VERIFIED_REPAIR", language: "EN" }],
+      [{ id: s.id, mode: s.salesMode, coverageKeys: s.coverageTerritoryKeys, active: true, acceptsAutoAssignment: s.acceptsAutoAssignment, maxActiveLeads: s.maxActiveLeads, workload: 0, laneCaps: { FIELD: null, REMOTE: s.maxActiveRemoteLeads }, languages: s.leadLanguages.filter((l) => l === "FR" || l === "EN") }], now)[0];
+    return {
+      id: s.id, name: s.displayName, email: s.user.email, role: s.role, superAdminLogin: s.user.role === "SUPER_ADMIN", mode: s.salesMode, acceptsAuto: s.acceptsAutoAssignment, maxLeads: s.maxActiveLeads, maxRemote: s.maxActiveRemoteLeads, languages: s.leadLanguages,
+      namedByAutomation: automation.assignStaffIds.includes(s.id), wouldReceiveRemoteProspect: s.role === "SALES_REP" && !!probe && probe.staffId === s.id && !(s.user.role === "SUPER_ADMIN"), probeSkip: probe?.skip ?? null,
+    };
+  });
+  return {
+    province, generatedAt: now.toISOString(), registryVersion: ICP_REGISTRY_VERSION,
+    pool: { staged: n(pool[0]?.staged), duplicates: n(pool[0]?.duplicates), verified: n(pool[0]?.verified), review: n(pool[0]?.review), excluded: n(pool[0]?.excluded), icpExcluded: n(pool[0]?.icp_excluded), unclassified: n(pool[0]?.unclassified), verifiedAlreadyImported: n(pool[0]?.verified_already_imported), activeTombstones: tombs, crmProspectsInProvince: crmExisting, leadRadarProspectsInProvince: imported },
+    verifiedEvaluated: evaluated, importable, newProspects: kinds.NEW, linksToExisting: kinds.LINK, approvals, readyNow: { newProspects: readyNew, links: readyLink }, blockers, territories, modes, territoryRule: rule ? { key: rule.key, name: (rule as { name?: string }).name ?? rule.key } : null,
+    automation: { policyVersion: policy?.version ?? null, qualifyEnabled: automation.qualifyEnabled, importEnabled: automation.importEnabled, assignEnabled: automation.assignEnabled, importProvinces: automation.importProvinces, importChunkSize: automation.importChunkSize, enabled: automation.enabled },
+    sellers,
+    isolation: { writes: "platform CRM tables only (CrmProspect, CrmContact, CrmImportBatch, CrmDiscoveryCandidate); no shop/tenant table is read or written by the importer", leadRadarRowsHaveNoShopColumn: true },
+  };
+}
