@@ -91,7 +91,9 @@ export function canAccessAssignedStaff(actor: PlatformSalesActor, assignedStaffI
 export function assignedScopeWhere(actor: PlatformSalesActor): Record<string, unknown> {
   if (actor.all) return {};
   const or: Record<string, unknown>[] = [{ assignedStaffId: { in: [...actor.scopeStaffIds] } }];
-  if (includesUnassigned(actor)) or.push({ assignedStaffId: null });
+  // Businesses excluded from the independent-repair ICP (chains, franchises, dealerships, parts networks) are invisible in the shared unassigned pool. A record someone already OWNS stays
+  // visible to its owner (existing CRM records and ownership are never hidden or deleted), and a Super Admin (actor.all) sees everything.
+  if (includesUnassigned(actor)) or.push({ assignedStaffId: null, OR: [{ repairFit: null }, { repairFit: { not: "EXCLUDED" } }] });
   return { OR: or };
 }
 

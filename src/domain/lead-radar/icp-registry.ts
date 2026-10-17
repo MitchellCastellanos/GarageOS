@@ -8,7 +8,7 @@
 //  - `domains`      the franchisor / banner website. A location whose website IS the banner site is a branded location.
 // A supplier, certification or affiliation mention ("NAPA parts available", "NAPA Certified", "Bosch Service") is never evidence: the matcher reads only the name and
 // the website host, never page content, and a brand that appears only in parentheses or after an affiliation word does not count.
-export const ICP_REGISTRY_VERSION = 2; // v2: Quick Lane, Speedy Apollo, fuel retailers, luxury makes (found by the Alberta Preview-all review)
+export const ICP_REGISTRY_VERSION = 3; // v3: one brand per domain (esso.ca was filed under Petro-Canada), Speedy Glass split from Speedy, domain-only matches are reviews unless corroborated
 
 export const ICP_CATEGORIES = ["FRANCHISE_SERVICE_CHAIN", "RETAIL_CORPORATE", "TIRE_NETWORK", "COLLISION_NETWORK", "GLASS_NETWORK", "PARTS_NETWORK", "DEALERSHIP_GROUP", "DEALERSHIP"] as const;
 export type IcpCategory = (typeof ICP_CATEGORIES)[number];
@@ -43,11 +43,16 @@ export const ICP_BRANDS: readonly IcpBrand[] = [
   // Retail / corporate
   B("CANADIAN_TIRE", "RETAIL_CORPORATE", ["canadian tire", "pneus canadian tire", "pneu canadian tire"], { domains: ["canadiantire.ca"] }),
   B("WALMART", "RETAIL_CORPORATE", ["walmart", "wal mart"], { domains: ["walmart.ca", "walmart.com"] }),
-  B("PETRO_CANADA", "RETAIL_CORPORATE", ["petro canada", "ultramar", "husky"], { weak: ["esso", "shell"], domains: ["petro-canada.ca", "esso.ca", "shell.ca", "ultramar.ca"] }),
+  B("PETRO_CANADA", "RETAIL_CORPORATE", ["petro canada"], { domains: ["petro-canada.ca"] }),
+  B("ULTRAMAR", "RETAIL_CORPORATE", ["ultramar"], { domains: ["ultramar.ca"] }),
+  B("HUSKY", "RETAIL_CORPORATE", ["husky"], { domains: ["husky.ca"] }),
+  B("ESSO", "RETAIL_CORPORATE", [], { weak: ["esso"], domains: ["esso.ca"] }),
+  B("SHELL", "RETAIL_CORPORATE", [], { weak: ["shell"], domains: ["shell.ca"] }),
   B("COSTCO", "RETAIL_CORPORATE", ["costco"], { domains: ["costco.ca", "costco.com"] }),
   // Franchise service chains
   B("MIDAS", "FRANCHISE_SERVICE_CHAIN", ["midas auto service", "midas auto systems"], { weak: ["midas"], domains: ["midas.com", "midas.ca"] }),
-  B("SPEEDY", "FRANCHISE_SERVICE_CHAIN", ["speedy auto service", "speedy glass", "speedy collision"], { weak: ["speedy"], domains: ["speedy.ca", "speedyautoservice.com"] }),
+  B("SPEEDY", "FRANCHISE_SERVICE_CHAIN", ["speedy auto service", "speedy collision"], { weak: ["speedy"], domains: ["speedy.ca", "speedy.com", "speedyautoservice.com", "speedycollision.com"] }),
+  B("SPEEDY_GLASS", "GLASS_NETWORK", ["speedy glass"], { domains: ["speedyglass.ca"] }),
   B("MR_LUBE", "FRANCHISE_SERVICE_CHAIN", ["mr lube"], { domains: ["mrlube.com", "mrlube.ca"] }),
   B("JIFFY_LUBE", "FRANCHISE_SERVICE_CHAIN", ["jiffy lube"], { domains: ["jiffylube.com", "jiffylube.ca"] }),
   B("VALVOLINE", "FRANCHISE_SERVICE_CHAIN", ["valvoline instant oil change", "valvoline express care", "valvoline"], { domains: ["valvoline.com", "valvolineexpresscare.com"] }),

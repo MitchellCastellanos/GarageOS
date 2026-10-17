@@ -19,6 +19,7 @@ import { saveSettings } from "@/lib/lead-radar/settings";
 import { setProvinceSchedule } from "@/lib/lead-radar/province-state";
 import { queueWorkerRun } from "@/lib/lead-radar/worker";
 import { rematchCandidates } from "@/lib/lead-radar/rematch";
+import { releaseIcpExclusion } from "@/lib/lead-radar/exclusions";
 import { reviewDiscoveredContact } from "@/lib/sales-comms/contact-readiness";
 
 // Every action re-resolves the actor from the session and re-checks the capability on the server. The UI hides controls, but never decides.
@@ -151,6 +152,12 @@ export async function saveProvinceSchedule(input: { province: string; autoRefres
 export async function decideDiscoveredContact(input: { id: string; decision: "ACCEPT" | "REJECT"; note?: string | null }) {
   const actor = await requireLeadRadar("admin");
   return crmAction(async () => { const r = await reviewDiscoveredContact(actor, String(input?.id ?? ""), input?.decision, input?.note ?? null); touch(); return r; });
+}
+
+/** Super Admin: release ONE candidate from the independent-repair ICP exclusion (mandatory note). Keeps the tombstone history; re-evaluated by the active policy. */
+export async function releaseDiscoveryExclusion(input: { candidateId: string; note: string }) {
+  const actor = await requireLeadRadar("admin");
+  return crmAction(async () => { const r = await releaseIcpExclusion(actor, String(input?.candidateId ?? "").slice(0, 40), String(input?.note ?? "")); touch(); return { result: r }; });
 }
 
 /** "Preview all": ONE bounded (500-candidate), strictly read-only batch of the re-check with per-candidate detail. The browser calls it repeatedly with the returned cursor; nothing is written or audited. */

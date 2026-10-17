@@ -31,8 +31,8 @@ test("recommendation: INCOMPLETE until every candidate was examined; then GO or 
   const many = done({ ...emptyDetail(), review: Array.from({ length: 4 }, (_, i) => rev("QUESTIONABLE_EXCLUSION", `q${i}`)) }); // 4 of 10 newly excluded
   const r = recommendApply(many);
   assert.equal(r.verdict, "NO_GO"); assert.ok(r.reasons.includes("QUESTIONABLE_EXCLUSIONS_HIGH")); assert.equal(r.metrics.questionableShare, 0.4);
-  const dom = mergeBatch(newAcc("AB"), batch({ next: null, poolSize: 500, icp: { ...batch({ next: null }).icp, newlyExcludedDomainOnly: 2 } }), null);
-  assert.ok(recommendApply(dom).reasons.includes("DOMAIN_ONLY_HIGH"), "2 of 10 on the domain alone exceeds the 5% default");
+  const dom = mergeBatch(newAcc("AB"), batch({ next: null, poolSize: 500, icp: { ...batch({ next: null }).icp, newlyDomainOnlyReview: 50 } }), null);
+  assert.ok(recommendApply(dom).reasons.includes("DOMAIN_ONLY_HIGH"), "50 of 500 examined routed to review on a franchisor site alone exceeds the 5% default");
   const amb = mergeBatch(newAcc("AB"), batch({ next: null, poolSize: 500, detail: { ...emptyDetail(), review: Array.from({ length: 60 }, (_, i) => rev("AMBIGUOUS_VERIFIED", `a${i}`)) } }), null);
   assert.ok(recommendApply(amb).reasons.includes("AMBIGUOUS_VERIFIED_HIGH"), "60 of 300 verified");
   assert.ok(APPLY_THRESHOLDS.domainOnlyShareMax < APPLY_THRESHOLDS.questionableExclusionShareMax);
@@ -57,7 +57,8 @@ test("CSV: RFC 4180 quoting, UTF-8 BOM, arrays joined, and spreadsheet formulas 
 });
 
 test("risk: weakest-evidence flags are HIGH; policy-consistent heuristics are LOW; the verdict counts HIGH only while the CSV lists both", () => {
-  assert.equal(riskOf("QUESTIONABLE_EXCLUSION", ["DOMAIN_ONLY"]), "HIGH");
+  assert.equal(riskOf("QUESTIONABLE_EXCLUSION", ["DEALER_WORDING"]), "HIGH");
+  assert.equal(riskOf("QUESTIONABLE_EXCLUSION", ["LOCATOR_CONFIRMED"]), "LOW");
   assert.equal(riskOf("QUESTIONABLE_EXCLUSION", ["WEAK_ALIAS", "BRAND_PLUS_OWN_NAME"]), "HIGH");
   assert.equal(riskOf("QUESTIONABLE_EXCLUSION", ["DEALER_NAME_PATTERN"]), "LOW");
   assert.equal(riskOf("QUESTIONABLE_EXCLUSION", ["BRAND_PLUS_OWN_NAME"]), "LOW");

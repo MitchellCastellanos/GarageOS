@@ -10,7 +10,7 @@ import { fill } from "@/lib/admin-locale/lead-radar";
 import { fitReasonLabel, nationalCopy } from "@/lib/admin-locale/lead-radar-national";
 
 interface Icp {
-  newlyExcluded: number; newlyExcludedDomainOnly: number; newlyExcludedByCategory: Record<string, number>; newlyExcludedByBrand: Record<string, number>; newlyExcludedExamples: { name: string; city: string | null; brand: string | null }[];
+  newlyExcluded: number; newlyDomainOnlyReview: number; tombstonesToWrite: number; newlyExcludedByCategory: Record<string, number>; newlyExcludedByBrand: Record<string, number>; newlyExcludedExamples: { name: string; city: string | null; brand: string | null }[];
   newlyEligible: number; remainingHumanReview: number; remainingReviewByReason: Record<string, number>; verifiedAfter: number; excludedAfter: number; registryVersion: number;
   crmMatchImpact: { newlyExcludedWithCrmMatch: number; newlyExcludedAmbiguousOrBranch: number };
   protectedDecisions: { examined: number; fitWouldChange: number; approvedNowBlockedAtImport: number };
@@ -43,7 +43,7 @@ export function RematchPanel({ locale }: { locale: "en" | "fr" }) {
           {res.changed === 0 ? <p>{k.none}</p> : <ul className="list-disc pl-5 text-xs">{Object.entries(res.transitions).map(([t, n]) => <li key={t}>{t.replace("->", " → ").replace("match:", "match · ").replace("fit:", "fit · ")}: {n}</li>)}</ul>}
           <div className="space-y-1 border-t border-slate-200 pt-2 text-xs">
             <p className="font-semibold text-slate-900">{k.icp.title} · {k.icp.registry} {res.icp.registryVersion}</p>
-            <p>{k.icp.newlyExcluded}: <strong>{res.icp.newlyExcluded}</strong> ({k.icp.domainOnly}: {res.icp.newlyExcludedDomainOnly}) · {k.icp.newlyEligible}: <strong>{res.icp.newlyEligible}</strong> · {k.icp.remaining}: <strong>{res.icp.remainingHumanReview}</strong></p>
+            <p>{k.icp.newlyExcluded}: <strong>{res.icp.newlyExcluded}</strong> ({k.icp.domainOnly}: {res.icp.newlyDomainOnlyReview} · {k.icp.tombstones}: {res.icp.tombstonesToWrite}) · {k.icp.newlyEligible}: <strong>{res.icp.newlyEligible}</strong> · {k.icp.remaining}: <strong>{res.icp.remainingHumanReview}</strong></p>
             {res.icp.remainingHumanReview > 0 && <p>{k.icp.remaining}: {Object.entries(res.icp.remainingReviewByReason).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([c, n]) => `${fitReasonLabel(locale, c)} ${n}`).join(" · ")}</p>}
             <p>{k.icp.after}: <strong>{res.icp.verifiedAfter}</strong> / <strong>{res.icp.excludedAfter}</strong></p>
             <p>{k.icp.crm}: <strong>{res.icp.crmMatchImpact.newlyExcludedWithCrmMatch}</strong> / <strong>{res.icp.crmMatchImpact.newlyExcludedAmbiguousOrBranch}</strong></p>

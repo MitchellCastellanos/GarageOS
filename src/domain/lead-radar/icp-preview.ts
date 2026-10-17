@@ -5,13 +5,13 @@ export const PREVIEW_BATCH = 500;
 
 /** The discovery-ICP view of a re-check (independent repair businesses only). Counts are over the examined candidates; `protectedDecisions` are candidates a person already decided. */
 export interface RematchIcp {
-  newlyExcluded: number; /** Excluded on the franchisor website host alone (the name carries no brand): listed so a person can spot-check them. */ newlyExcludedDomainOnly: number; newlyExcludedByCategory: Record<string, number>; newlyExcludedByBrand: Record<string, number>; newlyExcludedExamples: { name: string; city: string | null; brand: string | null }[];
+  newlyExcluded: number; /** Matched a franchisor website host with nothing else to confirm it: NOT excluded, routed to HUMAN_REVIEW and listed for the owner. */ newlyDomainOnlyReview: number; /** Exclusions that would get a durable tombstone (and the marker on their stored verdict) when the re-check is applied. */ tombstonesToWrite: number; newlyExcludedByCategory: Record<string, number>; newlyExcludedByBrand: Record<string, number>; newlyExcludedExamples: { name: string; city: string | null; brand: string | null }[];
   newlyEligible: number; remainingHumanReview: number; /** Why the rest still needs a person (independence or repair-fit cannot be settled from evidence). */ remainingReviewByReason: Record<string, number>; verifiedAfter: number; excludedAfter: number; registryVersion: number;
   crmMatchImpact: { newlyExcludedWithCrmMatch: number; newlyExcludedAmbiguousOrBranch: number };
   protectedDecisions: { examined: number; fitWouldChange: number; reviewStateTouched: 0; approvedNowBlockedAtImport: number };
 }
 
-export interface DomainOnlyRow { id: string; name: string; city: string | null; domain: string; brand: string | null; category: string | null; reason: "ICP_EVIDENCE_DOMAIN_ONLY" }
+export interface DomainOnlyRow { id: string; name: string; city: string | null; domain: string; brand: string | null; category: string | null; reason: "ICP_DOMAIN_ONLY_REVIEW" }
 export type ReviewKind = "QUESTIONABLE_EXCLUSION" | "AMBIGUOUS_VERIFIED";
 export interface ReviewRow { id: string; kind: ReviewKind; /** HIGH = weakest evidence (domain only, weak alias, dealer wording, exclusion of a repair category / chain hint, make in domain); LOW = heuristic but policy-consistent, listed for sampling. */ risk: "HIGH" | "LOW"; name: string; city: string | null; category: string | null; domain: string | null; fit: string; brand: string | null; flags: string[]; reasons: string }
 export interface MatchChangeRow { id: string; name: string; city: string | null; from: string; to: string; crmBefore: string | null; crmAfter: string | null }
@@ -27,7 +27,7 @@ export interface PreviewAcc {
 }
 
 export const emptyIcp = (registryVersion = 0): RematchIcp => ({
-  newlyExcluded: 0, newlyExcludedDomainOnly: 0, newlyExcludedByCategory: {}, newlyExcludedByBrand: {}, newlyExcludedExamples: [], newlyEligible: 0, remainingHumanReview: 0, remainingReviewByReason: {}, verifiedAfter: 0, excludedAfter: 0, registryVersion,
+  newlyExcluded: 0, newlyDomainOnlyReview: 0, tombstonesToWrite: 0, newlyExcludedByCategory: {}, newlyExcludedByBrand: {}, newlyExcludedExamples: [], newlyEligible: 0, remainingHumanReview: 0, remainingReviewByReason: {}, verifiedAfter: 0, excludedAfter: 0, registryVersion,
   crmMatchImpact: { newlyExcludedWithCrmMatch: 0, newlyExcludedAmbiguousOrBranch: 0 }, protectedDecisions: { examined: 0, fitWouldChange: 0, reviewStateTouched: 0, approvedNowBlockedAtImport: 0 },
 });
 export const emptyDetail = (): PreviewDetail => ({ domainOnly: [], review: [], matchChanges: [] });
@@ -37,7 +37,7 @@ const addRec = (a: Record<string, number>, b: Record<string, number>) => { const
 
 export function mergeIcp(a: RematchIcp, b: RematchIcp): RematchIcp {
   return {
-    newlyExcluded: a.newlyExcluded + b.newlyExcluded, newlyExcludedDomainOnly: a.newlyExcludedDomainOnly + b.newlyExcludedDomainOnly,
+    newlyExcluded: a.newlyExcluded + b.newlyExcluded, newlyDomainOnlyReview: a.newlyDomainOnlyReview + b.newlyDomainOnlyReview, tombstonesToWrite: a.tombstonesToWrite + b.tombstonesToWrite,
     newlyExcludedByCategory: addRec(a.newlyExcludedByCategory, b.newlyExcludedByCategory), newlyExcludedByBrand: addRec(a.newlyExcludedByBrand, b.newlyExcludedByBrand),
     newlyExcludedExamples: [...a.newlyExcludedExamples, ...b.newlyExcludedExamples].slice(0, 40),
     newlyEligible: a.newlyEligible + b.newlyEligible, remainingHumanReview: a.remainingHumanReview + b.remainingHumanReview, remainingReviewByReason: addRec(a.remainingReviewByReason, b.remainingReviewByReason),
@@ -70,7 +70,7 @@ export function mergeBatch(acc: PreviewAcc, batch: PreviewBatch, fromCursor: str
 export const APPLY_THRESHOLDS = {
   /** Newly excluded candidates whose evidence is weakest (HIGH-risk flags: domain only, weak alias, dealer wording, exclusion of a repair category) as a share of all newly excluded. */
   questionableExclusionShareMax: 0.1,
-  /** Excluded on the franchisor website alone. */
+  /** Candidates newly routed to HUMAN_REVIEW only because of a franchisor website (review capacity they would consume), as a share of all examined. */
   domainOnlyShareMax: 0.05,
   /** Verified candidates carrying an ambiguity flag (chain hint, make in the domain, thin evidence) as a share of all verified. */
   ambiguousVerifiedShareMax: 0.15,
@@ -89,8 +89,8 @@ export function recommendApply(acc: PreviewAcc): ApplyRecommendation {
   const questionable = acc.detail.review.filter((r) => r.kind === "QUESTIONABLE_EXCLUSION" && r.risk === "HIGH").length;
   const ambiguous = acc.detail.review.filter((r) => r.kind === "AMBIGUOUS_VERIFIED").length;
   const m = {
-    newlyExcluded: acc.icp.newlyExcluded, flaggedExclusions: flagged, questionableExclusions: questionable, questionableShare: share(questionable, acc.icp.newlyExcluded), domainOnly: acc.icp.newlyExcludedDomainOnly,
-    domainOnlyShare: share(acc.icp.newlyExcludedDomainOnly, acc.icp.newlyExcluded), ambiguousVerified: ambiguous, ambiguousVerifiedShare: share(ambiguous, acc.icp.verifiedAfter), verifiedAfter: acc.icp.verifiedAfter,
+    newlyExcluded: acc.icp.newlyExcluded, flaggedExclusions: flagged, questionableExclusions: questionable, questionableShare: share(questionable, acc.icp.newlyExcluded), domainOnly: acc.icp.newlyDomainOnlyReview,
+    domainOnlyShare: share(acc.icp.newlyDomainOnlyReview, acc.examined), ambiguousVerified: ambiguous, ambiguousVerifiedShare: share(ambiguous, acc.icp.verifiedAfter), verifiedAfter: acc.icp.verifiedAfter,
   };
   if (!acc.done || acc.examined === 0 || acc.examined < acc.poolSize) return { verdict: "INCOMPLETE", reasons: ["INCOMPLETE"], metrics: m };
   const reasons: ApplyReason[] = [];
@@ -116,8 +116,8 @@ export const DOMAIN_ONLY_CSV_COLUMNS = ["name", "city", "domain", "brand", "cate
 export const MATCH_CSV_COLUMNS = ["name", "city", "from", "to", "crmBefore", "crmAfter", "id"] as const;
 
 // ── Row classification (pure; used by the server batch) ──────────────────────────────────────────────────────────
-export const QUESTIONABLE_EXCLUSION_FLAGS = ["DOMAIN_ONLY", "WEAK_ALIAS", "DEALER_NAME_PATTERN", "DEALER_WORDING", "BRAND_PLUS_OWN_NAME", "EXCLUDED_DESPITE_REPAIR_CATEGORY"] as const;
-export const HIGH_RISK_EXCLUSION_FLAGS = ["DOMAIN_ONLY", "WEAK_ALIAS", "DEALER_WORDING", "EXCLUDED_DESPITE_REPAIR_CATEGORY"] as const;
+export const QUESTIONABLE_EXCLUSION_FLAGS = ["LOCATOR_CONFIRMED", "WEAK_ALIAS", "DEALER_NAME_PATTERN", "DEALER_WORDING", "BRAND_PLUS_OWN_NAME", "EXCLUDED_DESPITE_REPAIR_CATEGORY"] as const;
+export const HIGH_RISK_EXCLUSION_FLAGS = ["WEAK_ALIAS", "DEALER_WORDING", "EXCLUDED_DESPITE_REPAIR_CATEGORY"] as const;
 export const riskOf = (kind: ReviewKind, flags: readonly string[]): "HIGH" | "LOW" =>
   kind === "QUESTIONABLE_EXCLUSION" ? (flags.some((f) => (HIGH_RISK_EXCLUSION_FLAGS as readonly string[]).includes(f)) ? "HIGH" : "LOW") : (flags.some((f) => (AMBIGUOUS_VERIFIED_STRONG_FLAGS as readonly string[]).includes(f)) ? "HIGH" : "LOW");
 export const AMBIGUOUS_VERIFIED_STRONG_FLAGS = ["CHAIN_HINT", "MAKE_IN_DOMAIN"] as const;

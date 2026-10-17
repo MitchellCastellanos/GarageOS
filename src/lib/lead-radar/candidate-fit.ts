@@ -16,12 +16,12 @@ export async function backfillCandidateFit(opts: { deadline: number; maxPages?: 
   for (let page = 0; page < (opts.maxPages ?? 200) && Date.now() < opts.deadline; page++) {
     const rows = await db.crmDiscoveryCandidate.findMany({
       where: { repairFit: null }, orderBy: { id: "asc" }, take: FIT_BACKFILL_PAGE,
-      select: { id: true, name: true, taxonomyPrimary: true, classReasons: true, website: true, city: true },
+      select: { id: true, name: true, taxonomyPrimary: true, classReasons: true, website: true, city: true, icpOverride: true, repairFitReasons: true },
     });
     if (!rows.length) break;
     const groups = new Map<string, { ids: string[]; fit: "VERIFIED_REPAIR" | "HUMAN_REVIEW" | "EXCLUDED"; reasons: string[] }>();
     for (const r of rows) {
-      const f = assessRepairFit({ name: r.name, taxonomyPrimary: r.taxonomyPrimary, classReasons: r.classReasons, website: r.website, city: r.city });
+      const f = assessRepairFit({ name: r.name, taxonomyPrimary: r.taxonomyPrimary, classReasons: r.classReasons, website: r.website, city: r.city, icpOverride: r.icpOverride, storedReasons: r.repairFitReasons });
       const key = JSON.stringify([f.fit, f.reasons]);
       const g = groups.get(key) ?? { ids: [], fit: f.fit, reasons: f.reasons as string[] };
       g.ids.push(r.id); groups.set(key, g);

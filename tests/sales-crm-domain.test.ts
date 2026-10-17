@@ -41,7 +41,7 @@ test("record scope: rep sees only own; manager sees team + unassigned pool; Supe
   assert.equal(canAccessAssignedStaff(admin, "anything"), true);
   assert.deepEqual(assignedScopeWhere(admin), {});
   assert.deepEqual(assignedScopeWhere(rep), { OR: [{ assignedStaffId: { in: ["s1"] } }] });
-  assert.deepEqual(assignedScopeWhere(manager), { OR: [{ assignedStaffId: { in: ["m1", "s1", "s2"] } }, { assignedStaffId: null }] });
+  assert.deepEqual(assignedScopeWhere(manager), { OR: [{ assignedStaffId: { in: ["m1", "s1", "s2"] } }, { assignedStaffId: null, OR: [{ repairFit: null }, { repairFit: { not: "EXCLUDED" } }] }] });
   // A rep without a staff id (impossible in practice) matches nothing instead of everything.
   assert.deepEqual(assignedScopeWhere(actor({ kind: "SALES_REP", staffId: null, scopeStaffIds: [] })), { OR: [{ assignedStaffId: { in: [] } }] });
 });

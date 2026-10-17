@@ -9,6 +9,8 @@ import { writeCrmAudit } from "@/lib/sales-crm/audit";
 import { applyImportBatch, type ImportRowResult } from "@/lib/sales-crm/lead-engine";
 import { locateFromSource } from "@/lib/sales-crm/source-location-service";
 import { isIcpExclusion } from "@/domain/lead-radar/icp";
+import { exclusionIdentityKey } from "@/domain/lead-radar/icp-tombstone";
+import { recordExclusions } from "@/lib/lead-radar/exclusions";
 import { assessRepairFit } from "@/domain/lead-radar/repair-fit";
 import { stampFitAtImport } from "@/lib/sales-crm/repair-fit-service";
 import { CrmError, resolveAssignee } from "@/lib/sales-crm/prospects";
@@ -47,7 +49,10 @@ export async function importApprovedCandidates(actor: PlatformSalesActor, opts: 
     // The rejection is durable (a human/system rejection is never reopened by a refresh). A person who really wants it approves it WITH a fit override, which is stamped as a human decision.
     const overrideOf = (c: { reviewState: string; approvedByPolicyVersion: number | null; reviewNote: string | null }) => c.reviewState === "APPROVED" && c.approvedByPolicyVersion === null && !!c.reviewNote?.startsWith(FIT_OVERRIDE_PREFIX);
     // The discovery ICP (independent repair businesses only) is NOT overridable: a confirmed chain/franchise/dealership never reaches the CRM, even with a fit override.
-    const fitBlocked = claimed.filter((c) => { const a = assessRepairFit({ name: c.name, taxonomyPrimary: c.taxonomyPrimary, classReasons: c.classReasons, website: c.website, city: c.city }); return a.fit === "EXCLUDED" && (isIcpExclusion(a.reasons) || !overrideOf(c)); });
+    const fitOf = new Map(claimed.map((c) => [c.id, assessRepairFit({ name: c.name, taxonomyPrimary: c.taxonomyPrimary, classReasons: c.classReasons, website: c.website, city: c.city, icpOverride: c.icpOverride, storedReasons: c.repairFitReasons })]));
+    const fitBlocked = claimed.filter((c) => { const a = fitOf.get(c.id)!; return a.fit === "EXCLUDED" && (isIcpExclusion(a.reasons) || !overrideOf(c)); });
+    // The exclusion is remembered (tombstone) even when it is discovered at the import door: a later release or a re-keyed record is excluded at staging, not re-reviewed.
+    await recordExclusions(tx, fitBlocked.filter((c) => isIcpExclusion(fitOf.get(c.id)!.reasons)).map((c) => ({ sourceRecordId: c.sourceRecordId, province: c.province, name: c.name, city: c.city, identityKey: exclusionIdentityKey(c), reasons: fitOf.get(c.id)!.reasons, release: c.lastSeenRelease })));
     if (fitBlocked.length) {
       await tx.crmDiscoveryCandidate.updateMany({ where: { id: { in: fitBlocked.map((c) => c.id) }, importState: { in: ["NOT_IMPORTED", "FAILED"] } }, data: { reviewState: "REJECTED", reviewedByUserId: actor.userId, reviewedAt: new Date(), reviewNote: "FIT_EXCLUDED_AT_IMPORT", approvedByPolicyVersion: null } });
       await writeCrmAudit({ actorUserId: actor.userId, action: "LEAD_RADAR_CANDIDATES_REVIEWED", entityType: "CrmDiscoveryCandidate", metadata: { decision: "REJECTED", via: "fit-gate-at-import", count: fitBlocked.length, ids: fitBlocked.slice(0, 200).map((c) => c.id) } }, tx);

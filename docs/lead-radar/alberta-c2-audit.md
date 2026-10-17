@@ -124,3 +124,21 @@ All 6,595 candidates examined in **14 bounded batches (slowest 225 ms)**, read-o
 | Recommendation | **GO** on this data (5.5 % ≤ 10 %, 3.2 % ≤ 5 %, 1.5 % ≤ 15 %) |
 
 The review found real gaps, now fixed (registry v2, with tests): Quick Lane, Speedy Apollo, Shell/Petro-Canada, luxury-make dealers with a trailing city. Examples worth a human look in the CSV: franchisor-site-only rows such as "Crowfoot Carwash" (napaautopro.com — excluded as a car wash anyway) and "Airways Brake and Muffler" (krown.com).
+
+
+## 9. Preview all — corrected policy (registry v3: domain-only ⇒ review, tombstones, esso.ca fixed)
+
+Rehearsal database (real Alberta extraction, 6,595 candidates, no CRM prospects/human decisions), read-only, **14 batches, slowest 300 ms**. Files: [c2-alberta-icp/preview-all/](c2-alberta-icp/preview-all/).
+
+| | Result |
+|---|---|
+| With changes | 1,052 (verified→excluded 879, review→excluded 98, review→verified 39, verified→review 28, tombstone-marker only 8) |
+| Newly excluded (confirmed by a brand in the name, a franchisor location page, a source brand link, a dealer pattern or a dealer sub-domain) | **983** — tire 369, franchise service 206, collision 139, parts 115, dealerships 82, corporate retail 40, glass 28, dealer groups 4 |
+| **Domain-only matches (now HUMAN REVIEW, not excluded)** | **21**, each listed with business, domain, brand and reason in `domain-only-exclusions-AB.csv` |
+| Tombstones that Apply would record | 983 |
+| After | 3,000 verified · 1,183 human review · 2,412 excluded |
+| Flagged for C2 review | 190 exclusions (23 HIGH-risk = 2.3 %), 43 ambiguous verified (1.4 %) |
+| CRM match changes / protected decisions | 0 / 0 on the rehearsal database — **the production run is the one that counts** |
+| Recommendation | **GO** on this data (HIGH-risk exclusions ≤ 10 %, domain-only reviews ≤ 5 % of examined, ambiguous verified ≤ 15 %) |
+
+Compared with §8 (registry v2): the 32 exclusions that rested on a franchisor website alone are no longer exclusions — only 21 remain domain-only (the rest carried the brand in the name or a location page), and they are reviews. `esso.ca` is correctly attributed to Esso ("Mobil 1 Lube Express" is the one Alberta row it touches).

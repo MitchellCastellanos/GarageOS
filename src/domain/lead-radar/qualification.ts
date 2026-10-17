@@ -14,7 +14,7 @@ import { importEligibility } from "@/domain/lead-radar/record";
 import { canonicalRules, REVIEWABLE_FLAGS, type PolicyRules, type ReviewableFlag } from "@/domain/lead-radar/policy-rules";
 import { classifyBusinessType, independentSources, type BusinessType } from "@/domain/lead-radar/business-type";
 import { OEM_NAME } from "@/domain/lead-radar/taxonomy";
-import { isIcpExclusion } from "@/domain/lead-radar/icp";
+import { isIcpDomainReview, isIcpExclusion } from "@/domain/lead-radar/icp";
 import { assessRepairFit } from "@/domain/lead-radar/repair-fit";
 
 export * from "@/domain/lead-radar/policy-rules";
@@ -63,6 +63,9 @@ export interface QualificationFacts {
   // Business-type facts (V2). Optional so V1 callers and old fixtures keep working; absent ⇒ the business type is UNSPECIFIED (⇒ human review under V2).
   name?: string | null;
   city?: string | null;
+  /** Super Admin released the ICP exclusion; the stored verdict carries the durable tombstone marker. */
+  icpOverride?: boolean;
+  repairFitReasons?: readonly string[];
   taxonomyPrimary?: string | null;
   classReasons?: readonly string[];
 }
@@ -101,7 +104,7 @@ export function evaluateQualification(rulesIn: PolicyRules, f: QualificationFact
   if (v2 && bt.capability === "NON_TARGET" && rules.nonTargetBusiness === "BLOCK") blocked.push("NOT_TARGET_BUSINESS");
   // Contradiction gate (every policy, V1 included): a decisive non-repair signal in the name with NO repair wording (EV charging, car wash, recycling, bicycle, taxi
   // equipment, manufacturer/corporate…) blocks, whatever the stored category says; see repair-fit.ts. A known non-repair CATEGORY stays governed by the policy options above.
-  const fit = assessRepairFit({ name: f.name, taxonomyPrimary: f.taxonomyPrimary, classReasons: f.classReasons, website: f.website, city: f.city });
+  const fit = assessRepairFit({ name: f.name, taxonomyPrimary: f.taxonomyPrimary, classReasons: f.classReasons, website: f.website, city: f.city, icpOverride: f.icpOverride, storedReasons: f.repairFitReasons });
   // Discovery ICP (every policy): a confirmed chain / franchise / retail / parts network / dealership is permanently outside the target — BLOCKED, never a human review.
   if (isIcpExclusion(fit.reasons)) blocked.push("OUTSIDE_ICP_CHAIN_OR_CORPORATE");
   else if (fit.fit === "EXCLUDED" && fit.reasons.some((r) => r.startsWith("NAME_SIGNAL_"))) blocked.push("NOT_TARGET_BUSINESS");
@@ -150,6 +153,7 @@ export function evaluateQualification(rulesIn: PolicyRules, f: QualificationFact
   for (const s of f.stickyReasons ?? []) if (s === "SOURCE_CHANGED") review.push("SOURCE_CHANGED");
   // Category and name disagree, or the listing is in a segment nobody has ruled on (motorcycle, trailer, dealer, tire retail, OEM-branded): always a human,
   // and the reason is named when nothing else already sends the record to review.
+  if (isIcpDomainReview(fit.reasons)) review.push("CHAIN_SIGNAL"); // a franchisor website with nothing else to confirm it: a person decides
   if (!review.length && fit.fit === "HUMAN_REVIEW" && fit.reasons.some((r) => r === "CATEGORY_NAME_CONFLICT" || r.startsWith("SEGMENT_") || r === "OEM_BRAND_NAME" || r.startsWith("NAME_SIGNAL_"))) review.push("CATEGORY_NAME_CONFLICT");
   if (review.length) return done({ lane: "HUMAN_REVIEW", reasons: uniqSorted(review), handoff: null });
 

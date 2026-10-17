@@ -12,7 +12,7 @@
 //
 // A human decision (stored on the prospect) always wins over this function; callers apply it. Keyword lists are conservative EN/FR heuristics.
 import { BY_CODE, CAPABILITY, CODE_NON_TARGET_TOKENS, NAME_REPAIR, codeEvidence, hit, strip, words } from "@/domain/lead-radar/business-type";
-import { assessIcp, icpReasons } from "@/domain/lead-radar/icp";
+import { assessIcp, icpReasons, OUTSIDE_ICP_REASON } from "@/domain/lead-radar/icp";
 import { OEM_NAME } from "@/domain/lead-radar/taxonomy";
 import { BANNER_NAME } from "@/domain/sales-crm/shared-identity";
 
@@ -78,6 +78,10 @@ export interface FitFacts {
   /** Website and city feed the discovery-ICP gate only (franchisor/banner host, store-number names). Optional: the gate degrades to name evidence. */
   website?: string | null;
   city?: string | null;
+  /** A Super Admin released this business from the ICP exclusion (stored on the staged candidate): the commercial ICP gate is skipped, every other rule still applies. */
+  icpOverride?: boolean;
+  /** The verdict stored on the candidate. A stored exclusion tombstone ("ICP_TOMBSTONE": the business was excluded earlier, possibly under another id) keeps excluding it even if the registry later changes. */
+  storedReasons?: readonly string[] | null;
 }
 export interface FitResult { fit: RepairFit; reasons: FitReason[]; evidence: "TAXONOMY" | "CODE_WORDS" | "CODE_AND_NAME" | "INDUSTRY_AND_NAME" | "NONE" }
 
@@ -111,8 +115,9 @@ export function assessRepairFit(f: FitFacts): FitResult {
 
   // 0 — commercial ICP gate: GarageOS targets INDEPENDENT repair businesses. A confirmed chain/franchise/retail/parts-network/dealership location is EXCLUDED with its own
   // auditable reason, whatever its repair wording or category (a Kal Tire does repair tires; it is still not who we sell to). Heavy-duty/diesel shops are NOT affected.
-  const icp = assessIcp({ name: f.name, website: f.website, city: f.city, taxonomyPrimary: f.taxonomyPrimary });
+  const icp = f.icpOverride ? { outside: false, review: false } as ReturnType<typeof assessIcp> : assessIcp({ name: f.name, website: f.website, city: f.city, taxonomyPrimary: f.taxonomyPrimary, classReasons: f.classReasons });
   if (icp.outside) return { fit: "EXCLUDED", reasons: icpReasons(icp) as FitReason[], evidence: "NONE" };
+  if (!f.icpOverride && f.storedReasons?.includes("ICP_TOMBSTONE") && f.storedReasons.includes(OUTSIDE_ICP_REASON)) return { fit: "EXCLUDED", reasons: f.storedReasons.filter((x) => x === OUTSIDE_ICP_REASON || x.startsWith("ICP_")) as FitReason[], evidence: "NONE" };
 
   // 1 — the platform's own category says "not a repair business".
   if (cap === "NON_TARGET" || codeNonTarget) {
@@ -137,8 +142,8 @@ export function assessRepairFit(f: FitFacts): FitResult {
   const codeSegments = !known && /motorcycle|powersport|snowmobile|(^|_)atv(_|$)/.test(code) ? ["MOTORCYCLE"] : [];
   for (const x of codeSegments) if (!s.segments.includes(x)) s.segments.push(x);
   if (s.employeeListing) return { fit: "HUMAN_REVIEW", reasons: ["EMPLOYEE_LISTING"], evidence: "NONE" };
-  if (s.segments.length || s.soft.length || s.oem || f.classReasons?.includes("POSSIBLE_DEALER_SERVICE") || f.classReasons?.includes("ALSO_DEALER")) {
-    const r: FitReason[] = [...s.segments.map((x): FitReason => `SEGMENT_${x}`), ...s.soft.map((x): FitReason => `NAME_SIGNAL_${x}`)];
+  if (s.segments.length || s.soft.length || s.oem || icp.review || f.classReasons?.includes("POSSIBLE_DEALER_SERVICE") || f.classReasons?.includes("ALSO_DEALER")) {
+    const r: FitReason[] = [...(icp.review ? (icpReasons(icp) as FitReason[]) : []), ...s.segments.map((x): FitReason => `SEGMENT_${x}`), ...s.soft.map((x): FitReason => `NAME_SIGNAL_${x}`)];
     if (s.oem) r.push("OEM_BRAND_NAME");
     if (f.classReasons?.includes("POSSIBLE_DEALER_SERVICE") || f.classReasons?.includes("ALSO_DEALER")) r.push("POSSIBLE_DEALER_SERVICE");
     return { fit: "HUMAN_REVIEW", reasons: r, evidence: "NONE" };

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { importApprovedDiscoveryCandidates, reviewDiscoveryCandidates } from "@/actions/lead-radar";
+import { importApprovedDiscoveryCandidates, releaseDiscoveryExclusion, reviewDiscoveryCandidates } from "@/actions/lead-radar";
 import { fill } from "@/lib/admin-locale/lead-radar";
 import { fitReasonLabel, nationalCopy } from "@/lib/admin-locale/lead-radar-national";
 import { PLATFORM } from "@/lib/routes";
@@ -27,7 +27,7 @@ const MATCH_TONE: Record<string, string> = { NEW: "bg-emerald-50 text-emerald-80
 
 const FIT_TONE: Record<string, string> = { VERIFIED_REPAIR: "bg-emerald-100 text-emerald-800", HUMAN_REVIEW: "bg-amber-100 text-amber-900", EXCLUDED: "bg-red-100 text-red-800" };
 
-export function CandidateTable({ locale, rows, approvedCount, province }: { locale: "en" | "fr"; rows: CandidateRow[]; approvedCount: number; province?: string }) {
+export function CandidateTable({ locale, rows, approvedCount, province, canRelease }: { locale: "en" | "fr"; rows: CandidateRow[]; approvedCount: number; province?: string; canRelease?: boolean }) {
   const { c, pending, error, notice, run, setNotice } = useRadarAction(locale);
   const k = c.candidates;
   const fitCopy = nationalCopy(locale).fit;
@@ -42,6 +42,17 @@ export function CandidateTable({ locale, rows, approvedCount, province }: { loca
       setSel([]);
       setNotice(fill(k.reviewed, { n: r.result.updated, u: r.result.unchanged, b: r.result.blocked, a: r.result.alreadyImported }));
     });
+  }
+  function release() {
+    run(async () => {
+      let done = 0;
+      for (const id of sel) {
+        const r = await releaseDiscoveryExclusion({ candidateId: id, note: note.trim() });
+        if (!r.ok) return r; // the first refusal (e.g. note too short) is shown as is
+        done++;
+      }
+      return { ok: true as const, result: { released: done } };
+    }, (r) => { setSel([]); setNotice(fill(fitCopy.released, { n: (r as unknown as { result: { released: number } }).result.released })); });
   }
   function importNow() {
     if (!window.confirm(k.importConfirm)) return;
@@ -60,6 +71,7 @@ export function CandidateTable({ locale, rows, approvedCount, province }: { loca
           <button type="button" className={btnPrimary} disabled={pending || !sel.length} onClick={() => decide("APPROVED")}>{pending ? k.working : k.approve}</button>
           <button type="button" className={btnSecondary} disabled={pending || !sel.length} onClick={() => decide("REJECTED")}>{k.reject}</button>
           <button type="button" className={btnSecondary} disabled={pending || !sel.length} onClick={() => decide("PENDING")}>{k.undo}</button>
+          {canRelease && <button type="button" className={btnSecondary} disabled={pending || !sel.length || note.trim().length < 10} onClick={release}>{fitCopy.release}</button>}
           <button type="button" className={`${btnPrimary} ml-auto bg-emerald-600 hover:bg-emerald-700`} disabled={pending || approvedCount === 0} onClick={importNow}>{fill(k.importBtn, { n: approvedCount })}</button>
         </div>
         <p className="text-xs text-slate-500">{k.noAssign}</p>

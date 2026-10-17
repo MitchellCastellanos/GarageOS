@@ -1,4 +1,5 @@
 import "server-only";
+import { assessIcp } from "@/domain/lead-radar/icp";
 import type { CrmEnrollmentStatus, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { canAccessAssignedStaff, type PlatformSalesActor } from "@/domain/sales-crm/access";
@@ -108,6 +109,9 @@ async function enrollCore(by: { userId: string }, prospect: Awaited<ReturnType<t
   if (!contact.emailNormalized) throw new CrmError("CONTACT_NO_EMAIL");
   if (!prospect.assignedStaffId) throw new CrmError("NO_OWNER");
   if (prospect.status === "ARCHIVED") throw new CrmError("PROSPECT_ARCHIVED");
+  // Independent-repair ICP: a business excluded (chain, franchise, dealership, parts network) is never enrolled. Only a HUMAN fit decision outranks the live registry check.
+  const fitRow = await db.crmProspect.findUnique({ where: { id: prospect.id }, select: { repairFit: true, repairFitSource: true, name: true, website: true, city: true } });
+  if (fitRow && (fitRow.repairFit === "EXCLUDED" || (fitRow.repairFitSource !== "HUMAN" && assessIcp({ name: fitRow.name, website: fitRow.website, city: fitRow.city }).outside))) throw new CrmError("PROSPECT_EXCLUDED");
   const opp = await db.crmOpportunity.findFirst({ where: { prospectId: prospect.id, stage: { in: [...OPEN_STAGES] } }, select: { id: true } });
   const anyOpp = opp ? null : await db.crmOpportunity.findFirst({ where: { prospectId: prospect.id }, orderBy: { createdAt: "desc" }, select: { stage: true } });
   if (anyOpp && ["WON", "LOST", "UNQUALIFIED", "DO_NOT_CONTACT"].includes(anyOpp.stage)) throw new CrmError("OPPORTUNITY_CLOSED");

@@ -52,10 +52,10 @@ export default async function CandidatesPage({ searchParams }: { searchParams: P
           {sel("reason", k.reason, Object.entries(c.automation.qualification.reasons), k.anyReason)}
           <label className={labelCls}>{k.minCompleteness}<input name="minCompleteness" type="number" min={0} max={100} step={5} defaultValue={f.minCompleteness ?? ""} className={inputCls} /></label>
         </div>
-        <div className="flex flex-wrap gap-x-4">{chk("hasPhone", k.hasPhone)}{chk("hasWebsite", k.hasWebsite)}{chk("hasEmail", k.hasEmail)}{chk("licenseBlocked", k.licenseBlocked)}</div>
+        <div className="flex flex-wrap gap-x-4">{chk("hasPhone", k.hasPhone)}{chk("hasWebsite", k.hasWebsite)}{chk("hasEmail", k.hasEmail)}{chk("licenseBlocked", k.licenseBlocked)}{actor.all && <label className="flex min-h-11 items-center gap-2 text-sm text-slate-700"><input type="checkbox" name="icp" value="all" defaultChecked={f.icp === "all"} className="size-5" />{nationalCopy(locale).fit.showExcluded}</label>}</div>
         <div className="flex gap-2"><button className={btnPrimary} type="submit">{k.apply}</button><Link className={btnSecondary} href={PLATFORM.salesLeadRadarCandidates}>{k.reset}</Link></div>
       </form>
-      {list.rows.length === 0 ? <EmptyState title={k.empty} /> : <CandidateTable locale={locale} rows={list.rows} approvedCount={approvedCount} province={f.province} />}
+      {list.rows.length === 0 ? <EmptyState title={k.empty} /> : <CandidateTable locale={locale} rows={list.rows} approvedCount={approvedCount} province={f.province} canRelease={actor.all} />}
       <Pager page={list.page} pages={pages} hrefFor={qs} t={t} />
     </div>
   );
