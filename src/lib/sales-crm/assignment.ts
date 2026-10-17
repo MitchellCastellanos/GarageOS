@@ -9,7 +9,7 @@ import { assignedScopeWhere } from "@/domain/sales-crm/access";
 import { loadTerritoryRulesWith } from "@/lib/sales-crm/territory-rules";
 import { writeCrmAudit } from "@/lib/sales-crm/audit";
 import { LEAD_RADAR_SOURCE_KEY } from "@/domain/lead-radar/bridge";
-import { remoteNoEmailWhere } from "@/lib/lead-radar/remote-email";
+import { loadRemoteNoEmailWhere } from "@/lib/lead-radar/remote-email";
 import { assessIcp } from "@/domain/lead-radar/icp";
 import type { RepairFit } from "@/domain/lead-radar/repair-fit";
 import { candidateEvidence, proposeFit } from "@/lib/sales-crm/repair-fit-service";
@@ -35,6 +35,7 @@ export async function loadSellers(actor: PlatformSalesActor, client: Prisma.Tran
     select: { id: true, salesMode: true, coverageTerritoryKeys: true, acceptsAutoAssignment: true, maxActiveLeads: true, maxActiveFieldLeads: true, maxActiveRemoteLeads: true, leadLanguages: true },
   });
   const ids = staff.map((s) => s.id);
+  const remoteNoEmailWhere = await loadRemoteNoEmailWhere();
   const [counts, laneCounts] = await Promise.all([
     client.crmProspect.groupBy({ by: ["assignedStaffId"], where: { assignedStaffId: { in: ids }, status: "ACTIVE", doNotContact: false, NOT: remoteNoEmailWhere }, _count: { _all: true } }),
     client.crmProspect.groupBy({ by: ["assignedStaffId", "assignmentMode"], where: { assignedStaffId: { in: ids }, status: "ACTIVE", doNotContact: false, assignmentMode: { not: null }, NOT: remoteNoEmailWhere }, _count: { _all: true } }),
@@ -82,6 +83,7 @@ export interface PreviewFilters {
 export async function buildAssignmentProposals(actor: PlatformSalesActor, f: PreviewFilters, now = new Date()): Promise<{ proposals: AssignmentProposal[]; considered: number; next: { createdAt: Date; id: string } | null }> {
   const limit = Math.min(Math.max(1, f.scanLimit ?? f.limit ?? ASSIGNMENT_BATCH_LIMIT), f.scanLimit ? ASSIGNMENT_SCAN_LIMIT : ASSIGNMENT_BATCH_LIMIT);
   const [rules, sellers] = await Promise.all([loadTerritoryRulesWith(db), loadSellers(actor, db, f.onlyStaffIds)]);
+  const noEmail = f.skipRemoteNoEmail ? await loadRemoteNoEmailWhere() : null;
   const rows = await db.crmProspect.findMany({
     where: {
       AND: [
@@ -90,7 +92,7 @@ export async function buildAssignmentProposals(actor: PlatformSalesActor, f: Pre
         f.territoryKey ? { territoryKey: f.territoryKey } : {},
         f.leadRadarOnly ? { importBatch: { sourceKey: LEAD_RADAR_SOURCE_KEY } } : {},
         f.provinces ? { province: { in: [...f.provinces] } } : {},
-        f.skipRemoteNoEmail ? { NOT: remoteNoEmailWhere } : {},
+        noEmail ? { NOT: noEmail } : {},
         f.after ? { OR: [{ createdAt: { gt: f.after.createdAt } }, { createdAt: f.after.createdAt, id: { gt: f.after.id } }] } : {},
       ],
     },

@@ -2,7 +2,7 @@ import "server-only";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { assignedScopeWhere, type PlatformSalesActor } from "@/domain/sales-crm/access";
-import { remoteNoEmailWhere } from "@/lib/lead-radar/remote-email";
+import { loadRemoteNoEmailWhere } from "@/lib/lead-radar/remote-email";
 import { loadTerritoryRulesWith } from "@/lib/sales-crm/territory-rules";
 
 /** Commercial lead queues. Every queue is just a `where` fragment ANDed with the actor's scope — one definition drives list, counts and pagination. */
@@ -12,11 +12,11 @@ export const isProspectQueue = (v: string | undefined): v is ProspectQueue => !!
 
 const NONE: Prisma.CrmProspectWhereInput = { id: "__none__" };
 
-export interface QueueContext { now: Date; fieldTerritoryKeys: string[]; fieldRules: { key: string; priorityDays: number | null }[] }
+export interface QueueContext { now: Date; remoteNoEmail: Prisma.CrmProspectWhereInput; fieldTerritoryKeys: string[]; fieldRules: { key: string; priorityDays: number | null }[] }
 export async function loadQueueContext(now = new Date()): Promise<QueueContext> {
   const rules = await loadTerritoryRulesWith(db);
   const fieldRules = rules.filter((r) => r.acquisition !== "REMOTE_DEFAULT" && (r.cities.length > 0 || r.postalPrefixes.length > 0));
-  return { now, fieldTerritoryKeys: fieldRules.map((r) => r.key), fieldRules: fieldRules.map((r) => ({ key: r.key, priorityDays: r.acquisition === "FIELD_PRIORITY" ? r.priorityDays : null })) };
+  return { now, remoteNoEmail: await loadRemoteNoEmailWhere(), fieldTerritoryKeys: fieldRules.map((r) => r.key), fieldRules: fieldRules.map((r) => ({ key: r.key, priorityDays: r.acquisition === "FIELD_PRIORITY" ? r.priorityDays : null })) };
 }
 
 /**
@@ -57,8 +57,8 @@ export function queueWhere(queue: ProspectQueue, actor: PlatformSalesActor, ctx:
   const active: Prisma.CrmProspectWhereInput = { status: "ACTIVE", doNotContact: false };
   switch (queue) {
     // Email-only REMOTE strategy: national prospects with no email are kept (never deleted or reassigned) but are not active work, so they leave these two queues.
-    case "new": return { ...active, assignedStaffId: null, NOT: remoteNoEmailWhere };
-    case "mine": return actor.staffId ? { ...active, assignedStaffId: actor.staffId, NOT: remoteNoEmailWhere } : NONE;
+    case "new": return { ...active, assignedStaffId: null, NOT: ctx.remoteNoEmail };
+    case "mine": return actor.staffId ? { ...active, assignedStaffId: actor.staffId, NOT: ctx.remoteNoEmail } : NONE;
     case "ready":
       return {
         ...active, assignedStaffId: { not: null }, territoryState: { in: ["LOCAL", "NATIONAL"] },
