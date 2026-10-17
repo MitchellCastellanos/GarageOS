@@ -82,9 +82,13 @@ if (!enabled) {
     await db.crmLeadAutomation.update({ where: { id: "default" }, data: { pilotEnabled: false, importProvinces: [] } });
     await assert.rejects(roLib.activateNationalRollout(actor), /ROLLOUT_IMPORT_SCOPE_EMPTY/);
     await db.crmLeadAutomation.update({ where: { id: "default" }, data: { importProvinces: ["ON"] } });
-    await db.crmCommsSettings.upsert({ where: { id: "default" }, create: { id: "default", sendingEnabled: true }, update: { sendingEnabled: true } });
+    await db.crmCommsSettings.upsert({ where: { id: "default" }, create: { id: "default", sendingEnabled: true, automatedSendingEnabled: true }, update: { sendingEnabled: true, automatedSendingEnabled: true } });
     await assert.rejects(roLib.activateNationalRollout(actor), /ROLLOUT_SENDING_ON/);
-    await db.crmCommsSettings.update({ where: { id: "default" }, data: { sendingEnabled: false } });
+    // Manual email ON (kill switch ON, automated outreach OFF) is NOT "outreach live": it must not block the rollout (a manual internal test email can't halt it).
+    await db.crmCommsSettings.update({ where: { id: "default" }, data: { sendingEnabled: true, manualSendingEnabled: true, automatedSendingEnabled: false } });
+    await db.platformSalesStaff.update({ where: { id: rep }, data: { acceptsAutoAssignment: false } });
+    await assert.rejects(roLib.activateNationalRollout(actor), /ROLLOUT_SELLER_INVALID/, "got past the sending check");
+    await db.crmCommsSettings.update({ where: { id: "default" }, data: { sendingEnabled: false, manualSendingEnabled: false, automatedSendingEnabled: false } });
     await db.platformSalesStaff.update({ where: { id: rep }, data: { acceptsAutoAssignment: false } });
     await assert.rejects(roLib.activateNationalRollout(actor), /ROLLOUT_SELLER_INVALID/);
     await db.platformSalesStaff.update({ where: { id: rep }, data: { acceptsAutoAssignment: true } });

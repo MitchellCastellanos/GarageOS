@@ -255,7 +255,7 @@ test("sending basis review gate: address-based bases created under the workflow 
 });
 
 const policy = (over: Partial<SendPolicyInput> = {}): SendPolicyInput => ({
-  category: "COMMERCIAL", settingsSendingEnabled: true, identityActive: true, staffActive: true, fromDomainApproved: true,
+  category: "COMMERCIAL", settingsSendingEnabled: true, origin: "MANUAL", originEnabled: true, identityActive: true, staffActive: true, fromDomainApproved: true,
   recipients: [{ email: "jean@garage.ca", valid: true, suppression: null }], prospect: { doNotContact: false, archived: false }, contact: { doNotContact: false },
   basis: { valid: true, kind: "IMPLIED_PUBLISHED_ADDRESS", expiresAt: null }, languageResolved: true, sentToday: 0, dailyLimit: 30, commercialFooterConfigured: true, ...over,
 });
@@ -358,7 +358,7 @@ test("thread matching: reply key beats Message-ID beats subject; subject never c
 // ── Sender setup ─────────────────────────────────────────────────────────────────────────────
 const fullSetup = (over: Partial<SetupInput> = {}): SetupInput => ({
   providerKeyConfigured: true, providerSideEffectsEnabled: true, webhookSecretConfigured: true, unsubscribeSecretConfigured: true,
-  settings: { sendingEnabled: true, approvedDomains: ["sales.garage-os.ca"], inboundDomain: "sales.garage-os.ca", mailingAddress: "1 rue Exemple, Montréal QC" },
+  settings: { sendingEnabled: true, manualSendingEnabled: true, approvedDomains: ["sales.garage-os.ca"], inboundDomain: "sales.garage-os.ca", mailingAddress: "1 rue Exemple, Montréal QC" },
   identity: { fromEmail: "alexandre@sales.garage-os.ca", status: "ACTIVE", replyToEmail: null, inboundVerifiedAt: null, staffActive: true },
   fromDomain: { found: true, status: "verified", sendingEnabled: true, receivingEnabled: true },
   inboundDomainFact: { found: true, status: "verified", sendingEnabled: true, receivingEnabled: true }, lookupError: null, ...over,
@@ -373,6 +373,7 @@ test("sender setup state: ready only when the PROVIDER confirms the domain; roun
   assert.equal(computeSetupState(fullSetup({ settings: { ...fullSetup().settings, approvedDomains: [] } })).canSend, false);
   assert.equal(computeSetupState(fullSetup({ providerSideEffectsEnabled: false })).canSend, false);
   assert.equal(computeSetupState(fullSetup({ settings: { ...fullSetup().settings, sendingEnabled: false } })).canSend, false);
+  assert.equal(computeSetupState(fullSetup({ settings: { ...fullSetup().settings, manualSendingEnabled: false } })).canSend, false, "a seller cannot send manually while the manual switch is off");
   assert.equal(computeSetupState(fullSetup({ settings: { ...fullSetup().settings, mailingAddress: " " } })).canSend, false);
   const sendOnly = computeSetupState(fullSetup({ inboundDomainFact: { found: true, status: "pending", sendingEnabled: true, receivingEnabled: false } }));
   assert.equal(sendOnly.headline, "SEND_ONLY"); assert.equal(sendOnly.canReceive, false); assert.equal(sendOnly.roundTripVerified, false);
@@ -441,4 +442,50 @@ test("REMOTE email campaign (intro → follow-up 1 → follow-up 2): EN and FR r
     assert.match(builtinTemplate("INTRODUCTION", language)!.body, language === "EN" ? /won't write again/ : /ne vous écrirai plus/);
     assert.match(builtinTemplate("FOLLOW_UP_2", language)!.body, language === "EN" ? /won't write again/ : /ne vous écrirai plus/);
   }
+});
+
+// ── Manual vs automated vs transactional switches ────────────────────────────────────────────
+import { isSwitchHold, sendOriginOf } from "../src/domain/sales-comms/casl";
+
+test("send origin comes from server-set fields only: a sequence enrollment is AUTOMATED, a meeting/TRANSACTIONAL is TRANSACTIONAL, everything else MANUAL", () => {
+  assert.equal(sendOriginOf({ category: "COMMERCIAL", sequenceEnrollmentId: "e1" }), "AUTOMATED");
+  assert.equal(sendOriginOf({ category: "COMMERCIAL", sequenceEnrollmentId: "e1", meetingId: "m1" }), "AUTOMATED");
+  assert.equal(sendOriginOf({ category: "TRANSACTIONAL", meetingId: "m1" }), "TRANSACTIONAL");
+  assert.equal(sendOriginOf({ category: "TRANSACTIONAL" }), "TRANSACTIONAL");
+  assert.equal(sendOriginOf({ category: "COMMERCIAL", meetingId: "m1" }), "TRANSACTIONAL");
+  assert.equal(sendOriginOf({ category: "COMMERCIAL" }), "MANUAL");
+  assert.equal(sendOriginOf({ category: "REPLY", sequenceEnrollmentId: null, meetingId: null }), "MANUAL");
+});
+
+test("switch matrix: the kill switch blocks everything; each origin also needs its own switch; the other origins are unaffected", () => {
+  const origins = [
+    { origin: "MANUAL", category: "COMMERCIAL", code: "MANUAL_SENDING_DISABLED" },
+    { origin: "MANUAL", category: "REPLY", code: "MANUAL_SENDING_DISABLED" },
+    { origin: "AUTOMATED", category: "COMMERCIAL", code: "AUTOMATED_SENDING_DISABLED" },
+    { origin: "TRANSACTIONAL", category: "TRANSACTIONAL", code: "TRANSACTIONAL_SENDING_DISABLED" },
+  ] as const;
+  for (const o of origins) {
+    const base = { origin: o.origin, category: o.category } as const;
+    assert.equal(evaluateSendPolicy(policy({ ...base, settingsSendingEnabled: false, originEnabled: true })).allowed === false && (evaluateSendPolicy(policy({ ...base, settingsSendingEnabled: false, originEnabled: true })) as { code: string }).code, "SENDING_DISABLED", `${o.origin}: kill switch wins even when the origin switch is on`);
+    assert.equal(evaluateSendPolicy(policy({ ...base, settingsSendingEnabled: false, originEnabled: false })).allowed, false);
+    const off = evaluateSendPolicy(policy({ ...base, settingsSendingEnabled: true, originEnabled: false }));
+    assert.deepEqual(off.allowed === false && off.code, o.code, `${o.origin}/${o.category}: origin switch off`);
+    assert.equal(evaluateSendPolicy(policy({ ...base, settingsSendingEnabled: true, originEnabled: true })).allowed, true, `${o.origin}/${o.category}: both on`);
+  }
+});
+
+test("a manual cold email still needs a documented CASL basis, a decided language, no suppression/DNC even when every switch is on", () => {
+  const on = { origin: "MANUAL", originEnabled: true, settingsSendingEnabled: true } as const;
+  const code = (over: Partial<SendPolicyInput>) => { const d = evaluateSendPolicy(policy({ ...on, ...over })); return d.allowed ? "OK" : d.code; };
+  assert.equal(code({ basis: { valid: false, reason: "NONE" } }), "NO_VALID_BASIS");
+  assert.equal(code({ languageResolved: false }), "LANGUAGE_REQUIRED");
+  assert.equal(code({ recipients: [{ email: "a@b.ca", valid: true, suppression: "UNSUBSCRIBE" }] }), "SUPPRESSED");
+  assert.equal(code({ contact: { doNotContact: true } }), "CONTACT_DNC");
+  assert.equal(code({ commercialFooterConfigured: false }), "NO_UNSUBSCRIBE_CONFIG");
+  assert.equal(code({ sentToday: 30 }), "DAILY_LIMIT");
+});
+
+test("every switch-off code is a HOLD (message stays queued); real policy failures are not", () => {
+  for (const c of ["SENDING_DISABLED", "MANUAL_SENDING_DISABLED", "AUTOMATED_SENDING_DISABLED", "TRANSACTIONAL_SENDING_DISABLED"] as const) assert.equal(isSwitchHold(c), true, c);
+  for (const c of ["NO_VALID_BASIS", "SUPPRESSED", "CONTACT_DNC", "DAILY_LIMIT", "IDENTITY_INACTIVE", "TERRITORY_FIELD_FIRST_CONTACT"] as const) assert.equal(isSwitchHold(c), false, c);
 });

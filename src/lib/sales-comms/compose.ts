@@ -183,7 +183,7 @@ export async function prepareSend(actor: PlatformSalesActor, messageId: string, 
   const category = hasInbound && toExisting ? ("REPLY" as const) : ("COMMERCIAL" as const);
   // Language is only *required* for solicitations; a reply may be written in whatever the human chose.
   const chosen: "EN" | "FR" = lang.language === "FR" || lang.language === "EN" ? lang.language : (msg.language === "FR" ? "FR" : msg.language === "EN" ? "EN" : identity.defaultLanguage === "FR" ? "FR" : "EN");
-  const { decision } = await evaluatePolicy({ identityId: identity.id, category, recipients, prospectId: msg.prospectId, contactId: msg.contactId, languageResolved: category !== "COMMERCIAL" || lang.language !== "UNKNOWN", excludeMessageId: msg.id });
+  const { decision } = await evaluatePolicy({ identityId: identity.id, category, recipients, prospectId: msg.prospectId, contactId: msg.contactId, languageResolved: category !== "COMMERCIAL" || lang.language !== "UNKNOWN", excludeMessageId: msg.id, origin: "MANUAL" });
 
   const unsub = category === "COMMERCIAL" ? unsubscribeUrlFor(previewOnly ? "preview" : signUnsubscribeToken(unsubscribeSecret(), msg.id)) : null;
   const subjectOut = category === "REPLY" ? replySubject(msg.subject) : msg.subject;

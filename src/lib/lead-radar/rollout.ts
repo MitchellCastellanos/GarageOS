@@ -42,7 +42,7 @@ export async function activateNationalRollout(actor: PlatformSalesActor) {
   if (a.rolloutEnabled) throw new CrmError("ROLLOUT_ALREADY_ACTIVE");
   if (a.rolloutFinishedAt) throw new CrmError("ROLLOUT_ALREADY_DONE");
   if (a.pilotEnabled) throw new CrmError("ROLLOUT_PILOT_ON");
-  if ((await getCommsSettings()).sendingEnabled) throw new CrmError("ROLLOUT_SENDING_ON");
+  { const c = await getCommsSettings(); if (c.sendingEnabled && c.automatedSendingEnabled) throw new CrmError("ROLLOUT_SENDING_ON"); }
   if (!a.importProvinces.length) throw new CrmError("ROLLOUT_IMPORT_SCOPE_EMPTY");
   const seller = await resolveSeller();
   if (!seller || !seller.active || seller.role !== "SALES_REP" || seller.superAdminLogin || !seller.acceptsAutoAssignment) throw new CrmError("ROLLOUT_SELLER_INVALID");
@@ -95,7 +95,7 @@ async function safetyFacts(a: AutomationSettings): Promise<SafetyFacts> {
     db.crmActivity.count({ where: { AND: [auto, { metadata: { path: ["mode"], equals: "FIELD" } }] } }),
   ]);
   return {
-    settings: { eligibilityEnabled: a.eligibilityEnabled, releaseUnavailable: a.releaseUnavailable, pilotEnabled: a.pilotEnabled, sendingEnabled: comms.sendingEnabled, assignStaffIds: a.assignStaffIds, rolloutStaffId: a.rolloutStaffId, importProvincesIncludeAll: a.importProvinces.length === 0 },
+    settings: { eligibilityEnabled: a.eligibilityEnabled, releaseUnavailable: a.releaseUnavailable, pilotEnabled: a.pilotEnabled, sendingEnabled: comms.sendingEnabled && comms.automatedSendingEnabled, assignStaffIds: a.assignStaffIds, rolloutStaffId: a.rolloutStaffId, importProvincesIncludeAll: a.importProvinces.length === 0 },
     seller: seller && a.rolloutStaffId === seller.id ? seller : null, hasActivePolicy: !!policy, violations: { outOfScope, otherSeller, fieldMode },
   };
 }

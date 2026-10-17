@@ -96,3 +96,19 @@ See [GarageOS Lead Engine and Field Planner roadmap](garageos-lead-engine-field-
 **Production prospect counts: NOT MEASURED.** The only database reachable from the build environment (Supabase "Garage OS") does not contain the `garageos` CRM schema, and no production `DATABASE_URL` is available here, so no numbers are guessed. Run the read-only national funnel (`/platform/sales/lead-radar/national`) for REMOTE totals, usable emails, documented basis, eligible, suppressed and awaiting review.
 
 **Tests:** all DB suites (comms, inbound, identity, video, readiness, radar, rollout, national, CRM, lead engine) pass against a scratch Postgres with a fake Resend transport. Four `sales-comms-db` tests enroll "now" and expect the first step due immediately, so they fail when run on a weekend/outside the send window (they pass with the clock on a weekday); this is test fragility, not a product defect.
+
+
+## 2026-10-17 — Send controls: manual email is independent of automated outreach
+
+Super Admin → Sales → Communications now has an **Emergency email kill switch** (the existing `sendingEnabled`) and one switch per message origin. All are OFF by default; the migration copies the previous kill-switch value to *manual* and *transactional* (so OFF stays OFF) and never turns *automated* on.
+
+| Switch | Governs | Origin is decided by (server-set, not user input) |
+|---|---|---|
+| Emergency kill switch | Everything. Off ⇒ no sales email of any kind leaves | — |
+| Manual sales email | Composer *Send now* / scheduled sends and human replies | no sequence enrollment, no meeting, category COMMERCIAL/REPLY |
+| Automated outreach | Sequence steps, follow-ups, enrollment, Lead Radar pilot | message has a `sequenceEnrollmentId` |
+| Transactional email | Meeting confirmations, reminders, reschedules, cancellations | message has a `meetingId`, or category TRANSACTIONAL |
+
+A send needs the kill switch **and** its origin's switch, and then every existing check (CASL basis, suppression/unsubscribe/DNC, territory, language, identity, domain, daily cap, idempotency). A message whose switch is off is **held** (stays queued, no attempt burned) and re-checked later — never cancelled, and the cron neither creates sequence messages nor releases automated messages while *Automated outreach* is off. The national rollout / pilot safety checks look at "kill switch **and** automated outreach", so a manual test email does not halt the rollout.
+
+**One internal test email (automated outreach stays OFF):** kill switch **ON**, **Manual sales email ON**, Automated outreach **OFF**, Transactional **OFF** (unless you want booking confirmations to go out). Release and Pilot untouched.

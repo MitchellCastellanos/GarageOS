@@ -3055,8 +3055,14 @@ enum CrmInboundProvider {
 
 model CrmCommsSettings {
   id                  String   @id @default("default")
-  /// Master kill switch. false ⇒ no commercial or transactional sales email leaves the system.
+  /// Emergency kill switch. false ⇒ NO sales email of any kind leaves the system (fail-closed). true is necessary but not sufficient: each origin below must also be on.
   sendingEnabled      Boolean  @default(false)
+  /// Human-written mail: the composer's Send now / scheduled sends and replies. Independent of automated outreach.
+  manualSendingEnabled Boolean @default(false)
+  /// System-originated outreach: sequence steps, follow-ups and the Lead Radar pilot. OFF keeps every automated message held (never cancelled, never released by cron).
+  automatedSendingEnabled Boolean @default(false)
+  /// Meeting confirmations, reminders and reschedule/cancel notices.
+  transactionalSendingEnabled Boolean @default(false)
   /// Domains identities may send from (e.g. "sales.garage-os.ca"). A sender outside this list is refused.
   approvedDomains     String[] @default([])
   /// Domain (a Resend domain with receiving enabled) whose MX points at the provider; replies are routed here.

@@ -46,14 +46,40 @@ export function suggestedBasisExpiry(kind: CrmSendingBasisKind, from: Date): Dat
 }
 
 export type SendBlockCode =
-  | "SENDING_DISABLED" | "IDENTITY_INACTIVE" | "IDENTITY_UNKNOWN" | "STAFF_INACTIVE" | "DOMAIN_NOT_APPROVED"
+  | "SENDING_DISABLED" | "MANUAL_SENDING_DISABLED" | "AUTOMATED_SENDING_DISABLED" | "TRANSACTIONAL_SENDING_DISABLED" | "IDENTITY_INACTIVE" | "IDENTITY_UNKNOWN" | "STAFF_INACTIVE" | "DOMAIN_NOT_APPROVED"
   | "NO_RECIPIENT" | "INVALID_RECIPIENT" | "SUPPRESSED" | "BOUNCED_ADDRESS" | "CONTACT_DNC" | "PROSPECT_DNC" | "PROSPECT_ARCHIVED"
   | "NO_VALID_BASIS" | "LANGUAGE_REQUIRED" | "DAILY_LIMIT" | "NO_UNSUBSCRIBE_CONFIG"
   | "TERRITORY_FIELD_FIRST_CONTACT" | "TERRITORY_FIELD_ONLY";
 
+/**
+ * Where a message comes from. Derived ONLY from fields the server sets when it creates the message (a sequence enrollment, a meeting) and its
+ * category — never from anything a user can type — so a hand-written email can't pose as automated (or the reverse) to dodge a switch.
+ *   AUTOMATED     — created by the sequence worker / Lead Radar pilot (has a sequence enrollment).
+ *   TRANSACTIONAL — meeting confirmations, reminders, reschedules, cancellations (has a meeting, or the TRANSACTIONAL category).
+ *   MANUAL        — everything else: a person pressing Send / Schedule in the composer, and human replies.
+ */
+export type SendOrigin = "MANUAL" | "AUTOMATED" | "TRANSACTIONAL";
+
+export function sendOriginOf(m: { category: "COMMERCIAL" | "REPLY" | "TRANSACTIONAL"; sequenceEnrollmentId?: string | null; meetingId?: string | null }): SendOrigin {
+  if (m.sequenceEnrollmentId) return "AUTOMATED";
+  if (m.meetingId || m.category === "TRANSACTIONAL") return "TRANSACTIONAL";
+  return "MANUAL";
+}
+
+const ORIGIN_BLOCK: Record<SendOrigin, SendBlockCode> = { MANUAL: "MANUAL_SENDING_DISABLED", AUTOMATED: "AUTOMATED_SENDING_DISABLED", TRANSACTIONAL: "TRANSACTIONAL_SENDING_DISABLED" };
+
+/** Block codes that mean "a switch is off, nothing is wrong with the message": the message is HELD and re-checked later, never cancelled or failed. */
+export function isSwitchHold(code: SendBlockCode): boolean {
+  return code === "SENDING_DISABLED" || code === "MANUAL_SENDING_DISABLED" || code === "AUTOMATED_SENDING_DISABLED" || code === "TRANSACTIONAL_SENDING_DISABLED";
+}
+
 export interface SendPolicyInput {
   category: "COMMERCIAL" | "REPLY" | "TRANSACTIONAL";
+  /** Emergency kill switch (CrmCommsSettings.sendingEnabled): false blocks every origin. */
   settingsSendingEnabled: boolean;
+  origin: SendOrigin;
+  /** The switch of `origin` (manual / automated / transactional). Necessary IN ADDITION to the kill switch. */
+  originEnabled: boolean;
   identityActive: boolean;
   staffActive: boolean;
   fromDomainApproved: boolean;
@@ -74,6 +100,7 @@ const HARD = new Set(["HARD_BOUNCE", "COMPLAINT"]);
 
 export function evaluateSendPolicy(i: SendPolicyInput): SendDecision {
   if (!i.settingsSendingEnabled) return { allowed: false, code: "SENDING_DISABLED" };
+  if (!i.originEnabled) return { allowed: false, code: ORIGIN_BLOCK[i.origin] };
   if (!i.staffActive) return { allowed: false, code: "STAFF_INACTIVE" };
   if (!i.identityActive) return { allowed: false, code: "IDENTITY_INACTIVE" };
   if (!i.fromDomainApproved) return { allowed: false, code: "DOMAIN_NOT_APPROVED" };

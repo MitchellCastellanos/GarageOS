@@ -244,7 +244,7 @@ test("outreach: eligible only with an emailable contact, a REVIEWED CASL basis, 
   const r = evaluateOutreachEligibility(base());
   assert.deepEqual([r.decision, r.reasons, r.contactId], ["ELIGIBLE", [], "c1"]);
   // The assessment never says yes where the real send policy says no.
-  const policy = evaluateSendPolicy({ category: "COMMERCIAL", settingsSendingEnabled: true, identityActive: true, staffActive: true, fromDomainApproved: true, recipients: [{ email: "info@garage.ca", valid: true, suppression: null }], prospect: { doNotContact: false, archived: false }, contact: { doNotContact: false }, basis: approvedBasis, languageResolved: true, sentToday: 0, dailyLimit: 30, commercialFooterConfigured: true });
+  const policy = evaluateSendPolicy({ category: "COMMERCIAL", settingsSendingEnabled: true, origin: "AUTOMATED", originEnabled: true, identityActive: true, staffActive: true, fromDomainApproved: true, recipients: [{ email: "info@garage.ca", valid: true, suppression: null }], prospect: { doNotContact: false, archived: false }, contact: { doNotContact: false }, basis: approvedBasis, languageResolved: true, sentToday: 0, dailyLimit: 30, commercialFooterConfigured: true });
   assert.equal(policy.allowed, true);
 });
 

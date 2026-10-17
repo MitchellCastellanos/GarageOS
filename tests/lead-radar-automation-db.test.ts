@@ -569,7 +569,7 @@ if (!enabled) {
     let r = await tick();
     assert.equal((r.counters as any).pilot.note, "SENDING_DISABLED");
     assert.equal(await db.crmSequenceEnrollment.count({ where: { autoEnrolledAt: { not: null } } }), 0);
-    await db.crmCommsSettings.update({ where: { id: "default" }, data: { sendingEnabled: true } });
+    await db.crmCommsSettings.update({ where: { id: "default" }, data: { sendingEnabled: true, manualSendingEnabled: true, automatedSendingEnabled: true } });
     r = await tick();
     assert.equal((r.counters as any).pilot.enrolled, 1, "daily cap of 1");
     r = await tick();
@@ -762,7 +762,7 @@ if (!enabled) {
   test("CRM-only activation cannot turn on email: qualify+import+assign+eligibility with company-wide sending ON and eligible prospects present create ZERO enrollments/messages while the pilot is OFF; the pilot needs its own explicit action", async () => {
     as(users.Root);
     await db.crmLeadAutomation.update({ where: { id: "default" }, data: { pilotEnabled: false } });
-    await db.crmCommsSettings.update({ where: { id: "default" }, data: { sendingEnabled: true } });
+    await db.crmCommsSettings.update({ where: { id: "default" }, data: { sendingEnabled: true, manualSendingEnabled: true, automatedSendingEnabled: true } });
     const eligible = await db.crmOutreachEligibility.count({ where: { decision: "ELIGIBLE" } });
     const enr = await db.crmSequenceEnrollment.count(), msgs = await db.crmEmailMessage.count();
     await wave(3, { release: "2027-05-12.0" });

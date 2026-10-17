@@ -7,7 +7,7 @@ import { Msg, useComms } from "@/components/sales-comms/useComms";
 import { SignaturePreview } from "@/components/sales-comms/SignaturePreview";
 
 export interface SettingsView {
-  sendingEnabled: boolean; approvedDomains: string[]; inboundDomain: string | null; inboundProvider: string; inboundReplyLocal: string | null; legalName: string; mailingAddress: string | null; contactEmail: string | null; contactPhone: string | null; websiteUrl: string;
+  sendingEnabled: boolean; manualSendingEnabled: boolean; automatedSendingEnabled: boolean; transactionalSendingEnabled: boolean; approvedDomains: string[]; inboundDomain: string | null; inboundProvider: string; inboundReplyLocal: string | null; legalName: string; mailingAddress: string | null; contactEmail: string | null; contactPhone: string | null; websiteUrl: string;
   defaultDailyLimit: number; sendWindowStartHour: number; sendWindowEndHour: number; minNoticeMinutes: number; maxAdvanceDays: number;
 }
 
@@ -15,11 +15,28 @@ export function CommsSettingsForm({ locale, s }: { locale: "en" | "fr"; s: Setti
   const { t, pending, error, notice, run } = useComms(locale);
   const m = t.comms;
   const [on, setOn] = useState(s.sendingEnabled);
+  const [manual, setManual] = useState(s.manualSendingEnabled);
+  const [automated, setAutomated] = useState(s.automatedSendingEnabled);
+  const [transactional, setTransactional] = useState(s.transactionalSendingEnabled);
+  const origins = [
+    { name: "manualSendingEnabled", v: manual, set: setManual, label: m.manualSwitch, hint: m.manualHint },
+    { name: "automatedSendingEnabled", v: automated, set: setAutomated, label: m.automatedSwitch, hint: m.automatedHint },
+    { name: "transactionalSendingEnabled", v: transactional, set: setTransactional, label: m.transactionalSwitch, hint: m.transactionalHint },
+  ];
   return (
-    <form className="grid gap-3 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); const fd = new FormData(e.currentTarget); if (on) fd.set("sendingEnabled", "on"); else fd.delete("sendingEnabled"); run(() => saveCommsSettings(fd), undefined, m.settingsSaved); }}>
+    <form className="grid gap-3 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); const fd = new FormData(e.currentTarget); for (const [k, v] of [["sendingEnabled", on], ["manualSendingEnabled", manual], ["automatedSendingEnabled", automated], ["transactionalSendingEnabled", transactional]] as const) { if (v) fd.set(k, "on"); else fd.delete(k); } run(() => saveCommsSettings(fd), undefined, m.settingsSaved); }}>
       <label className={`flex min-h-11 items-center gap-2 rounded-lg border p-3 text-sm font-medium sm:col-span-2 ${on ? "border-emerald-300 bg-emerald-50 text-emerald-900" : "border-amber-300 bg-amber-50 text-amber-900"}`}>
         <input type="checkbox" checked={on} onChange={(e) => setOn(e.target.checked)} />{m.master}: {on ? m.masterOn : m.masterOff}
       </label>
+      <p className="-mt-1 text-xs text-slate-500 sm:col-span-2">{m.masterHint}</p>
+      {origins.map((o) => (
+        <div key={o.name} className="sm:col-span-2">
+          <label className={`flex min-h-11 items-center gap-2 rounded-lg border p-3 text-sm font-medium ${o.v && on ? "border-emerald-300 bg-emerald-50 text-emerald-900" : "border-slate-300 bg-slate-50 text-slate-800"}`}>
+            <input type="checkbox" checked={o.v} onChange={(e) => o.set(e.target.checked)} />{o.label}: {o.v ? m.switchOn : m.switchOff}{o.v && !on ? ` — ${m.masterOff}` : ""}
+          </label>
+          <p className="mt-1 text-xs text-slate-500">{o.hint}</p>
+        </div>
+      ))}
       <label className={`${labelCls} sm:col-span-2`}>{m.approvedDomains}<textarea name="approvedDomains" className={`${inputCls} min-h-16 py-2`} defaultValue={s.approvedDomains.join("\n")} /><span className="text-xs font-normal text-slate-500">{m.approvedDomainsHint}</span></label>
       <label className={`${labelCls} sm:col-span-2`}>{m.inboundDomain}<input name="inboundDomain" className={inputCls} defaultValue={s.inboundDomain ?? ""} /><span className="text-xs font-normal text-slate-500">{m.inboundHint}</span></label>
       <label className={labelCls}>{m.inboundProvider}

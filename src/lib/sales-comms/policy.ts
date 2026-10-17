@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { evaluateSendingBasis, evaluateSendPolicy, type SendDecision } from "@/domain/sales-comms/casl";
+import { evaluateSendingBasis, evaluateSendPolicy, type SendDecision, type SendOrigin } from "@/domain/sales-comms/casl";
 import { emailDomain, isValidEmail, normalizeEmail } from "@/domain/sales-comms/email";
 import { getCommsSettings } from "@/lib/sales-comms/settings";
 import { activeSuppressions } from "@/lib/sales-comms/suppression";
@@ -22,6 +22,8 @@ export interface PolicyTarget {
   excludeMessageId?: string;
   /** True for sequence/automation sends (never a cold first contact in a field-held territory). */
   automated?: boolean;
+  /** Required: which switch (manual / automated / transactional) governs this send. See `sendOriginOf`. */
+  origin: SendOrigin;
 }
 
 /** Gathers every fact the pure policy needs, from the database, at the moment of the decision. */
@@ -51,7 +53,9 @@ export async function evaluatePolicy(t: PolicyTarget, now = new Date()): Promise
   const tz = identity.staff.timezone;
   const sentToday = t.category === "COMMERCIAL" ? await sentTodayCount(identity.id, tz, now, t.excludeMessageId) : 0;
   const decision = evaluateSendPolicy({
-    category: t.category, settingsSendingEnabled: settings.sendingEnabled, identityActive: identity.status === "ACTIVE", staffActive: identity.staff.status === "ACTIVE",
+    category: t.category, settingsSendingEnabled: settings.sendingEnabled, origin: t.origin,
+    originEnabled: t.origin === "AUTOMATED" ? settings.automatedSendingEnabled : t.origin === "TRANSACTIONAL" ? settings.transactionalSendingEnabled : settings.manualSendingEnabled,
+    identityActive: identity.status === "ACTIVE", staffActive: identity.staff.status === "ACTIVE",
     fromDomainApproved: settings.approvedDomains.map((d) => d.toLowerCase()).includes(emailDomain(identity.fromEmail)),
     recipients: recipients.map((email) => ({ email, valid: isValidEmail(email), suppression: supp.get(email) ?? null })),
     prospect: prospect ? { doNotContact: prospect.doNotContact, archived: prospect.status === "ARCHIVED" } : null,

@@ -50,7 +50,7 @@ test("qualifying engagement never replaces the CASL sending basis: the send poli
   assert.equal(cold(eng).allowed, true);
   const basis = evaluateSendingBasis([], T0);
   const decision = evaluateSendPolicy({
-    category: "COMMERCIAL", settingsSendingEnabled: true, identityActive: true, staffActive: true, fromDomainApproved: true,
+    category: "COMMERCIAL", settingsSendingEnabled: true, origin: "AUTOMATED", originEnabled: true, identityActive: true, staffActive: true, fromDomainApproved: true,
     recipients: [{ email: "owner@shop.test", valid: true, suppression: null }], prospect: { doNotContact: false, archived: false }, contact: { doNotContact: false },
     basis, languageResolved: true, sentToday: 0, dailyLimit: 50, commercialFooterConfigured: true,
   });

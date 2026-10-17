@@ -113,7 +113,7 @@ if (!enabled) {
     const mgr = await makeStaff("Mona", "SALES_MANAGER");
     await db.platformSalesStaff.updateMany({ where: { id: { in: [staff.Alice, staff.Bob] } }, data: { managerId: mgr.id } });
     as(ids.root);
-    const s: any = await admin.saveCommsSettings(fd({ sendingEnabled: "on", approvedDomains: "sales.test.ca", inboundDomain: "sales.test.ca", legalName: "GarageOS Inc.", mailingAddress: "1 rue Exemple, Montréal QC H2X 1Y4", contactEmail: "hello@garage-os.ca", contactPhone: "", websiteUrl: "https://www.garage-os.ca", defaultDailyLimit: "30", sendWindowStartHour: "0", sendWindowEndHour: "24", minNoticeMinutes: "60", maxAdvanceDays: "60" }));
+    const s: any = await admin.saveCommsSettings(fd({ sendingEnabled: "on", manualSendingEnabled: "on", automatedSendingEnabled: "on", transactionalSendingEnabled: "on", approvedDomains: "sales.test.ca", inboundDomain: "sales.test.ca", legalName: "GarageOS Inc.", mailingAddress: "1 rue Exemple, Montréal QC H2X 1Y4", contactEmail: "hello@garage-os.ca", contactPhone: "", websiteUrl: "https://www.garage-os.ca", defaultDailyLimit: "30", sendWindowStartHour: "0", sendWindowEndHour: "24", minNoticeMinutes: "60", maxAdvanceDays: "60" }));
     assert.equal(s.ok, true, JSON.stringify(s));
 
     // A seller cannot configure identities (server-side), nor can a tenant owner.
@@ -636,7 +636,7 @@ if (!enabled) {
   test("kill switch: with sending disabled nothing is queued or sent, and the worker route reports why", async () => {
     const x = await makeProspect("Kill", staff.Alice);
     as(ids.root);
-    const settingsForm = fd({ sendingEnabled: "", approvedDomains: "sales.test.ca", inboundDomain: "sales.test.ca", legalName: "GarageOS Inc.", mailingAddress: "1 rue Exemple, Montréal QC", contactEmail: "", contactPhone: "", websiteUrl: "https://www.garage-os.ca", defaultDailyLimit: "30", sendWindowStartHour: "0", sendWindowEndHour: "24", minNoticeMinutes: "60", maxAdvanceDays: "60" });
+    const settingsForm = fd({ sendingEnabled: "", manualSendingEnabled: "", automatedSendingEnabled: "", transactionalSendingEnabled: "", approvedDomains: "sales.test.ca", inboundDomain: "sales.test.ca", legalName: "GarageOS Inc.", mailingAddress: "1 rue Exemple, Montréal QC", contactEmail: "", contactPhone: "", websiteUrl: "https://www.garage-os.ca", defaultDailyLimit: "30", sendWindowStartHour: "0", sendWindowEndHour: "24", minNoticeMinutes: "60", maxAdvanceDays: "60" });
     assert.equal(((await admin.saveCommsSettings(settingsForm)) as any).ok, true);
     try {
       const r = await send("Alice", { prospectId: x.p.id, contactId: x.c.id, to: x.email, languageOverride: "EN" });
@@ -646,7 +646,7 @@ if (!enabled) {
       assert.equal((await cronRoute.GET(new Request("https://x"))).status, 401);
     } finally {
       as(ids.root);
-      settingsForm.set("sendingEnabled", "on");
+      for (const k of ["sendingEnabled", "manualSendingEnabled", "automatedSendingEnabled", "transactionalSendingEnabled"]) settingsForm.set(k, "on");
       await admin.saveCommsSettings(settingsForm);
     }
     const res = await cronRoute.GET(new Request("https://x", { headers: { authorization: `Bearer ${process.env.CRON_SECRET}` } }));
@@ -921,11 +921,11 @@ if (!enabled) {
     assert.deepEqual([m.prospectId, m.staffId], [mine.p.id, staff.Bob]);
     // Honesty: with the master switch OFF the booking still succeeds, but the page is told NO confirmation email went out.
     as(ids.root);
-    const off = fd({ sendingEnabled: "", approvedDomains: "sales.test.ca", inboundDomain: "sales.test.ca", legalName: "GarageOS Inc.", mailingAddress: "1 rue Exemple, Montréal QC", contactEmail: "", contactPhone: "", websiteUrl: "https://www.garage-os.ca", defaultDailyLimit: "30", sendWindowStartHour: "0", sendWindowEndHour: "24", minNoticeMinutes: "60", maxAdvanceDays: "60" });
+    const off = fd({ sendingEnabled: "", manualSendingEnabled: "", automatedSendingEnabled: "", transactionalSendingEnabled: "", approvedDomains: "sales.test.ca", inboundDomain: "sales.test.ca", legalName: "GarageOS Inc.", mailingAddress: "1 rue Exemple, Montréal QC", contactEmail: "", contactPhone: "", websiteUrl: "https://www.garage-os.ca", defaultDailyLimit: "30", sendWindowStartHour: "0", sendWindowEndHour: "24", minNoticeMinutes: "60", maxAdvanceDays: "60" });
     await admin.saveCommsSettings(off);
     const sentBefore = sends.length;
     const quiet = await pub.submitPublicBooking({ token, startsAt: slots[6], durationMinutes: 30, type: "VIDEO", name: "Quiet", email: `quiet-${run}@shop.test`, timezone: "America/Toronto", language: "EN" }, "192.0.2.23");
-    off.set("sendingEnabled", "on"); as(ids.root); await admin.saveCommsSettings(off);
+    for (const k of ["sendingEnabled", "manualSendingEnabled", "automatedSendingEnabled", "transactionalSendingEnabled"]) off.set(k, "on"); as(ids.root); await admin.saveCommsSettings(off);
     assert.equal(quiet.ok, true);
     assert.equal((quiet as any).emailQueued, false, "no 'confirmation is on its way' while sending is off");
     assert.equal(sends.length, sentBefore);
@@ -937,6 +937,84 @@ if (!enabled) {
     as(ids.Bob);
     assert.deepEqual(await calendar.linkMeeting(m2.id, foreign.p.id, null) as any, { ok: false, error: "NOT_FOUND" });
     assert.equal(((await calendar.linkMeeting(m2.id, mine.p.id, null)) as any).ok, true);
+  });
+
+  // ── Kill switch + one switch per origin ─────────────────────────────────────────────────────────
+  test("SWITCHES: manual mail works with automated outreach OFF; automated and transactional mail is HELD (never cancelled, never released by cron); CASL still applies", async () => {
+    const set = (master: boolean, manual: boolean, automated: boolean, transactional: boolean) =>
+      db.crmCommsSettings.update({ where: { id: "default" }, data: { sendingEnabled: master, manualSendingEnabled: manual, automatedSendingEnabled: automated, transactionalSendingEnabled: transactional } });
+    const sentTo = (email: string) => sends.filter((x) => (x.body.to as string[]).includes(email)).length;
+    const cron = async () => (await (await cronRoute.GET(new Request("https://x", { headers: { authorization: `Bearer ${process.env.CRON_SECRET}` } }))).json()) as any;
+    const soon = () => new Date(Date.now() + 1000);
+
+    // An enrolled prospect whose first sequence message is created while everything is on.
+    await set(true, true, true, true);
+    const seq = await db.crmSequence.create({ data: { name: `Sw ${run}`, status: "ACTIVE", createdByUserId: ids.root, businessDaysOnly: false, steps: { create: [{ stepIndex: 0, dayOffset: 0, templateKey: "INTRODUCTION" }, { stepIndex: 1, dayOffset: 3, templateKey: "FOLLOW_UP_1" }] } } });
+    const auto = await makeProspect("SwAuto", staff.Alice);
+    as(ids.Alice);
+    const enr: any = await seqActions.enrollProspect(fd({ sequenceId: seq.id, prospectId: auto.p.id, contactId: auto.c.id }));
+    assert.equal(enr.ok, true, JSON.stringify(enr));
+    await seqLib.processDueEnrollments({ now: soon() });
+    const held = await db.crmEmailMessage.findFirstOrThrow({ where: { prospectId: auto.p.id, sequenceEnrollmentId: { not: null } } });
+    assert.equal(held.status, "QUEUED");
+
+    // Kill switch ON, manual ON, transactional ON, AUTOMATED OFF — the "one internal test email" configuration.
+    await set(true, true, false, true);
+    const tally = await dispatcher.dispatchDue({ now: soon() });
+    assert.equal(tally.sent, 0); assert.ok(tally.deferred >= 1);
+    let h = await db.crmEmailMessage.findUniqueOrThrow({ where: { id: held.id } });
+    assert.deepEqual([h.status, h.attempts, sentTo(auto.email)], ["QUEUED", 0, 0], "held, not sent, not cancelled, no attempt burned");
+    await db.crmEmailMessage.update({ where: { id: held.id }, data: { nextAttemptAt: new Date() } });
+    const c1 = await cron();
+    assert.deepEqual(c1.sequences, { skipped: true, reason: "automated_outreach_disabled" });
+    assert.equal(sentTo(auto.email), 0, "the cron must not release an automated message while automated outreach is off");
+    // A due follow-up step is not turned into a message either, and nothing is enrolled.
+    await db.crmSequenceEnrollment.updateMany({ where: { id: enr.enrollmentId ?? undefined, prospectId: auto.p.id }, data: { nextRunAt: new Date(Date.now() - 1000) } });
+    await seqLib.processDueEnrollments({ now: soon() });
+    assert.equal(await db.crmEmailMessage.count({ where: { prospectId: auto.p.id, sequenceEnrollmentId: { not: null } } }), 1);
+    assert.equal((await db.crmSequenceEnrollment.findFirstOrThrow({ where: { prospectId: auto.p.id } })).status, "ACTIVE");
+    const other = await makeProspect("SwOther", staff.Alice);
+    const refused: any = await seqActions.enrollProspect(fd({ sequenceId: seq.id, prospectId: other.p.id, contactId: other.c.id }));
+    assert.deepEqual([refused.ok, refused.error], [false, "AUTOMATED_SENDING_DISABLED"]);
+
+    // Manual mail works in this configuration …
+    const manual = await makeProspect("SwManual", staff.Alice);
+    const ok = await send("Alice", { prospectId: manual.p.id, contactId: manual.c.id, to: manual.email, languageOverride: "EN" });
+    assert.equal(ok.ok, true, JSON.stringify(ok)); assert.equal(sentTo(manual.email), 1);
+    // … but a manual cold email without a documented basis is still refused (CASL is not bypassed by a manual origin).
+    const cold = await makeProspect("SwCold", staff.Alice, { basis: false });
+    const refusedCold = await send("Alice", { prospectId: cold.p.id, contactId: cold.c.id, to: cold.email, languageOverride: "EN" });
+    assert.deepEqual([refusedCold.ok, refusedCold.error], [false, "NO_VALID_BASIS"]); assert.equal(sentTo(cold.email), 0);
+
+    // Transactional OFF: a public booking succeeds, its confirmation is held, then goes out once the switch is on.
+    as(ids.Bob);
+    await calendar.saveAvailability(fd({ timezone: "America/Toronto", bufferMinutes: "0", durations: "30", types: "VIDEO", bookingEnabled: "on", mon_on: "on", mon_1_start: "09:00", mon_1_end: "17:00", tue_on: "on", tue_1_start: "09:00", tue_1_end: "17:00" }));
+    const token = (((await calendar.getMyBookingLink()) as any).url as string).split("/sales/book/")[1];
+    const slots = ((await pub.loadPublicSlots(token, 30, "192.0.2.40")) as any).slots as string[];
+    await set(true, true, false, false);
+    const guest = `sw-guest-${run}@shop.test`;
+    const booked = await pub.submitPublicBooking({ token, startsAt: slots[12], durationMinutes: 30, type: "VIDEO", name: "Guest", email: guest, timezone: "America/Toronto", language: "EN" }, "192.0.2.41");
+    assert.equal(booked.ok, true, JSON.stringify(booked)); assert.equal((booked as any).emailQueued, false);
+    const conf = await db.crmEmailMessage.findFirstOrThrow({ where: { toAddresses: { has: guest }, meetingId: { not: null }, meetingEmailKind: "confirmation" } });
+    assert.deepEqual([conf.status, sentTo(guest)], ["QUEUED", 0]);
+    await set(true, true, false, true);
+    await dispatcher.dispatchDue({ now: new Date(Date.now() + 31 * 60_000) });
+    assert.equal(sentTo(guest), 1, "transactional switch on ⇒ the held confirmation is sent");
+
+    // Manual OFF, automated ON: the human composer is blocked; the held automated message now goes out.
+    await set(true, false, true, true);
+    const blocked = await send("Alice", { prospectId: manual.p.id, contactId: manual.c.id, to: manual.email, languageOverride: "EN" });
+    assert.deepEqual([blocked.ok, blocked.error], [false, "MANUAL_SENDING_DISABLED"]);
+    await dispatcher.dispatchDue({ now: new Date(Date.now() + 3 * 3_600_000) });
+    h = await db.crmEmailMessage.findUniqueOrThrow({ where: { id: held.id } });
+    assert.ok(["SENT", "DELIVERED"].includes(h.status), h.status); assert.equal(sentTo(auto.email), 1);
+
+    // Kill switch OFF beats every other switch.
+    await set(false, true, true, true);
+    const killed = await send("Alice", { prospectId: manual.p.id, contactId: manual.c.id, to: manual.email, languageOverride: "EN" });
+    assert.deepEqual([killed.ok, killed.error], [false, "SENDING_DISABLED"]);
+    assert.equal((await cron()).skipped, true);
+    await set(true, true, true, true);
   });
 
   // ── Tenant separation & prospects page data ─────────────────────────────────────────────────────

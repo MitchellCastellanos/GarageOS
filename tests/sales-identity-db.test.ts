@@ -257,7 +257,7 @@ if (!enabled) {
     // the full policy enforces it too (before any provider is touched)
     const ident = await db.crmSenderIdentity.findUniqueOrThrow({ where: { staffId: staff.Rene } });
     const mtlRene = await db.crmProspect.create({ data: { name: `MtlReneOwned ${run}`, nameNormalized: `mtlreneowned${run}`, city: "Montréal", province: "QC", createdByUserId: ids.root, assignedStaffId: staff.Rene } });
-    const full = await policy.evaluatePolicy({ identityId: ident.id, category: "COMMERCIAL", recipients: [`x${run}@shop.test`], prospectId: mtlRene.id, contactId: null, languageResolved: true, automated: true });
+    const full = await policy.evaluatePolicy({ identityId: ident.id, category: "COMMERCIAL", recipients: [`x${run}@shop.test`], prospectId: mtlRene.id, contactId: null, languageResolved: true, automated: true, origin: "AUTOMATED" });
     assert.equal(full.decision.allowed, false);
   });
 

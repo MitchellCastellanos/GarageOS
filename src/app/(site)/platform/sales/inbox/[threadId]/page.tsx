@@ -114,7 +114,7 @@ export default async function ThreadPage({ params, searchParams }: { params: Pro
         {!thread.contactId && !thread.counterpartyEmail
           ? <p className="text-sm text-slate-600">{t.errors.NOT_LINKED}</p>
           : <Composer locale={locale} initial={initial} isReply prospects={[]} templates={[]} sender={identity ? { name: identity.fromName, email: identity.fromEmail } : null} bookingEnabled={!!identity?.staff.bookingEnabled}
-              sendReady={!!identity && identity.status === "ACTIVE" && settings.sendingEnabled} timezone={identity?.staff.timezone ?? "America/Toronto"} attachments={[]} />}
+              sendReady={!!identity && identity.status === "ACTIVE" && settings.sendingEnabled && settings.manualSendingEnabled} timezone={identity?.staff.timezone ?? "America/Toronto"} attachments={[]} />}
         {identity && !identity.inboundVerifiedAt && <p className="mt-3 text-xs text-slate-500">{settings.inboundDomain ? t.inbox.replyPathWarn : t.inbox.inboundOff}</p>}
       </section>
     </div>

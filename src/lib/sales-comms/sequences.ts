@@ -8,7 +8,7 @@ import { writeCrmAudit } from "@/lib/sales-crm/audit";
 import { resolveEffectiveLanguage } from "@/domain/sales-crm/language";
 import { decideStop, scheduleStep, DEFAULT_SEQUENCE, type StopReason } from "@/domain/sales-comms/sequences";
 import { COMMERCIAL_TEMPLATE_KEYS, isTemplateKey } from "@/domain/sales-comms/templates";
-import { evaluateSendingBasis } from "@/domain/sales-comms/casl";
+import { evaluateSendingBasis, isSwitchHold } from "@/domain/sales-comms/casl";
 import { nextSendInstant } from "@/domain/sales-comms/business-days";
 import { generateMessageId, emailDomain } from "@/domain/sales-comms/email";
 import { randomToken, signUnsubscribeToken } from "@/domain/sales-comms/tokens";
@@ -123,7 +123,7 @@ async function enrollCore(by: { userId: string }, prospect: Awaited<ReturnType<t
   const lang = resolveEffectiveLanguage({ override: args.languageOverride ?? null, contact: contact.preferredLanguage, prospect: prospectLang });
   if (lang.needsHumanDecision) throw new CrmError("LANGUAGE_REQUIRED");
   // Same gate as a manual send: sending enabled, active identity/domain, no suppression/DNC, documented CASL basis.
-  const { decision } = await evaluatePolicy({ identityId: identity.id, category: "COMMERCIAL", recipients: [contact.emailNormalized], prospectId: prospect.id, contactId: contact.id, languageResolved: true, automated: true });
+  const { decision } = await evaluatePolicy({ identityId: identity.id, category: "COMMERCIAL", recipients: [contact.emailNormalized], prospectId: prospect.id, contactId: contact.id, languageResolved: true, automated: true, origin: "AUTOMATED" });
   if (!decision.allowed && decision.code !== "DAILY_LIMIT") throw new CrmError(decision.code);
 
   const settings = await getCommsSettings();
@@ -241,9 +241,9 @@ export async function processDueEnrollments(opts: { now?: Date; limit?: number }
     const tl = toTemplateLanguage(lang.language);
     if (!tl) { await pauseWithReason(e.id, "LANGUAGE_REQUIRED"); out.paused++; continue; }
 
-    const { decision } = await evaluatePolicy({ identityId: identity.id, category: "COMMERCIAL", recipients: [email!], prospectId: e.prospectId, contactId: e.contactId, languageResolved: true, automated: true }, now);
+    const { decision } = await evaluatePolicy({ identityId: identity.id, category: "COMMERCIAL", recipients: [email!], prospectId: e.prospectId, contactId: e.contactId, languageResolved: true, automated: true, origin: "AUTOMATED" }, now);
     if (!decision.allowed) {
-      if (decision.code === "DAILY_LIMIT" || decision.code === "SENDING_DISABLED") {
+      if (decision.code === "DAILY_LIMIT" || isSwitchHold(decision.code)) {
         const next = nextSendInstant(new Date(now.getTime() + (decision.code === "DAILY_LIMIT" ? 24 : 1) * 3_600_000), e.staff.timezone, win);
         await db.crmSequenceEnrollment.updateMany({ where: { id: e.id, status: "ACTIVE" }, data: { nextRunAt: next } });
         out.deferred++; continue;
