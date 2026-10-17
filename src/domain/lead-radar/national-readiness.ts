@@ -51,14 +51,14 @@ export function conversion(i: { raw: number | null; staged: number; verified: nu
   };
 }
 
-// Next firing of the Lead Radar automation worker: every 15 minutes, 11:00–23:59 UTC, Monday–Friday (.github/workflows/lead-radar-cron.yml).
+// Next firing of the Lead Radar automation worker: every 15 minutes, 11:00–23:59 UTC, every day of the week (.github/workflows/lead-radar-cron.yml).
 export function nextAutomationTick(now: Date): Date {
   const t = new Date(now.getTime());
   t.setUTCSeconds(0, 0);
   for (let i = 0; i < 8 * 24 * 4; i++) {
     t.setUTCMinutes(t.getUTCMinutes() + (15 - (t.getUTCMinutes() % 15)));
-    const dow = t.getUTCDay(), h = t.getUTCHours();
-    if (dow >= 1 && dow <= 5 && h >= 11 && h <= 23) return new Date(t.getTime());
+    const h = t.getUTCHours();
+    if (h >= 11 && h <= 23) return new Date(t.getTime());
   }
   return t;
 }

@@ -37,8 +37,10 @@ test("conversion rates divide like by like and never divide by zero", () => {
 
 test("next scheduled executions follow the real cron expressions (UTC)", () => {
   assert.equal(nextAutomationTick(new Date("2026-10-16T16:04:10Z")).toISOString(), "2026-10-16T16:15:00.000Z");          // Friday
-  assert.equal(nextAutomationTick(new Date("2026-10-16T23:50:00Z")).toISOString(), "2026-10-19T11:00:00.000Z");          // Friday night → Monday
-  assert.equal(nextAutomationTick(new Date("2026-10-17T14:00:00Z")).toISOString(), "2026-10-19T11:00:00.000Z");          // Saturday
+  assert.equal(nextAutomationTick(new Date("2026-10-16T23:50:00Z")).toISOString(), "2026-10-17T11:00:00.000Z");          // Friday night → Saturday morning
+  assert.equal(nextAutomationTick(new Date("2026-10-17T14:00:00Z")).toISOString(), "2026-10-17T14:15:00.000Z");          // Saturday
+  assert.equal(nextAutomationTick(new Date("2026-10-18T23:50:00Z")).toISOString(), "2026-10-19T11:00:00.000Z");          // Sunday night → Monday
+  assert.equal(nextAutomationTick(new Date("2026-10-18T05:00:00Z")).toISOString(), "2026-10-18T11:00:00.000Z");          // Sunday before the window
   assert.equal(nextWorkerCheck(new Date("2026-10-16T16:04:10Z")).toISOString(), "2026-10-16T16:17:00.000Z");
   assert.equal(nextWorkerCheck(new Date("2026-10-16T16:17:00Z")).toISOString(), "2026-10-16T18:17:00.000Z");
 });

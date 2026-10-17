@@ -1,4 +1,4 @@
-name: Lead Radar automation worker (every 15 minutes)
+name: Lead Radar automation worker (every 15 minutes, 7 days a week)
 
 # Calls the SAME idempotent endpoint the daily Vercel cron (vercel.json) calls, more often, so qualification / CRM handoff / assignment advance
 # without anyone clicking. The endpoint is a no-op unless BOTH switches are on (live discovery AND the Lead Radar automation master switch,
@@ -9,7 +9,7 @@ name: Lead Radar automation worker (every 15 minutes)
 # SALES_CRON_BASE_URL (the production origin, e.g. https://www.garage-os.ca — no trailing slash).
 on:
   schedule:
-    - cron: "*/15 11-23 * * 1-5"   # weekdays, 11:00-23:59 UTC
+    - cron: "*/15 11-23 * * *"   # every day (Mon-Sun), 11:00-23:59 UTC. GitHub may delay or skip scheduled runs under load; the lease + idempotent stages make catch-up safe.
   workflow_dispatch: {}
 
 permissions:
