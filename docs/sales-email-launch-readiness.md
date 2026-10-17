@@ -74,3 +74,25 @@ This is a **forward-looking requirement**, not a retroactive change to the live-
 **Critical pre-pilot regression:** current generic `FIELD_VISIT` engagement must be distinguished from a qualifying interaction. Unsuccessful visits, unavailable contacts, rejected/DNC or closed shops must not unlock automated first-contact email. A valid CASL sending basis remains independently required even after an actual conversation. Implement and test this before logging real route visits or activating sequences. Existing historical live-test results remain unchanged.
 
 See [GarageOS Lead Engine and Field Planner roadmap](garageos-lead-engine-field-planner-roadmap.md) and [CASL matrix](compliance/casl-matrix.md).
+
+
+## 2026-10-17 — REMOTE email pilot readiness audit
+
+**Nothing was enabled, enrolled or sent to a prospect.** One labelled internal test email went to the owner's authorized address (Resend id `01a14a1a-76ae-7629-8e1c-ab5de68d504d`, accepted/`sent`).
+
+| # | Area | Status | Evidence |
+|---|---|---|---|
+| 1 | Resend outbound + sender verification | WORKING | `garage-os.ca`, `mail.garage-os.ca` verified, Sending on (live, via connector) |
+| 2 | Inbound replies + threading | NEEDS CONFIGURATION | Code + 11 DB tests pass; Cloudflare Worker/rule/`SALES_INBOUND_SECRET` and a real Hotmail round trip must be confirmed (`sales-inbound-cloudflare.md`). Pilot enrollment requires `inboundVerifiedAt` (fail-closed) |
+| 3 | Sender identities + signature | WORKING (code) / NEEDS CONFIGURATION | One generated signature at one boundary (tested). Seller identity, mailing address, legal name, booking page: Super Admin settings |
+| 4 | EN/FR templates | WORKING | Intro, Follow-up 1 and **Follow-up 2 (added)** in EN/FR; parity + length + CTA + opt-out tests |
+| 5 | Demo video links | NEEDS CONFIGURATION | `/watch/{en,fr}` attributed links resolve only for PUBLISHED platform videos; `{{video.cta}}` is optional and vanishes if none is published. Verify in Super Admin before activation |
+| 6 | Sequences + scheduling | WORKING | Business-day/send-window scheduling, CAS per-step idempotency. Compose a 3-step sequence (Intro d0 · FU1 d3 · FU2 d8 business days) in Sales → Sequences; do not activate yet |
+| 7 | Bounce / complaint / unsubscribe | WORKING | Webhook enabled (bounced, complained, failed, delivered, delayed, suppressed); suppression stops enrollments; tests pass |
+| 8 | CASL basis + evidence | WORKING | Structured evidence + second-person approval for published addresses; send policy re-checked before every step |
+| 9 | Duplicate/idempotency | WORKING | `seq:<enrollment>:<step>` unique key, one live enrollment per contact+sequence, daily cap |
+| 10 | Release / Pilot / Sending controls | WORKING (all OFF) | Pilot needs active sequence, named seller, company-wide `sendingEnabled`, caps |
+
+**Production prospect counts: NOT MEASURED.** The only database reachable from the build environment (Supabase "Garage OS") does not contain the `garageos` CRM schema, and no production `DATABASE_URL` is available here, so no numbers are guessed. Run the read-only national funnel (`/platform/sales/lead-radar/national`) for REMOTE totals, usable emails, documented basis, eligible, suppressed and awaiting review.
+
+**Tests:** all DB suites (comms, inbound, identity, video, readiness, radar, rollout, national, CRM, lead engine) pass against a scratch Postgres with a fake Resend transport. Four `sales-comms-db` tests enroll "now" and expect the first step due immediately, so they fail when run on a weekend/outside the send window (they pass with the clock on a weekday); this is test fragility, not a product defect.

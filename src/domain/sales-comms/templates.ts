@@ -4,14 +4,14 @@
 import type { CrmLanguage } from "@prisma/client";
 
 export const TEMPLATE_KEYS = [
-  "INTRODUCTION", "FOLLOW_UP_1", "DEMO_INVITATION", "POST_DEMO_FOLLOW_UP", "PRICING_FOLLOW_UP", "CLOSING_FOLLOW_UP",
+  "INTRODUCTION", "FOLLOW_UP_1", "FOLLOW_UP_2", "DEMO_INVITATION", "POST_DEMO_FOLLOW_UP", "PRICING_FOLLOW_UP", "CLOSING_FOLLOW_UP",
   "MEETING_CONFIRMATION", "MEETING_REMINDER", "MEETING_RESCHEDULED", "MEETING_CANCELLED",
   "VIDEO_INTRODUCTION", "FIELD_VISIT_FOLLOW_UP",
 ] as const;
 export type TemplateKey = (typeof TEMPLATE_KEYS)[number];
 export type TemplateLanguage = Exclude<CrmLanguage, "UNKNOWN">;
 
-export const COMMERCIAL_TEMPLATE_KEYS: readonly TemplateKey[] = ["INTRODUCTION", "FOLLOW_UP_1", "DEMO_INVITATION", "POST_DEMO_FOLLOW_UP", "PRICING_FOLLOW_UP", "CLOSING_FOLLOW_UP", "VIDEO_INTRODUCTION", "FIELD_VISIT_FOLLOW_UP"];
+export const COMMERCIAL_TEMPLATE_KEYS: readonly TemplateKey[] = ["INTRODUCTION", "FOLLOW_UP_1", "FOLLOW_UP_2", "DEMO_INVITATION", "POST_DEMO_FOLLOW_UP", "PRICING_FOLLOW_UP", "CLOSING_FOLLOW_UP", "VIDEO_INTRODUCTION", "FIELD_VISIT_FOLLOW_UP"];
 export const MEETING_TEMPLATE_KEYS: readonly TemplateKey[] = ["MEETING_CONFIRMATION", "MEETING_REMINDER", "MEETING_RESCHEDULED", "MEETING_CANCELLED"];
 
 export const KNOWN_VARIABLES = [
@@ -68,6 +68,27 @@ Si vous souhaitez le voir en fonction de votre façon de travailler, voici mon c
 {{video.cta}}
 
 Merci de votre temps, quoi qu'il en soit.`, ["booking.link"]),
+
+  T("FOLLOW_UP_2", "EN", "One last idea for {{prospect.name}}",
+`{{greeting}}
+
+I don't want to fill your inbox, so this is my second and last note about GarageOS. Most shops we speak with want the same few things: fewer phone calls to book appointments, work orders and inspections that stay organized, and customers who are kept informed without extra typing.
+
+{{video.cta}}
+
+If it's worth a conversation, you can pick a time that suits you: {{booking.link}}
+
+If not, no problem — just reply and I won't write again.`, ["booking.link"]),
+  T("FOLLOW_UP_2", "FR", "Une dernière idée pour {{prospect.name}}",
+`{{greeting}}
+
+Je ne veux pas encombrer votre boîte de réception; ce sera donc mon deuxième et dernier message au sujet de GarageOS. La plupart des garages que nous rencontrons veulent les mêmes choses : moins d'appels pour prendre des rendez-vous, des ordres de travail et des inspections bien organisés, et des clients tenus informés sans ressaisie.
+
+{{video.cta}}
+
+Si une conversation vous semble utile, vous pouvez choisir le moment qui vous convient : {{booking.link}}
+
+Sinon, aucun problème — répondez simplement et je ne vous écrirai plus.`, ["booking.link"]),
 
   T("DEMO_INVITATION", "EN", "A 30-minute GarageOS demo for {{prospect.name}}?",
 `{{greeting}}
