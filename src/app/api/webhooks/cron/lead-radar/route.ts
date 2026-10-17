@@ -10,8 +10,11 @@ import { seedDiscoveredContactsIfEnabled } from "@/lib/sales-comms/contact-readi
 // Scheduled every 15 minutes by .github/workflows/lead-radar-cron.yml, with a daily Vercel cron (vercel.json) as the safety net.
 export const maxDuration = 60;
 
+// Least privilege: LEAD_RADAR_CRON_SECRET (GitHub Actions caller) authorizes ONLY this endpoint; CRON_SECRET stays accepted for Vercel's daily cron.
+const authorized = (request: Request) => isAuthorizedCronRequest(request, process.env.LEAD_RADAR_CRON_SECRET) || isAuthorizedCronRequest(request);
+
 export async function GET(request: Request) {
-  if (!isAuthorizedCronRequest(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!authorized(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   // Discovery housekeeping first (recover stalled worker runs, detect a new Overture release, queue an opted-in province). Independent of the automation master switch
   // (it only needs live discovery) and a failure here must never block the automation tick below.
   let discovery: { skipped?: string; newRelease: boolean; scheduled: number; stalled: number } | { error: string };
