@@ -1,6 +1,10 @@
 // EN/FR copy for the national discovery engine (run quality gate, province readiness, worker controls). Typed so a missing French key fails the build.
 const en = {
   errors: {
+    ROLLOUT_ALREADY_ACTIVE: "The national rollout is already active.", ROLLOUT_ALREADY_DONE: "The national rollout already finished.", ROLLOUT_NOT_ACTIVE: "The national rollout is not active.",
+    ROLLOUT_PILOT_ON: "Turn the outreach pilot OFF before starting the rollout.", ROLLOUT_SENDING_ON: "Company-wide email sending is ON. Turn it OFF before starting the rollout.",
+    ROLLOUT_IMPORT_SCOPE_EMPTY: "The import scope is empty (it would mean every province). Set it first.", ROLLOUT_SELLER_INVALID: "The rollout seller (mcastellanos@garage-os.ca) must be an active Sales Rep that accepts auto-assignment.",
+    LEAD_RADAR_DISABLED: "Live discovery is OFF.", NO_ACTIVE_POLICY: "There is no active qualification policy.",
     NOTE_REQUIRED: "Write a reason of at least 10 characters.",
     RUN_NOT_ACKNOWLEDGEABLE: "Only a run stopped by the quality gate can be acknowledged.",
   } as Record<string, string>,
@@ -31,6 +35,12 @@ const en = {
   },
   diag: { DUPLICATE_OF_STAGED: "Duplicate of an already staged business (kept as evidence, never imported)", POINT_MISSING: "Record without a position", POINT_OUT_OF_CANADA: "Position outside Canada", POINT_OUT_OF_PROVINCE: "Position outside its province" } as Record<string, string>,
   dash: {
+    rollout: { title: "National rollout (one time)", help: "Extracts the remaining provinces and territories one after another with the existing worker, then qualifies, imports and assigns REMOTE prospects to ONE seller. Alberta and Québec are never extracted. Nothing is sent to anyone: outreach eligibility, release, pilot and sending stay OFF.",
+      state: { NOT_STARTED: "Not started", RUNNING: "Running", PAUSED: "Paused", HALTED: "Stopped by a safety check", FINISHED: "Finished" },
+      activate: "Start the national rollout", activateConfirm: "Start the one-time national rollout? It turns the automation ON (qualify, import, assign) for the remaining provinces. Outreach stays OFF.", pause: "Pause", resume: "Resume", resumeConfirm: "Resume the rollout? The safety checks run again on the next cycle.",
+      started: "Started", finished: "Finished", haltTitle: "Stopped", haltAt: "Province {province} · {code}", haltHelp: "Fix the cause (or acknowledge the run quality / re-queue the province), then Resume. Nothing was skipped.",
+      cols: { province: "Province", stage: "Stage", staged: "Staged", verified: "Verified", prospects: "Prospects", assigned: "Assigned", failed: "Import failures", deferred: "Deferred", scope: "Import open" }, totals: "Final totals", yes: "yes", no: "no", onNote: "ON and AB were extracted before the rollout: they are not queued again, but their candidates must also finish qualification, import and assignment (REMOTE only, one seller) before the rollout completes. Human-review candidates may stay pending.", pendingAssignment: "REMOTE prospects still to assign",
+      codes: { EXTRACTION_FAILED: "Extraction failed or did not pass the quality gate", EXTRACTION_CANCELLED: "Extraction was cancelled", EMPTY_STAGING: "Extraction staged nothing", MISSING_COORDINATES: "Too many candidates without coordinates", DUPLICATE_ANOMALY: "Unexpected share of duplicates", ICP_ANOMALY: "Unexpected ICP result (no verified shops, or almost everything excluded)", IMPORT_ERRORS: "Import errors", ASSIGNMENT_SAFETY: "Assignment safety violation", SELLER_INVALID: "The rollout seller is not valid", SETTINGS_UNSAFE: "An unsafe setting was found", NO_ACTIVE_POLICY: "No active qualification policy" } },
     title: "National readiness", subtitle: "One card per province or territory. Raw records, staged candidates and CRM prospects are different populations and are never added together.",
     back: "Back to Lead Radar", nav: "National readiness",
     stages: { NOT_STARTED: "Not started", QUEUED: "Queued for the worker", EXTRACTING: "Extracting", RETRYING: "Waiting to retry", STOPPED_BY_GATE: "Stopped by the quality gate", EXTRACTION_FAILED: "Extraction failed", PROCESSING: "Extraction done, processing continues", READY: "Ready" } as Record<string, string>,
@@ -83,6 +93,10 @@ c3: { title: "C3 import preflight (read-only)", help: "Counts what the existing 
 type Dict = typeof en;
 const fr: Dict = {
   errors: {
+    ROLLOUT_ALREADY_ACTIVE: "Le déploiement national est déjà actif.", ROLLOUT_ALREADY_DONE: "Le déploiement national est déjà terminé.", ROLLOUT_NOT_ACTIVE: "Le déploiement national n’est pas actif.",
+    ROLLOUT_PILOT_ON: "Désactivez le pilote de prospection avant de démarrer le déploiement.", ROLLOUT_SENDING_ON: "L’envoi de courriels de l’entreprise est ACTIVÉ. Désactivez-le avant de démarrer le déploiement.",
+    ROLLOUT_IMPORT_SCOPE_EMPTY: "La portée d’importation est vide (cela voudrait dire toutes les provinces). Définissez-la d’abord.", ROLLOUT_SELLER_INVALID: "Le vendeur du déploiement (mcastellanos@garage-os.ca) doit être un représentant actif qui accepte l’assignation automatique.",
+    LEAD_RADAR_DISABLED: "La découverte en direct est DÉSACTIVÉE.", NO_ACTIVE_POLICY: "Aucune politique de qualification active.",
     NOTE_REQUIRED: "Écrivez une raison d’au moins 10 caractères.",
     RUN_NOT_ACKNOWLEDGEABLE: "Seule une exécution arrêtée par le contrôle de qualité peut être reconnue.",
   },
@@ -113,6 +127,12 @@ const fr: Dict = {
   },
   diag: { DUPLICATE_OF_STAGED: "Doublon d’une entreprise déjà préparée (conservé comme preuve, jamais importé)", POINT_MISSING: "Enregistrement sans position", POINT_OUT_OF_CANADA: "Position hors du Canada", POINT_OUT_OF_PROVINCE: "Position hors de sa province" },
   dash: {
+    rollout: { title: "Déploiement national (unique)", help: "Extrait les provinces et territoires restants l’un après l’autre avec le worker existant, puis qualifie, importe et assigne les prospects À DISTANCE à UN seul vendeur. L’Alberta et le Québec ne sont jamais extraits. Rien n’est envoyé à personne : l’admissibilité à la prospection, la libération, le pilote et l’envoi restent DÉSACTIVÉS.",
+      state: { NOT_STARTED: "Non démarré", RUNNING: "En cours", PAUSED: "En pause", HALTED: "Arrêté par un contrôle de sécurité", FINISHED: "Terminé" },
+      activate: "Démarrer le déploiement national", activateConfirm: "Démarrer le déploiement national unique ? L’automatisation sera ACTIVÉE (qualifier, importer, assigner) pour les provinces restantes. La prospection reste DÉSACTIVÉE.", pause: "Pause", resume: "Reprendre", resumeConfirm: "Reprendre le déploiement ? Les contrôles de sécurité sont refaits au prochain cycle.",
+      started: "Démarré", finished: "Terminé", haltTitle: "Arrêté", haltAt: "Province {province} · {code}", haltHelp: "Corrigez la cause (ou reconnaissez la qualité de l’exécution / remettez la province en file), puis Reprendre. Rien n’a été ignoré.",
+      cols: { province: "Province", stage: "Étape", staged: "Préparés", verified: "Vérifiés", prospects: "Prospects", assigned: "Assignés", failed: "Échecs d’importation", deferred: "Différés", scope: "Importation ouverte" }, totals: "Totaux finaux", yes: "oui", no: "non", onNote: "L’Ontario et l’Alberta ont été extraits avant le déploiement : ils ne sont pas remis en file, mais leurs candidats doivent aussi terminer la qualification, l’importation et l’assignation (À DISTANCE seulement, un seul vendeur) avant la fin du déploiement. Les candidats en révision humaine peuvent rester en attente.", pendingAssignment: "Prospects À DISTANCE restant à assigner",
+      codes: { EXTRACTION_FAILED: "L’extraction a échoué ou n’a pas passé le contrôle de qualité", EXTRACTION_CANCELLED: "L’extraction a été annulée", EMPTY_STAGING: "L’extraction n’a rien préparé", MISSING_COORDINATES: "Trop de candidats sans coordonnées", DUPLICATE_ANOMALY: "Proportion inattendue de doublons", ICP_ANOMALY: "Résultat ICP inattendu (aucun atelier vérifié, ou presque tout exclu)", IMPORT_ERRORS: "Erreurs d’importation", ASSIGNMENT_SAFETY: "Violation de sécurité d’assignation", SELLER_INVALID: "Le vendeur du déploiement n’est pas valide", SETTINGS_UNSAFE: "Un réglage non sécuritaire a été trouvé", NO_ACTIVE_POLICY: "Aucune politique de qualification active" } },
     title: "Préparation nationale", subtitle: "Une carte par province ou territoire. Les enregistrements bruts, les candidats préparés et les prospects du CRM sont des populations différentes et ne sont jamais additionnés.",
     back: "Retour au Radar de leads", nav: "Préparation nationale",
     stages: { NOT_STARTED: "Non commencée", QUEUED: "En file pour le worker", EXTRACTING: "Extraction en cours", RETRYING: "En attente d’une nouvelle tentative", STOPPED_BY_GATE: "Arrêtée par le contrôle de qualité", EXTRACTION_FAILED: "Extraction en échec", PROCESSING: "Extraction terminée, traitement en cours", READY: "Prête" },

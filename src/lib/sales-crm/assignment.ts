@@ -68,6 +68,8 @@ export interface PreviewFilters {
   territoryKey?: string; limit?: number;
   /** Lead Radar automation: only these sellers are eligible (explicit allow-list), only prospects imported by Lead Radar are considered. */
   onlyStaffIds?: readonly string[]; leadRadarOnly?: boolean;
+  /** National rollout: only prospects in these provinces are considered. */
+  provinces?: readonly string[];
   /** Keyset position (createdAt, id) after which to continue, so a caller can walk the whole unassigned pool without re-reading unassignable rows. */
   after?: { createdAt: Date; id: string } | null;
 }
@@ -83,6 +85,7 @@ export async function buildAssignmentProposals(actor: PlatformSalesActor, f: Pre
         { assignedStaffId: null, status: "ACTIVE", doNotContact: false, territoryState: { in: ["LOCAL", "NATIONAL"] } },
         f.territoryKey ? { territoryKey: f.territoryKey } : {},
         f.leadRadarOnly ? { importBatch: { sourceKey: LEAD_RADAR_SOURCE_KEY } } : {},
+        f.provinces ? { province: { in: [...f.provinces] } } : {},
         f.after ? { OR: [{ createdAt: { gt: f.after.createdAt } }, { createdAt: f.after.createdAt, id: { gt: f.after.id } }] } : {},
       ],
     },

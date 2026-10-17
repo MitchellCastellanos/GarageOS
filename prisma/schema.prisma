@@ -4316,6 +4316,18 @@ model CrmLeadAutomation {
   /// Province codes the automatic CRM import may take candidates from. EMPTY = every province (the behaviour before this column existed). A canary province rollout sets
   /// exactly one code so newly extracted data cannot reach the CRM anywhere else until the owner widens it.
   importProvinces     String[]  @default([])
+  // ── One-time national rollout (orchestration state only; the stages themselves are the existing ones). Activation is a single audited Super Admin action.
+  rolloutEnabled      Boolean   @default(false)
+  rolloutPaused       Boolean   @default(false)
+  /// Ordered provinces/territories this rollout may extract and import (fixed at activation). AB and QC are never in it.
+  rolloutProvinces    String[]  @default([])
+  /// The ONE seller the rollout may assign to (resolved and validated at activation, re-validated every tick).
+  rolloutStaffId      String?
+  rolloutStartedAt    DateTime?
+  rolloutFinishedAt   DateTime?
+  rolloutHaltProvince String?
+  rolloutHaltCode     String?
+  rolloutHaltAt       DateTime?
   // ── Controlled outreach pilot (explicit activation; caps)
   pilotEnabled        Boolean   @default(false)
   pilotSequenceId     String?

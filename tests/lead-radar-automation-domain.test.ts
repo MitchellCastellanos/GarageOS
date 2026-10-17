@@ -422,7 +422,7 @@ test("narrowed guard: the exempt automation files keep every original guarantee 
   const pilot = exempt["automation.ts"].slice(exempt["automation.ts"].indexOf("export async function pilotStage"), exempt["automation.ts"].indexOf("// ── The tick"));
   assert.match(pilot, /!a\.pilotEnabled[\s\S]*PILOT_OFF/);
   assert.match(pilot, /!comms\.sendingEnabled[\s\S]*SENDING_DISABLED/);
-  assert.match(exempt["automation.ts"], /await stage\("pilot", a\.pilotEnabled,/);
+  assert.match(exempt["automation.ts"], /await stage\("pilot", a\.pilotEnabled && !a\.rolloutEnabled,/);
   const save = exempt["automation.ts"].slice(exempt["automation.ts"].indexOf("export async function saveAutomation"), exempt["automation.ts"].indexOf("export async function setAutomationEnabled"));
   assert.ok(!/pilotEnabled/.test(save), "saving stage settings can never switch the pilot on");
   const master = exempt["automation.ts"].slice(exempt["automation.ts"].indexOf("export async function setAutomationEnabled"), exempt["automation.ts"].indexOf("export async function setPilotEnabled"));

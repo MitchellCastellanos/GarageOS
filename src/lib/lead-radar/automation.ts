@@ -20,6 +20,8 @@ import { getActivePolicy } from "@/lib/lead-radar/policy";
 import { qualifyPending } from "@/lib/lead-radar/qualify";
 import { backfillCandidateFit } from "@/lib/lead-radar/candidate-fit";
 import { isLive, readSettings } from "@/lib/lead-radar/settings";
+import { rolloutStage } from "@/lib/lead-radar/rollout";
+import { ROLLOUT_ASSIGN_PROVINCES } from "@/domain/lead-radar/rollout";
 
 // Lead Radar automation by approved policy. ONE tick = bounded, idempotent, resumable work over durable queues (the tables themselves):
 //   qualify → import (shared CRM transaction) → assign (existing engine) → release (policy-governed) → assess outreach eligibility → pilot enrollment.
@@ -29,7 +31,7 @@ const ID = "default";
 export const TICK_BUDGET_MS = 45_000;
 export const LEASE_SLACK_MS = 30_000;
 export const MAX_IMPORT_ATTEMPTS = 3;
-const SHARE = { classify: 0.05, qualify: 0.3, import: 0.3, assign: 0.15, release: 0.05, locate: 0.1, eligibility: 0.1, pilot: 0.1 } as const;
+const SHARE = { classify: 0.05, rollout: 0.05, qualify: 0.3, import: 0.3, assign: 0.15, release: 0.05, locate: 0.1, eligibility: 0.1, pilot: 0.1 } as const;
 
 export async function readAutomation(client: Pick<typeof db, "crmLeadAutomation"> = db) {
   return (await client.crmLeadAutomation.findUnique({ where: { id: ID } })) ?? (await client.crmLeadAutomation.upsert({ where: { id: ID }, create: { id: ID }, update: {} }));
@@ -169,7 +171,7 @@ const ASSIGN_APPLY_CHUNK = 50;
  * named, honouring mode, coverage, language, pause switch and total + per-lane caps. Ownership is taken by compare-and-set, so a retry or a concurrent worker
  * can never assign twice or take an owned prospect.
  */
-export async function assignStage(actor: PlatformSalesActor, staffIds: readonly string[], deadline: number): Promise<AssignTally> {
+export async function assignStage(actor: PlatformSalesActor, staffIds: readonly string[], deadline: number, scope: { provinces: readonly string[]; remoteOnly: boolean } | null = null): Promise<AssignTally> {
   const t = emptyAssign();
   if (!staffIds.length) { t.note = "NO_ELIGIBLE_SELLERS_CONFIGURED"; return t; }
   const sellers = await loadSellers(actor, db, staffIds);
@@ -179,10 +181,12 @@ export async function assignStage(actor: PlatformSalesActor, staffIds: readonly 
   let after: { createdAt: Date; id: string } | null = null;
   let emptyPages = 0;
   while (Date.now() < deadline - 2_000) {
-    const { proposals, considered, next } = await buildAssignmentProposals(actor, { onlyStaffIds: staffIds, leadRadarOnly: true, limit: ASSIGN_PAGE, after });
+    const { proposals, considered, next } = await buildAssignmentProposals(actor, { onlyStaffIds: staffIds, leadRadarOnly: true, limit: ASSIGN_PAGE, after, ...(scope ? { provinces: scope.provinces } : {}) });
     t.considered += considered; t.pages++;
     for (const p of proposals) if (p.skip) t.skips[p.skip] = (t.skips[p.skip] ?? 0) + 1;
-    const todo = proposals.filter((p) => p.staffId);
+    // National rollout: only REMOTE-lane prospects are ever taken; a FIELD proposal is left untouched (it keeps its territory rules and its owner decision).
+    if (scope?.remoteOnly) for (const p of proposals) if (p.staffId && p.requiredMode !== "REMOTE") t.skips.ROLLOUT_FIELD_NOT_ASSIGNED = (t.skips.ROLLOUT_FIELD_NOT_ASSIGNED ?? 0) + 1;
+    const todo = proposals.filter((p) => p.staffId && (!scope?.remoteOnly || p.requiredMode === "REMOTE"));
     let appliedThisPage = 0;
     for (let i = 0; i < todo.length; i += ASSIGN_APPLY_CHUNK) {
       const r = await db.$transaction((tx) => applyAssignmentProposals(tx, actor, todo.slice(i, i + ASSIGN_APPLY_CHUNK), { via: "lead-radar-automation" }), { timeout: 30_000, maxWait: 10_000 });
@@ -337,16 +341,18 @@ export async function runAutomationTick(opts: { trigger: "CRON" | "MANUAL"; budg
     } else {
       // Derived repair-fit for candidates staged before the national engine (writes only derived columns; always on).
       await stage("classify", true, (deadline) => backfillCandidateFit({ deadline }));
+      // One-time national rollout: safety checks, then queue the next province / open import for finished ones. A halt turns the master switch OFF (re-checked between stages).
+      await stage("rollout", a.rolloutEnabled && !a.rolloutPaused, () => rolloutStage(admin, a));
       if (policy) {
         await stage("qualify", a.qualifyEnabled, (deadline) => qualifyPending(policy, { deadline }));
         await stage("import", a.importEnabled, (deadline) => importStage(admin, policy.version, a.importChunkSize, deadline, a.importProvinces));
       } else counters.note = "NO_ACTIVE_POLICY";
-      await stage("assign", a.assignEnabled, (deadline) => assignStage(admin, a.assignStaffIds, deadline));
-      await stage("release", a.releaseUnavailable, (deadline) => releaseUnavailable(admin, deadline));
+      await stage("assign", a.assignEnabled, (deadline) => assignStage(admin, a.assignStaffIds, deadline, a.rolloutEnabled ? { provinces: ROLLOUT_ASSIGN_PROVINCES, remoteOnly: true } : null));
+      await stage("release", a.releaseUnavailable && !a.rolloutEnabled, (deadline) => releaseUnavailable(admin, deadline));
       // Paid geocoding fallback for assigned prospects the source point could not locate. Inert unless Mapbox is configured AND a Super Admin enabled it AND budget remains.
       await stage("locate", true, (deadline) => autoGeocodeStep(admin, deadline));
-      await stage("eligibility", a.eligibilityEnabled, (deadline) => refreshEligibility({ deadline }));
-      await stage("pilot", a.pilotEnabled, (deadline) => pilotStage(admin, a, deadline));
+      await stage("eligibility", a.eligibilityEnabled && !a.rolloutEnabled, (deadline) => refreshEligibility({ deadline }));
+      await stage("pilot", a.pilotEnabled && !a.rolloutEnabled, (deadline) => pilotStage(admin, a, deadline));
     }
   } finally {
     const failed = Object.keys(errors).length > 0;
