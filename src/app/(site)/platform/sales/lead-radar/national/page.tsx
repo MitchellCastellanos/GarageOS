@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { PROVINCE_NAMES } from "@/domain/lead-radar/geo";
+import { PROVINCE_CODES, PROVINCE_NAMES } from "@/domain/lead-radar/geo";
 import { nationalCopy } from "@/lib/admin-locale/lead-radar-national";
 import { PLATFORM } from "@/lib/routes";
 import { c3Preflight, nationalReadiness } from "@/lib/lead-radar/national";
@@ -28,7 +28,9 @@ export default async function NationalReadinessPage({ searchParams }: { searchPa
   if (!actor || !access) return <PermissionDenied t={t} />;
   const k = nationalCopy(locale).dash;
   const sp = await searchParams;
-  const pf = sp.preflight && isProvinceCode(sp.preflight) ? await c3Preflight(sp.preflight) : null;
+  const pfProvince = sp.preflight && isProvinceCode(sp.preflight) ? sp.preflight : null;
+  const pf = pfProvince ? await c3Preflight(pfProvince) : null;
+  const selected = pfProvince ?? "AB";
   const c3 = k.c3;
   const [d, settings, funnel] = await Promise.all([nationalReadiness(), readSettings(), emailReadinessFunnel()]);
   const live = isLive(settings);
@@ -53,7 +55,13 @@ export default async function NationalReadinessPage({ searchParams }: { searchPa
       <section className={`${cardCls} space-y-3`} aria-labelledby="nat-c3">
         <h2 id="nat-c3" className="font-semibold text-slate-900">{c3.title}</h2>
         <p className="text-xs text-slate-600">{c3.help}</p>
-        <Link href={`${PLATFORM.salesLeadRadar}/national?preflight=AB`} className="inline-flex min-h-11 items-center rounded-lg border border-slate-300 px-3 text-sm font-medium text-blue-700">{fill(c3.run, { province: "AB" })}</Link>
+        <form method="get" action={`${PLATFORM.salesLeadRadar}/national`} className="flex flex-wrap items-end gap-2">
+          <label className="text-xs font-medium text-slate-700">{c3.province}
+            <select name="preflight" defaultValue={selected} className="mt-1 block min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm">
+              {PROVINCE_CODES.map((code) => <option key={code} value={code}>{PROVINCE_NAMES[code][locale]} ({code})</option>)}
+            </select></label>
+          <button type="submit" className="inline-flex min-h-11 items-center rounded-lg border border-slate-300 px-3 text-sm font-medium text-blue-700">{fill(c3.run, { province: selected })}</button>
+        </form>
         {pf && (
           <div className="space-y-3 text-sm text-slate-700">
             <p className="text-xs text-slate-500">{fill(c3.generated, { at: formatDate(new Date(pf.generatedAt), locale), v: pf.registryVersion })}</p>
@@ -68,7 +76,7 @@ export default async function NationalReadinessPage({ searchParams }: { searchPa
             <div><p className="font-semibold text-slate-900">{c3.territoryTitle}</p>
               <p className="text-xs">{Object.entries(pf.territories).map(([key, v]) => `${key}: ${num(v, locale)}`).join(" · ")} · {c3.modes}: {Object.entries(pf.modes).map(([key, v]) => `${key} ${num(v, locale)}`).join(" · ")}</p></div>
             <div><p className="font-semibold text-slate-900">{c3.sellersTitle}</p>
-              <div className="overflow-x-auto"><table className="w-full min-w-[640px] text-left text-xs"><thead className="text-slate-500"><tr><th className="pr-2">{c3.sellerCols.name}</th><th className="pr-2">{c3.sellerCols.mode}</th><th className="pr-2">{c3.sellerCols.auto}</th><th className="pr-2">{c3.sellerCols.named}</th><th className="pr-2">{c3.sellerCols.receives}</th><th>{c3.sellerCols.cap}</th></tr></thead>
+              <div className="overflow-x-auto"><table className="w-full min-w-[640px] text-left text-xs"><thead className="text-slate-500"><tr><th className="pr-2">{c3.sellerCols.name}</th><th className="pr-2">{c3.sellerCols.mode}</th><th className="pr-2">{c3.sellerCols.auto}</th><th className="pr-2">{c3.sellerCols.named}</th><th className="pr-2">{fill(c3.sellerCols.receives, { province: selected })}</th><th>{c3.sellerCols.cap}</th></tr></thead>
                 <tbody>{pf.sellers.map((s) => <tr key={s.id} className="border-t border-slate-100"><td className="py-1 pr-2">{s.name ?? s.email} <span className="text-slate-500">({s.email}{s.superAdminLogin ? ` · ${c3.superAdmin}` : ""})</span></td><td className="pr-2">{s.mode}</td><td className="pr-2">{s.acceptsAuto ? c3.yes : c3.no}</td><td className="pr-2">{s.namedByAutomation ? c3.yes : c3.no}</td><td className="pr-2">{s.wouldReceiveRemoteProspect ? c3.yes : `${c3.no}${s.probeSkip ? ` (${s.probeSkip})` : ""}`}</td><td>{s.maxRemote ?? "—"}</td></tr>)}</tbody></table></div></div>
             <div><p className="font-semibold text-slate-900">{c3.automationTitle}</p>
               <p className="text-xs">policy: {pf.automation.policyVersion ?? c3.noPolicy} · automation enabled: {String(pf.automation.enabled)} · qualify: {String(pf.automation.qualifyEnabled)} · import: {String(pf.automation.importEnabled)} · assign: {String(pf.automation.assignEnabled)} · import provinces: {pf.automation.importProvinces.join(", ") || "all"} · chunk: {pf.automation.importChunkSize} · territory rule: {pf.territoryRule?.key ?? "—"}</p></div>
