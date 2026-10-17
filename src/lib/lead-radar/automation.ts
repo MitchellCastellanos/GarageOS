@@ -356,7 +356,9 @@ export async function runAutomationTick(opts: { trigger: "CRON" | "MANUAL"; budg
       await stage("release", a.releaseUnavailable && !a.rolloutEnabled, (deadline) => releaseUnavailable(admin, deadline));
       // Paid geocoding fallback for assigned prospects the source point could not locate. Inert unless Mapbox is configured AND a Super Admin enabled it AND budget remains.
       await stage("locate", true, (deadline) => autoGeocodeStep(admin, deadline));
-      await stage("eligibility", a.eligibilityEnabled && !a.rolloutEnabled, (deadline) => refreshEligibility({ deadline }));
+      // Eligibility is read-only ADVICE (it creates no contact, basis, enrollment or message), so it follows its own switch even during the national rollout — the owner can turn it on
+      // to measure readiness without enabling outreach. During the rollout it only assesses prospects that have an emailable contact (the rest cannot progress and would be wasted work).
+      await stage("eligibility", a.eligibilityEnabled, (deadline) => refreshEligibility({ deadline, requireContact: a.rolloutEnabled }));
       await stage("pilot", a.pilotEnabled && !a.rolloutEnabled, (deadline) => pilotStage(admin, a, deadline));
     }
   } finally {

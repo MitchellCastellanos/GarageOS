@@ -63,3 +63,14 @@ WHERE m.category = 'COMMERCIAL' AND m.status IN ('QUEUED','SCHEDULED') AND b.kin
 
 ## Note on `sales-comms-db` (historic, calendar-dependent)
 Tests 11, 13, 15 and 28 fail on pristine `main` whenever the suite runs on a non-business day or outside the sending window: they call `processDueEnrollments({ now: new Date() })` and expect step 0 to be due *now*, but the scheduler correctly defers it to the next business day. With the clock shifted to a business day the whole file passes (31/31, including the legacy tests). They are not regressions of this work; the new legacy tests use explicit future `now` values and a raised per-run cap, so they are date-independent.
+
+
+## Addendum — PR-1 (compliance primitives): what changed for legacy bases and automation
+The statements above describe the Lead Engine deploy. Since PR-1 the following **supersede** them for *system-originated* sends only:
+
+* **A person's own one-to-one email (composer, replies, transactional) is unchanged**: legacy rows (`reviewStatus NULL`), `NOT_REQUIRED` rows and approved rows of any kind keep exactly their previous validity. Stored evidence and approval rows are never rewritten.
+* **Enrollment, the sequence worker and the dispatcher (origin AUTOMATED) and the Lead Radar eligibility engine use a stricter reading** (`evaluateAutomationBasis`): the newest basis must be of an automation-allowed kind (`IMPLIED_PUBLISHED_ADDRESS`, `IMPLIED_DISCLOSED_ADDRESS`, `EXPRESS_CONSENT`) **and explicitly `APPROVED`** by an independent person. Legacy (`NULL`), `NOT_REQUIRED`, `LEGACY_UNREVIEWED`, `EXEMPT` and a bare existing-relationship claim can no longer back a sequence; an already-enrolled contact whose newest basis is one of those is stopped with `NO_VALID_BASIS` before any step is queued or sent. Production is expected to hold no live enrollments (see the pilot checklist, Q4), so nothing is lost today.
+* **New rows**: every kind a person records now needs structured evidence and is stored `PENDING_REVIEW` until an independent person approves it; free-text-only claims are refused.
+* **Independent = a different person**, not merely a different account (`User.personKey`, set by a Super Admin under *Team → Same-person links*; accounts sharing a verified recovery mailbox are linked automatically). The Super Admin self-approval exception is closed (`ALLOW_SUPER_ADMIN_SELF_REVIEW = false`).
+
+These are product controls pending counsel; the constants live in `src/domain/sales-comms/casl.ts` and `src/domain/sales-crm/casl-evidence.ts`.

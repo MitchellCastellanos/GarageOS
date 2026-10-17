@@ -15,6 +15,7 @@ export function BasisForm({ locale, contactId, hasBasis }: { locale: "en" | "fr"
   const L = leadCopy(locale).evidence;
   const [f, setF] = useState({ kind: "IMPLIED_PUBLISHED_ADDRESS", evidence: "", expiresAt: "", evidenceType: "", sourceUrl: "", capturedAt: "", supportingFacts: "", roleRelevance: "", publishedConditionsConfirmed: false });
   const structured = requiresApproval(f.kind);
+  const addressKind = f.kind === "IMPLIED_PUBLISHED_ADDRESS" || f.kind === "IMPLIED_DISCLOSED_ADDRESS";
   const gaps = structured ? evidenceGaps({ kind: f.kind, evidenceType: f.evidenceType || null, sourceUrl: f.sourceUrl || null, capturedAt: f.capturedAt ? new Date(f.capturedAt) : null, supportingFacts: f.supportingFacts.trim() || null, roleRelevance: f.roleRelevance.trim() || null, publishedConditionsConfirmed: f.publishedConditionsConfirmed }) : [];
   return (
     <div className="space-y-2">
@@ -36,7 +37,7 @@ export function BasisForm({ locale, contactId, hasBasis }: { locale: "en" | "fr"
               <label className={labelCls}>{L.sourceUrl}{f.kind === "IMPLIED_PUBLISHED_ADDRESS" ? " *" : ""}<input type="url" inputMode="url" className={inputCls} value={f.sourceUrl} maxLength={480} onChange={(e) => setF({ ...f, sourceUrl: e.target.value })} required={f.kind === "IMPLIED_PUBLISHED_ADDRESS"} /></label>
               <label className={labelCls}>{L.capturedAt} *<input type="date" className={inputCls} value={f.capturedAt} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setF({ ...f, capturedAt: e.target.value })} required /></label>
               <label className={labelCls}>{L.facts} *<textarea className={`${inputCls} min-h-20 py-2`} value={f.supportingFacts} maxLength={1500} onChange={(e) => setF({ ...f, supportingFacts: e.target.value })} required /></label>
-              <label className={labelCls}>{L.role} *<textarea className={`${inputCls} min-h-16 py-2`} value={f.roleRelevance} maxLength={500} onChange={(e) => setF({ ...f, roleRelevance: e.target.value })} required /></label>
+              <label className={labelCls}>{L.role}{addressKind ? " *" : ""}<textarea className={`${inputCls} min-h-16 py-2`} value={f.roleRelevance} maxLength={500} onChange={(e) => setF({ ...f, roleRelevance: e.target.value })} required={addressKind} /></label>
               {f.kind === "IMPLIED_PUBLISHED_ADDRESS" && <label className="flex min-h-11 items-start gap-2 text-sm text-slate-700"><input type="checkbox" className="mt-1 h-4 w-4" checked={f.publishedConditionsConfirmed} onChange={(e) => setF({ ...f, publishedConditionsConfirmed: e.target.checked })} /> {L.publishedOk} *</label>}
               <p className="text-xs text-slate-500">{L.form.submitNote}</p>
             </fieldset>

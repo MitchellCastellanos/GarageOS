@@ -10,6 +10,7 @@ import { requireCrmActor } from "@/lib/sales-crm/access";
 import { writeCrmAudit } from "@/lib/sales-crm/audit";
 import { CrmError } from "@/lib/sales-crm/prospects";
 import { crmAction } from "@/lib/sales-crm/result";
+import { sameAsPerson } from "@/lib/sales-crm/person";
 
 const BASIS_SELECT = {
   id: true, kind: true, reviewStatus: true, recordedByUserId: true, evidenceType: true, sourceUrl: true, capturedAt: true, supportingFacts: true, roleRelevance: true,
@@ -39,12 +40,14 @@ async function decide(actor: PlatformSalesActor, basisId: string, d: Decision) {
     const owner = b.contact.prospect.assignedStaffId;
     if (b.revokedAt) throw new CrmError("CASL_NOT_PENDING");
     let selfReviewed = false;
+    // Independence is between PEOPLE: another account of the recorder (explicit person link or shared verified recovery mailbox) is a self-review too.
+    const samePerson = (await sameAsPerson(actor.userId, [b.recordedByUserId], tx)).has(b.recordedByUserId);
     if (d.kind === "APPROVE") {
-      const a = canApproveEvidence(actor, b, owner);
+      const a = canApproveEvidence(actor, b, owner, { recorderIsSamePerson: samePerson });
       if (!a.allowed) throw deny(a.code);
       selfReviewed = a.selfApproved;
     } else {
-      const r = canRejectEvidence(actor, b, owner);
+      const r = canRejectEvidence(actor, b, owner, { recorderIsSamePerson: samePerson });
       if (!r.allowed) throw deny(r.code);
       selfReviewed = r.selfRejected;
     }
@@ -68,7 +71,7 @@ async function decide(actor: PlatformSalesActor, basisId: string, d: Decision) {
 
 /**
  * Approves structured CASL evidence. Sales Manager: only for prospects owned inside their team at the moment of the
- * decision; Super Admin: global. Nobody except a Super Admin approves evidence they recorded (audited as `selfApproved`).
+ * decision; Super Admin: global. Nobody approves evidence they recorded, nor evidence recorded by another account of the same person.
  * Approval makes the basis usable by the EXISTING send policy — it does not send, enrol or schedule anything.
  */
 export async function approveSendingBasis(basisId: string, note?: string) {

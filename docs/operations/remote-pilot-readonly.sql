@@ -58,8 +58,11 @@ WITH remote AS (
   FROM garageos."CrmContact" c JOIN remote r ON r.id = c."prospectId"
   WHERE c."archivedAt" IS NULL AND NOT c."doNotContact" AND c."emailNormalized" ~ '^[^@\s]+@[^@\s]+\.[^@\s]+$'
   ORDER BY c."prospectId", c."isPrimary" DESC, c."createdAt"
-), basis AS (      -- newest basis per contact
-  SELECT DISTINCT ON (b."contactId") b."contactId", b.kind, b."reviewStatus", b."revokedAt", b."expiresAt", b."recordedByUserId", b."reviewedByUserId", length(b.evidence) AS ev_len
+), basis AS (      -- newest basis per contact; same_person = reviewer is the recorder OR another account carrying the same personKey (never counts as independent)
+  SELECT DISTINCT ON (b."contactId") b."contactId", b.kind, b."reviewStatus", b."revokedAt", b."expiresAt", b."recordedByUserId", b."reviewedByUserId", length(b.evidence) AS ev_len,
+         (b."reviewedByUserId" IS NOT NULL AND (b."reviewedByUserId" = b."recordedByUserId"
+            OR EXISTS (SELECT 1 FROM garageos."User" ur JOIN garageos."User" uc ON uc."personKey" = ur."personKey" AND ur."personKey" IS NOT NULL
+                       WHERE ur.id = b."recordedByUserId" AND uc.id = b."reviewedByUserId"))) AS same_person
   FROM garageos."CrmSendingBasis" b ORDER BY b."contactId", b."recordedAt" DESC
 ), supp AS (SELECT DISTINCT "emailNormalized" FROM garageos."CrmEmailSuppression" WHERE "liftedAt" IS NULL)
 SELECT
@@ -70,12 +73,15 @@ SELECT
   (SELECT count(*) FROM emailable e JOIN remote r ON r.id = e."prospectId" WHERE coalesce(e.contact_lang::text, r."preferredLanguage"::text) IN ('EN','FR')) AS with_known_language,
   (SELECT count(*) FROM emailable e JOIN basis b ON b."contactId" = e.contact_id)                                AS with_any_basis_row,
   (SELECT count(*) FROM emailable e JOIN basis b ON b."contactId" = e.contact_id
-     WHERE b."revokedAt" IS NULL AND (b."expiresAt" IS NULL OR b."expiresAt" > now()) AND b.ev_len >= 20
-       AND (b."reviewStatus" IN ('APPROVED','NOT_REQUIRED') OR b."reviewStatus" IS NULL))                        AS with_valid_basis,
+     WHERE b."revokedAt" IS NULL AND (b."expiresAt" IS NULL OR b."expiresAt" > now()) AND b.ev_len >= 12
+       AND b."reviewStatus" = 'APPROVED' AND b.kind IN ('IMPLIED_PUBLISHED_ADDRESS','IMPLIED_DISCLOSED_ADDRESS','EXPRESS_CONSENT') AND NOT b.same_person) AS with_valid_basis,
+  -- rows whose newest basis is valid only for a person's manual email (legacy NULL, NOT_REQUIRED, EXEMPT/existing-relationship): they can NOT back an automated sequence
+  (SELECT count(*) FROM emailable e JOIN basis b ON b."contactId" = e.contact_id
+     WHERE b."revokedAt" IS NULL AND (b."reviewStatus" IS NULL OR b."reviewStatus" IN ('NOT_REQUIRED','LEGACY_UNREVIEWED') OR b.kind IN ('EXEMPT','IMPLIED_EXISTING_RELATIONSHIP'))) AS basis_manual_only,
   (SELECT count(*) FROM emailable e JOIN basis b ON b."contactId" = e.contact_id
      WHERE b."reviewStatus" = 'PENDING_REVIEW')                                                                  AS basis_awaiting_second_approval,
   (SELECT count(*) FROM emailable e JOIN basis b ON b."contactId" = e.contact_id
-     WHERE b."reviewStatus" = 'APPROVED' AND b."reviewedByUserId" = b."recordedByUserId")                        AS basis_self_approved,
+     WHERE b."reviewStatus" = 'APPROVED' AND b.same_person)                                                      AS basis_self_approved,
   (SELECT count(*) FROM emailable e WHERE e."emailNormalized" IN (SELECT "emailNormalized" FROM supp))           AS suppressed_addresses,
   (SELECT count(*) FROM garageos."CrmOutreachEligibility" o JOIN remote r ON r.id = o."prospectId" WHERE o.decision = 'ELIGIBLE') AS engine_eligible;
 ROLLBACK;
@@ -93,9 +99,10 @@ BEGIN READ ONLY;
 SELECT p.id AS prospect_id, p.name, p.city, p.province, p."preferredLanguage" AS prospect_lang, c."preferredLanguage" AS contact_lang,
        p."repairFit", s."displayName" AS seller, (s.id IS NOT NULL) AS has_seller,
        (coalesce(c."preferredLanguage"::text, p."preferredLanguage"::text) IN ('EN','FR')) AS language_known,
-       (b.id IS NOT NULL AND b."revokedAt" IS NULL AND (b."expiresAt" IS NULL OR b."expiresAt" > now()) AND length(b.evidence) >= 20
-         AND (b."reviewStatus" IN ('APPROVED','NOT_REQUIRED') OR b."reviewStatus" IS NULL)) AS basis_ok, o.decision, array_to_string(o.reasons, ',') AS engine_reasons,
-       b.kind AS basis_kind, b."reviewStatus", (b."reviewedByUserId" = b."recordedByUserId") AS self_reviewed, b."sourceUrl" IS NOT NULL AS has_source_url,
+       (b.id IS NOT NULL AND b."revokedAt" IS NULL AND (b."expiresAt" IS NULL OR b."expiresAt" > now()) AND length(b.evidence) >= 12
+         AND b."reviewStatus" = 'APPROVED' AND b.kind IN ('IMPLIED_PUBLISHED_ADDRESS','IMPLIED_DISCLOSED_ADDRESS','EXPRESS_CONSENT')
+         AND NOT (b."reviewedByUserId" = b."recordedByUserId" OR EXISTS (SELECT 1 FROM garageos."User" ur JOIN garageos."User" uc ON uc."personKey" = ur."personKey" AND ur."personKey" IS NOT NULL WHERE ur.id = b."recordedByUserId" AND uc.id = b."reviewedByUserId"))) AS basis_ok, o.decision, array_to_string(o.reasons, ',') AS engine_reasons,
+       b.kind AS basis_kind, b."reviewStatus", (b."reviewedByUserId" = b."recordedByUserId" OR EXISTS (SELECT 1 FROM garageos."User" ur JOIN garageos."User" uc ON uc."personKey" = ur."personKey" AND ur."personKey" IS NOT NULL WHERE ur.id = b."recordedByUserId" AND uc.id = b."reviewedByUserId")) AS self_reviewed, b."sourceUrl" IS NOT NULL AS has_source_url,
        split_part(c."emailNormalized", '@', 1) ~* '^(info|contact|admin|office|sales|service|hello|support|reception|bureau|ventes)$' AS role_mailbox,
        split_part(c."emailNormalized", '@', 2) IN ('gmail.com','hotmail.com','hotmail.ca','outlook.com','yahoo.com','yahoo.ca','icloud.com','live.ca','videotron.ca') AS free_mailbox,
        EXISTS (SELECT 1 FROM garageos."CrmEmailSuppression" x WHERE x."emailNormalized" = c."emailNormalized" AND x."liftedAt" IS NULL) AS suppressed,
@@ -108,7 +115,7 @@ LEFT JOIN garageos."PlatformSalesStaff" s ON s.id = p."assignedStaffId"
 WHERE p."archivedAt" IS NULL AND p."mergedIntoId" IS NULL AND p.status = 'ACTIVE' AND NOT p."doNotContact"
   AND p."assignmentMode" = 'REMOTE' AND p."territoryState" = 'NATIONAL' AND p."repairFit" = 'VERIFIED_REPAIR'
 ORDER BY (o.decision = 'ELIGIBLE') DESC NULLS LAST,
-         (b.id IS NOT NULL AND b."revokedAt" IS NULL AND (b."reviewStatus" IN ('APPROVED','NOT_REQUIRED') OR b."reviewStatus" IS NULL)) DESC,
+         (b.id IS NOT NULL AND b."revokedAt" IS NULL AND b."reviewStatus" = 'APPROVED') DESC,
          (coalesce(c."preferredLanguage"::text, p."preferredLanguage"::text) IN ('EN','FR')) DESC, (b.id IS NOT NULL) DESC, p."createdAt"
 LIMIT 20;
 ROLLBACK;

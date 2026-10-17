@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { evaluateSendingBasis, evaluateSendPolicy, type SendDecision, type SendOrigin } from "@/domain/sales-comms/casl";
+import { evaluateBasisForOrigin, evaluateSendPolicy, type SendDecision, type SendOrigin } from "@/domain/sales-comms/casl";
 import { emailDomain, isValidEmail, normalizeEmail } from "@/domain/sales-comms/email";
 import { getCommsSettings } from "@/lib/sales-comms/settings";
 import { activeSuppressions } from "@/lib/sales-comms/suppression";
@@ -27,7 +27,7 @@ export interface PolicyTarget {
 }
 
 /** Gathers every fact the pure policy needs, from the database, at the moment of the decision. */
-export async function evaluatePolicy(t: PolicyTarget, now = new Date()): Promise<{ decision: SendDecision; basis: ReturnType<typeof evaluateSendingBasis> | null }> {
+export async function evaluatePolicy(t: PolicyTarget, now = new Date()): Promise<{ decision: SendDecision; basis: ReturnType<typeof evaluateBasisForOrigin> | null }> {
   const [settings, identity] = await Promise.all([
     getCommsSettings(),
     db.crmSenderIdentity.findUnique({ where: { id: t.identityId }, include: { staff: { select: { status: true, timezone: true, salesMode: true, userId: true } } } }),
@@ -49,7 +49,8 @@ export async function evaluatePolicy(t: PolicyTarget, now = new Date()): Promise
     // A Do-Not-Contact flag on ANY contact row holding one of these addresses blocks the send, linked or not.
     db.crmContact.count({ where: { emailNormalized: { in: recipients }, doNotContact: true } }),
   ]);
-  const basis = t.category === "COMMERCIAL" ? evaluateSendingBasis(bases, now) : null;
+  // System-originated (AUTOMATED) sends rely on the strict reading: allowed kind + explicit independent APPROVAL. A person's own manual email keeps the long-standing rule.
+  const basis = t.category === "COMMERCIAL" ? evaluateBasisForOrigin(t.origin, bases, now) : null;
   const tz = identity.staff.timezone;
   const sentToday = t.category === "COMMERCIAL" ? await sentTodayCount(identity.id, tz, now, t.excludeMessageId) : 0;
   const decision = evaluateSendPolicy({

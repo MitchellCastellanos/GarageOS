@@ -28,6 +28,7 @@ if (!enabled) {
   const { db } = await import("../src/lib/db");
   const inbox = await import("../src/actions/sales-inbox");
   const legacyActions = await import("../src/actions/sales-casl-legacy");
+  const caslReview = await import("../src/actions/sales-casl");
   const admin = await import("../src/actions/sales-comms-admin");
   const seqActions = await import("../src/actions/sales-sequences");
   const calendar = await import("../src/actions/sales-calendar");
@@ -164,8 +165,16 @@ if (!enabled) {
     assert.deepEqual([r.ok, r.error], [false, "NO_VALID_BASIS"], "commercial email without a documented basis is refused");
 
     as(ids.Alice);
-    const b: any = await inbox.recordSendingBasis(fd({ contactId: c.id, kind: "IMPLIED_EXISTING_RELATIONSHIP", evidence: "Existing customer enquiry received from laurent-garage.example" })); // address-based bases need reviewed evidence: see lead-engine-db.test.ts
-    assert.equal(b.ok, true, JSON.stringify(b));
+    // Every basis a person records needs structured evidence and an INDEPENDENT approval (PR-1): free text alone is refused, and a pending row authorises nothing.
+    const free: any = await inbox.recordSendingBasis(fd({ contactId: c.id, kind: "IMPLIED_EXISTING_RELATIONSHIP", evidence: "Existing customer enquiry received from laurent-garage.example" }));
+    assert.deepEqual([free.ok, free.error], [false, "EVIDENCE_INCOMPLETE"]);
+    const b: any = await inbox.recordSendingBasis(fd({ contactId: c.id, kind: "IMPLIED_EXISTING_RELATIONSHIP", evidence: "Existing customer enquiry received from laurent-garage.example", evidenceType: "EMAIL_THREAD", capturedAt: "2026-10-10", supportingFacts: "Enquiry thread from the shop owner received this month." }));
+    assert.equal(b.ok, true, JSON.stringify(b)); assert.equal(b.pendingReview, true);
+    r = await send("Alice", { ...base, languageOverride: "EN" });
+    assert.deepEqual([r.ok, r.error], [false, "NO_VALID_BASIS"], "pending evidence authorises nothing");
+    as(ids.root);
+    assert.equal(((await caslReview.approveSendingBasis(b.basisId, "thread checked")) as any).ok, true);
+    as(ids.Alice);
 
     r = await send("Alice", base);
     assert.deepEqual([r.ok, r.error], [false, "LANGUAGE_REQUIRED"], "UNKNOWN language needs a human decision");
@@ -1167,88 +1176,78 @@ if (!enabled) {
   /** The legacy tests send many messages: lift the per-identity cap for their duration so they are independent of earlier suite traffic. */
   const setCaps = (limit: number | null) => db.crmCommsSettings.updateMany({ data: { defaultDailyLimit: Math.min(limit ?? 30, 500) } }); // identity caps are min()'d with this default
 
-  test("LEGACY (A) right after deploy: unclassified legacy bases of ALL five kinds behave exactly as before in the composer, in enrollment, and for in-flight sequences through the worker and the dispatcher — nothing gained, nothing lost", async () => {
+  test("LEGACY (A) history is preserved: unclassified legacy bases of ALL five kinds keep working for a person's own composer email exactly as before, but can no longer start or continue a system-originated sequence", async () => {
     const seq = await seqSetup();
     await setCaps(500);
     for (const kind of KINDS) {
-      // composer + enrollment
+      // a person's own one-to-one email: unchanged
       const a = await makeProspect(`LegA${kind.length}${kind.slice(0, 4)}`, staff.Alice, { basis: false });
       const ba = await legacyBasis(a.c.id, kind);
       assert.equal(ba.reviewStatus, null);
       const r = await send("Alice", { prospectId: a.p.id, contactId: a.c.id, to: a.email });
       assert.equal(r.ok, true, `composer ${kind}: ${JSON.stringify(r)}`);
+      // a system-originated sequence: refused for every legacy kind (PR-1: only an APPROVED, automation-allowed basis can back automation)
       as(ids.Alice);
       const e0: any = await seqActions.enrollProspect(fd({ sequenceId: seq, prospectId: a.p.id, contactId: a.c.id }));
-      assert.equal(e0.ok, true, `enroll ${kind}: ${JSON.stringify(e0)}`);
-      // in-flight: queued step 0, then time passes through worker and dispatcher
-      const b = await makeProspect(`LegB${kind.length}${kind.slice(0, 4)}`, staff.Alice, { basis: false });
-      await legacyBasis(b.c.id, kind);
+      assert.deepEqual([e0.ok, e0.error], [false, "NO_VALID_BASIS"], `enroll ${kind}`);
+      // in-flight: an enrollment started on an approved basis queues step 0; the contact's NEWEST basis then turns out to be a legacy row → the step is stopped, never sent
+      const b = await makeProspect(`LegB${kind.length}${kind.slice(0, 4)}`, staff.Alice, { basis: true });
       const e: any = await seqActions.enrollProspect(fd({ sequenceId: seq, prospectId: b.p.id, contactId: b.c.id }));
-      assert.equal(e.ok, true);
+      assert.equal(e.ok, true, `enroll on approved basis ${kind}: ${JSON.stringify(e)}`);
       await seqLib.processDueEnrollments({ now: new Date(Date.now() + 7 * 86_400_000) });
       const msg = await db.crmEmailMessage.findFirstOrThrow({ where: { sequenceEnrollmentId: e.enrollmentId, sequenceStepIndex: 0 } });
+      await db.crmSendingBasis.create({ data: { contactId: b.c.id, kind, evidence: "Pre-migration self-attested basis on file", recordedByUserId: ids.root, recordedAt: new Date(Date.now() + 60_000) } });
       const later = new Date(Date.now() + 8 * 86_400_000);
       await dispatcher.dispatchDue({ now: later });
       await seqLib.processDueEnrollments({ now: later });
       const en = await db.crmSequenceEnrollment.findUniqueOrThrow({ where: { id: e.enrollmentId } });
-      assert.notEqual(en.stopReason, "NO_VALID_BASIS", `${kind}: a legacy basis is not stopped by the deploy`);
-      assert.equal(sentOrDelivered((await db.crmEmailMessage.findUniqueOrThrow({ where: { id: msg.id } })).status), true, `${kind}: the queued step still goes out`);
+      assert.equal(en.stopReason, "NO_VALID_BASIS", `${kind}: a legacy basis cannot continue a sequence`);
+      assert.equal(sentOrDelivered((await db.crmEmailMessage.findUniqueOrThrow({ where: { id: msg.id } })).status), false, `${kind}: the queued step was not sent`);
     }
   });
 
-  test("LEGACY (B) after the explicit procedure: preview shows the real impact; address-based legacy bases are blocked in composer/enrollment and stopped in worker+dispatcher; other kinds unchanged; fresh approved evidence restores sending; revert restores previous behaviour", async () => {
+  test("LEGACY (B) explicit reclassification procedure: preview shows the real impact for a person's own email; address-based legacy bases are blocked in the composer; other kinds unchanged; fresh approved evidence restores composer sending AND automation eligibility; revert restores the previous stored status", async () => {
     const seq = await seqSetup();
     await setCaps(500);
-    const subjects: Record<string, { p: any; c: any; email: string; enrollmentId?: string; msgId?: string }> = {};
+    const subjects: Record<string, { p: any; c: any; email: string }> = {};
     for (const kind of KINDS) {
       const x = await makeProspect(`LegC${kind.length}${kind.slice(0, 4)}`, staff.Alice, { basis: false });
       await legacyBasis(x.c.id, kind);
-      as(ids.Alice);
-      const e: any = await seqActions.enrollProspect(fd({ sequenceId: seq, prospectId: x.p.id, contactId: x.c.id }));
-      assert.equal(e.ok, true, `${kind}: ${JSON.stringify(e)}`);
-      await seqLib.processDueEnrollments({ now: new Date(Date.now() + 7 * 86_400_000) }); // step 0 queued, NOT yet dispatched
-      const msg = await db.crmEmailMessage.findFirstOrThrow({ where: { sequenceEnrollmentId: e.enrollmentId, sequenceStepIndex: 0 } });
-      subjects[kind] = { ...x, enrollmentId: e.enrollmentId, msgId: msg.id };
+      subjects[kind] = x;
     }
-    // preview (Super Admin) with the real policy: exactly the two address-based contacts lose sendability, with their live work counted
+    // preview (Super Admin) with the real policy: exactly the two address-based contacts lose sendability
     as(ids.root);
     const pv: any = await legacyActions.previewLegacyBasisReclassification();
     assert.equal(pv.ok, true, JSON.stringify(pv));
-    assert.ok(pv.contactsLosingSendability >= 2 && pv.activeEnrollments >= 2 && pv.queuedCommercialMessages >= 2, JSON.stringify(pv));
+    assert.ok(pv.contactsLosingSendability >= 2, JSON.stringify(pv));
     const ex: any = await legacyActions.reclassifyLegacyBases(pv.kinds, pv.token);
     assert.equal(ex.ok, true, JSON.stringify(ex));
-    const n = sends.length;
-    const later = new Date(Date.now() + 8 * 86_400_000);
-    await dispatcher.dispatchDue({ now: later });
-    await seqLib.processDueEnrollments({ now: later });
-    await dispatcher.dispatchDue({ now: later });
-    const outcome: Record<string, string> = {};
     for (const kind of KINDS) {
-      const s = subjects[kind];
-      const en = await db.crmSequenceEnrollment.findUniqueOrThrow({ where: { id: s.enrollmentId! } });
-      const m = await db.crmEmailMessage.findUniqueOrThrow({ where: { id: s.msgId! } });
-      outcome[kind] = `${en.status}/${en.stopReason ?? "-"}/${m.status}`;
-      if (needsApproval(kind)) { assert.deepEqual([en.status, en.stopReason], ["STOPPED", "NO_VALID_BASIS"], kind); assert.equal(sentOrDelivered(m.status), false, `${kind}: queued email blocked`); }
-      else { assert.notEqual(en.stopReason, "NO_VALID_BASIS", kind); assert.equal(sentOrDelivered(m.status), true, `${kind}: unchanged`); }
+      const x = subjects[kind];
+      const r = await send("Alice", { prospectId: x.p.id, contactId: x.c.id, to: x.email });
+      if (needsApproval(kind)) assert.deepEqual([r.ok, r.error], [false, "NO_VALID_BASIS"], `composer ${kind}`);
+      else assert.equal(r.ok, true, `composer ${kind}: ${JSON.stringify(r)}`);
     }
-    assert.ok(sends.length >= n, "only the non-address kinds' queued steps went out");
-    console.log("[legacy-impact]", JSON.stringify(outcome));
-    // composer + enrollment for fresh prospects holding reclassified address-based legacy rows
+    // fresh prospects holding reclassified address-based legacy rows
     for (const kind of KINDS) {
       const x = await makeProspect(`LegD${kind.length}${kind.slice(0, 4)}`, staff.Bob, { basis: false });
       await db.crmSendingBasis.create({ data: { contactId: x.c.id, kind, evidence: "Pre-migration self-attested basis on file", recordedByUserId: ids.root, reviewStatus: needsApproval(kind) ? "LEGACY_UNREVIEWED" : null } });
       const r = await send("Bob", { prospectId: x.p.id, contactId: x.c.id, to: x.email });
       as(ids.Bob);
       const e: any = await seqActions.enrollProspect(fd({ sequenceId: seq, prospectId: x.p.id, contactId: x.c.id }));
+      assert.equal(e.ok, false, `enroll ${kind}: legacy rows never back automation`);
       if (needsApproval(kind)) {
-        assert.deepEqual([r.ok, r.error], [false, "NO_VALID_BASIS"], `composer ${kind}`); assert.equal(e.ok, false, `enroll ${kind}`);
-        // recovery: fresh evidence reviewed and approved → sending is possible again
+        assert.deepEqual([r.ok, r.error], [false, "NO_VALID_BASIS"], `composer ${kind}`);
+        // recovery: fresh evidence reviewed and approved → composer sending AND enrollment are possible again
         await db.crmSendingBasis.create({ data: { contactId: x.c.id, kind, evidence: "Fresh evidence reviewed after the reclassification", recordedByUserId: ids.root, reviewStatus: "APPROVED" } });
         const ok = await send("Bob", { prospectId: x.p.id, contactId: x.c.id, to: x.email });
         assert.equal(ok.ok, true, `recovered ${kind}: ${JSON.stringify(ok)}`);
-      } else { assert.equal(r.ok, true, `composer ${kind}: ${JSON.stringify(r)}`); assert.equal(e.ok, true, `enroll ${kind}: ${JSON.stringify(e)}`); }
+        as(ids.Bob);
+        const e2: any = await seqActions.enrollProspect(fd({ sequenceId: seq, prospectId: x.p.id, contactId: x.c.id }));
+        assert.equal(e2.ok, true, `recovered enroll ${kind}: ${JSON.stringify(e2)}`);
+      } else assert.equal(r.ok, true, `composer ${kind}: ${JSON.stringify(r)}`);
     }
-    // revert restores the previous behaviour for rows still untouched (here: the contacts of the stopped enrollments)
+    // revert restores the previous stored status for rows still untouched
     as(ids.root);
     const rv: any = await legacyActions.revertLegacyReclassification(ex.auditId);
     assert.equal(rv.ok, true);

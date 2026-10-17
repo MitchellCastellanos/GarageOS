@@ -362,4 +362,36 @@ if (!enabled) {
     const s = await state();
     assert.deepEqual([s.pilotEnabled, s.eligibilityEnabled, s.releaseUnavailable, s.enabled], [false, false, false, false], "outreach/release/pilot stay OFF");
   });
+
+  test("eligibility is available DURING the rollout (read-only advice for prospects with an emailable contact) without enabling outreach, release or the pilot", async () => {
+    const { LEAD_RADAR_SOURCE_KEY } = await import("../src/domain/lead-radar/bridge");
+    const batch = await db.crmImportBatch.create({ data: { createdByUserId: users.Root, filename: "lr", fileHash: `elig-${run}`, status: "COMPLETED", sourceKey: LEAD_RADAR_SOURCE_KEY } });
+    const mk = async (name: string, withContact: boolean) => {
+      const p = await db.crmProspect.create({ data: { name: `${name} ${run}`, nameNormalized: `${name}-${run}`.toLowerCase(), createdByUserId: users.Root, importBatchId: batch.id, province: "BC", city: "Vancouver", territoryState: "NATIONAL", repairFit: "VERIFIED_REPAIR", repairFitSource: "AUTO" } });
+      if (withContact) await db.crmContact.create({ data: { prospectId: p.id, name: "General contact", email: `el-${name}-${run}@shop.test`, emailNormalized: `el-${name}-${run}@shop.test`, isPrimary: true } });
+      return p.id;
+    };
+    const withC = await mk("ElWith", true), without = await mk("ElWithout", false);
+    // Mid-rollout state: master ON, rollout ON (its own step paused so this tick only exercises the later stages), eligibility switch ON; release requested but must stay gated.
+    const ids = { sellerCheck: await db.crmEmailMessage.count(), enr: await db.crmSequenceEnrollment.count() };
+    await db.crmLeadAutomation.update({ where: { id: "default" }, data: { enabled: true, pausedAt: null, pausedReason: null, rolloutEnabled: true, rolloutPaused: true, rolloutFinishedAt: null, rolloutHaltCode: null, eligibilityEnabled: true, releaseUnavailable: true, pilotEnabled: false } });
+    const t: any = await tick();
+    assert.notEqual(t.status, "SKIPPED", JSON.stringify(t));
+    assert.equal(t.counters.eligibility.skipped, undefined, `eligibility ran: ${JSON.stringify(t.counters.eligibility)}`);
+    assert.ok(t.counters.eligibility.assessed >= 1);
+    assert.ok(await db.crmOutreachEligibility.findUnique({ where: { prospectId: withC } }), "the prospect with an emailable contact was assessed");
+    assert.equal(await db.crmOutreachEligibility.findUnique({ where: { prospectId: without } }), null, "during the rollout prospects without a contact are not assessed (they cannot progress)");
+    const e = await db.crmOutreachEligibility.findUniqueOrThrow({ where: { prospectId: withC } });
+    assert.equal(e.decision, "NOT_ELIGIBLE"); assert.ok(e.reasons.includes("NO_SENDING_BASIS"));
+    // release and pilot are still gated by the rollout; nothing was enrolled or sent
+    assert.deepEqual(t.counters.release, { skipped: "STAGE_OFF" }); assert.deepEqual(t.counters.pilot, { skipped: "STAGE_OFF" });
+    assert.equal(await db.crmEmailMessage.count(), ids.sellerCheck); assert.equal(await db.crmSequenceEnrollment.count(), ids.enr);
+    // with the eligibility switch OFF (the state rollout activation leaves it in) the stage stays off
+    await db.crmLeadAutomation.update({ where: { id: "default" }, data: { eligibilityEnabled: false } });
+    const t2: any = await tick();
+    assert.deepEqual(t2.counters.eligibility, { skipped: "STAGE_OFF" });
+    const a = await state();
+    assert.deepEqual([a.pilotEnabled, a.rolloutEnabled], [false, true], "the rollout and the pilot switch were not touched");
+    await db.crmLeadAutomation.update({ where: { id: "default" }, data: { enabled: false, rolloutEnabled: false, releaseUnavailable: false } });
+  });
 }

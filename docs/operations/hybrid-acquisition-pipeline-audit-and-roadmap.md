@@ -33,7 +33,8 @@ This document is the permanent record of the v2 audit and the dependency-ordered
 |---|---|
 | PR-0 docs | This file |
 | **PR-2 workspace separation** | **Implemented — in review.** View-layer only: no schema change, no ownership change, no sending/CASL/rollout change. See *PR-2 as built* below |
-| PR-1, PR-3 … PR-10 | Not started; each needs a review of the previous outcome |
+| **PR-1 compliance primitives** | **Implemented — in review** (not merged without owner approval). See *PR-1 as built* below |
+| PR-3 … PR-10 | Not started; each needs a review of the previous outcome |
 
 ---
 
@@ -491,3 +492,21 @@ Interpretation: H/I confirm or refute H1/H2 [P]; J feeds N-10/D-12.
 **Permissions unchanged:** REMOTE-only sellers still have no field capability, queue or planner; FIELD sellers keep both lanes in one workspace; assignment, caps, rollout, sequences, sending switches, CASL decisions and suppression are not touched.
 
 **Known follow-ups (intentionally not in PR-2):** team/staff pages still show raw owned-prospect counts (attribution); `loadSellers` workload (assignment caps) still counts owned prospects; transferring a FIELD-lane prospect to a REMOTE-only rep is still possible by explicit transfer (N-08, PR-5).
+
+
+---
+
+## PR-1 as built (compliance primitives)
+
+**Constraints honoured:** no consent invented, nothing auto-approved, no switch changed, no sending enabled, Lead Radar not interrupted; stored evidence/approval history is never rewritten (one additive nullable column, no backfill).
+
+| Item | What changed |
+|---|---|
+| Basis-kind bypass | Every kind a person can record (`EXPRESS_CONSENT`, `IMPLIED_EXISTING_RELATIONSHIP`, `EXEMPT` as well as published/disclosed address) now requires structured evidence and is stored `PENDING_REVIEW`; free text alone is refused (`EVIDENCE_INCOMPLETE`). Role relevance stays an address-kind condition. |
+| Automation reading | New `evaluateAutomationBasis`: system-originated sends (enrollment, worker, dispatcher, eligibility) need the newest basis to be an allowed kind (`AUTOMATION_BASIS_KINDS`: published, disclosed, express) **and `APPROVED`**. Legacy/`NOT_REQUIRED`/`LEGACY_UNREVIEWED`/`EXEMPT`/existing-relationship keep working for a person's own manual email but never back automation. New eligibility reasons: `BASIS_KIND_NOT_ALLOWED` (and the existing `BASIS_UNREVIEWED`). |
+| Same-human self-approval | `User.personKey` (Super Admin sets/clears under *Team → Same-person links*, audited `PERSON_LINK_SET`); accounts with a shared **verified** recovery mailbox are linked automatically. `reviewAuthority` denies approve **and** reject when the recorder is the same person. The Super Admin self-review exception is closed (`ALLOW_SUPER_ADMIN_SELF_REVIEW = false`). Machine principals have no review capability; a tripwire test fails if any new code writes `reviewStatus: "APPROVED"`. |
+| Greeting | `firstNameOf` ignores stand-in names ("Business contact", "General contact", "Contact général", "Info", …) ⇒ "Hello," / "Bonjour,". Stored names are unchanged. |
+| Eligibility during rollout | The `eligibility` stage follows its own switch even while `rolloutEnabled` (read-only advice; during the rollout it only assesses prospects with an emailable contact). Rollout activation still leaves it OFF; release and pilot remain gated off during the rollout. |
+| Pilot SQL pack | Q6/Q8 count only `APPROVED` bases of automation-allowed kinds, treat another account of the same person as self-approval, and report `basis_manual_only`. |
+
+**Flagged for owner/counsel (policy choices, one-line constants):** (1) requiring review for *every* kind a person records, including express consent; (2) closing the Super Admin self-review exception (a solo operator can no longer approve their own evidence — a second person is required); (3) the automation allow-list of kinds; (4) automation now rejects legacy bases (the earlier "deploy is behaviour-neutral" guarantee applies to manual email only).

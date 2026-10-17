@@ -50,7 +50,7 @@ One sequence serves both languages: each message uses the contact's language (ne
 - [ ] Q3: `automatedSendingEnabled = false`, `pilotEnabled = false`; the national rollout is not halted.
 - [ ] Q4: all three counts are 0.
 - [ ] Q8: **at least 10** shortlist rows with `has_seller`, `language_known` and `basis_ok` all true, `suppressed` false, `possible_duplicates` = 0 and `self_reviewed` not true. Rows with `role_mailbox`/`free_mailbox` true need a human decision before inclusion.
-- [ ] Every shortlisted basis was approved by a **second person** — a basis the same user recorded and approved (`self_reviewed` true in Q8, counted in Q6 `basis_self_approved`) does not count. A published address is never consent by itself.
+- [ ] Every shortlisted basis was approved by a **second person** — a basis the same user recorded and approved (`self_reviewed` true in Q8, counted in Q6 `basis_self_approved`) does not count — and since PR-1 that includes **another account of the same person** (accounts sharing a `personKey`, set by a Super Admin under *Team → Same-person links*). Q6 `with_valid_basis` / Q8 `basis_ok` now require an **APPROVED** basis of an automation-allowed kind (published address, disclosed address, express consent); legacy/`NOT_REQUIRED`/`EXEMPT` rows are listed separately in `basis_manual_only` because they can back a person's own manual email but never an automated sequence. A published address is never consent by itself.
 - [ ] The Draft sequence exists (section 3).
 - [ ] A lawyer has reviewed the templates and the CASL basis rules.
 

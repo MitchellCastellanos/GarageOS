@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { assignedScopeWhere, canAccessAssignedStaff, type PlatformSalesActor } from "@/domain/sales-crm/access";
 import type { ImportCandidate } from "@/domain/sales-crm/import";
 import { canApproveEvidence, canRejectEvidence } from "@/domain/sales-crm/casl-evidence";
+import { sameAsPerson } from "@/lib/sales-crm/person";
 
 export const REVIEW_PAGE_SIZE = 20;
 
@@ -67,8 +68,10 @@ export async function listPendingEvidence(actor: PlatformSalesActor) {
     db.crmAuditEvent.findMany({ where: { entityType: "CrmSendingBasis", entityId: { in: rows.map((r) => r.id) } }, orderBy: { createdAt: "asc" }, select: { entityId: true, action: true, createdAt: true, actorUserId: true } }),
   ]);
   const names = new Map(users.map((u) => [u.id, u.name]));
+  const same = await sameAsPerson(actor.userId, userIds);
   return rows.map((r) => {
-    const d = canApproveEvidence(actor, r, r.contact.prospect.assignedStaffId), rej = canRejectEvidence(actor, r, r.contact.prospect.assignedStaffId);
+    const ctx = { recorderIsSamePerson: same.has(r.recordedByUserId) };
+    const d = canApproveEvidence(actor, r, r.contact.prospect.assignedStaffId, ctx), rej = canRejectEvidence(actor, r, r.contact.prospect.assignedStaffId, ctx);
     return {
       ...r, recordedBy: names.get(r.recordedByUserId) ?? "—", prospect: r.contact.prospect,
       canApprove: d.allowed, canReject: rej.allowed, blocked: d.allowed ? null : d.code,

@@ -8,7 +8,7 @@ import { writeCrmAudit } from "@/lib/sales-crm/audit";
 import { resolveEffectiveLanguage } from "@/domain/sales-crm/language";
 import { decideStop, scheduleStep, DEFAULT_SEQUENCE, type StopReason } from "@/domain/sales-comms/sequences";
 import { COMMERCIAL_TEMPLATE_KEYS, isTemplateKey } from "@/domain/sales-comms/templates";
-import { evaluateSendingBasis, isSwitchHold } from "@/domain/sales-comms/casl";
+import { evaluateAutomationBasis, isSwitchHold } from "@/domain/sales-comms/casl";
 import { nextSendInstant } from "@/domain/sales-comms/business-days";
 import { generateMessageId, emailDomain } from "@/domain/sales-comms/email";
 import { randomToken, signUnsubscribeToken } from "@/domain/sales-comms/tokens";
@@ -229,7 +229,7 @@ export async function processDueEnrollments(opts: { now?: Date; limit?: number }
     const stop = decideStop({
       prospectDnc: e.prospect.doNotContact, prospectArchived: e.prospect.status === "ARCHIVED", contactDnc: e.contact.doNotContact, contactArchived: !!e.contact.archivedAt || !email,
       suppressed: supp, opportunityStage: opp?.stage ?? null, staffActive: e.staff.status === "ACTIVE", identityActive: identity?.status === "ACTIVE",
-      basisValid: evaluateSendingBasis(bases, now).valid, sequenceArchived: e.sequence.status === "ARCHIVED",
+      basisValid: evaluateAutomationBasis(bases, now).valid, sequenceArchived: e.sequence.status === "ARCHIVED",
     });
     if (stop) { await stopEnrollments({ enrollmentIds: [e.id], reason: stop }); out.stopped++; continue; }
     if (e.sequence.status === "PAUSED") { out.skipped++; continue; } // sequence-level pause: leave enrollments untouched

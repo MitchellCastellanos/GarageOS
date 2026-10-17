@@ -263,6 +263,8 @@ model User {
   // Solo cuentan con `permissions.advanced`; ver src/domain/permissions.ts.
   permissionGrants String[]       @default([])
   permissionDenies String[]       @default([])
+  /// Platform (sales) accounts that belong to the SAME human share a key (set by a Super Admin, audited). Independent CASL review compares PEOPLE, not accounts. Never used for tenant authorization.
+  personKey       String?
   createdAt       DateTime        @default(now())
 
   accounts     Account[]
@@ -278,6 +280,7 @@ model User {
   platformSalesStaff           PlatformSalesStaff?
   crmActivities                CrmActivity[]
 
+  @@index([personKey])
   @@schema("garageos")
 }
 

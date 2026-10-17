@@ -55,7 +55,7 @@ export const autoEn = {
     reasonLabels: {
       NO_OWNER: "No assigned seller", SELLER_INACTIVE: "Seller inactive", SELLER_BOOKING_NOT_ENABLED: "Seller’s booking page is not enabled (the standard templates link to it)", PROSPECT_ARCHIVED: "Archived", PROSPECT_DNC: "Do not contact", OPPORTUNITY_CLOSED: "Opportunity closed", NO_EMAILABLE_CONTACT: "No contact with an email address",
       CONTACT_DNC: "Contact marked do not contact", ADDRESS_SUPPRESSED: "Address unsubscribed / suppressed", ADDRESS_BOUNCED: "Address bounced or complained", NO_SENDING_BASIS: "No documented CASL basis", BASIS_EXPIRED: "CASL basis expired",
-      BASIS_REVOKED: "CASL basis revoked", BASIS_WEAK_EVIDENCE: "CASL evidence too thin", BASIS_PENDING_REVIEW: "CASL evidence awaiting approval", BASIS_REJECTED: "CASL evidence rejected", BASIS_UNREVIEWED: "CASL evidence not reviewed",
+      BASIS_REVOKED: "CASL basis revoked", BASIS_WEAK_EVIDENCE: "CASL evidence too thin", BASIS_PENDING_REVIEW: "CASL evidence awaiting approval", BASIS_REJECTED: "CASL evidence rejected", BASIS_UNREVIEWED: "CASL evidence not reviewed", BASIS_KIND_NOT_ALLOWED: "CASL basis type not allowed for automated email",
       LANGUAGE_UNRESOLVED: "Language not decided (EN/FR)", SENDER_IDENTITY_MISSING: "Seller has no sender identity", SENDER_NOT_ACTIVE: "Sender identity not active", SENDER_DOMAIN_NOT_APPROVED: "Sender domain not approved",
       SENDER_REPLY_PATH_UNVERIFIED: "Sender reply path not verified", FIELD_TERRITORY_FIRST_CONTACT: "FIELD territory: no automated cold first contact",
     } as Record<string, string>,
@@ -165,7 +165,7 @@ export const autoFr: AutoCopy = {
     reasonLabels: {
       NO_OWNER: "Aucun vendeur assigné", SELLER_INACTIVE: "Vendeur inactif", SELLER_BOOKING_NOT_ENABLED: "La page de réservation du vendeur n’est pas activée (les modèles standards y renvoient)", PROSPECT_ARCHIVED: "Archivé", PROSPECT_DNC: "Ne pas contacter", OPPORTUNITY_CLOSED: "Occasion fermée", NO_EMAILABLE_CONTACT: "Aucun contact avec une adresse courriel",
       CONTACT_DNC: "Contact marqué ne pas contacter", ADDRESS_SUPPRESSED: "Adresse désabonnée / supprimée", ADDRESS_BOUNCED: "Adresse en rebond ou plainte", NO_SENDING_BASIS: "Aucune base LCAP documentée", BASIS_EXPIRED: "Base LCAP expirée",
-      BASIS_REVOKED: "Base LCAP révoquée", BASIS_WEAK_EVIDENCE: "Preuve LCAP trop mince", BASIS_PENDING_REVIEW: "Preuve LCAP en attente d’approbation", BASIS_REJECTED: "Preuve LCAP rejetée", BASIS_UNREVIEWED: "Preuve LCAP non révisée",
+      BASIS_REVOKED: "Base LCAP révoquée", BASIS_WEAK_EVIDENCE: "Preuve LCAP trop mince", BASIS_PENDING_REVIEW: "Preuve LCAP en attente d’approbation", BASIS_REJECTED: "Preuve LCAP rejetée", BASIS_UNREVIEWED: "Preuve LCAP non révisée", BASIS_KIND_NOT_ALLOWED: "Type de base LCAP non permis pour le courriel automatisé",
       LANGUAGE_UNRESOLVED: "Langue non décidée (EN/FR)", SENDER_IDENTITY_MISSING: "Le vendeur n’a pas d’identité d’expéditeur", SENDER_NOT_ACTIVE: "Identité d’expéditeur inactive", SENDER_DOMAIN_NOT_APPROVED: "Domaine d’expédition non approuvé",
       SENDER_REPLY_PATH_UNVERIFIED: "Chemin de réponse de l’expéditeur non vérifié", FIELD_TERRITORY_FIRST_CONTACT: "Territoire TERRAIN : pas de premier contact automatisé à froid",
     },
