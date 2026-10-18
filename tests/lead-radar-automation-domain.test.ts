@@ -393,9 +393,9 @@ test("narrowed guard: the exempt automation files keep every original guarantee 
   const strip = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
   const lib = (f: string) => strip(readFileSync(path.join(root, "src/lib/lead-radar", f), "utf8"));
   const exempt = { "automation.ts": lib("automation.ts"), "eligibility.ts": lib("eligibility.ts"), "dashboard.ts": lib("dashboard.ts") };
-  // The exemption list in the original test is exactly these three files — nothing else was exempted.
+  // The exemption list in the original test is exactly these three files plus the two automated-CASL-evidence files, which are held to their own, narrower guards in tests/evidence-fetch.test.ts.
   const original = readFileSync(path.join(root, "tests/lead-radar-domain.test.ts"), "utf8");
-  assert.match(original, /AUTOMATION_LAYER = new Set\(\["automation\.ts", "eligibility\.ts", "dashboard\.ts"\]\)/);
+  assert.match(original, /AUTOMATION_LAYER = new Set\(\["automation\.ts", "eligibility\.ts", "dashboard\.ts", "casl-evidence\.ts", "evidence-fetch\.ts"\]\)/);
   for (const [f, s] of Object.entries(exempt)) {
     // (a) original guarantees that still hold for them
     assert.ok(!/\bfetch\s*\(|axios|XMLHttpRequest|node:https?|node:net\b/.test(s), `${f}: no network`);

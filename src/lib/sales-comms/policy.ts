@@ -1,9 +1,12 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { evaluateBasisForOrigin, evaluateSendPolicy, type SendDecision, type SendOrigin } from "@/domain/sales-comms/casl";
+import { loadAutoCaslPolicy } from "@/lib/sales-comms/auto-casl-policy";
 import { emailDomain, isValidEmail, normalizeEmail } from "@/domain/sales-comms/email";
 import { getCommsSettings } from "@/lib/sales-comms/settings";
 import { activeSuppressions } from "@/lib/sales-comms/suppression";
+import { CAMPAIGN_TOPIC } from "@/domain/lead-radar/casl-evidence-engine";
+import { isQuebecRecipient } from "@/domain/sales-crm/language";
 import { evaluateColdEmail, requiredMode } from "@/domain/sales-crm/territory";
 import { loadEngagement, territoryOfLocation } from "@/lib/sales-crm/territory";
 import { formatShopDate, parseShopDateTime } from "@/lib/shop-timezone";
@@ -24,6 +27,10 @@ export interface PolicyTarget {
   automated?: boolean;
   /** Required: which switch (manual / automated / transactional) governs this send. See `sendOriginOf`. */
   origin: SendOrigin;
+  /** Language the message is written in (Québec recipients of automated mail must receive French). Omitted ⇒ unknown, which fails closed for a Québec recipient. */
+  language?: "EN" | "FR" | "UNKNOWN" | null;
+  /** Subject matter of the message, re-checked against what the recipient mailbox was shown to be relevant to. Automated Lead Radar mail always carries CAMPAIGN_TOPIC. */
+  messageTopic?: string | null;
 }
 
 /** Gathers every fact the pure policy needs, from the database, at the moment of the decision. */
@@ -43,14 +50,14 @@ export async function evaluatePolicy(t: PolicyTarget, now = new Date()): Promise
     contactId = byEmail?.id ?? null;
   }
   const [contact, prospect, bases, dncByAddress] = await Promise.all([
-    contactId ? db.crmContact.findUnique({ where: { id: contactId }, select: { doNotContact: true } }) : null,
-    t.prospectId ? db.crmProspect.findUnique({ where: { id: t.prospectId }, select: { doNotContact: true, status: true } }) : null,
+    contactId ? db.crmContact.findUnique({ where: { id: contactId }, select: { doNotContact: true, emailNormalized: true } }) : null,
+    t.prospectId ? db.crmProspect.findUnique({ where: { id: t.prospectId }, select: { doNotContact: true, status: true, province: true, postalCode: true } }) : null,
     contactId ? db.crmSendingBasis.findMany({ where: { contactId } }) : [],
     // A Do-Not-Contact flag on ANY contact row holding one of these addresses blocks the send, linked or not.
     db.crmContact.count({ where: { emailNormalized: { in: recipients }, doNotContact: true } }),
   ]);
-  // System-originated (AUTOMATED) sends rely on the strict reading: allowed kind + explicit independent APPROVAL. A person's own manual email keeps the long-standing rule.
-  const basis = t.category === "COMMERCIAL" ? evaluateBasisForOrigin(t.origin, bases, now) : null;
+  // System-originated (AUTOMATED) sends rely on the strict reading: allowed kind + a decided basis (a historic approval, or an automated one while the owner has activated the policy). A person's own manual email keeps the long-standing rule.
+  const basis = t.category === "COMMERCIAL" ? evaluateBasisForOrigin(t.origin, bases, now, await loadAutoCaslPolicy(), { topic: t.messageTopic !== undefined ? t.messageTopic : t.origin === "AUTOMATED" ? CAMPAIGN_TOPIC : null, recipientEmail: contact?.emailNormalized ?? recipients[0] ?? null }) : null;
   const tz = identity.staff.timezone;
   const sentToday = t.category === "COMMERCIAL" ? await sentTodayCount(identity.id, tz, now, t.excludeMessageId) : 0;
   const decision = evaluateSendPolicy({
@@ -62,6 +69,7 @@ export async function evaluatePolicy(t: PolicyTarget, now = new Date()): Promise
     prospect: prospect ? { doNotContact: prospect.doNotContact, archived: prospect.status === "ARCHIVED" } : null,
     contact: contact ? { doNotContact: contact.doNotContact || dncByAddress > 0 } : dncByAddress > 0 ? { doNotContact: true } : null,
     basis, languageResolved: t.languageResolved, sentToday,
+    quebecRecipient: !!prospect && isQuebecRecipient(prospect), messageLanguage: t.language === "EN" || t.language === "FR" ? t.language : null,
     dailyLimit: Math.min(identity.dailyLimit ?? settings.defaultDailyLimit, settings.defaultDailyLimit),
     commercialFooterConfigured: !!settings.mailingAddress?.trim(),
   });

@@ -28,6 +28,7 @@ if (!enabled) {
   const suppression = await import("../src/lib/sales-comms/suppression");
   const dash = await import("../src/lib/lead-radar/dashboard");
 
+  const { restoreLegacyRows } = await import("./helpers/legacy-staging");
   const run = Date.now().toString(36);
   const as = (id: string | null) => setSession(id ? { user: { id, role: "VIEWER", shopId: null } } : null);
   const users: Record<string, string> = {}, staff: Record<string, string> = {};
@@ -73,6 +74,7 @@ if (!enabled) {
     const m: any = await radar.attachDiscoveryManifest(created.runId, JSON.stringify({ extractor: "t", extractorVersion: "1", planHash: r.planHash, release, recordCount: recs.length, fileSha256: "a".repeat(64), generatedAt: new Date().toISOString(), stats: {} }));
     assert.equal(m.ok, true, JSON.stringify(m));
     for (let i = 0; i * 250 < recs.length; i++) assert.equal(((await radar.ingestDiscoveryChunk(created.runId, i, lines(recs.slice(i * 250, (i + 1) * 250)))) as any).ok, true);
+    await restoreLegacyRows(db, created.runId, recs, provinces, release); // see tests/helpers/legacy-staging.ts: this suite is about downstream rules on rows staged before the early screen
     assert.equal(((await radar.completeDiscoveryRun(created.runId)) as any).ok, true);
     return created.runId as string;
   }
@@ -297,8 +299,16 @@ if (!enabled) {
     assert.match(batch.lawfulSourceNote ?? "", new RegExp(`policy v${ids.vAll}`));
     assert.equal((batch.summary as any).automation.policyVersion, ids.vAll);
     // The ambiguous candidate (human review lane) was NOT imported.
+    // The tick's "screen" stage turns never-reviewed rows that the early commercial screen would never keep (licence-blocked, closed, no contact data, an unaddressed FIELD business) into tombstones:
+    // they are removed from staging, never imported, and remembered with their reasons.
+    for (const n of [21, 22, 23]) {
+      assert.equal(await db.crmDiscoveryCandidate.findFirst({ where: { sourceRecordId: rec(n).id } }), null, `#${n} was cleaned out of staging`);
+      assert.ok(await db.crmDiscoveryRejection.findFirst({ where: { sourceRecordId: rec(n).id } }), `#${n} left a tombstone`);
+      assert.equal(await db.crmProspect.count({ where: { name: { in: [rec(n).name as string] } } }), 0, `#${n} never reached the CRM`);
+    }
+    assert.equal(c.screen.purged >= 3, true, JSON.stringify(c.screen));
+    // …whereas a row that points at an existing CRM record (the ambiguous match) is never purged: it stays for a person and is not imported.
     assert.deepEqual([(await cand(25)).importState, (await cand(25)).reviewState], ["NOT_IMPORTED", "PENDING"]);
-    assert.deepEqual([(await cand(21)).importState, (await cand(22)).importState, (await cand(23)).importState], ["NOT_IMPORTED", "NOT_IMPORTED", "NOT_IMPORTED"]);
     // Assignment: only the named seller, FIELD vs REMOTE distinguishable, Super Admin never owns anything, the legacy prospect untouched.
     const imported = await lrProspects();
     assert.ok(imported.length >= 15);
@@ -525,6 +535,8 @@ if (!enabled) {
     await contactFor(pending.id, { email: `pending-${run}@shop.ca`, basis: "PENDING_REVIEW" });
     await contactFor(none.id, { email: `none-${run}@shop.ca`, basis: "NONE" });
     await contactFor(supp.id, { email: `supp-${run}@shop.ca` });
+    // An English-language contact must be OUTSIDE Québec: automated mail to a Québec business is French-only (policy casl-auto-v2).
+    await db.crmProspect.update({ where: { id: ok2.id }, data: { province: "ON", city: "Ottawa", postalCode: "K1P 5G3" } });
     await contactFor(ok2.id, { email: `ok2-${run}@shop.ca`, lang: "EN", prospectLang: "UNKNOWN" });
     await contactFor(lang.id, { email: `lang-${run}@shop.ca`, prospectLang: "UNKNOWN" });
     await db.crmProspect.update({ where: { id: lang.id }, data: { assignedStaffId: null } }); // no seller yet: READY (contact-level) but not pilot-ELIGIBLE
@@ -679,7 +691,8 @@ if (!enabled) {
 
   test("dashboard: stages are reported separately and honestly — imported ≠ contacted, eligible ≠ sent; exceptions and errors surface", async () => {
     const d = await dash.automationDashboard(await root());
-    assert.ok(d.qualification.auto > 0 && d.qualification.humanPending > 0 && d.qualification.blocked > 0);
+    assert.ok(d.qualification.auto > 0 && d.qualification.humanPending > 0, "usable rows are reported; blocked/unusable ones were cleaned out of staging by the screen stage");
+    assert.ok(d.pipeline.commerciallyRejected >= 0 && d.pipeline.tombstones >= 3);
     assert.ok((d.crm.byState.CREATED ?? 0) > 20 && (d.crm.byState.LINKED ?? 0) >= 1);
     assert.ok(d.assignment.field > 0 && d.assignment.remote > 0);
     assert.ok(d.assignment.workload.some((w) => w.name === "Founder" && w.inAllowList && w.mode === "FIELD"));

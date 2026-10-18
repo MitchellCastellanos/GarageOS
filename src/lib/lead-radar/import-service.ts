@@ -14,6 +14,10 @@ import { recordExclusions } from "@/lib/lead-radar/exclusions";
 import { assessRepairFit } from "@/domain/lead-radar/repair-fit";
 import { stampFitAtImport } from "@/lib/sales-crm/repair-fit-service";
 import { CrmError, resolveAssignee } from "@/lib/sales-crm/prospects";
+import { screenCandidate } from "@/domain/lead-radar/commercial-screen";
+import { classifyTerritory } from "@/domain/sales-crm/territory";
+import { loadTerritoryRulesWith } from "@/lib/sales-crm/territory-rules";
+import { activeSuppressions } from "@/lib/sales-comms/suppression";
 
 /**
  * Imports APPROVED candidates through the one existing import path (`applyImportBatch`): same validation, same dedupe, same territory resolution,
@@ -58,8 +62,26 @@ export async function importApprovedCandidates(actor: PlatformSalesActor, opts: 
       await writeCrmAudit({ actorUserId: actor.userId, action: "LEAD_RADAR_CANDIDATES_REVIEWED", entityType: "CrmDiscoveryCandidate", metadata: { decision: "REJECTED", via: "fit-gate-at-import", count: fitBlocked.length, ids: fitBlocked.slice(0, 200).map((c) => c.id) } }, tx);
     }
     const blockedIds = new Set(fitBlocked.map((c) => c.id));
-    const cands = claimed.filter((c) => !blockedIds.has(c.id));
-    if (!cands.length) return { batchId: null as string | null, claimed: claimed.length, created: 0, linked: 0, sentToReview: 0, skipped: 0, failed: 0, fitBlocked: fitBlocked.length, createdProspectIds: [] as string[], linkedProspectIds: [] as string[], reviewProspectIds: [] as string[], unassignedCreated: 0 };
+    const afterFit = claimed.filter((c) => !blockedIds.has(c.id));
+    // The SAME early commercial screen as staging, enforced here for every import path (manual, automatic, by id): REMOTE needs a usable email, FIELD a visitable address,
+    // an unresolved territory never enters, and only a verified repair shop (or an explicit recorded human fit decision) passes. A rejected row is skipped, never imported.
+    const rules = await loadTerritoryRulesWith(tx);
+    const supp = await activeSuppressions(afterFit.map((c) => c.email).filter((e): e is string => !!e), tx);
+    const screenBlocked: { id: string; code: string }[] = [];
+    const cands = afterFit.filter((c) => {
+      const fit = fitOf.get(c.id)!;
+      const sc = screenCandidate({
+        licenseOk: c.licenseOk, tier: c.tier,
+        // An EXCLUDED fit that got past the fit gate above carries an explicit, recorded human override (the gate already refused every confirmed ICP exclusion and every un-overridden one).
+        fit: fit.fit === "EXCLUDED" ? "HUMAN_REVIEW" : fit.fit, humanFitDecision: c.icpOverride || overrideOf(c), territory: classifyTerritory(rules, { province: c.province, city: c.city, postalCode: c.postalCode }).state,
+        address: c.address, city: c.city, postalCode: c.postalCode, phone: c.phone, email: c.email && !supp.has(c.email.trim().toLowerCase()) ? c.email : null,
+      });
+      if (!sc.lane) screenBlocked.push({ id: c.id, code: `SCREEN_${sc.reasons[0]}` });
+      return !!sc.lane;
+    });
+    for (const b of screenBlocked) await tx.crmDiscoveryCandidate.update({ where: { id: b.id }, data: { importState: "SKIPPED", importErrorCode: b.code, importAttempts: { increment: 1 }, importLastAttemptAt: new Date() } });
+    if (screenBlocked.length) await writeCrmAudit({ actorUserId: actor.userId, action: "LEAD_RADAR_CANDIDATES_REVIEWED", entityType: "CrmDiscoveryCandidate", metadata: { decision: "SKIPPED", via: "commercial-screen-at-import", count: screenBlocked.length, codes: screenBlocked.reduce<Record<string, number>>((m, b) => ({ ...m, [b.code]: (m[b.code] ?? 0) + 1 }), {}) } }, tx);
+    if (!cands.length) return { batchId: null as string | null, claimed: claimed.length, created: 0, linked: 0, sentToReview: 0, skipped: screenBlocked.length, failed: 0, fitBlocked: fitBlocked.length, screenBlocked: screenBlocked.length, createdProspectIds: [] as string[], linkedProspectIds: [] as string[], reviewProspectIds: [] as string[], unassignedCreated: 0 };
     const { csv, rowToCandidate } = candidatesToImportCsv(cands.map((c) => ({ id: c.id, sourceRecordId: c.sourceRecordId, name: c.name, website: c.website, address: c.address, city: c.city, province: c.province, postalCode: c.postalCode, phone: c.phone, email: c.email, industry: c.industry, lastSeenRelease: c.lastSeenRelease })));
     const mapping = Object.fromEntries(IMPORT_HEADERS.map((h, i) => [String(i), h]));
     const parsed = parseProspectCsv(csv, { defaultSource: "DIRECTORY", mapping });
@@ -121,7 +143,7 @@ export async function importApprovedCandidates(actor: PlatformSalesActor, opts: 
         if (r.written) located.located++; else located.skipped++;
       }
     }
-    await writeCrmAudit({ actorUserId: actor.userId, action: "LEAD_RADAR_IMPORT_COMPLETED", entityType: "CrmImportBatch", entityId: batch.id, metadata: { ...tally, failed, fitBlocked: fitBlocked.length, fitStamped, positions: located, candidates: cands.length, sourceKey: LEAD_RADAR_SOURCE_KEY, ...(auto ? { policyVersion: auto.policyVersion, automatic: true } : {}) } }, tx);
-    return { batchId: batch.id as string | null, claimed: claimed.length, ...tally, failed, fitBlocked: fitBlocked.length, createdProspectIds: createdIds, linkedProspectIds: linkedIds, reviewProspectIds: reviewIds, unassignedCreated: createdIds.length };
+    await writeCrmAudit({ actorUserId: actor.userId, action: "LEAD_RADAR_IMPORT_COMPLETED", entityType: "CrmImportBatch", entityId: batch.id, metadata: { ...tally, failed, fitBlocked: fitBlocked.length, screenBlocked: screenBlocked.length, fitStamped, positions: located, candidates: cands.length, sourceKey: LEAD_RADAR_SOURCE_KEY, ...(auto ? { policyVersion: auto.policyVersion, automatic: true } : {}) } }, tx);
+    return { batchId: batch.id as string | null, claimed: claimed.length, ...tally, skipped: tally.skipped + screenBlocked.length, failed, fitBlocked: fitBlocked.length, screenBlocked: screenBlocked.length, createdProspectIds: createdIds, linkedProspectIds: linkedIds, reviewProspectIds: reviewIds, unassignedCreated: createdIds.length };
   }, { timeout: auto?.timeoutMs ?? 120_000, maxWait: 10_000 });
 }

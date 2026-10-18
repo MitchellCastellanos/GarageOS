@@ -30,13 +30,13 @@ if (!enabled) {
     bare: { province: "QC", city: null, postalCode: null, territoryState: "UNRESOLVED" as const, territoryKey: null },
   };
   /** A Lead Radar prospect with one contact and (optionally) one basis. Everything is created directly: no consent is invented by the code under test. */
-  async function make(label: string, where: keyof typeof loc, o: { fit?: "VERIFIED_REPAIR" | "HUMAN_REVIEW" | "EXCLUDED"; email?: string; basis?: "APPROVED" | "PENDING_REVIEW" | "NONE" | "EXEMPT"; lang?: "FR" | "EN" | "UNKNOWN" } = {}) {
+  async function make(label: string, where: keyof typeof loc, o: { fit?: "VERIFIED_REPAIR" | "HUMAN_REVIEW" | "EXCLUDED"; email?: string; basis?: "APPROVED" | "PENDING_REVIEW" | "NONE" | "EXEMPT" | "AUTO_SUPPORTED"; lang?: "FR" | "EN" | "UNKNOWN" } = {}) {
     const k = ++n; const email = o.email ?? `${label}-${run}@shop.test`;
     const p = await db.crmProspect.create({ data: { name: `${label} ${run}`, nameNormalized: `${label}-${run}`, createdByUserId: root, importBatchId: batchId, repairFit: o.fit ?? "VERIFIED_REPAIR", repairFitSource: "AUTO", preferredLanguage: o.lang ?? "UNKNOWN", ...loc[where] } });
     const c = await db.crmContact.create({ data: { prospectId: p.id, name: "Business contact", email, emailNormalized: email, isPrimary: true } });
     const b = o.basis ?? "APPROVED";
     if (b !== "NONE") {
-      await db.crmSendingBasis.create({ data: { contactId: c.id, kind: b === "EXEMPT" ? "EXEMPT" : "IMPLIED_PUBLISHED_ADDRESS", evidence: `Published on the shop's own contact page; no do-not-solicit notice (${k})`, recordedByUserId: root, reviewStatus: b === "EXEMPT" ? "NOT_REQUIRED" : b, reviewedByUserId: b === "APPROVED" ? reviewer : null, reviewedAt: b === "APPROVED" ? new Date() : null, evidenceType: "WEBSITE_PUBLICATION", sourceUrl: "https://shop.test/contact", capturedAt: new Date(), supportingFacts: "Printed on the public contact page.", roleRelevance: "Owner role", publishedConditionsConfirmed: true } });
+      await db.crmSendingBasis.create({ data: { contactId: c.id, kind: b === "EXEMPT" ? "EXEMPT" : "IMPLIED_PUBLISHED_ADDRESS", evidence: `Published on the shop's own contact page; no do-not-solicit notice (${k})`, recordedByUserId: root, reviewStatus: b === "EXEMPT" ? "NOT_REQUIRED" : b, ruleVersion: b === "AUTO_SUPPORTED" ? "casl-auto-v2" : null, reviewedByUserId: b === "APPROVED" ? reviewer : null, reviewedAt: b === "APPROVED" ? new Date() : null, evidenceType: "WEBSITE_PUBLICATION", sourceUrl: "https://shop.test/contact", capturedAt: new Date(), supportingFacts: "Printed on the public contact page.", roleRelevance: "Owner role", publishedConditionsConfirmed: true } });
     }
     P[label] = { id: p.id, email }; return p;
   }
@@ -50,7 +50,7 @@ if (!enabled) {
     await make("ready-on", "on"); await make("ready-qc", "qc");
     await make("field-mtl", "mtl"); await make("unresolved", "bare");
     await make("not-repair", "on", { fit: "HUMAN_REVIEW" }); await make("excluded", "on", { fit: "EXCLUDED" });
-    await make("pending", "on", { basis: "PENDING_REVIEW" }); await make("nobasis", "on", { basis: "NONE" });
+    await make("pending", "on", { basis: "PENDING_REVIEW" }); await make("auto-ok", "qc", { basis: "AUTO_SUPPORTED" }); await make("nobasis", "on", { basis: "NONE" });
     await make("exempt", "on", { basis: "EXEMPT" });
     await make("supp", "on"); await suppressEmail({ email: P.supp.email, reason: "UNSUBSCRIBE", source: "test" });
     await make("explicit-fr", "on", { lang: "FR" });
@@ -60,11 +60,11 @@ if (!enabled) {
   test("assessment classifies every case, creates no enrollment/message/basis/contact, and never needs a seller or sender", async () => {
     const before = await tally();
     const t = await elig.refreshEligibility({ deadline: Date.now() + 30_000, requireContact: true });
-    assert.ok(t.assessed >= 13);
+    assert.ok(t.assessed >= 14);
     assert.deepEqual(await tally(), before);
     const want: Record<string, string> = {
       "ready-on": "READY", "ready-qc": "READY", "explicit-fr": "READY", "field-mtl": "INELIGIBLE", unresolved: "INELIGIBLE", "not-repair": "INELIGIBLE", excluded: "INELIGIBLE",
-      pending: "PENDING_REVIEW", nobasis: "PENDING_EVIDENCE", exempt: "INELIGIBLE", supp: "SUPPRESSED",
+      pending: "PENDING_EVIDENCE", "auto-ok": "EVIDENCE_SUPPORTED", nobasis: "PENDING_EVIDENCE", exempt: "INELIGIBLE", supp: "SUPPRESSED",
     };
     for (const [label, readiness] of Object.entries(want)) assert.equal((await stateOf(label)).readiness, readiness, label);
     const r = await stateOf("ready-on");
@@ -125,7 +125,7 @@ if (!enabled) {
     const d = await automationDashboard(actor);
     const rd = d.readiness;
     assert.equal(rd.READY, 3, "ready-on, explicit-fr and the dedupe keeper (ready-qc is now bounced)");
-    assert.ok(rd.PENDING_REVIEW >= 1 && rd.PENDING_EVIDENCE >= 1 && rd.SUPPRESSED >= 2 && rd.INELIGIBLE >= 5);
+    assert.ok(rd.PENDING_EVIDENCE >= 2 && rd.EVIDENCE_SUPPORTED >= 1 && rd.SUPPRESSED >= 2 && rd.INELIGIBLE >= 5);
     assert.equal(rd.readyByLanguage.FR + rd.readyByLanguage.EN, rd.READY);
     assert.ok(rd.readyByLanguage.EN >= 1 && rd.readyByLanguage.FR >= 1);
     assert.equal(JSON.stringify(rd).includes("@"), false, "no personal data in the counts");
@@ -139,9 +139,40 @@ if (!enabled) {
     assert.deepEqual([...new Set(rows.flatMap((r) => Object.keys(r)))].sort(), ["k", "metric", "n"]);
     assert.equal(JSON.stringify(rows, (_k, v) => (typeof v === "bigint" ? Number(v) : v)).includes("@"), false, "no address in any output");
     const m = (metric: string, k?: string) => Number(rows.find((r) => r.metric === metric && (k === undefined || r.k === k))?.n ?? 0);
-    assert.equal(m("prospects_active_lead_radar"), 13);
+    assert.equal(m("prospects_active_lead_radar"), 14);
     assert.ok(m("eligibility_readiness_language", "READY/EN") >= 1);
     await assert.rejects(() => db.$transaction(async (tx) => { await tx.$executeRawUnsafe("SET TRANSACTION READ ONLY"); await tx.$executeRawUnsafe(`UPDATE garageos."CrmProspect" SET notes = 'x'`); }), "the same transaction mode refuses writes");
+  });
+
+  test("automated policy activation is a separate, owner-level, audited, reversible switch: supported evidence becomes READY only while it is active (and only for the current version)", async () => {
+    const { setAutoCaslPolicy, AUTO_CASL_CONFIRMATION } = await import("../src/lib/lead-radar/auto-casl-admin");
+    const { loadAutoCaslPolicy } = await import("../src/lib/sales-comms/auto-casl-policy");
+    const root_ = (await resolvePlatformSalesActor(root))!;
+    assert.deepEqual(await loadAutoCaslPolicy(), { active: false, ruleVersion: null }, "OFF by default");
+    const stateOf2 = async () => (await elig.assessProspects([P["auto-ok"].id])).get(P["auto-ok"].id)!;
+    assert.equal((await stateOf2()).readiness, "EVIDENCE_SUPPORTED");
+    // refused without the exact confirmation or with a stale version; refused for anyone who is not a Super Admin
+    await assert.rejects(setAutoCaslPolicy(root_, { active: true, ruleVersion: "casl-auto-v2", confirmation: "yes" }), /CONFIRMATION_REQUIRED/);
+    await assert.rejects(setAutoCaslPolicy(root_, { active: true, ruleVersion: "casl-auto-v0", confirmation: AUTO_CASL_CONFIRMATION }), /POLICY_VERSION_MISMATCH/);
+    await assert.rejects(setAutoCaslPolicy({ ...root_, all: false } as typeof root_, { active: true, ruleVersion: "casl-auto-v2", confirmation: AUTO_CASL_CONFIRMATION }), /SALES_FORBIDDEN/);
+    assert.equal((await loadAutoCaslPolicy()).active, false);
+    await setAutoCaslPolicy(root_, { active: true, ruleVersion: "casl-auto-v2", confirmation: AUTO_CASL_CONFIRMATION });
+    assert.deepEqual(await loadAutoCaslPolicy(), { active: true, ruleVersion: "casl-auto-v2" });
+    const on = await stateOf2();
+    assert.equal(on.readiness, "READY");
+    assert.equal(on.decision, "NOT_ELIGIBLE", "still no owner / sender: activation is not enrollment");
+    // a different stored version (e.g. after a rules change) silently returns to "not activated"
+    await db.crmLeadAutomation.update({ where: { id: "default" }, data: { autoCaslRuleVersion: "casl-auto-v0" } });
+    assert.equal((await loadAutoCaslPolicy()).active, false);
+    assert.equal((await stateOf2()).readiness, "EVIDENCE_SUPPORTED");
+    await db.crmLeadAutomation.update({ where: { id: "default" }, data: { autoCaslRuleVersion: "casl-auto-v2" } });
+    await setAutoCaslPolicy(root_, { active: false });
+    assert.equal((await stateOf2()).readiness, "EVIDENCE_SUPPORTED", "deactivation is immediate");
+    const audits = await db.crmAuditEvent.findMany({ where: { entityType: "CrmLeadAutomation", action: { in: ["AUTO_CASL_POLICY_ACTIVATED", "AUTO_CASL_POLICY_DEACTIVATED"] } }, select: { action: true } });
+    assert.deepEqual(audits.map((a) => a.action).sort(), ["AUTO_CASL_POLICY_ACTIVATED", "AUTO_CASL_POLICY_DEACTIVATED"]);
+    // no send switch was touched by any of this
+    const comms = await db.crmCommsSettings.findUnique({ where: { id: "default" } });
+    assert.ok(!comms || (!comms.sendingEnabled && !comms.automatedSendingEnabled && !comms.manualSendingEnabled));
   });
 
   test("nothing was sent, enrolled, approved or switched during all of this", async () => {

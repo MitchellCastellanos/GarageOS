@@ -9,20 +9,40 @@ export interface BasisRow {
    * Lead Engine review status — REQUIRED so a caller cannot forget it (an omitted value is `undefined` and fails closed).
    * `null` = a row that pre-dates the Lead Engine and was never classified: it keeps exactly its previous validity.
    */
-  reviewStatus: "NOT_REQUIRED" | "LEGACY_UNREVIEWED" | "PENDING_REVIEW" | "APPROVED" | "REJECTED" | null;
+  reviewStatus: "NOT_REQUIRED" | "LEGACY_UNREVIEWED" | "PENDING_REVIEW" | "APPROVED" | "REJECTED" | "AUTO_SUPPORTED" | null;
+  /** Policy version an AUTO_SUPPORTED row was decided under (see casl-evidence-engine.ts CASL_RULE_VERSION). */
+  ruleVersion?: string | null;
+  /** AUTO_SUPPORTED rows decided by the evidence ENGINE carry `caslAssessmentId`; those are re-checked at every send. A row a person recorded with complete structured evidence (no assessment) keeps the activation/version gate only. When the evidence was observed, the exact address assessed, and the message topics it is relevant to. Re-checked at every send. */
+  caslAssessmentId?: string | null;
+  capturedAt?: Date | null;
+  assessedEmail?: string | null;
+  relevanceTopics?: readonly string[] | null;
 }
+
+/** GARAGEOS POLICY (not a statutory period): automated evidence is relied on for at most this many days from the moment it was observed, checked again at every send. */
+export const AUTO_EVIDENCE_MAX_AGE_DAYS = 30;
+
+/** What a send re-checks an automated basis against: the actual recipient address and the subject matter of the actual message. `topic` null = not declared. */
+export interface SendMessageFacts { topic: string | null; recipientEmail: string | null }
+
+/**
+ * The owner-level switch for the AUTOMATED CASL policy. While `active` is false an AUTO_SUPPORTED row is evidence-supported but authorises nothing, for every message origin.
+ * Activation is ONE audited Super Admin decision (CrmLeadAutomation.autoCaslActive) naming the policy version; a different version never inherits it. Default: off.
+ */
+export interface AutoCaslPolicy { active: boolean; ruleVersion: string | null }
+export const NO_AUTO_POLICY: AutoCaslPolicy = { active: false, ruleVersion: null };
 
 export type BasisEvaluation =
   | { valid: true; kind: CrmSendingBasisKind; expiresAt: Date | null }
-  | { valid: false; reason: "NONE" | "EXPIRED" | "REVOKED" | "WEAK_EVIDENCE" | "PENDING_REVIEW" | "REJECTED_EVIDENCE" | "UNREVIEWED" | "KIND_NOT_ALLOWED" };
+  | { valid: false; reason: "NONE" | "EXPIRED" | "REVOKED" | "WEAK_EVIDENCE" | "PENDING_REVIEW" | "REJECTED_EVIDENCE" | "UNREVIEWED" | "KIND_NOT_ALLOWED" | "POLICY_NOT_ACTIVATED" | "EVIDENCE_STALE" | "MESSAGE_NOT_COVERED" | "RECIPIENT_CHANGED" };
 
-/** Published/disclosed-address bases only authorise a send once a second person approved their structured evidence. */
+/** Address-based rows recorded under the former review workflow keep their stored status: only an APPROVED one (a decision already taken) or an automated one authorises anything. */
 const NEEDS_APPROVAL: readonly CrmSendingBasisKind[] = ["IMPLIED_PUBLISHED_ADDRESS", "IMPLIED_DISCLOSED_ADDRESS"];
 
 export const MIN_EVIDENCE_CHARS = 12;
 
 /** Newest row decides; expired/revoked/under-documented bases do not authorize commercial email. */
-export function evaluateSendingBasis(rows: BasisRow[], now: Date): BasisEvaluation {
+export function evaluateSendingBasis(rows: BasisRow[], now: Date, auto: AutoCaslPolicy = NO_AUTO_POLICY, msg: SendMessageFacts | null = null): BasisEvaluation {
   if (rows.length === 0) return { valid: false, reason: "NONE" };
   const newest = [...rows].sort((a, b) => b.recordedAt.getTime() - a.recordedAt.getTime())[0];
   if (newest.revokedAt) return { valid: false, reason: "REVOKED" };
@@ -34,6 +54,18 @@ export function evaluateSendingBasis(rows: BasisRow[], now: Date): BasisEvaluati
   // which an address-based legacy row is never treated as verified. `undefined` (a caller that did not load the column) fails closed.
   if (newest.reviewStatus === "REJECTED") return { valid: false, reason: "REJECTED_EVIDENCE" };
   if (newest.reviewStatus === "PENDING_REVIEW") return { valid: false, reason: "PENDING_REVIEW" };
+  // Automated evidence decision (no human approval exists or is required under the current policy): supported evidence is still not permission until the owner activates the policy.
+  if (newest.reviewStatus === "AUTO_SUPPORTED") {
+    if (!auto.active || !newest.ruleVersion || newest.ruleVersion !== auto.ruleVersion) return { valid: false, reason: "POLICY_NOT_ACTIVATED" };
+    // Re-checked at EVERY send (not only when the evidence was gathered): the observation must be fresh, the address must still be the one that was assessed, and the message's subject
+    // must be one the mailbox was shown to be relevant to. Anything missing fails closed.
+    if (newest.caslAssessmentId) {
+      if (!newest.capturedAt || now.getTime() - newest.capturedAt.getTime() > AUTO_EVIDENCE_MAX_AGE_DAYS * 86_400_000 || newest.capturedAt.getTime() > now.getTime() + 3_600_000) return { valid: false, reason: "EVIDENCE_STALE" };
+      if (!msg?.recipientEmail || !newest.assessedEmail || newest.assessedEmail.toLowerCase() !== msg.recipientEmail.trim().toLowerCase()) return { valid: false, reason: "RECIPIENT_CHANGED" };
+      if (!msg.topic || !newest.relevanceTopics?.includes(msg.topic)) return { valid: false, reason: "MESSAGE_NOT_COVERED" };
+    }
+    return { valid: true, kind: newest.kind, expiresAt: newest.expiresAt };
+  }
   if (NEEDS_APPROVAL.includes(newest.kind) && newest.reviewStatus !== "APPROVED" && newest.reviewStatus !== null) return { valid: false, reason: "UNREVIEWED" };
   return { valid: true, kind: newest.kind, expiresAt: newest.expiresAt };
 }
@@ -45,22 +77,23 @@ export function evaluateSendingBasis(rows: BasisRow[], now: Date): BasisEvaluati
 export const AUTOMATION_BASIS_KINDS: readonly CrmSendingBasisKind[] = ["IMPLIED_PUBLISHED_ADDRESS", "IMPLIED_DISCLOSED_ADDRESS", "EXPRESS_CONSENT"];
 
 /**
- * Stricter reading used for every system-originated send (sequence enrollment, scheduled steps, eligibility): the NEWEST row must be of an allowed kind and
- * explicitly APPROVED by an independent reviewer. Legacy rows (reviewStatus null), NOT_REQUIRED and LEGACY_UNREVIEWED rows keep working for a person's manual
- * email exactly as before (history is never rewritten) but can never authorise automation. Fails closed.
+ * Stricter reading used for every system-originated send (sequence enrollment, scheduled steps, eligibility): the NEWEST row must be of an allowed kind and carry either a
+ * decision already taken under the former workflow (APPROVED — history is honoured, never rewritten) or an automated evidence decision (AUTO_SUPPORTED, valid only while the
+ * owner has activated the automated policy for that version). Legacy rows (reviewStatus null), NOT_REQUIRED and LEGACY_UNREVIEWED rows keep working for a person's manual
+ * email exactly as before but can never authorise automation. There is no reviewer step: nobody approves individual contacts. Fails closed.
  */
-export function evaluateAutomationBasis(rows: BasisRow[], now: Date): BasisEvaluation {
-  const base = evaluateSendingBasis(rows, now);
+export function evaluateAutomationBasis(rows: BasisRow[], now: Date, auto: AutoCaslPolicy = NO_AUTO_POLICY, msg: SendMessageFacts | null = null): BasisEvaluation {
+  const base = evaluateSendingBasis(rows, now, auto, msg);
   if (!base.valid) return base;
   const newest = [...rows].sort((a, b) => b.recordedAt.getTime() - a.recordedAt.getTime())[0];
   if (!AUTOMATION_BASIS_KINDS.includes(newest.kind)) return { valid: false, reason: "KIND_NOT_ALLOWED" };
-  if (newest.reviewStatus !== "APPROVED") return { valid: false, reason: "UNREVIEWED" };
+  if (newest.reviewStatus !== "APPROVED" && newest.reviewStatus !== "AUTO_SUPPORTED") return { valid: false, reason: "UNREVIEWED" };
   return base;
 }
 
 /** The reading that applies to a message origin: AUTOMATED ⇒ strict; MANUAL / TRANSACTIONAL ⇒ the long-standing rule. */
-export function evaluateBasisForOrigin(origin: "MANUAL" | "AUTOMATED" | "TRANSACTIONAL", rows: BasisRow[], now: Date): BasisEvaluation {
-  return origin === "AUTOMATED" ? evaluateAutomationBasis(rows, now) : evaluateSendingBasis(rows, now);
+export function evaluateBasisForOrigin(origin: "MANUAL" | "AUTOMATED" | "TRANSACTIONAL", rows: BasisRow[], now: Date, auto: AutoCaslPolicy = NO_AUTO_POLICY, msg: SendMessageFacts | null = null): BasisEvaluation {
+  return origin === "AUTOMATED" ? evaluateAutomationBasis(rows, now, auto, msg) : evaluateSendingBasis(rows, now, auto, msg);
 }
 
 /** Suggested lapse dates. Existing-relationship implied consent lapses; a recorded inquiry is shorter-lived. */
@@ -74,7 +107,7 @@ export type SendBlockCode =
   | "SENDING_DISABLED" | "MANUAL_SENDING_DISABLED" | "AUTOMATED_SENDING_DISABLED" | "TRANSACTIONAL_SENDING_DISABLED" | "IDENTITY_INACTIVE" | "IDENTITY_UNKNOWN" | "STAFF_INACTIVE" | "DOMAIN_NOT_APPROVED"
   | "NO_RECIPIENT" | "INVALID_RECIPIENT" | "SUPPRESSED" | "BOUNCED_ADDRESS" | "CONTACT_DNC" | "PROSPECT_DNC" | "PROSPECT_ARCHIVED"
   | "NO_VALID_BASIS" | "LANGUAGE_REQUIRED" | "DAILY_LIMIT" | "NO_UNSUBSCRIBE_CONFIG"
-  | "TERRITORY_FIELD_FIRST_CONTACT" | "TERRITORY_FIELD_ONLY";
+  | "TERRITORY_FIELD_FIRST_CONTACT" | "TERRITORY_FIELD_ONLY" | "QUEBEC_FRENCH_REQUIRED";
 
 /**
  * Where a message comes from. Derived ONLY from fields the server sets when it creates the message (a sequence enrollment, a meeting) and its
@@ -113,6 +146,10 @@ export interface SendPolicyInput {
   contact?: { doNotContact: boolean } | null;
   basis?: BasisEvaluation | null;
   languageResolved: boolean;
+  /** The recipient business is in Québec (province QC, or a Québec postal area when the province is missing). */
+  quebecRecipient?: boolean;
+  /** Language the message is actually written in. */
+  messageLanguage?: "EN" | "FR" | null;
   sentToday: number;
   dailyLimit: number;
   /** Footer prerequisites for commercial email: mailing address configured. */
@@ -145,6 +182,9 @@ export function evaluateSendPolicy(i: SendPolicyInput): SendDecision {
     if (!i.commercialFooterConfigured) return { allowed: false, code: "NO_UNSUBSCRIBE_CONFIG" };
     if (!i.basis || !i.basis.valid) return { allowed: false, code: "NO_VALID_BASIS", detail: i.basis && !i.basis.valid ? i.basis.reason : "NONE" };
     if (!i.languageResolved) return { allowed: false, code: "LANGUAGE_REQUIRED" };
+    // GARAGEOS POLICY (conservative reading of the Charter of the French language, which treats commercial advertising and commercial documents in Québec as French-first): a system-originated
+    // message to a Québec business is sent in French only. A person writing their own message is not constrained here.
+    if (i.origin === "AUTOMATED" && i.quebecRecipient && i.messageLanguage !== "FR") return { allowed: false, code: "QUEBEC_FRENCH_REQUIRED" };
     if (i.sentToday >= i.dailyLimit) return { allowed: false, code: "DAILY_LIMIT" };
   } else if (i.category === "REPLY") {
     // A reply is only ever sent inside a thread the contact took part in; DNC is respected unless they wrote to us.

@@ -25,6 +25,7 @@ if (!enabled) {
   const compareLib = await import("../src/lib/lead-radar/compare");
   const rules = await import("../src/domain/lead-radar/policy-rules");
 
+  const { stageLegacy } = await import("./helpers/legacy-staging");
   const run = Date.now().toString(36);
   const as = (id: string | null) => setSession(id ? { user: { id, role: "VIEWER", shopId: null } } : null);
   let rootId = "";
@@ -64,7 +65,9 @@ if (!enabled) {
     const created: any = await radar.createDiscoveryRun({ scope: { provinces: ["QC"], groups: ["REPAIR", "BODY_GLASS", "DEALER", "PARTS", "OTHER_AUTOMOTIVE"] }, release: "2026-09-23.1" });
     const r = await db.crmDiscoveryRun.findUniqueOrThrow({ where: { id: created.runId } });
     assert.equal(((await radar.attachDiscoveryManifest(created.runId, JSON.stringify({ extractor: "t", extractorVersion: "1", planHash: r.planHash, release: "2026-09-23.1", recordCount: POP.length, fileSha256: "a".repeat(64), generatedAt: new Date().toISOString(), stats: {} }))) as any).ok, true);
-    assert.equal(((await radar.ingestDiscoveryChunk(created.runId, 0, POP.map((x) => JSON.stringify(x)).join("\n"))) as any).ok, true);
+    // The compared rows are the population as it was staged BEFORE the early screen (a mix of every category); the comparison must keep working on them.
+    assert.equal(await stageLegacy(db, created.runId, POP, "2026-09-23.1", ["QC"]), POP.length);
+    await db.crmDiscoveryRun.update({ where: { id: created.runId }, data: { receivedRecords: POP.length, stagedNew: POP.length, recordsWithPoint: POP.length, pointsAccepted: POP.length, pointsOnNew: POP.length, lastChunkSeq: 0 } });
     assert.equal(((await radar.completeDiscoveryRun(created.runId)) as any).ok, true);
     assert.equal(await db.crmDiscoveryCandidate.count(), POP.length);
   });

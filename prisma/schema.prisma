@@ -3351,6 +3351,13 @@ model CrmSendingBasis {
   reviewedByUserId String?
   reviewedAt       DateTime?
   reviewNote       String?
+  /// Automated CASL assessment that produced this row (reviewStatus AUTO_SUPPORTED) and the rule version it was decided under.
+  caslAssessmentId String?
+  ruleVersion      String?
+  /// AUTO_SUPPORTED rows only: the exact address that was assessed, its mailbox class and the message topics it is relevant to. A send re-checks all three against the actual recipient and message.
+  assessedEmail    String?
+  mailboxClass     String?
+  relevanceTopics  String[]            @default([])
 
   @@index([contactId, recordedAt])
   @@index([reviewStatus, recordedAt])
@@ -3583,6 +3590,8 @@ enum CrmBasisReviewStatus {
   PENDING_REVIEW
   APPROVED
   REJECTED
+  /// Evidence demonstrably satisfied the automated CASL rule set (no human decision). Authorises NOTHING until the owner activates the automated CASL policy (CrmLeadAutomation.autoCaslActive).
+  AUTO_SUPPORTED
 
   @@schema("garageos")
 }
@@ -3990,6 +3999,9 @@ model CrmDiscoveryRun {
   stagedNew         Int                   @default(0)
   stagedUpdated     Int                   @default(0)
   rejectedRecords   Int                   @default(0)
+  /// Early commercial screen: records not kept (tombstoned, never staged) / tombstoned records that passed again in this run (rediscovery).
+  screenedRecords   Int                   @default(0)
+  rediscoveredRecords Int                 @default(0)
   /// Source-coordinate accounting: records whose line carried a point / points accepted / written onto new / already-staged candidates.
   recordsWithPoint  Int                   @default(0)
   pointsAccepted    Int                   @default(0)
@@ -4086,6 +4098,8 @@ model CrmDiscoveryCandidate {
   website        String?
   /// Published business email. Presence is NOT consent and never creates a sending basis.
   email          String?
+  /// Minimal normalised provenance of the picked email (domain/lead-radar/provenance.ts): email-level vs place-level source items. Never the raw record.
+  emailProvenance Json?
   /// Territory key resolved from current CRM territory rules at staging time (informational; recomputed at import).
   territoryKey   String?
 
@@ -4287,6 +4301,8 @@ enum CrmOutreachDecision {
 enum CrmReadiness {
   PENDING_EVIDENCE
   PENDING_REVIEW
+  /// Automated CASL evidence is SUPPORTED but the automated policy is not activated: classified, never send-authorized.
+  EVIDENCE_SUPPORTED
   READY
   SUPPRESSED
   INELIGIBLE
@@ -4326,6 +4342,15 @@ model CrmLeadAutomation {
   importEnabled       Boolean   @default(true)
   assignEnabled       Boolean   @default(true)
   eligibilityEnabled  Boolean   @default(true)
+  /// Automated CASL evidence stage (bounded website evidence acquisition + deterministic assessment). Creates no enrollment and sends nothing.
+  evidenceEnabled     Boolean   @default(true)
+  /// Per-tick ceiling of candidates the evidence stage may assess (each costs ≤ 4 page requests).
+  evidenceBatch       Int       @default(25)
+  // ── Automated CASL policy (ONE owner-level decision). While false, AUTO_SUPPORTED evidence is classified EVIDENCE_SUPPORTED but never authorises a send.
+  autoCaslActive      Boolean   @default(false)
+  autoCaslRuleVersion String?
+  autoCaslActivatedAt DateTime?
+  autoCaslActivatedByUserId String?
   pausedReason        String?
   pausedAt            DateTime?
   /// Explicit allow-list of ACTIVE SALES_REP staff ids that may receive automatically assigned leads. Empty = nobody (no guessing).
@@ -4425,6 +4450,21 @@ model CrmDiscoveredContact {
   /// UNCHECKED | HAS_MX | NO_MX. DNS validation is a later, separate enrichment step; UNCHECKED never blocks and never counts as verified.
   mxStatus          String      @default("UNCHECKED")
   mxCheckedAt       DateTime?
+  /// Overture place (GERS) id and release the address was observed in, and its minimal normalised provenance (email-level vs place-level source items).
+  placeId           String?
+  overtureRelease   String?
+  provenance        Json?
+  /// EMAIL (a source item names this email) | PLACE (only place-level sources) | NONE.
+  provenanceScope   String?
+  // ── Automated CASL evidence assessment (queue state; the history is CrmCaslAssessment)
+  assessOutcome     String?
+  assessRuleVersion String?
+  assessAttempts    Int         @default(0)
+  assessedAt        DateTime?
+  nextAssessAt      DateTime?
+  assessLeaseUntil  DateTime?
+  /// Website domain the last assessment relied on: a changed website re-opens the assessment.
+  assessWebsiteDomain String?
   /// PENDING | ACCEPTED | REJECTED
   status            String      @default("PENDING")
   reviewedByUserId  String?
@@ -4434,7 +4474,74 @@ model CrmDiscoveredContact {
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 
+  assessments       CrmCaslAssessment[]
+
   @@unique([prospectId, emailNormalized])
   @@index([status, createdAt])
+  @@index([status, nextAssessAt])
+  @@schema("garageos")
+}
+
+/// Append-only history of automated CASL evidence assessments. One row per distinct decision (evidenceKey makes a repeated identical run a no-op). Stores the minimum
+/// defensible evidence: the exact address, where it was observed, a bounded snippet, a content hash, the five condition results, the rule version and the explanation.
+model CrmCaslAssessment {
+  id                  String               @id @default(cuid())
+  discoveredContactId String
+  discoveredContact   CrmDiscoveredContact @relation(fields: [discoveredContactId], references: [id], onDelete: Cascade)
+  prospectId          String
+  emailNormalized     String
+  /// SUPPORTED | INSUFFICIENT | BLOCKED
+  outcome             String
+  ruleVersion         String
+  /// Per-condition results: publishedByRecipient / noRestriction / relevant / attributable / documented → MET | NOT_MET | UNKNOWN.
+  conditions          Json
+  reasons             String[]             @default([])
+  /// OWN_WEBSITE | OVERTURE_ONLY | NONE
+  sourceKind          String
+  sourceUrl           String?
+  publisherHost       String?
+  observedAt          DateTime?
+  /// ≤ 300 characters around the address on the page, plus the restriction sentence if one was found. Never the page.
+  snippet             String?
+  contentHash         String?
+  /// When this evidence must be looked at again; after expiresAt a SUPPORTED result is stale and authorises nothing.
+  revalidateAt        DateTime?
+  expiresAt           DateTime?
+  /// Requests, bytes and milliseconds actually used (bounded budget accounting).
+  usage               Json
+  evidenceKey         String
+  /// Reproducible evidence artifact (SUPPORTED, and BLOCKED by a restriction only): sanitised publication context, identity signals, restriction scan, robots outcome. Other people's addresses are redacted; never the whole page.
+  snapshot            Json?
+  /// SHA-256 over the canonical snapshot JSON, so an audit can show the stored artifact was not altered.
+  snapshotHash        String?
+  /// GENERAL_CHANNEL | MANAGEMENT | FUNCTION_SPECIFIC | NAMED | IRRELEVANT, and the campaign topics the mailbox was shown to be relevant to.
+  mailboxClass        String?
+  topics              String[]             @default([])
+  createdAt           DateTime             @default(now())
+
+  @@unique([discoveredContactId, evidenceKey])
+  @@index([prospectId, createdAt])
+  @@index([outcome, createdAt])
+  @@schema("garageos")
+}
+
+/// Exclusion tombstone for a business the early commercial screen did NOT stage (no candidate row is created). Keeps only what resumability, rediscovery and audit need:
+/// the source id, why, the screen version and a content fingerprint. A later release that improves the record is re-screened and, if it now passes, staged normally.
+model CrmDiscoveryRejection {
+  id               String             @id @default(cuid())
+  source           CrmDiscoverySource
+  sourceRecordId   String
+  reasonCodes      String[]           @default([])
+  screenVersion    String
+  fingerprint      String
+  province         String?
+  firstSeenRelease String
+  lastSeenRelease  String
+  seenCount        Int                @default(1)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  @@unique([source, sourceRecordId])
+  @@index([lastSeenRelease])
   @@schema("garageos")
 }

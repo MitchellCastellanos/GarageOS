@@ -29,7 +29,7 @@ if (!enabled) {
   const rec = (n = ++seq): any => ({
     v: 1, id: `00000000-0000-4000-8000-${run.padStart(6, "0")}${String(n).padStart(6, "0")}`, confidence: 0.9, name: `Garage Worker ${run} ${n}`,
     taxonomy: { primary: "automotive_repair", hierarchy: ["travel_and_transportation", "vehicle_service", "automotive_repair"], alternates: null },
-    address: { freeform: `${n} Rue Worker`, locality: "Toronto", postcode: "M5H 2M9", region: "ON", country: "CA" }, phones: [`+1416555${String(1000 + n).slice(-4)}`], websites: [], emails: [],
+    address: { freeform: `${n} Rue Worker`, locality: "Toronto", postcode: "M5H 2M9", region: "ON", country: "CA" }, phones: [`+1416555${String(1000 + n).slice(-4)}`], websites: [], emails: [`info${n}@worker-${run}.example.ca`],
     sources: [{ dataset: "meta", license: "CDLA-Permissive-2.0" }], geo: { lat: 43.6532 + n * 0.0001, lng: -79.3832 },
   });
   const nd = (rs: unknown[]) => rs.map((r) => JSON.stringify(r)).join("\n");

@@ -3,11 +3,14 @@ import { Prisma } from "@prisma/client";
 import { LEAD_RADAR_SOURCE_KEY } from "@/domain/lead-radar/bridge";
 import { evaluateOutreachEligibility, readinessOf, type OutreachContactFacts, type OutreachDecisionResult, type Readiness } from "@/domain/lead-radar/outreach";
 import { evaluateAutomationBasis } from "@/domain/sales-comms/casl";
+import { isQuebecRecipient } from "@/domain/sales-crm/language";
+import { CAMPAIGN_TOPIC } from "@/domain/lead-radar/casl-evidence-engine";
 import { emailDomain } from "@/domain/sales-comms/email";
 import { territoryDefaultLanguage } from "@/domain/sales-crm/language";
 import { classifyTerritory, evaluateColdEmail, requiredMode, resolveTerritory } from "@/domain/sales-crm/territory";
 import { db } from "@/lib/db";
 import { getCommsSettings } from "@/lib/sales-comms/settings";
+import { loadAutoCaslPolicy } from "@/lib/sales-comms/auto-casl-policy";
 import { activeSuppressions } from "@/lib/sales-comms/suppression";
 import { loadEngagements } from "@/lib/sales-crm/territory";
 import { loadTerritoryRulesWith } from "@/lib/sales-crm/territory-rules";
@@ -43,26 +46,32 @@ export async function assessProspects(ids: readonly string[], now = new Date()):
     loadEngagements(pids),
   ]);
   const emails = [...new Set(contacts.map((c) => c.emailNormalized).filter((e): e is string => !!e))];
-  const [bases, supp, dncAddrs, sameAddress, pendingDisc] = await Promise.all([
-    db.crmSendingBasis.findMany({ where: { contactId: { in: contacts.map((c) => c.id) } }, select: { contactId: true, kind: true, evidence: true, recordedAt: true, expiresAt: true, revokedAt: true, reviewStatus: true } }),
+  const [bases, supp, dncAddrs, sameAddress, pendingDisc, assessed] = await Promise.all([
+    db.crmSendingBasis.findMany({ where: { contactId: { in: contacts.map((c) => c.id) } }, select: { contactId: true, kind: true, evidence: true, recordedAt: true, expiresAt: true, revokedAt: true, reviewStatus: true, ruleVersion: true, caslAssessmentId: true, capturedAt: true, assessedEmail: true, relevanceTopics: true } }),
     activeSuppressions(emails),
     emails.length ? db.crmContact.findMany({ where: { emailNormalized: { in: emails }, doNotContact: true }, select: { emailNormalized: true } }) : [],
     // One address, one recipient: every active, unmerged prospect holding the same normalised address. The lowest prospect id keeps it (deterministic and stable).
     emails.length ? db.crmContact.findMany({ where: { emailNormalized: { in: emails }, archivedAt: null, prospect: { status: "ACTIVE", mergedIntoId: null } }, select: { emailNormalized: true, prospectId: true } }) : [],
-    db.crmDiscoveredContact.findMany({ where: { prospectId: { in: pids }, status: "PENDING" }, select: { prospectId: true }, distinct: ["prospectId"] }),
+    db.crmDiscoveredContact.findMany({ where: { prospectId: { in: pids }, status: "PENDING", OR: [{ assessOutcome: null }, { assessOutcome: { not: "BLOCKED" } }] }, select: { prospectId: true }, distinct: ["prospectId"] }),
+    db.crmDiscoveredContact.findMany({ where: { prospectId: { in: pids }, assessOutcome: "BLOCKED" }, select: { prospectId: true, emailNormalized: true } }),
   ]);
+  const blockedKeys = new Set(assessed.map((a) => `${a.prospectId}|${a.emailNormalized}`));
+  const blockedByProspect = new Map<string, number>();
+  for (const a of assessed) blockedByProspect.set(a.prospectId, (blockedByProspect.get(a.prospectId) ?? 0) + 1);
   const keeper = new Map<string, string>();
   for (const a of sameAddress) if (a.emailNormalized && (!keeper.has(a.emailNormalized) || a.prospectId < keeper.get(a.emailNormalized)!)) keeper.set(a.emailNormalized, a.prospectId);
   const pending = new Set(pendingDisc.map((d) => d.prospectId));
   const dnc = new Set(dncAddrs.map((c) => c.emailNormalized));
+  const autoPolicy = await loadAutoCaslPolicy();
   const approvedDomains = new Set(settings.approvedDomains.map((d) => d.toLowerCase()));
 
   for (const p of prospects) {
     const pc = contacts.filter((c) => c.prospectId === p.id);
     const cf: OutreachContactFacts[] = pc.map((c) => ({
       id: c.id, email: c.emailNormalized, doNotContact: c.doNotContact || (!!c.emailNormalized && dnc.has(c.emailNormalized)), archived: false, isPrimary: c.isPrimary,
-      language: c.preferredLanguage ?? "UNKNOWN", basis: evaluateAutomationBasis(bases.filter((b) => b.contactId === c.id), now), suppression: c.emailNormalized ? supp.get(c.emailNormalized) ?? null : null,
+      language: c.preferredLanguage ?? "UNKNOWN", basis: evaluateAutomationBasis(bases.filter((b) => b.contactId === c.id), now, autoPolicy, { topic: CAMPAIGN_TOPIC, recipientEmail: c.emailNormalized }), suppression: c.emailNormalized ? supp.get(c.emailNormalized) ?? null : null,
       duplicateAddress: !!c.emailNormalized && keeper.has(c.emailNormalized) && keeper.get(c.emailNormalized) !== p.id,
+      evidenceBlocked: !!c.emailNormalized && blockedKeys.has(`${p.id}|${c.emailNormalized}`),
     }));
     const po = opps.filter((o) => o.prospectId === p.id);
     const hasOpen = po.some((o) => OPEN.has(o.stage));
@@ -76,10 +85,10 @@ export async function assessProspects(ids: readonly string[], now = new Date()):
     const territory = live === "NATIONAL" && p.territoryState === "NATIONAL" ? "NATIONAL" : live !== "NATIONAL" ? live : "UNRESOLVED";
     const defaultLanguage = territory === "NATIONAL" ? territoryDefaultLanguage(p) : "UNKNOWN";
     const r = evaluateOutreachEligibility({
-      prospect: { repairFit: p.repairFit, territory, defaultLanguage, archived: p.status === "ARCHIVED", doNotContact: p.doNotContact, ownerStaffId: p.assignedStaffId, language: p.preferredLanguage, opportunityClosed: !hasOpen && !!latest && CLOSED.has(latest.stage), fieldHeldColdContact: !cold.allowed },
+      prospect: { repairFit: p.repairFit, territory, defaultLanguage, quebec: isQuebecRecipient(p), archived: p.status === "ARCHIVED", doNotContact: p.doNotContact, ownerStaffId: p.assignedStaffId, language: p.preferredLanguage, opportunityClosed: !hasOpen && !!latest && CLOSED.has(latest.stage), fieldHeldColdContact: !cold.allowed },
       seller: st ? { staffActive: st.status === "ACTIVE", bookingEnabled: st.bookingEnabled } : null,
       sender: ident ? { active: ident.status === "ACTIVE", domainApproved: approvedDomains.has(emailDomain(ident.fromEmail)), replyPathVerified: !!ident.inboundVerifiedAt } : null,
-      contacts: cf,
+      contacts: cf, blockedAddresses: blockedByProspect.get(p.id) ?? 0,
     });
     const chosen = cf.find((c) => c.id === r.contactId);
     const language = chosen && territory === "NATIONAL" ? [chosen.language, p.preferredLanguage, defaultLanguage].find((l): l is "FR" | "EN" => l === "FR" || l === "EN") ?? null : null;
@@ -114,7 +123,7 @@ export async function refreshEligibility(opts: { deadline: number; now?: Date; r
       LEFT JOIN "garageos"."CrmOutreachEligibility" e ON e."prospectId" = p."id"
       WHERE b."sourceKey" = ${LEAD_RADAR_SOURCE_KEY} AND p."status" = 'ACTIVE'
         ${opts.requireContact ? Prisma.sql`AND EXISTS (SELECT 1 FROM "garageos"."CrmContact" k WHERE k."prospectId" = p."id" AND k."archivedAt" IS NULL AND k."emailNormalized" IS NOT NULL)` : Prisma.empty} AND (
-        e."id" IS NULL OR e."readiness" IS NULL OR e."evaluatedAt" < ${staleBefore}
+        e."id" IS NULL OR e."readiness" IS NULL OR e."readiness"::text = 'PENDING_REVIEW' OR e."evaluatedAt" < ${staleBefore}
         -- new evidence since the last assessment (a contact added/changed, a CASL basis recorded or reviewed) is picked up on the next tick, not 6 hours later
         OR EXISTS (SELECT 1 FROM "garageos"."CrmContact" c WHERE c."prospectId" = p."id" AND c."updatedAt" > e."evaluatedAt")
         OR EXISTS (SELECT 1 FROM "garageos"."CrmSendingBasis" sb JOIN "garageos"."CrmContact" c2 ON c2."id" = sb."contactId" WHERE c2."prospectId" = p."id" AND GREATEST(sb."recordedAt", COALESCE(sb."reviewedAt", sb."recordedAt")) > e."evaluatedAt"))

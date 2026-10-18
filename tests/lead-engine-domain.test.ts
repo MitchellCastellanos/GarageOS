@@ -7,7 +7,8 @@ import { classifyAgainstPool, type MatchKey, type PoolEntry } from "../src/domai
 import { ALIAS_FIELDS, IMPORT_FIELDS, fingerprintOf, inspectCsv, parseProspectCsv, planImport, recordKeyOf, sanitizeMapping, snapshotOf, suggestMapping } from "../src/domain/sales-crm/import";
 import { classifyTerritory, type TerritoryRule } from "../src/domain/sales-crm/territory";
 import { planAssignments, type AssignableProspect, type AssignableSeller } from "../src/domain/sales-crm/assignment";
-import { canApproveEvidence, canRejectEvidence, evidenceGaps, requiresApproval } from "../src/domain/sales-crm/casl-evidence";
+import * as caslEvidence from "../src/domain/sales-crm/casl-evidence";
+import { evidenceGaps, requiresStructuredEvidence } from "../src/domain/sales-crm/casl-evidence";
 import { capabilitiesFor } from "../src/domain/sales-crm/access";
 import { leadEn, leadFr } from "../src/lib/admin-locale/sales-lead-engine";
 
@@ -219,47 +220,23 @@ test("assignment: never takes owned/DNC/archived/unresolved prospects; honours c
 
 // ── CASL evidence ────────────────────────────────────────────────────────────────────────────────────────────
 const complete = { kind: "IMPLIED_PUBLISHED_ADDRESS", evidenceType: "WEBSITE_PUBLICATION", sourceUrl: "https://garage.ca/contact", capturedAt: new Date(), supportingFacts: "Email shown on the contact page, no refusal notice.", roleRelevance: "Owner decides on shop software", publishedConditionsConfirmed: true };
-const basis = (o = {}) => ({ ...complete, reviewStatus: "PENDING_REVIEW", recordedByUserId: "rep-user", ...o });
-const actorOf = (kind: "SALES_REP" | "SALES_MANAGER" | "SUPER_ADMIN", userId: string, scope: string[] = []) => ({ capabilities: capabilitiesFor(kind), all: kind === "SUPER_ADMIN", userId, scopeStaffIds: scope });
 
 test("CASL evidence: completeness rules per basis kind", () => {
   assert.deepEqual(evidenceGaps(complete), []);
   assert.deepEqual(evidenceGaps({ ...complete, sourceUrl: null, publishedConditionsConfirmed: false }).sort(), ["PUBLISHED_CONDITIONS", "SOURCE_URL"]);
   assert.deepEqual(evidenceGaps({ ...complete, kind: "IMPLIED_DISCLOSED_ADDRESS", sourceUrl: null, publishedConditionsConfirmed: false }), [], "disclosed address needs no URL");
   assert.deepEqual(evidenceGaps({ ...complete, evidenceType: null, capturedAt: null, supportingFacts: "short", roleRelevance: "" }).sort(), ["CAPTURED_AT", "EVIDENCE_TYPE", "ROLE_RELEVANCE", "SUPPORTING_FACTS"]);
-  for (const k of ["IMPLIED_PUBLISHED_ADDRESS", "IMPLIED_DISCLOSED_ADDRESS", "EXPRESS_CONSENT", "IMPLIED_EXISTING_RELATIONSHIP", "EXEMPT"]) assert.equal(requiresApproval(k), true, `${k}: every basis a person records needs structured evidence and independent review`);
+  for (const k of ["IMPLIED_PUBLISHED_ADDRESS", "IMPLIED_DISCLOSED_ADDRESS", "EXPRESS_CONSENT", "IMPLIED_EXISTING_RELATIONSHIP", "EXEMPT"]) assert.equal(requiresStructuredEvidence(k), true, `${k}: every basis a person records needs structured evidence and independent review`);
   assert.deepEqual(evidenceGaps({ ...complete, kind: "EXPRESS_CONSENT", sourceUrl: null, publishedConditionsConfirmed: false, roleRelevance: null }), [], "role relevance is an address-kind condition only");
   assert.deepEqual(evidenceGaps({ ...complete, kind: "EXEMPT", evidenceType: null, capturedAt: null, supportingFacts: "x" }).sort(), ["CAPTURED_AT", "EVIDENCE_TYPE", "SUPPORTING_FACTS"], "EXEMPT is no longer a free-text one-liner");
 });
 
-test("CASL approval authority: manager only inside their team, Super Admin globally, reps never, nobody approves their own or another account of the same person", () => {
-  assert.deepEqual(canApproveEvidence(actorOf("SALES_REP", "u1", ["s1"]), basis(), "s1"), { allowed: false, code: "NOT_AUTHORIZED" });
-  assert.deepEqual(canApproveEvidence(actorOf("SALES_MANAGER", "mgr", ["m", "s1"]), basis(), "s1"), { allowed: true, selfApproved: false });
-  assert.deepEqual(canApproveEvidence(actorOf("SALES_MANAGER", "mgr", ["m", "s1"]), basis(), "other-team"), { allowed: false, code: "OUT_OF_TEAM" });
-  assert.deepEqual(canApproveEvidence(actorOf("SALES_MANAGER", "mgr", ["m", "s1"]), basis(), null), { allowed: false, code: "OUT_OF_TEAM" }, "unassigned pool is Super Admin only");
-  assert.deepEqual(canApproveEvidence(actorOf("SALES_MANAGER", "rep-user", ["m", "s1"]), basis(), "s1"), { allowed: false, code: "SELF_APPROVAL" });
-  assert.deepEqual(canApproveEvidence(actorOf("SUPER_ADMIN", "root"), basis(), "anyone"), { allowed: true, selfApproved: false });
-  assert.deepEqual(canApproveEvidence(actorOf("SUPER_ADMIN", "rep-user"), basis(), null), { allowed: false, code: "SELF_APPROVAL" }, "the Super Admin exception is closed: review is independent for everyone");
-  // Another account of the SAME person (explicit link or shared verified recovery mailbox) is a self-review too, for managers and Super Admin alike.
-  const same = { recorderIsSamePerson: true };
-  assert.deepEqual(canApproveEvidence(actorOf("SUPER_ADMIN", "root"), basis(), "s1", same), { allowed: false, code: "SELF_APPROVAL" });
-  assert.deepEqual(canApproveEvidence(actorOf("SALES_MANAGER", "mgr", ["m", "s1"]), basis(), "s1", same), { allowed: false, code: "SELF_APPROVAL" });
-  assert.deepEqual(canApproveEvidence(actorOf("SUPER_ADMIN", "root"), basis(), "s1", { recorderIsSamePerson: false }), { allowed: true, selfApproved: false });
-  assert.equal(canRejectEvidence(actorOf("SUPER_ADMIN", "root"), basis(), "s1", same).allowed, false, "rejecting your own other account's evidence is no more independent");
-  assert.deepEqual(canApproveEvidence(actorOf("SUPER_ADMIN", "root"), basis({ reviewStatus: "APPROVED" }), "s1"), { allowed: false, code: "NOT_PENDING" });
-  assert.deepEqual(canApproveEvidence(actorOf("SUPER_ADMIN", "root"), basis({ supportingFacts: null }), "s1"), { allowed: false, code: "EVIDENCE_INCOMPLETE" });
-});
-
-test("CASL rejection authority is independent of evidence completeness: incomplete evidence can be rejected, authority rules still apply", () => {
-  const empty = basis({ evidenceType: null, capturedAt: null, supportingFacts: null, roleRelevance: null, sourceUrl: null, publishedConditionsConfirmed: false });
-  assert.equal(canApproveEvidence(actorOf("SALES_MANAGER", "mgr", ["s1"]), empty, "s1").allowed, false, "cannot approve incomplete evidence");
-  assert.deepEqual(canRejectEvidence(actorOf("SALES_MANAGER", "mgr", ["s1"]), empty, "s1"), { allowed: true, selfRejected: false });
-  assert.deepEqual(canRejectEvidence(actorOf("SALES_REP", "u1", ["s1"]), empty, "s1"), { allowed: false, code: "NOT_AUTHORIZED" });
-  assert.deepEqual(canRejectEvidence(actorOf("SALES_MANAGER", "mgr", ["s1"]), empty, "other"), { allowed: false, code: "OUT_OF_TEAM" });
-  assert.deepEqual(canRejectEvidence(actorOf("SALES_MANAGER", "rep-user", ["s1"]), empty, "s1"), { allowed: false, code: "SELF_APPROVAL" });
-  assert.deepEqual(canRejectEvidence(actorOf("SUPER_ADMIN", "root"), basis({ reviewStatus: "APPROVED" }), "s1"), { allowed: false, code: "NOT_PENDING" });
-  // the rejection check takes no content at all: it works on a bare {status, recorder} pair
-  assert.equal(canRejectEvidence(actorOf("SUPER_ADMIN", "root"), { reviewStatus: "PENDING_REVIEW", recordedByUserId: "x" }, null).allowed, true);
+test("CASL: there is no reviewer step — no approval authority, no second-person or same-person rule, and no approval capability exists any more", () => {
+  const exported = Object.keys(caslEvidence);
+  for (const gone of ["canApproveEvidence", "canRejectEvidence", "reviewAuthority", "APPROVAL_REQUIRED_KINDS", "ALLOW_SUPER_ADMIN_SELF_REVIEW", "requiresApproval"]) assert.equal(exported.includes(gone), false, `${gone} was removed with the two-reviewer policy`);
+  for (const kind of ["SALES_REP", "SALES_MANAGER", "SUPER_ADMIN"] as const) assert.equal((capabilitiesFor(kind) as ReadonlySet<string>).has("approve_casl_evidence"), false, `${kind} has no approval capability`);
+  // Completeness is the only deterministic check left on a recorded basis; it is a rule, not a person.
+  assert.deepEqual(evidenceGaps(complete), []);
 });
 
 // ── copy parity ──────────────────────────────────────────────────────────────────────────────────────────────

@@ -3,8 +3,6 @@ import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { assignedScopeWhere, canAccessAssignedStaff, type PlatformSalesActor } from "@/domain/sales-crm/access";
 import type { ImportCandidate } from "@/domain/sales-crm/import";
-import { canApproveEvidence, canRejectEvidence } from "@/domain/sales-crm/casl-evidence";
-import { sameAsPerson } from "@/lib/sales-crm/person";
 
 export const REVIEW_PAGE_SIZE = 20;
 
@@ -46,38 +44,6 @@ export async function listDuplicateReviews(actor: PlatformSalesActor, opts: { st
       };
     }),
   };
-}
-
-/** Pending CASL evidence the actor is allowed to review (manager: own team's prospects; Super Admin: all), with audit history. */
-export async function listPendingEvidence(actor: PlatformSalesActor) {
-  const rows = await db.crmSendingBasis.findMany({
-    where: {
-      reviewStatus: "PENDING_REVIEW", revokedAt: null,
-      contact: { prospect: actor.all ? {} : { assignedStaffId: { in: [...actor.scopeStaffIds] } } },
-    },
-    orderBy: { recordedAt: "asc" }, take: 100,
-    select: {
-      id: true, kind: true, evidence: true, evidenceType: true, sourceUrl: true, capturedAt: true, supportingFacts: true, roleRelevance: true, publishedConditionsConfirmed: true,
-      recordedAt: true, recordedByUserId: true, reviewStatus: true,
-      contact: { select: { id: true, name: true, email: true, prospect: { select: { id: true, name: true, assignedStaffId: true } } } },
-    },
-  });
-  const userIds = [...new Set(rows.map((r) => r.recordedByUserId))];
-  const [users, history] = await Promise.all([
-    db.user.findMany({ where: { id: { in: userIds } }, select: { id: true, name: true } }),
-    db.crmAuditEvent.findMany({ where: { entityType: "CrmSendingBasis", entityId: { in: rows.map((r) => r.id) } }, orderBy: { createdAt: "asc" }, select: { entityId: true, action: true, createdAt: true, actorUserId: true } }),
-  ]);
-  const names = new Map(users.map((u) => [u.id, u.name]));
-  const same = await sameAsPerson(actor.userId, userIds);
-  return rows.map((r) => {
-    const ctx = { recorderIsSamePerson: same.has(r.recordedByUserId) };
-    const d = canApproveEvidence(actor, r, r.contact.prospect.assignedStaffId, ctx), rej = canRejectEvidence(actor, r, r.contact.prospect.assignedStaffId, ctx);
-    return {
-      ...r, recordedBy: names.get(r.recordedByUserId) ?? "—", prospect: r.contact.prospect,
-      canApprove: d.allowed, canReject: rej.allowed, blocked: d.allowed ? null : d.code,
-      history: history.filter((h) => h.entityId === r.id).map((h) => ({ action: h.action, at: h.createdAt })),
-    };
-  });
 }
 
 /** Sellers and their assignment settings/workload for the assignment screen (scoped like the assignment run itself). */

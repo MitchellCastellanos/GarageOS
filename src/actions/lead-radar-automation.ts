@@ -5,6 +5,7 @@ import { PLATFORM } from "@/lib/routes";
 import { CrmError } from "@/lib/sales-crm/prospects";
 import { crmAction } from "@/lib/sales-crm/result";
 import { requireLeadRadar } from "@/lib/lead-radar/access";
+import { setAutoCaslPolicy, setEvidenceStageEnabled } from "@/lib/lead-radar/auto-casl-admin";
 import { runAutomationTick, saveAutomation, setAutomationEnabled, setImportProvinces, setPilotEnabled, type AutomationInput } from "@/lib/lead-radar/automation";
 import { activatePolicy, createPolicyDraft, previewPolicy } from "@/lib/lead-radar/policy";
 import { compareRulesOnPool, renderComparisonMarkdown } from "@/lib/lead-radar/compare";
@@ -74,4 +75,14 @@ export async function compareLeadPolicies(input: { a: Side; b: Side; includeName
     const { report, truncated } = await compareRulesOnPool(ra, rb, { includeNames: input.includeNames === true, examplesPerGroup: 4, deadline: Date.now() + 45_000 });
     return { report, truncated, markdown: renderComparisonMarkdown(report) };
   });
+}
+
+/** Owner-level activation of the automated CASL policy (typed confirmation + the exact policy version). Never approves a contact and never changes a send switch. */
+export async function setAutoCaslPolicyAction(input: { active: boolean; ruleVersion?: string; confirmation?: string }) {
+  const actor = await requireLeadRadar("admin");
+  return crmAction(async () => { await setAutoCaslPolicy(actor, { active: input.active === true, ruleVersion: input.ruleVersion, confirmation: input.confirmation }); touch(); return {}; });
+}
+export async function setEvidenceEnabledAction(enabled: boolean) {
+  const actor = await requireLeadRadar("admin");
+  return crmAction(async () => { await setEvidenceStageEnabled(actor, enabled === true); touch(); return {}; });
 }

@@ -76,7 +76,6 @@ export default async function ProspectsPage({ searchParams }: { searchParams: Pr
       <div className="flex flex-wrap gap-2 text-sm">
         {can(actor, "manage_prospects") && counts.duplicates > 0 && <Link href={PLATFORM.salesDuplicates} className={btnSecondary}>{L.indicators.links.duplicates} ({counts.duplicates})</Link>}
         {can(actor, "reassign_prospects") && <Link href={PLATFORM.salesAssignment} className={btnSecondary}>{L.indicators.links.assignment}</Link>}
-        {can(actor, "approve_casl_evidence") && <Link href={PLATFORM.salesEvidence} className={btnSecondary}>{L.indicators.links.evidence}</Link>}
       </div>
 
       <CollapsibleFilters label={t.common.filters} activeCount={[filters.q, filters.stage, filters.owner, filters.language, filters.source, filters.industry, filters.territory, filters.dnc, filters.status === "ARCHIVED"].filter(Boolean).length}>

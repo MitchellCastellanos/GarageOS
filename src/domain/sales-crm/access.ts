@@ -27,8 +27,6 @@ export const SALES_CAPABILITIES = [
   // Sales modes: FIELD agents only (REMOTE agents never receive these). Route planning itself is built by Agent 2 of the national expansion.
   "plan_field_routes",
   "log_field_visits",
-  // Lead Engine: approve/reject structured CASL evidence (manager: own team only; Super Admin: global).
-  "approve_casl_evidence",
   // Live (paid) geocoding of existing prospects: Super Admin only (never in the REP/MANAGER sets).
   "manage_geocoding",
   // National Lead Radar. `manage_lead_radar` = discovery runs, settings, budget (Super Admin only). `review_lead_radar` = review/approve/import
@@ -40,7 +38,7 @@ export const SALES_CAPABILITIES = [
 export type SalesCapability = (typeof SALES_CAPABILITIES)[number];
 
 const REP: SalesCapability[] = ["read_assigned_prospects", "manage_prospects", "import_prospects", "prepare_demo", "send_sales_email", "enroll_sequences", "manage_calendar"];
-const MANAGER: SalesCapability[] = [...REP, "read_team_prospects", "reassign_prospects", "view_team_reporting", "approve_casl_evidence"];
+const MANAGER: SalesCapability[] = [...REP, "read_team_prospects", "reassign_prospects", "view_team_reporting"];
 const FIELD_ONLY: SalesCapability[] = ["plan_field_routes", "log_field_visits"];
 
 export type SalesModeValue = "FIELD" | "REMOTE";

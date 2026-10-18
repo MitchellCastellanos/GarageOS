@@ -5,6 +5,8 @@ import { classifyAgainstPool, type MatchKey } from "@/domain/sales-crm/dedupe";
 import { normalizeEmail, phoneDigits, websiteDomain } from "@/domain/sales-crm/normalize";
 import { classifyTerritory, cityKey } from "@/domain/sales-crm/territory";
 import { toCandidate, type RecordIssue, type StagedCandidate } from "@/domain/lead-radar/record";
+import { screenCandidate, type ScreenReason } from "@/domain/lead-radar/commercial-screen";
+import { clearRejections, recordRejections, type RejectionInput } from "@/lib/lead-radar/screening";
 import { assessRepairFit } from "@/domain/lead-radar/repair-fit";
 import { isIcpExclusion } from "@/domain/lead-radar/icp";
 import { exclusionIdentityKey, tombstoneReasons, withTombstoneMarker } from "@/domain/lead-radar/icp-tombstone";
@@ -25,6 +27,8 @@ export interface ChunkTally {
   /** Source-coordinate accounting (so a coordinate-less extraction can never pass silently): records whose line carried a point, points accepted by the plausibility check,
    *  and how many accepted points were written onto NEW / already-existing candidates. */
   withPoint: number; pointsAccepted: number; pointsOnNew: number; pointsOnExisting: number;
+  /** Early commercial screen: records not kept (tombstoned, never staged) and tombstoned records that now pass and were staged again. */
+  screened: number; rediscovered: number;
 }
 
 export const matchKeyOf = (c: Pick<StagedCandidate, "nameNormalized" | "city" | "website" | "phone" | "address" | "postalCode" | "province">): MatchKey => {
@@ -67,7 +71,7 @@ export async function stageChunk(tx: Tx, run: { id: string; scope: DiscoveryScop
   if (Buffer.byteLength(text, "utf8") > MAX_CHUNK_BYTES) throw new CrmError("CHUNK_TOO_LARGE");
   const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
   if (lines.length > MAX_CHUNK_RECORDS) throw new CrmError("CHUNK_TOO_LARGE");
-  const tally: ChunkTally = { received: lines.length, stagedNew: 0, stagedUpdated: 0, rejected: 0, issues: {}, withPoint: 0, pointsAccepted: 0, pointsOnNew: 0, pointsOnExisting: 0 };
+  const tally: ChunkTally = { received: lines.length, stagedNew: 0, stagedUpdated: 0, rejected: 0, issues: {}, withPoint: 0, pointsAccepted: 0, pointsOnNew: 0, pointsOnExisting: 0, screened: 0, rediscovered: 0 };
   const issue = (code: RecordIssue | "MALFORMED_JSON") => { tally.rejected++; tally.issues[code] = (tally.issues[code] ?? 0) + 1; };
 
   const objs: unknown[] = [];
@@ -81,7 +85,7 @@ export async function stageChunk(tx: Tx, run: { id: string; scope: DiscoveryScop
   const cityKeys = run.scope.cities.map(cityKey);
   const byId = new Map<string, StagedCandidate>();
   for (const o of objs) {
-    const r = toCandidate(o, { provinces: run.scope.provinces, cityKeys }, { isSuppressed: (e) => suppressed.has(e), cityKeyOf: cityKey });
+    const r = toCandidate(o, { provinces: run.scope.provinces, cityKeys }, { isSuppressed: (e) => suppressed.has(e), cityKeyOf: cityKey, release: run.release });
     if (!r.ok) { issue(r.issue); continue; }
     byId.set(r.candidate.sourceRecordId, r.candidate); // same id twice in one chunk: last wins
   }
@@ -89,9 +93,6 @@ export async function stageChunk(tx: Tx, run: { id: string; scope: DiscoveryScop
   if (!cands.length) return tally;
 
   const existing = new Map((await tx.crmDiscoveryCandidate.findMany({ where: { source: "OVERTURE", sourceRecordId: { in: cands.map((c) => c.sourceRecordId) } } })).map((e) => [e.sourceRecordId, e]));
-  const toMatch = cands.filter((c) => !IMPORTED.has(existing.get(c.sourceRecordId)?.importState ?? ""));
-  const pool = await loadMatchPool(toMatch.map(matchKeyOf), tx);
-  const dups = await findCandidateDuplicates(tx, cands.filter((c) => !existing.has(c.sourceRecordId)));
   const rules = await loadTerritoryRulesWith(tx);
   const now = new Date();
   // Exclusion tombstones for this batch (by exact source id and by exact place+name): a business excluded earlier — even under another id — is excluded again, never re-reviewed.
@@ -99,24 +100,19 @@ export async function stageChunk(tx: Tx, run: { id: string; scope: DiscoveryScop
   const tombs = await loadExclusions(tx, cands.map((c) => ({ sourceRecordId: c.sourceRecordId, identityKey: keyOf(c) })));
   const toRecord: ExclusionInput[] = [];
 
-  const creates: Prisma.CrmDiscoveryCandidateCreateManyInput[] = [];
-  const updates: Prisma.PrismaPromise<unknown>[] = [];
+  // Extraction-quality accounting covers EVERY record of the file (a point is a property of the extract, not of whether the business is kept): the run quality gate compares them with `received`.
   for (const c of cands) {
-    const prev = existing.get(c.sourceRecordId);
     if (c.sourcePointIssue !== "NO_SOURCE_COORDINATES") tally.withPoint++;
     if (c.sourceLatitude !== null) tally.pointsAccepted++;
-    else tally.issues[c.sourcePointIssue === "NO_SOURCE_COORDINATES" ? "POINT_MISSING" : `POINT_${c.sourcePointIssue}`] = (tally.issues[c.sourcePointIssue === "NO_SOURCE_COORDINATES" ? "POINT_MISSING" : `POINT_${c.sourcePointIssue}`] ?? 0) + 1;
-    if (c.sourceLatitude !== null) { if (prev) tally.pointsOnExisting++; else tally.pointsOnNew++; }
+    else { const code = c.sourcePointIssue === "NO_SOURCE_COORDINATES" ? "POINT_MISSING" : `POINT_${c.sourcePointIssue}`; tally.issues[code] = (tally.issues[code] ?? 0) + 1; }
+  }
+  // Early commercial screen (cheap, in memory, BEFORE matching/duplicate lookups and before any write): a record that is not a commercially useful independent repair shop in a
+  // usable lane is never staged. It leaves only a tombstone (source id, reasons, fingerprint) so a later release that improves it is reconsidered.
+  const pre = new Map<string, { cls: ReturnType<typeof classifyTerritory>; fit: ReturnType<typeof assessRepairFit>; identityKey: string | null; icpOverride: boolean; dec: ReturnType<typeof decideFor>; screenReasons: ScreenReason[] }>();
+  const rejected: RejectionInput[] = [];
+  for (const c of cands) {
+    const prev = existing.get(c.sourceRecordId);
     const cls = classifyTerritory(rules, { province: c.province, city: c.city, postalCode: c.postalCode });
-    const territoryKey = cls.state === "LOCAL" ? cls.rule!.key : cls.state === "NATIONAL" ? "national" : "unresolved";
-    const facts = {
-      name: c.name, nameNormalized: c.nameNormalized, address: c.address, city: c.city, province: c.province, postalCode: c.postalCode, phone: c.phone, website: c.website, email: c.email,
-      territoryKey, taxonomyPrimary: c.taxonomyPrimary, tier: c.tier, industry: c.industry, classReasons: c.classReasons, chainSignal: c.chainSignal, sourceConfidence: c.sourceConfidence,
-      completeness: c.completeness, qualityFlags: c.qualityFlags, licenses: c.licenses, datasets: c.datasets, licenseOk: c.licenseOk, contentFingerprint: c.contentFingerprint,
-    };
-    // Repair fit is derived from the same facts, so a business is classified the moment it is staged (the first import is never a cleanup afterwards).
-    // The independent-repair ICP is durable: a tombstone (same source id, or the same exact place+name re-keyed) keeps the business excluded; a Super Admin release (tombstone RELEASED /
-    // candidate.icpOverride) keeps it released. Neither depends on the registry still listing the brand.
     const identityKey = keyOf(c);
     const dec = decideFor(tombs, { sourceRecordId: c.sourceRecordId, identityKey });
     const icpOverride = !!prev?.icpOverride || dec.kind === "OVERRIDE";
@@ -125,6 +121,35 @@ export async function stageChunk(tx: Tx, run: { id: string; scope: DiscoveryScop
       fit = { ...fit, reasons: (dec.kind === "EXCLUDE" && dec.rekeyed && !fit.reasons.includes("ICP_TOMBSTONE_REKEYED") ? [...withTombstoneMarker(fit.reasons), "ICP_TOMBSTONE_REKEYED"] : withTombstoneMarker(fit.reasons)) as typeof fit.reasons };
       if (!(prev && IMPORTED.has(prev.importState))) toRecord.push({ sourceRecordId: c.sourceRecordId, province: c.province, name: c.name, city: c.city, identityKey, reasons: fit.reasons, release: run.release });
     }
+    const screen = screenCandidate({ licenseOk: c.licenseOk, tier: c.tier, fit: fit.fit, humanFitDecision: icpOverride, operatingStatus: c.operatingStatus, territory: cls.state, address: c.address, city: c.city, postalCode: c.postalCode, phone: c.phone, email: c.email });
+    pre.set(c.sourceRecordId, { cls, fit, identityKey, icpOverride, dec, screenReasons: screen.reasons });
+    if (!screen.lane && !prev) {
+      rejected.push({ sourceRecordId: c.sourceRecordId, reasons: screen.reasons, fingerprint: c.contentFingerprint, province: c.province, release: run.release });
+      tally.screened++;
+      for (const r of screen.reasons) tally.issues[`SCREEN_${r}`] = (tally.issues[`SCREEN_${r}`] ?? 0) + 1;
+    }
+  }
+  const rejectedIds = new Set(rejected.map((r) => r.sourceRecordId));
+  const kept = cands.filter((c) => !rejectedIds.has(c.sourceRecordId));
+  const toMatch = kept.filter((c) => !IMPORTED.has(existing.get(c.sourceRecordId)?.importState ?? ""));
+  const pool = toMatch.length ? await loadMatchPool(toMatch.map(matchKeyOf), tx) : [];
+  const dups = await findCandidateDuplicates(tx, kept.filter((c) => !existing.has(c.sourceRecordId)));
+
+  const creates: Prisma.CrmDiscoveryCandidateCreateManyInput[] = [];
+  const updates: Prisma.PrismaPromise<unknown>[] = [];
+  for (const c of kept) {
+    const prev = existing.get(c.sourceRecordId);
+    if (c.sourceLatitude !== null) { if (prev) tally.pointsOnExisting++; else tally.pointsOnNew++; }
+    const { cls, fit: fitPre, icpOverride } = pre.get(c.sourceRecordId)!;
+    const territoryKey = cls.state === "LOCAL" ? cls.rule!.key : cls.state === "NATIONAL" ? "national" : "unresolved";
+    const facts = {
+      name: c.name, nameNormalized: c.nameNormalized, address: c.address, city: c.city, province: c.province, postalCode: c.postalCode, phone: c.phone, website: c.website, email: c.email,
+      territoryKey, taxonomyPrimary: c.taxonomyPrimary, tier: c.tier, industry: c.industry, classReasons: c.classReasons, chainSignal: c.chainSignal, sourceConfidence: c.sourceConfidence,
+      completeness: c.completeness, qualityFlags: c.qualityFlags, licenses: c.licenses, datasets: c.datasets, licenseOk: c.licenseOk, contentFingerprint: c.contentFingerprint,
+      emailProvenance: (c.emailProvenance ?? Prisma.DbNull) as unknown as Prisma.InputJsonValue,
+    };
+    // Repair fit is derived from the same facts (computed once by the early screen above), so a business is classified the moment it is staged.
+    const fit = fitPre;
     const fitData = { repairFit: fit.fit, repairFitReasons: fit.reasons as string[], repairFitAt: now };
     // The source point is refreshed whenever the extract carries one (never cleared by an extract without one) and is NOT a business fact:
     // it is outside contentFingerprint, so it never re-opens an approval, requalifies, or touches an imported prospect.
@@ -174,5 +199,7 @@ export async function stageChunk(tx: Tx, run: { id: string; scope: DiscoveryScop
   if (creates.length) await tx.crmDiscoveryCandidate.createMany({ data: creates, skipDuplicates: true });
   for (const u of updates) await u;
   await recordExclusions(tx, toRecord, tombs);
+  await recordRejections(tx, rejected);
+  tally.rediscovered = await clearRejections(tx, kept.map((c) => c.sourceRecordId));
   return tally;
 }

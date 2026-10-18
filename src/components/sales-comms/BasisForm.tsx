@@ -4,7 +4,7 @@ import { useState } from "react";
 import { recordSendingBasis, revokeSendingBasis } from "@/actions/sales-inbox";
 import { btnPrimary, btnSecondary, btnDanger, inputCls, labelCls } from "@/components/sales-crm/ui";
 import { Msg, useComms } from "@/components/sales-comms/useComms";
-import { EVIDENCE_TYPES, evidenceGaps, requiresApproval } from "@/domain/sales-crm/casl-evidence";
+import { EVIDENCE_TYPES, evidenceGaps, requiresStructuredEvidence } from "@/domain/sales-crm/casl-evidence";
 import { leadCopy } from "@/lib/admin-locale/sales-lead-engine";
 
 const KINDS = ["EXPRESS_CONSENT", "IMPLIED_EXISTING_RELATIONSHIP", "IMPLIED_PUBLISHED_ADDRESS", "IMPLIED_DISCLOSED_ADDRESS", "EXEMPT"] as const;
@@ -14,7 +14,7 @@ export function BasisForm({ locale, contactId, hasBasis }: { locale: "en" | "fr"
   const [open, setOpen] = useState(false);
   const L = leadCopy(locale).evidence;
   const [f, setF] = useState({ kind: "IMPLIED_PUBLISHED_ADDRESS", evidence: "", expiresAt: "", evidenceType: "", sourceUrl: "", capturedAt: "", supportingFacts: "", roleRelevance: "", publishedConditionsConfirmed: false });
-  const structured = requiresApproval(f.kind);
+  const structured = requiresStructuredEvidence(f.kind);
   const addressKind = f.kind === "IMPLIED_PUBLISHED_ADDRESS" || f.kind === "IMPLIED_DISCLOSED_ADDRESS";
   const gaps = structured ? evidenceGaps({ kind: f.kind, evidenceType: f.evidenceType || null, sourceUrl: f.sourceUrl || null, capturedAt: f.capturedAt ? new Date(f.capturedAt) : null, supportingFacts: f.supportingFacts.trim() || null, roleRelevance: f.roleRelevance.trim() || null, publishedConditionsConfirmed: f.publishedConditionsConfirmed }) : [];
   return (

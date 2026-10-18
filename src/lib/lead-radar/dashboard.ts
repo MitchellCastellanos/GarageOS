@@ -1,4 +1,5 @@
 import "server-only";
+import { pipelineMetrics } from "@/lib/lead-radar/pipeline-metrics";
 import { READINESS_STATES, type Readiness } from "@/domain/lead-radar/outreach";
 import { Prisma } from "@prisma/client";
 import type { PlatformSalesActor } from "@/domain/sales-crm/access";
@@ -96,6 +97,7 @@ export async function automationDashboard(actor: PlatformSalesActor) {
     automation: {
       enabled: automation.enabled, pausedReason: automation.pausedReason, pausedAt: automation.pausedAt, lastTickAt: automation.lastTickAt, qualifyEnabled: automation.qualifyEnabled, importEnabled: automation.importEnabled,
       assignEnabled: automation.assignEnabled, eligibilityEnabled: automation.eligibilityEnabled, releaseUnavailable: automation.releaseUnavailable, assignStaffIds: automation.assignStaffIds, importChunkSize: automation.importChunkSize,
+      evidenceEnabled: automation.evidenceEnabled, autoCaslActive: automation.autoCaslActive, autoCaslRuleVersion: automation.autoCaslRuleVersion, autoCaslActivatedAt: automation.autoCaslActivatedAt,
       pilotEnabled: automation.pilotEnabled, pilotSequenceId: automation.pilotSequenceId, pilotDailyCap: automation.pilotDailyCap, pilotTotalCap: automation.pilotTotalCap,
     },
     qualification: {
@@ -114,6 +116,7 @@ export async function automationDashboard(actor: PlatformSalesActor) {
       sendingEnabled: comms.sendingEnabled && comms.automatedSendingEnabled, enrollments: enr, messages: msg, prospectsWithMessagesSent: sent, replied: stops.REPLIED ?? 0, unsubscribed: stops.OPTED_OUT ?? 0, bounced: stops.BOUNCED ?? 0,
       meetingBooked: stops.MEETING_BOOKED ?? 0, pausedReasons: toMap(pausedBy),
     },
+    pipeline: await pipelineMetrics(),
     issues,
     runs: recentRuns.map((r) => ({ id: r.id, trigger: r.trigger, status: r.status, policyVersion: r.policyVersion, startedAt: r.startedAt, finishedAt: r.finishedAt, errorCode: r.errorCode, counters: r.counters as Record<string, unknown> })),
   };

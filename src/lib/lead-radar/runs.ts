@@ -90,7 +90,7 @@ export async function ingestChunk(actor: RunActor, runId: string, seq: number, t
       await tx.crmDiscoveryRun.update({
         where: { id: runId },
         data: {
-          receivedRecords: { increment: t.received }, recordsWithPoint: { increment: t.withPoint }, pointsAccepted: { increment: t.pointsAccepted }, pointsOnNew: { increment: t.pointsOnNew }, pointsOnExisting: { increment: t.pointsOnExisting }, stagedNew: { increment: t.stagedNew }, stagedUpdated: { increment: t.stagedUpdated }, rejectedRecords: { increment: t.rejected },
+          receivedRecords: { increment: t.received }, recordsWithPoint: { increment: t.withPoint }, pointsAccepted: { increment: t.pointsAccepted }, pointsOnNew: { increment: t.pointsOnNew }, pointsOnExisting: { increment: t.pointsOnExisting }, stagedNew: { increment: t.stagedNew }, stagedUpdated: { increment: t.stagedUpdated }, rejectedRecords: { increment: t.rejected }, screenedRecords: { increment: t.screened }, rediscoveredRecords: { increment: t.rediscovered },
           diagnostics: [...diag.entries()].sort((a, b) => b[1] - a[1]).slice(0, 20).map(([code, count]) => ({ code, count })) as unknown as Prisma.InputJsonValue,
         },
       });

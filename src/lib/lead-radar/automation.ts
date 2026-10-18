@@ -14,6 +14,8 @@ import { CrmError } from "@/lib/sales-crm/prospects";
 import { loadEngagements } from "@/lib/sales-crm/territory";
 import { isProvinceCode } from "@/domain/lead-radar/geo";
 import { assessProspects, refreshEligibility, saveAssessments } from "@/lib/lead-radar/eligibility";
+import { runEvidenceStage } from "@/lib/lead-radar/casl-evidence";
+import { purgeUnusableCandidates } from "@/lib/lead-radar/screening";
 import { importApprovedCandidates } from "@/lib/lead-radar/import-service";
 import { nextImportIds, prospectIdsWithUsableEmail, scanNoEmailQueue } from "@/lib/lead-radar/remote-email";
 import { autoGeocodeStep } from "@/lib/sales-crm/geocoding-admin-service";
@@ -32,7 +34,7 @@ const ID = "default";
 export const TICK_BUDGET_MS = 45_000;
 export const LEASE_SLACK_MS = 30_000;
 export const MAX_IMPORT_ATTEMPTS = 3;
-const SHARE = { classify: 0.05, rollout: 0.05, qualify: 0.3, import: 0.3, assign: 0.15, release: 0.05, locate: 0.1, eligibility: 0.1, pilot: 0.1 } as const;
+const SHARE = { classify: 0.05, rollout: 0.05, qualify: 0.3, import: 0.3, assign: 0.15, release: 0.05, locate: 0.1, screen: 0.05, evidence: 0.3, eligibility: 0.1, pilot: 0.1 } as const;
 
 export async function readAutomation(client: Pick<typeof db, "crmLeadAutomation"> = db) {
   return (await client.crmLeadAutomation.findUnique({ where: { id: ID } })) ?? (await client.crmLeadAutomation.upsert({ where: { id: ID }, create: { id: ID }, update: {} }));
@@ -356,6 +358,11 @@ export async function runAutomationTick(opts: { trigger: "CRON" | "MANUAL"; budg
       await stage("release", a.releaseUnavailable && !a.rolloutEnabled, (deadline) => releaseUnavailable(admin, deadline));
       // Paid geocoding fallback for assigned prospects the source point could not locate. Inert unless Mapbox is configured AND a Super Admin enabled it AND budget remains.
       await stage("locate", true, (deadline) => autoGeocodeStep(admin, deadline));
+      // Staging hygiene: rows the early commercial screen would never keep (never reviewed, never imported) become tombstones; bounded, reversible by rediscovery, never touches the CRM.
+      await stage("screen", a.qualifyEnabled, (deadline) => purgeUnusableCandidates({ limit: 500, deadline }));
+      // Automated CASL evidence: bounded reads of each qualified shop's OWN website, deterministic SUPPORTED / INSUFFICIENT / BLOCKED decisions. Creates contacts and AUTO_SUPPORTED bases for
+      // supported addresses only; none of it authorises a send until the owner activates the automated policy, and nothing here enrols or sends.
+      await stage("evidence", a.evidenceEnabled, (deadline) => runEvidenceStage({ deadline, limit: a.evidenceBatch }));
       // Eligibility is read-only ADVICE (it creates no contact, basis, enrollment or message), so it follows its own switch even during the national rollout — the owner can turn it on
       // to measure readiness without enabling outreach. During the rollout it only assesses prospects that have an emailable contact (the rest cannot progress and would be wasted work).
       await stage("eligibility", a.eligibilityEnabled, (deadline) => refreshEligibility({ deadline, requireContact: a.rolloutEnabled }));

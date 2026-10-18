@@ -37,7 +37,6 @@ export const PLATFORM = {
   salesProspectImport: "/platform/sales/prospects/import",
   salesDuplicates: "/platform/sales/prospects/duplicates",
   salesAssignment: "/platform/sales/prospects/assignment",
-  salesEvidence: "/platform/sales/prospects/evidence",
   salesProspect: (id: string) => `/platform/sales/prospects/${id}`,
   salesPipeline: "/platform/sales/pipeline",
   salesTasks: "/platform/sales/tasks",

@@ -27,6 +27,7 @@ if (!enabled) {
   const { canonicalScope } = await import("../src/domain/lead-radar/scope");
   const { addressFingerprint } = await import("../src/domain/sales-crm/geocoding");
 
+  const { stageLegacy } = await import("./helpers/legacy-staging");
   const run = Date.now().toString(36);
   const ids: Record<string, string> = {}, staff: Record<string, string> = {}, P: Record<string, string> = {};
   const as = (id: string | null) => setSession(id ? { user: { id, role: "VIEWER", shopId: null } } : null);
@@ -210,10 +211,11 @@ if (!enabled) {
   });
 
   test("import gate and stamp: excluded candidates are rejected durably and never imported; verified ones are stamped; override becomes a human decision; refresh never reopens", async () => {
-    await stage([
-      rec(1, "Garage Tremblay Fit", "automotive_repair"), rec(2, "Borne EV Fit Charging Station", "automotive_repair"), rec(3, "Lave-Auto Fit Express", "automotive_repair"),
+    // Rows staged BEFORE the early screen existed (the screen now keeps such businesses out of staging); the import gate must still refuse them.
+    await stageLegacy(db, runId, [
+      rec(1, "Garage Tremblay Fit", "automotive_repair", { emails: ["fit1@fit.example.ca"] }), rec(2, "Borne EV Fit Charging Station", "automotive_repair"), rec(3, "Lave-Auto Fit Express", "automotive_repair"),
       rec(4, "Station Spéciale Fit Charging Station", "automotive_repair"),
-    ]);
+    ], "2026-09-23.1", ["QC"]);
     const cs = await Promise.all([1, 2, 3, 4].map(cand));
     await db.crmDiscoveryCandidate.updateMany({ where: { id: { in: cs.map((c) => c.id) } }, data: { reviewState: "APPROVED" } }); // a bulk approval, as happened in production
     const r = await importLib.importApprovedCandidates(root, { ids: cs.map((c) => c.id) });

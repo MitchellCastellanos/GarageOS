@@ -142,16 +142,16 @@ if (!enabled) {
     const by = (n: number) => rows.find((r) => r.sourceRecordId.endsWith(String(n).padStart(6, "0")))!;
     assert.equal(by(1).tier, "PRIMARY"); assert.equal(by(1).province, "QC"); assert.equal(by(1).territoryKey, "greater-montreal");
     assert.equal(by(2).tier, "SECONDARY"); assert.equal(by(2).industry, "BODY_SHOP");
-    assert.equal(by(3).tier, "SECONDARY"); assert.ok(by(3).classReasons.includes("DEALERSHIP"));
-    assert.ok(by(4).classReasons.includes("CAR_WASH"));
     assert.equal(by(5).chainSignal, "CHAIN_SIGNAL"); assert.equal(by(1).chainSignal, "NO_CHAIN_SIGNAL", "independence is never asserted");
+    // Early commercial screen: dealerships, car washes, chains, closed businesses, licence-blocked, unknown/non-automotive categories are NOT stored — each leaves only a tombstone with its reasons.
+    const tomb = async (n: number) => (await db.crmDiscoveryRejection.findFirst({ where: { sourceRecordId: rec(n).id } }))?.reasonCodes ?? null;
+    for (const [n, reason] of [[3, "FIT_NOT_VERIFIED"], [4, "FIT_NOT_VERIFIED"], [7, "NOT_OPERATING"], [10, "LICENSE_BLOCKED"], [11, "LICENSE_BLOCKED"], [13, "TIER_EXCLUDED"]] as const) {
+      assert.equal(rows.find((r) => r.sourceRecordId === rec(n).id), undefined, `record ${n} is not stored`);
+      assert.ok((await tomb(n))?.includes(reason), `record ${n}: ${await tomb(n)}`);
+    }
     assert.equal(by(6).website, null); assert.ok(by(6).qualityFlags.includes("WEBSITE_IS_SOCIAL"));
-    assert.equal(by(7).tier, "EXCLUDED");
     assert.equal(rows.find((r) => r.sourceRecordId.endsWith("000008")), undefined, "US record never staged");
-    assert.equal(by(10).licenseOk, false); assert.ok(by(10).qualityFlags.includes("LICENSE_BLOCKED"));
-    assert.equal(by(11).licenseOk, false);
     assert.equal(by(12).tier, "AMBIGUOUS"); assert.ok(by(12).classReasons.includes("UNKNOWN_SUBCATEGORY"));
-    assert.equal(by(13).tier, "EXCLUDED");
     assert.equal(by(14).province, "AB");
     assert.equal(rows.find((r) => r.sourceRecordId.endsWith("000015")), undefined, "Ontario is outside the QC+AB scope");
     assert.equal(by(16).province, "QC"); assert.ok(by(16).qualityFlags.includes("GEO_FROM_POSTAL"));
@@ -162,13 +162,18 @@ if (!enabled) {
     const diag = Object.fromEntries((r.diagnostics as any[]).map((d) => [d.code, d.count]));
     assert.equal(diag.MALFORMED_JSON, 1); assert.equal(diag.SCHEMA_INVALID, 1); assert.equal(diag.SCHEMA_VERSION_UNSUPPORTED, 1); assert.equal(diag.MISSING_NAME, 1);
     assert.equal(diag.OUTSIDE_CANADA, 1); assert.equal(diag.OUT_OF_SCOPE_PROVINCE, 1);
-    assert.equal(r.stagedNew + r.rejectedRecords, recs.length);
+    assert.equal(r.stagedNew + r.rejectedRecords + r.screenedRecords, recs.length);
+    assert.equal(r.screenedRecords, 6, "six records were not commercially useful");
     const done: any = await radar.completeDiscoveryRun(runId);
     assert.equal(done.ok, true, JSON.stringify(done));
     // approval is impossible for licence-blocked and excluded candidates (API and database CHECK)
-    const bad = await candLib.reviewCandidates((await access.resolvePlatformSalesActor(users.Root))!, [by(10).id, by(11).id, by(7).id, by(13).id], "APPROVED");
+    // Rows staged BEFORE the early screen existed may still carry these verdicts: simulate them directly.
+    const old = (n: number, o: Record<string, unknown>) => db.crmDiscoveryCandidate.create({ data: { source: "OVERTURE", sourceRecordId: rec(n).id, firstRunId: runId, lastRunId: runId, firstSeenRelease: release, lastSeenRelease: release, name: `Old ${n}`, nameNormalized: `old ${n}`, tier: "PRIMARY", classReasons: [], chainSignal: "NO_CHAIN_SIGNAL", completeness: 50, licenseOk: true, contentFingerprint: `old-${n}-${run}`, ...o } as any });
+    const oldRows = [await old(10, { licenseOk: false }), await old(11, { licenseOk: false }), await old(7, { tier: "EXCLUDED" }), await old(13, { tier: "EXCLUDED" })];
+    const bad = await candLib.reviewCandidates((await access.resolvePlatformSalesActor(users.Root))!, oldRows.map((r) => r.id), "APPROVED");
     assert.deepEqual([bad.updated, bad.blocked], [0, 4]);
-    await assert.rejects(db.$executeRaw`UPDATE "garageos"."CrmDiscoveryCandidate" SET "reviewState" = 'APPROVED' WHERE "id" = ${by(10).id}`, /check|constraint/i);
+    await assert.rejects(db.$executeRaw`UPDATE "garageos"."CrmDiscoveryCandidate" SET "reviewState" = 'APPROVED' WHERE "id" = ${oldRows[0].id}`, /check|constraint/i);
+    await db.crmDiscoveryCandidate.deleteMany({ where: { id: { in: oldRows.map((r) => r.id) } } });
   });
 
   test("job interruption and recovery: replayed chunks are no-ops, gaps are refused, cancel stops work, resume continues from the right chunk, completion needs every record", async () => {
@@ -264,7 +269,7 @@ if (!enabled) {
     const runId = await startRun(["QC"], "2026-10-02.0");
     const strong = rec(300, { name: `Garage Existant ${run}`, address: { freeform: "300 Rue Existante", locality: "Montréal", postcode: "H3B 2Y5", region: "QC", country: "CA" }, phones: [], websites: [], emails: [`blocked-${run}@sup.example.ca`] });
     const branch = rec(301, { name: `Garage Existant ${run}`, address: { freeform: "900 Boul Autre", locality: "Laval", postcode: "H7N 1A1", region: "QC", country: "CA" }, phones: [], websites: [], emails: [] });
-    const ambiguous = rec(302, { name: `Totalement Autre Nom ${run}`, address: { freeform: null, locality: "Montréal", postcode: null, region: "QC", country: "CA" }, phones: ["+15145559000"], websites: [], emails: [] });
+    const ambiguous = rec(302, { name: `Totalement Autre Mécanique ${run}`, address: { freeform: "300 Rue Existante", locality: "Montréal", postcode: "H3B 2Y5", region: "QC", country: "CA" }, phones: ["+15145559000"], websites: [], emails: [] });
     await radar.attachDiscoveryManifest(runId, await manifest(runId, "2026-10-02.0", 3));
     await radar.ingestDiscoveryChunk(runId, 0, lines([strong, branch, ambiguous]));
     const get = (r: any) => db.crmDiscoveryCandidate.findFirstOrThrow({ where: { sourceRecordId: r.id } });

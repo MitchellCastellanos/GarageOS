@@ -189,7 +189,7 @@ const walk = (dir: string): string[] => readdirSync(dir).flatMap((f) => { const 
 // The AUTOMATION LAYER (policy → handoff → assignment → eligibility → pilot enrollment) deliberately reads and, for assignment/enrollment, writes outreach and ownership
 // tables, so it is held to its own, narrower static guards in tests/lead-radar-automation-domain.test.ts (never creates or sends a message, reads no credential,
 // gated by two switches + lease, every action re-checks Super Admin). EVERYTHING ELSE here (acquisition, staging, review, import, budget) keeps the original strict guard.
-const AUTOMATION_LAYER = new Set(["automation.ts", "eligibility.ts", "dashboard.ts"]);
+const AUTOMATION_LAYER = new Set(["automation.ts", "eligibility.ts", "dashboard.ts", "casl-evidence.ts", "evidence-fetch.ts"]); // the last two (automated CASL evidence) are held to their own guards in tests/evidence-fetch.test.ts
 const sources = () => [...walk(path.join(root, "src/lib/lead-radar")), ...walk(path.join(root, "src/domain/lead-radar")), path.join(root, "src/actions/lead-radar.ts")].filter((f) => /\.tsx?$/.test(f) && !(f.includes("src/lib/lead-radar/") && AUTOMATION_LAYER.has(path.basename(f))));
 
 test("every Lead Radar server action re-checks authorization on the server before doing anything", () => {
