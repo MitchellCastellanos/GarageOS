@@ -32,7 +32,9 @@ import { ROLLOUT_ASSIGN_PROVINCES } from "@/domain/lead-radar/rollout";
 // Nothing here sends an email. Every stage is independently switchable and the whole tick is gated by TWO switches (live discovery AND automation) plus a lease.
 
 const ID = "default";
-export const TICK_BUDGET_MS = 50_000; // function limit is 60 s (maxDuration); the lease adds LEASE_SLACK_MS
+// Function limit is 60 s (maxDuration) and the cron route also runs discovery maintenance before and contact seeding after the tick. Measured on production: a 50 s tick plus those overran 60 s (HTTP 504),
+// so the tick keeps 20 s of headroom. The lease adds LEASE_SLACK_MS.
+export const TICK_BUDGET_MS = 40_000;
 export const LEASE_SLACK_MS = 30_000;
 
 export const MAX_IMPORT_ATTEMPTS = 3;
@@ -310,7 +312,7 @@ async function principal(userId: string | null | undefined): Promise<PlatformSal
 }
 
 export async function runAutomationTick(opts: { trigger: "CRON" | "MANUAL"; budgetMs?: number } = { trigger: "CRON" }): Promise<TickOutcome> {
-  const budget = Math.min(Math.max(5_000, opts.budgetMs ?? TICK_BUDGET_MS), 55_000);
+  const budget = Math.min(Math.max(5_000, opts.budgetMs ?? TICK_BUDGET_MS), 45_000);
   const started = Date.now();
   const settings = await readSettings();
   if (!isLive(settings)) return { status: "SKIPPED", reason: "LEAD_RADAR_DISABLED" };
