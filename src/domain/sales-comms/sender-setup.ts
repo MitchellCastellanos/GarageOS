@@ -1,6 +1,7 @@
 // Sender identity setup state — pure. "Ready" is derived from live provider facts; nothing here trusts a flag that a
 // human could set without the provider agreeing. Each step reports what is missing so Super Admin sees a precise blocker.
 import { emailDomain } from "./email";
+import { senderIdentificationGaps } from "./casl";
 
 export interface DomainFact { found: boolean; status: string | null; sendingEnabled: boolean; receivingEnabled: boolean }
 
@@ -9,7 +10,7 @@ export interface SetupInput {
   providerSideEffectsEnabled: boolean;
   webhookSecretConfigured: boolean;
   unsubscribeSecretConfigured: boolean;
-  settings: { sendingEnabled: boolean; manualSendingEnabled: boolean; approvedDomains: string[]; inboundDomain: string | null; mailingAddress: string | null; inboundProvider?: "RESEND" | "CLOUDFLARE"; inboundReplyLocal?: string | null };
+  settings: { sendingEnabled: boolean; manualSendingEnabled: boolean; approvedDomains: string[]; inboundDomain: string | null; legalName: string; mailingAddress: string | null; contactEmail: string | null; contactPhone: string | null; websiteUrl: string; inboundProvider?: "RESEND" | "CLOUDFLARE"; inboundReplyLocal?: string | null };
   /** CLOUDFLARE inbound: SALES_INBOUND_SECRET (≥32 chars) is configured for the authenticated Worker endpoint. */
   inboundSecretConfigured?: boolean;
   identity: { fromEmail: string; status: "DRAFT" | "ACTIVE" | "DISABLED"; replyToEmail: string | null; inboundVerifiedAt: Date | null; staffActive: boolean } | null;
@@ -49,7 +50,7 @@ export function computeSetupState(i: SetupInput): SetupState {
     { key: "master_switch", ok: i.settings.sendingEnabled, required: "send" },
     // This checklist describes a seller's own (manual) sending path; automated outreach and transactional mail have their own switches in the settings form.
     { key: "manual_switch", ok: i.settings.manualSendingEnabled, required: "send" },
-    { key: "footer", ok: !!i.settings.mailingAddress?.trim(), required: "send" },
+    { key: "footer", ok: senderIdentificationGaps(i.settings).length === 0, required: "send" },
     { key: "unsubscribe_secret", ok: i.unsubscribeSecretConfigured, required: "send", hint: "NEXTAUTH_SECRET" },
     { key: "staff_active", ok: !!i.identity?.staffActive, required: "send" },
     { key: "identity_active", ok: i.identity?.status === "ACTIVE", required: "send" },

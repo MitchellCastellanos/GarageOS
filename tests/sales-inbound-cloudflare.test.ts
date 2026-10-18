@@ -88,7 +88,7 @@ test("reply address: shared mailbox + key round-trips through extractReplyKey (p
 test("setup state: Cloudflare mode needs the Worker secret instead of Resend receiving; Resend webhook no longer gates receiving", () => {
   const input = {
     providerKeyConfigured: true, providerSideEffectsEnabled: true, webhookSecretConfigured: false, unsubscribeSecretConfigured: true,
-    settings: { sendingEnabled: true, manualSendingEnabled: true, approvedDomains: ["garage-os.ca"], inboundDomain: "garage-os.ca", mailingAddress: "1 Rue Test", inboundProvider: "CLOUDFLARE" as const },
+    settings: { sendingEnabled: true, manualSendingEnabled: true, approvedDomains: ["garage-os.ca"], inboundDomain: "garage-os.ca", legalName: "GarageOS Inc.", mailingAddress: "1 Rue Test", contactEmail: null, contactPhone: null, websiteUrl: "https://www.garage-os.ca", inboundProvider: "CLOUDFLARE" as const },
     identity: { fromEmail: "a@garage-os.ca", status: "ACTIVE" as const, replyToEmail: null, inboundVerifiedAt: null, staffActive: true },
     fromDomain: { found: true, status: "verified", sendingEnabled: true, receivingEnabled: false }, inboundDomainFact: null, lookupError: null,
   };

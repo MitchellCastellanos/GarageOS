@@ -1,4 +1,4 @@
-// Automated CASL evidence engine — pure rules (no network, no database). Product controls, not legal advice (docs/compliance/automated-casl-evidence.md). Policy casl-auto-v2.
+// Automated CASL evidence engine — pure rules (no network, no database). Product controls, not legal advice (docs/compliance/automated-casl-evidence.md). Policy casl-auto-v3.
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
@@ -61,7 +61,7 @@ test("SUPPORTED needs EVERY condition — identity, publication, no restriction,
   assert.equal(r.expiresAt!.getTime(), NOW.getTime() + 30 * 86_400_000);
   assert.ok(REVALIDATE_AFTER_DAYS < EVIDENCE_TTL_DAYS);
   assert.equal(r.sourceKind, "OWN_WEBSITE");
-  assert.equal(CASL_RULE_VERSION, "casl-auto-v2");
+  assert.equal(CASL_RULE_VERSION, "casl-auto-v3");
 });
 
 test("CORRECTION 1 — identity corroboration is NOT publication: matching the site's domain, phone, postal code or name never marks publishedByRecipient MET by itself", () => {
@@ -317,4 +317,13 @@ test("controlled dataset (70 synthetic shops, one per scenario row): the engine'
 test("accented contact wording at the start of a sentence still counts as a contact context (Unicode-aware boundaries)", () => {
   const r = assess("info@garagetremblay.example", page(`<h1>Garage Tremblay &amp; Fils</h1><p>514-555-0100 H2X 3K4</p><p>Écrivez-nous <a href="mailto:info@garagetremblay.example">ici</a> info@garagetremblay.example</p>`));
   assert.equal(r.outcome, "SUPPORTED");
+});
+
+test("v3 restriction patterns: vendor / representative / withheld-consent wording (EN + FR) blocks; ordinary contact copy does not", () => {
+  for (const t of [
+    "Solicitors will be prosecuted.", "Please don't email us about SEO services.", "No agents or vendors", "Sales representatives, please do not call or email.",
+    "By emailing us you do not consent to receive marketing messages.", "Les offres de service non sollicitées ne sont pas acceptées.",
+    "Cette adresse ne doit pas être utilisée à des fins de sollicitation.", "Les représentants sont priés de ne pas nous contacter.",
+  ]) assert.ok(detectRestriction(t), t);
+  for (const t of ["Call or email us for a quote on brakes and tires.", "Our service representatives are happy to help — email info@garage.ca.", "Contactez-nous pour un rendez-vous ou une soumission.", "We are a family-owned shop. Vendors accepted for our own suppliers: see parts page."]) assert.equal(detectRestriction(t), null, t);
 });

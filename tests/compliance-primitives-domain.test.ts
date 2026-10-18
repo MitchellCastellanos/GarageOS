@@ -21,9 +21,9 @@ test("automation reading: only an allowed kind with a decided basis (a historic 
   // never for these kinds, even approved
   for (const kind of ["EXEMPT", "IMPLIED_EXISTING_RELATIONSHIP"] as const) assert.deepEqual(evaluateAutomationBasis([row(kind, "APPROVED")], NOW), { valid: false, reason: "KIND_NOT_ALLOWED" }, kind);
   // automated evidence: supported but inert until the owner activates the policy for this exact version; re-checked against the actual recipient and message at EVERY send
-  const auto = { active: true, ruleVersion: "casl-auto-v2" };
+  const auto = { active: true, ruleVersion: "casl-auto-v3" };
   const msg = { topic: "SHOP_MANAGEMENT_SOFTWARE", recipientEmail: "info@shop.example" };
-  const sup = (kind: BasisRow["kind"], o: Partial<BasisRow> = {}) => row(kind, "AUTO_SUPPORTED", { ruleVersion: "casl-auto-v2", caslAssessmentId: "assess-1", capturedAt: new Date("2026-10-10T00:00:00Z"), assessedEmail: "info@shop.example", relevanceTopics: ["SHOP_MANAGEMENT_SOFTWARE"], ...o });
+  const sup = (kind: BasisRow["kind"], o: Partial<BasisRow> = {}) => row(kind, "AUTO_SUPPORTED", { ruleVersion: "casl-auto-v3", caslAssessmentId: "assess-1", capturedAt: new Date("2026-10-10T00:00:00Z"), assessedEmail: "info@shop.example", relevanceTopics: ["SHOP_MANAGEMENT_SOFTWARE"], ...o });
   for (const kind of AUTOMATION_BASIS_KINDS) {
     const r = sup(kind);
     assert.deepEqual(evaluateAutomationBasis([r], NOW, undefined, msg), { valid: false, reason: "POLICY_NOT_ACTIVATED" }, `${kind}: policy off`);
@@ -45,7 +45,7 @@ test("automation reading: only an allowed kind with a decided basis (a historic 
   assert.deepEqual(evaluateAutomationBasis([sup("IMPLIED_PUBLISHED_ADDRESS")], NOW, auto), { valid: false, reason: "RECIPIENT_CHANGED" }, "no message facts at all: fails closed");
   assert.deepEqual(evaluateAutomationBasis([sup("IMPLIED_PUBLISHED_ADDRESS", { relevanceTopics: [] })], NOW, auto, msg), { valid: false, reason: "MESSAGE_NOT_COVERED" });
   // a basis a PERSON recorded with complete structured evidence (no engine assessment) keeps the activation/version gate only — the engine's per-send checks do not apply to it
-  const human = row("EXPRESS_CONSENT", "AUTO_SUPPORTED", { ruleVersion: "casl-auto-v2" });
+  const human = row("EXPRESS_CONSENT", "AUTO_SUPPORTED", { ruleVersion: "casl-auto-v3" });
   assert.equal(evaluateAutomationBasis([human], NOW, auto).valid, true);
   assert.deepEqual(evaluateAutomationBasis([human], NOW), { valid: false, reason: "POLICY_NOT_ACTIVATED" });
   // historic human decisions are not subject to the automated re-checks (history is honoured, never rewritten)

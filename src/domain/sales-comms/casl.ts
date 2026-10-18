@@ -103,6 +103,20 @@ export function suggestedBasisExpiry(kind: CrmSendingBasisKind, from: Date): Dat
   return null;
 }
 
+/** CASL s.6 / regulations: a commercial message must identify the sender, give a valid mailing address and one more contact channel (phone, e-mail or web address). */
+export interface SenderIdentificationFacts { legalName: string | null; mailingAddress: string | null; contactEmail: string | null; contactPhone: string | null; websiteUrl: string | null }
+export type SenderIdentificationGap = "LEGAL_NAME" | "MAILING_ADDRESS" | "CONTACT_CHANNEL";
+/** Structural check only (a human still owns the truth of the address): a street-style line with letters and a number, not a placeholder. */
+const plausibleMailingAddress = (a: string | null) => { const t = (a ?? "").trim(); return t.length >= 8 && /\d/.test(t) && /\p{L}{3}/u.test(t); };
+export function senderIdentificationGaps(f: SenderIdentificationFacts): SenderIdentificationGap[] {
+  const gaps: SenderIdentificationGap[] = [];
+  if ((f.legalName ?? "").trim().length < 2) gaps.push("LEGAL_NAME");
+  if (!plausibleMailingAddress(f.mailingAddress)) gaps.push("MAILING_ADDRESS");
+  const channel = !!f.contactEmail?.trim() || (f.contactPhone ?? "").replace(/\D/g, "").length >= 10 || /^https:\/\/\S+$/.test((f.websiteUrl ?? "").trim());
+  if (!channel) gaps.push("CONTACT_CHANNEL");
+  return gaps;
+}
+
 export type SendBlockCode =
   | "SENDING_DISABLED" | "MANUAL_SENDING_DISABLED" | "AUTOMATED_SENDING_DISABLED" | "TRANSACTIONAL_SENDING_DISABLED" | "IDENTITY_INACTIVE" | "IDENTITY_UNKNOWN" | "STAFF_INACTIVE" | "DOMAIN_NOT_APPROVED"
   | "NO_RECIPIENT" | "INVALID_RECIPIENT" | "SUPPRESSED" | "BOUNCED_ADDRESS" | "CONTACT_DNC" | "PROSPECT_DNC" | "PROSPECT_ARCHIVED"

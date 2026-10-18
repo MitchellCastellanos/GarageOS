@@ -1,4 +1,4 @@
-// Automated CASL evidence assessment (pure — no network, no database, no clock except the `now` you pass).  Policy version casl-auto-v2.
+// Automated CASL evidence assessment (pure — no network, no database, no clock except the `now` you pass).  Policy version casl-auto-v3.
 //
 // LEGAL TEST vs. GARAGEOS POLICY. CASL s.10(9)(b) lets a commercial electronic message be sent to an address the recipient conspicuously published, or caused to be published,
 // only if (1) the publication is not accompanied by a statement that the person does not wish to receive unsolicited commercial messages and (2) the message relates to the
@@ -33,7 +33,7 @@ import type { ProvenanceScope } from "@/domain/lead-radar/provenance";
 import { AUTO_EVIDENCE_MAX_AGE_DAYS } from "@/domain/sales-comms/casl";
 
 /** Version of the whole automated policy (engine rules + decision mapping). A change here deactivates the owner's activation until it is renewed. */
-export const CASL_RULE_VERSION = "casl-auto-v2";
+export const CASL_RULE_VERSION = "casl-auto-v3";
 /** GarageOS policy (not a statutory period): evidence is relied on for at most 30 days from the observation. */
 export const EVIDENCE_TTL_DAYS = AUTO_EVIDENCE_MAX_AGE_DAYS;
 /** The stage looks again well before the 30-day limit, so a SUPPORTED basis is normally refreshed (or demoted) before any send could meet an expired one. */
@@ -102,6 +102,15 @@ const RESTRICTION_PATTERNS: RegExp[] = [
   /\b(?:no\s+(?:vendors?|salespeople|sales\s+reps?|solicitors?)|(?:vendors?|salespeople|solicitors?)\b[^.]{0,20}\b(?:please\s+)?(?:do\s+not|don'?t)\s+(?:contact|email|e-?mail|call))/i,
   /\bnot\s+(?:to\s+be\s+)?used\s+for\s+(?:marketing|commercial|promotional|advertising|solicitation)\b/i,
   /\bspam\b/i,
+  // v3: vendor / representative / solicitor wording, "do not email us about <services>", withheld consent (EN) and "offres non sollicitées … refusées", "ne doit pas être utilisée à des fins de sollicitation", reps (FR).
+  /\bno\s+(?:agents?|vendors?|suppliers?|salespeople|sales\s+(?:reps?|representatives?)|representatives?|solicitors?|peddlers?|canvassers?)\b/i,
+  /\b(?:sales\s+representatives?|representatives?|reps?|vendors?|suppliers?|solicitors?|agents?)\b[^.]{0,20}\b(?:please\s+)?(?:do\s+not|don'?t)\s+(?:call|contact|email|e-?mail|visit)\b/i,
+  /\b(?:solicitors?|soliciting|solicitation|peddlers?|canvassers?)\b[^.]{0,40}\b(?:prohibited|forbidden|not\s+(?:allowed|permitted|welcome)|will\s+be\s+(?:prosecuted|reported|removed|ignored))/i,
+  /\b(?:do\s+not|don'?t|please\s+do\s+not|kindly\s+do\s+not)\s+(?:send|email|e-?mail|contact|call)\s+us\b[^.]{0,60}\b(?:seo|services?|products?|proposals?|web(?:site)?\s+design|financing|loans?)\b/i,
+  /\b(?:do(?:es)?\s+not|don'?t|no)\s+consent\b[^.]{0,60}\b(?:marketing|commercial|promotional|solicit\w*|unsolicited|advertis\w*)/i,
+  /\bnon\s+sollicit[ée]e?s?\b[^.]{0,60}\b(?:refus[ée]e?s?|interdit\w*|sont\s+pas\s+(?:accept|bienvenu|permis|souhait)\w*|seront\s+pas)/i,
+  /\bne\s+(?:doit|peut)\s+pas\s+[êe]tre\s+utilis[ée]e?\s+(?:[àa]\s+des\s+fins|pour)\b[^.]{0,40}\b(?:sollicit|commerc|publicit|marketing|promotion|d[ée]marchage)/i,
+  /\b(?:repr[ée]sentants?|vendeurs?|fournisseurs?|solliciteurs?|colporteurs?)\b[^.]{0,40}\b(?:pri[ée]s?\s+de\s+ne\s+pas|ne\s+sont\s+pas\s+(?:bienvenus?|accept\w*)|ne\s+seront\s+pas\s+(?:re[çc]us?|accept\w*)|interdits?)/i,
   /\b(?:aucune|aucun)\s+(?:sollicitation|solicitation|d[ée]marchage|publicit[ée]|pourriel)/i,
   /\b(?:pas|sans)\s+de\s+(?:sollicitation|solicitations|d[ée]marchage|publicit[ée]s?|pourriels?|courriels?\s+non\s+sollicit[ée]s?)\b/i,
   /\b(?:pourriels?|d[ée]marchage|sollicitations?\s+(?:commerciales?|non\s+sollicit[ée]es?))\b/i,
@@ -155,7 +164,7 @@ export function classifyMailbox(email: string): MailboxClass {
   if (FUNCTION_SPECIFIC.has(role)) return "FUNCTION_SPECIFIC";
   return "NAMED";
 }
-/** Mailbox classes a message on `topic` may be sent to under policy v2. Re-checked at every send against the actual recipient address. */
+/** Mailbox classes a message on `topic` may be sent to under policy v3. Re-checked at every send against the actual recipient address. */
 export function classesRelevantTo(topic: string): readonly MailboxClass[] { return topic === CAMPAIGN_TOPIC ? ["GENERAL_CHANNEL", "MANAGEMENT", "FUNCTION_SPECIFIC", "NAMED"] : []; }
 
 export interface Relevance { tri: Tri; cls: MailboxClass; reason?: EvidenceReason; basis?: string }
