@@ -224,7 +224,7 @@ if (!enabled) {
     }
     await makeDue();
     const t = await stage.runEvidenceStage({ deadline: Date.now() + 500, limit: 25, deps });
-    assert.equal(t.claimed, 6); assert.equal(t.assessed, 0, "no candidate is started when it cannot finish inside the tick");
+    assert.equal(t.claimed, 0, "no time left: nothing is even claimed (no claim/release churn)"); assert.equal(t.assessed, 0, "no candidate is started when it cannot finish inside the tick");
     assert.equal(await db.crmDiscoveredContact.count({ where: { assessLeaseUntil: { not: null } } }), 0, "unstarted claims are released at once");
     await evidenceRun(); // settle: everything is assessed again (identical evidence ⇒ no new history) so the following tests start from a quiet queue
   });
@@ -479,7 +479,7 @@ if (!enabled) {
   test("the automation tick wires the stages behind their switches and never touches a send switch", async () => {
     const { readFileSync } = await import("node:fs");
     const src = readFileSync("src/lib/lead-radar/automation.ts", "utf8");
-    assert.match(src, /stage\("evidence", a\.evidenceEnabled, \(deadline\) => runEvidenceStage\(\{ deadline, limit: a\.evidenceBatch \}\)\)/);
+    assert.match(src, /stage\("evidence", a\.evidenceEnabled, \(deadline\) => runEvidenceStage\(\{ deadline, limit: Math\.max\(a\.evidenceBatch, 40\) \}\)\)/);
     assert.match(src, /stage\("screen", a\.qualifyEnabled, /);
     const a = await db.crmLeadAutomation.findUnique({ where: { id: "default" } });
     assert.ok(!a || (!a.pilotEnabled && !a.autoCaslActive));
@@ -636,5 +636,20 @@ if (!enabled) {
     const after = await inv.nationalProgramReport();
     assert.equal(after.firstPassPending, before.firstPassPending, "the claimable one was decided");
     assert.equal(after.notYetCaslCandidates - before.notYetCaslCandidates, 2, "the others were never selected, as designed");
+  });
+
+  test("the batch size is a chunk, not a ceiling: one stage run keeps claiming rounds until the whole claimable backlog is decided (or its time is used)", async () => {
+    const made = [] as string[];
+    for (let i = 0; i < 37; i++) { const pr = await mkProspect(`Garage Round ${i}`, { website: null, websiteDomain: null }); await mkDiscovered(pr.id, `info@round-${i}-garage.example`); made.push(pr.id); }
+    const t = await stage.runEvidenceStage({ deadline: Date.now() + 60_000, limit: 10, deps });
+    assert.equal(t.claimed, 37, JSON.stringify(t));
+    assert.equal(t.errors, 0);
+    assert.equal(await db.crmDiscoveredContact.count({ where: { prospectId: { in: made }, assessedAt: { not: null } } }), 37, "all decided in ONE call although the chunk size is 10");
+    assert.equal((await stage.runEvidenceStage({ deadline: Date.now() + 60_000, limit: 10, deps })).claimed, 0, "nothing left, nothing re-selected");
+    // a deadline that is already (nearly) over starts nothing and leaves every row unleased
+    const more = await mkProspect("Garage Round Late", { website: null, websiteDomain: null }); const d = await mkDiscovered(more.id, "info@round-late-garage.example");
+    const late = await stage.runEvidenceStage({ deadline: Date.now() + 500, limit: 10, deps });
+    assert.equal(late.claimed, 0); assert.equal((await db.crmDiscoveredContact.findUniqueOrThrow({ where: { id: d.id } })).assessLeaseUntil, null);
+    await stage.runEvidenceStage({ deadline: Date.now() + 60_000, limit: 10, deps });
   });
 }
