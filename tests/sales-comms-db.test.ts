@@ -171,7 +171,7 @@ if (!enabled) {
     assert.equal(b.ok, true, JSON.stringify(b)); assert.equal(b.evidenceSupported, true);
     r = await send("Alice", { ...base, languageOverride: "EN" });
     assert.deepEqual([r.ok, r.error], [false, "NO_VALID_BASIS"], "supported evidence authorises nothing while the automated policy is off");
-    await db.crmLeadAutomation.upsert({ where: { id: "default" }, create: { id: "default", autoCaslActive: true, autoCaslRuleVersion: "casl-auto-v1" }, update: { autoCaslActive: true, autoCaslRuleVersion: "casl-auto-v1" } }); // the owner-level, policy-wide activation
+    await db.crmLeadAutomation.upsert({ where: { id: "default" }, create: { id: "default", autoCaslActive: true, autoCaslRuleVersion: "casl-auto-v2" }, update: { autoCaslActive: true, autoCaslRuleVersion: "casl-auto-v2" } }); // the owner-level, policy-wide activation
     as(ids.Alice);
 
     r = await send("Alice", base);

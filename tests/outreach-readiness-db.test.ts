@@ -36,7 +36,7 @@ if (!enabled) {
     const c = await db.crmContact.create({ data: { prospectId: p.id, name: "Business contact", email, emailNormalized: email, isPrimary: true } });
     const b = o.basis ?? "APPROVED";
     if (b !== "NONE") {
-      await db.crmSendingBasis.create({ data: { contactId: c.id, kind: b === "EXEMPT" ? "EXEMPT" : "IMPLIED_PUBLISHED_ADDRESS", evidence: `Published on the shop's own contact page; no do-not-solicit notice (${k})`, recordedByUserId: root, reviewStatus: b === "EXEMPT" ? "NOT_REQUIRED" : b, ruleVersion: b === "AUTO_SUPPORTED" ? "casl-auto-v1" : null, reviewedByUserId: b === "APPROVED" ? reviewer : null, reviewedAt: b === "APPROVED" ? new Date() : null, evidenceType: "WEBSITE_PUBLICATION", sourceUrl: "https://shop.test/contact", capturedAt: new Date(), supportingFacts: "Printed on the public contact page.", roleRelevance: "Owner role", publishedConditionsConfirmed: true } });
+      await db.crmSendingBasis.create({ data: { contactId: c.id, kind: b === "EXEMPT" ? "EXEMPT" : "IMPLIED_PUBLISHED_ADDRESS", evidence: `Published on the shop's own contact page; no do-not-solicit notice (${k})`, recordedByUserId: root, reviewStatus: b === "EXEMPT" ? "NOT_REQUIRED" : b, ruleVersion: b === "AUTO_SUPPORTED" ? "casl-auto-v2" : null, reviewedByUserId: b === "APPROVED" ? reviewer : null, reviewedAt: b === "APPROVED" ? new Date() : null, evidenceType: "WEBSITE_PUBLICATION", sourceUrl: "https://shop.test/contact", capturedAt: new Date(), supportingFacts: "Printed on the public contact page.", roleRelevance: "Owner role", publishedConditionsConfirmed: true } });
     }
     P[label] = { id: p.id, email }; return p;
   }
@@ -152,12 +152,12 @@ if (!enabled) {
     const stateOf2 = async () => (await elig.assessProspects([P["auto-ok"].id])).get(P["auto-ok"].id)!;
     assert.equal((await stateOf2()).readiness, "EVIDENCE_SUPPORTED");
     // refused without the exact confirmation or with a stale version; refused for anyone who is not a Super Admin
-    await assert.rejects(setAutoCaslPolicy(root_, { active: true, ruleVersion: "casl-auto-v1", confirmation: "yes" }), /CONFIRMATION_REQUIRED/);
+    await assert.rejects(setAutoCaslPolicy(root_, { active: true, ruleVersion: "casl-auto-v2", confirmation: "yes" }), /CONFIRMATION_REQUIRED/);
     await assert.rejects(setAutoCaslPolicy(root_, { active: true, ruleVersion: "casl-auto-v0", confirmation: AUTO_CASL_CONFIRMATION }), /POLICY_VERSION_MISMATCH/);
-    await assert.rejects(setAutoCaslPolicy({ ...root_, all: false } as typeof root_, { active: true, ruleVersion: "casl-auto-v1", confirmation: AUTO_CASL_CONFIRMATION }), /SALES_FORBIDDEN/);
+    await assert.rejects(setAutoCaslPolicy({ ...root_, all: false } as typeof root_, { active: true, ruleVersion: "casl-auto-v2", confirmation: AUTO_CASL_CONFIRMATION }), /SALES_FORBIDDEN/);
     assert.equal((await loadAutoCaslPolicy()).active, false);
-    await setAutoCaslPolicy(root_, { active: true, ruleVersion: "casl-auto-v1", confirmation: AUTO_CASL_CONFIRMATION });
-    assert.deepEqual(await loadAutoCaslPolicy(), { active: true, ruleVersion: "casl-auto-v1" });
+    await setAutoCaslPolicy(root_, { active: true, ruleVersion: "casl-auto-v2", confirmation: AUTO_CASL_CONFIRMATION });
+    assert.deepEqual(await loadAutoCaslPolicy(), { active: true, ruleVersion: "casl-auto-v2" });
     const on = await stateOf2();
     assert.equal(on.readiness, "READY");
     assert.equal(on.decision, "NOT_ELIGIBLE", "still no owner / sender: activation is not enrollment");
@@ -165,7 +165,7 @@ if (!enabled) {
     await db.crmLeadAutomation.update({ where: { id: "default" }, data: { autoCaslRuleVersion: "casl-auto-v0" } });
     assert.equal((await loadAutoCaslPolicy()).active, false);
     assert.equal((await stateOf2()).readiness, "EVIDENCE_SUPPORTED");
-    await db.crmLeadAutomation.update({ where: { id: "default" }, data: { autoCaslRuleVersion: "casl-auto-v1" } });
+    await db.crmLeadAutomation.update({ where: { id: "default" }, data: { autoCaslRuleVersion: "casl-auto-v2" } });
     await setAutoCaslPolicy(root_, { active: false });
     assert.equal((await stateOf2()).readiness, "EVIDENCE_SUPPORTED", "deactivation is immediate");
     const audits = await db.crmAuditEvent.findMany({ where: { entityType: "CrmLeadAutomation", action: { in: ["AUTO_CASL_POLICY_ACTIVATED", "AUTO_CASL_POLICY_DEACTIVATED"] } }, select: { action: true } });

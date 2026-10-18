@@ -64,7 +64,7 @@ if (!enabled) {
       assert.deepEqual([bare.ok, bare.error], [false, "EVIDENCE_INCOMPLETE"], `${kind}: free text alone`);
     }
     assert.equal(await db.crmSendingBasis.count({ where: { contactId: c.id } }), 0, "refused claims leave no row");
-    const auto = { active: true, ruleVersion: "casl-auto-v1" };
+    const auto = { active: true, ruleVersion: "casl-auto-v2" };
     for (const kind of ["IMPLIED_PUBLISHED_ADDRESS", "IMPLIED_DISCLOSED_ADDRESS", "EXPRESS_CONSENT", "IMPLIED_EXISTING_RELATIONSHIP", "EXEMPT"]) {
       const ok: any = await inbox.recordSendingBasis(evidence(kind, c.id, kind === "IMPLIED_PUBLISHED_ADDRESS" ? {} : { sourceUrl: "", publishedConditionsConfirmed: "" }));
       assert.equal(ok.ok, true, `${kind}: ${JSON.stringify(ok)}`);

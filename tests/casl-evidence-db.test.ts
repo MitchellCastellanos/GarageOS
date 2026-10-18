@@ -28,7 +28,9 @@ if (!enabled) {
   const policy = await import("../src/lib/sales-comms/policy");
   const { resolvePlatformSalesActor } = await import("../src/lib/sales-crm/access");
   const { evaluateAutomationBasis } = await import("../src/domain/sales-comms/casl");
+  const { verifySnapshot } = await import("../src/domain/lead-radar/casl-evidence-engine");
   type Deps = import("../src/lib/lead-radar/evidence-fetch").FetchDeps;
+  const MSG_EMAIL = "info@alpha-garage.example";
 
   const run = Date.now().toString(36);
   const users: Record<string, string> = {};
@@ -52,8 +54,9 @@ if (!enabled) {
     resolveHost: async () => ["93.184.216.34"], sleep: async () => {}, now: () => Date.now(),
   };
   const page = (name: string, phone: string, postal: string, extra = "") => `<html><body><h1>${name}</h1><p>Tel ${phone} — ${postal}</p>${extra}</body></html>`;
-  web["alpha-garage.example"] = { "/robots.txt": { status: 404 }, "/": { body: `<a href="/contact">Contact</a><a href="/blog">blog</a>` }, "/contact": { body: page("Garage Alpha Auto", "403-555-0100", "T2P 1J9", `<a href="mailto:info@alpha-garage.example">info@alpha-garage.example</a>`) } };
+  web["alpha-garage.example"] = { "/robots.txt": { status: 404 }, "/": { body: `<a href="/contact">Contact</a><a href="/blog">blog</a>` }, "/contact": { body: page("Garage Alpha Auto", "403-555-0100", "T2P 1J9", `<p>Contact us:</p><a href="mailto:info@alpha-garage.example">info@alpha-garage.example</a>`) } };
   web["beta-garage.example"] = { "/robots.txt": { status: 404 }, "/": { body: page("Garage Beta Mécanique", "418-555-0101", "G1R 5T8", `<p>Écrivez-nous : <a href="mailto:contact@beta-garage.example">contact@beta-garage.example</a></p>`) } };
+  web["omega-garage.example"] = { "/robots.txt": { status: 404 }, "/": { body: page("Garage Omega Auto", "403-555-0108", "T2P 1J9", `<p>Contact: <a href="mailto:omega.garage@gmail.com">omega.garage@gmail.com</a></p>`) } };
   web["delta-garage.example"] = { "/robots.txt": { status: 404 }, "/": { body: page("Garage Delta", "416-555-0103", "M5H 2M9", `<a href="mailto:hr@delta-garage.example">hr@delta-garage.example</a>`) } };
   web["epsilon-garage.example"] = { "/robots.txt": { status: 404 }, "/": { body: page("Garage Epsilon", "902-555-0104", "B3J 3K1", `<a href="mailto:info@epsilon-garage.example">info@epsilon-garage.example</a><footer>Pas de sollicitation commerciale, merci.</footer>`) } };
 
@@ -68,6 +71,7 @@ if (!enabled) {
     alpha: rec(A.name, { address: { freeform: "10 Centre St", locality: "Calgary", postcode: "T2P 1J9", region: "AB", country: "CA" }, phones: ["+14035550100"], websites: ["https://alpha-garage.example"], emails: ["info@alpha-garage.example"] }),
     beta: rec("Garage Beta Mécanique", { address: { freeform: "5 rue Saint-Jean", locality: "Québec", postcode: "G1R 5T8", region: "QC", country: "CA" }, phones: ["+14185550101"], websites: ["https://beta-garage.example"], emails: ["contact@beta-garage.example"],
       sourceItems: [{ property: "", dataset: "meta", license: "CDLA-Permissive-2.0", recordId: "PLACE-B", updateTime: "2026-01-01" }, { property: "/emails/0", dataset: "meta", license: "CDLA-Permissive-2.0", recordId: "FB-PAGE-B", updateTime: "2026-02-02T00:00:00Z", confidence: 0.7 }] }),
+    omega: rec("Garage Omega Auto", { address: { freeform: "11 Centre St", locality: "Calgary", postcode: "T2P 1J9", region: "AB", country: "CA" }, phones: ["+14035550108"], websites: ["https://omega-garage.example"], emails: ["omega.garage@gmail.com"] }),
     gamma: rec("Garage Gamma Auto", { address: { freeform: "7 King St", locality: "Ottawa", postcode: "K1P 5G3", region: "ON", country: "CA" }, emails: ["info@gamma-garage.example"] }),
     delta: rec("Garage Delta", { address: { freeform: "9 Bay St", locality: "Toronto", postcode: "M5H 2M9", region: "ON", country: "CA" }, phones: ["+14165550103"], websites: ["https://delta-garage.example"], emails: ["hr@delta-garage.example"] }),
     epsilon: rec("Garage Epsilon", { address: { freeform: "3 Barrington St", locality: "Halifax", postcode: "B3J 3K1", region: "NS", country: "CA" }, phones: ["+19025550104"], websites: ["https://epsilon-garage.example"], emails: ["info@epsilon-garage.example"] }),
@@ -104,7 +108,7 @@ if (!enabled) {
 
   test("early commercial screen: only usable records are staged (FIELD visitable, REMOTE with email); unusable ones leave a tombstone and NO staging row; Québec without geography never enters REMOTE", async () => {
     const r = await ingest(Object.values(R1), "2026-09-23.1");
-    for (const k of ["alpha", "beta", "gamma", "delta", "epsilon", "zeta"]) assert.ok(await candidate(k), `${k} is staged`);
+    for (const k of ["alpha", "beta", "gamma", "delta", "epsilon", "zeta", "omega"]) assert.ok(await candidate(k), `${k} is staged`);
     for (const [k, reason] of [["eta", "TERRITORY_UNRESOLVED"], ["theta", "REMOTE_NO_USABLE_EMAIL"], ["iota", "FIT_EXCLUDED"], ["kappa", "FIT_NOT_VERIFIED"]] as const) {
       assert.equal(await candidate(k), null, `${k} was never stored as a staging row`);
       const t = await tombstone(k);
@@ -150,7 +154,7 @@ if (!enabled) {
     const cands = await db.crmDiscoveryCandidate.findMany({ where: { sourceRecordId: { in: Object.values(ids) } }, select: { id: true } });
     assert.equal(((await radar.reviewDiscoveryCandidates({ ids: cands.map((c) => c.id), decision: "APPROVED" })) as any).ok, true);
     const imp: any = await radar.importApprovedDiscoveryCandidates({ ids: cands.map((c) => c.id) });
-    assert.equal(imp.result.created, 6, JSON.stringify(imp.result));
+    assert.equal(imp.result.created, 7, JSON.stringify(imp.result));
     const st = Object.fromEntries((await db.crmProspect.findMany({ select: { name: true, territoryState: true, repairFit: true, province: true } })).map((p) => [p.name, [p.territoryState, p.repairFit]]));
     assert.deepEqual(st["Garage Zeta"], ["LOCAL", "VERIFIED_REPAIR"]);
     for (const n of ["Garage Alpha Auto", "Garage Beta Mécanique", "Garage Gamma Auto", "Garage Delta", "Garage Epsilon"]) assert.deepEqual(st[n], ["NATIONAL", "VERIFIED_REPAIR"], n);
@@ -158,7 +162,7 @@ if (!enabled) {
 
   test("seeding carries the Overture place id, release and provenance onto the discovered address — and still creates no contact, basis, enrollment or message", async () => {
     const t = await cr.seedDiscoveredContacts({ deadline: Date.now() + 30_000 });
-    assert.equal(t.stored, 6);
+    assert.equal(t.stored, 7);
     const b = await discovered("beta");
     assert.deepEqual([b.placeId, b.overtureRelease, b.provenanceScope, b.status, b.assessOutcome], [ids.beta, "2026-09-23.1", "EMAIL", "PENDING", null]);
     assert.equal((await discovered("alpha")).provenanceScope, "PLACE");
@@ -169,20 +173,32 @@ if (!enabled) {
   test("evidence stage: bounded reading of each shop's OWN site → SUPPORTED / INSUFFICIENT / BLOCKED, complete audit trail, no reviewer, FIELD ignored, no wasted requests", async () => {
     hits.length = 0;
     const t = await evidenceRun();
-    assert.equal(t.claimed, 5, "FIELD (Zeta) is never claimed: it is not part of the national REMOTE campaign");
-    assert.deepEqual([t.supported, t.insufficient, t.blocked, t.errors], [2, 1, 2, 0], JSON.stringify(t));
+    assert.equal(t.claimed, 6, "FIELD (Zeta) is never claimed: it is not part of the national REMOTE campaign");
+    assert.deepEqual([t.supported, t.insufficient, t.blocked, t.errors], [2, 1, 3, 0], JSON.stringify(t));
     console.log("[first-run-stats]", JSON.stringify({ claimed: t.claimed, supported: t.supported, insufficient: t.insufficient, blocked: t.blocked, requests: t.requests, kilobytes: Math.round(t.bytes / 1000), reasons: t.reasons }));
     const out = async (k: string) => (await discovered(k)).assessOutcome;
-    assert.deepEqual([await out("alpha"), await out("beta"), await out("gamma"), await out("delta"), await out("epsilon"), await out("zeta")], ["SUPPORTED", "SUPPORTED", "INSUFFICIENT", "BLOCKED", "BLOCKED", null]);
+    assert.deepEqual([await out("alpha"), await out("beta"), await out("gamma"), await out("delta"), await out("epsilon"), await out("zeta"), await out("omega")], ["SUPPORTED", "SUPPORTED", "INSUFFICIENT", "BLOCKED", "BLOCKED", null, "BLOCKED"]);
+    // CORRECTION 3: a personal / free-mail address is excluded before any request, creates no contact and no basis, even though the shop's own site shows it
+    assert.equal(hits.some((h) => h.startsWith("omega-garage.example")), false, "personal address: BLOCKED before any request");
+    const om = await db.crmCaslAssessment.findFirstOrThrow({ where: { discoveredContact: { id: (await discovered("omega")).id } } });
+    assert.deepEqual([om.outcome, om.reasons, om.snapshot], ["BLOCKED", ["PERSONAL_ADDRESS_EXCLUDED"], null]);
     // no request was spent on an address that could never be supported (no website; irrelevant role)
     assert.equal(hits.some((h) => h.startsWith("delta-garage.example")), false, "HR mailbox: BLOCKED before any request");
     assert.ok(t.requests > 0 && t.requests <= 5 * 6);
     // append-only history with the five conditions, rule version and a bounded snippet
     const a = await db.crmCaslAssessment.findFirstOrThrow({ where: { discoveredContact: { id: (await discovered("alpha")).id } } });
-    assert.deepEqual([a.outcome, a.ruleVersion, a.sourceKind, a.sourceUrl, a.publisherHost], ["SUPPORTED", "casl-auto-v1", "OWN_WEBSITE", "https://alpha-garage.example/contact", "alpha-garage.example"]);
-    assert.deepEqual(a.conditions, { publishedByRecipient: "MET", noRestriction: "MET", relevant: "MET", attributable: "MET", documented: "MET" });
+    assert.deepEqual([a.outcome, a.ruleVersion, a.sourceKind, a.sourceUrl, a.publisherHost], ["SUPPORTED", "casl-auto-v2", "OWN_WEBSITE", "https://alpha-garage.example/contact", "alpha-garage.example"]);
+    assert.deepEqual(a.conditions, { identityCorroborated: "MET", publishedByRecipient: "MET", noRestriction: "MET", relevant: "MET", attributable: "MET", documented: "MET" });
+    assert.deepEqual([a.mailboxClass, a.topics], ["GENERAL_CHANNEL", ["SHOP_MANAGEMENT_SOFTWARE"]]);
+    // CORRECTION 4: a reproducible, tamper-evident evidence artifact is stored with the decision — and only with a SUPPORTED/restriction decision
+    const snap = a.snapshot as any;
+    assert.ok(snap && a.snapshotHash === snap.snapshotHash && verifySnapshot(snap), "artifact present and its hash verifies");
+    assert.equal(snap.publication.via, "mailto"); assert.ok(snap.publication.htmlFragment.includes("mailto:info@alpha-garage.example") && snap.publication.textContext.includes("Contact us"));
+    assert.deepEqual(snap.identity, { phone: true, postal: true, name: true, domainMatch: true });
+    assert.deepEqual(snap.robots, [{ host: "alpha-garage.example", status: 404 }]);
+    assert.ok(JSON.stringify(snap).length < 8000, "bounded storage");
     assert.ok(a.snippet!.includes("info@alpha-garage.example") && a.snippet!.length <= 300);
-    assert.equal(a.contentHash!.length, 40); assert.ok(a.expiresAt!.getTime() > Date.now() + 170 * 86_400_000); assert.ok(a.revalidateAt!.getTime() < a.expiresAt!.getTime());
+    assert.equal(a.contentHash!.length, 40); assert.ok(a.expiresAt!.getTime() > Date.now() + 29 * 86_400_000 && a.expiresAt!.getTime() < Date.now() + 31 * 86_400_000, "30-day evidence clock"); assert.ok(a.revalidateAt!.getTime() < a.expiresAt!.getTime());
     assert.deepEqual((a.usage as any).pages > 0, true);
     const g = await db.crmCaslAssessment.findFirstOrThrow({ where: { discoveredContact: { id: (await discovered("gamma")).id } } });
     assert.deepEqual([g.outcome, g.sourceKind, g.reasons.includes("NO_OWN_WEBSITE"), g.reasons.includes("THIRD_PARTY_ONLY")], ["INSUFFICIENT", "OVERTURE_ONLY", true, true], "provenance only → insufficient");
@@ -192,9 +208,11 @@ if (!enabled) {
     assert.equal(await db.crmContact.count(), 2);
     const bases = await db.crmSendingBasis.findMany();
     assert.equal(bases.length, 2);
-    for (const b of bases) assert.deepEqual([b.reviewStatus, b.ruleVersion, b.recordedByUserId, b.reviewedByUserId, b.kind, !!b.caslAssessmentId, !!b.expiresAt, b.evidenceType], ["AUTO_SUPPORTED", "casl-auto-v1", "system", null, "IMPLIED_PUBLISHED_ADDRESS", true, true, "WEBSITE_PUBLICATION"]);
+    for (const b of bases) assert.deepEqual([b.reviewStatus, b.ruleVersion, b.recordedByUserId, b.reviewedByUserId, b.kind, !!b.caslAssessmentId, !!b.expiresAt, b.evidenceType], ["AUTO_SUPPORTED", "casl-auto-v2", "system", null, "IMPLIED_PUBLISHED_ADDRESS", true, true, "WEBSITE_PUBLICATION"]);
+    const ab = bases.find((b) => b.assessedEmail === "info@alpha-garage.example")!;
+    assert.deepEqual([ab.mailboxClass, ab.relevanceTopics, ab.capturedAt!.getTime() > Date.now() - 60_000], ["GENERAL_CHANNEL", ["SHOP_MANAGEMENT_SOFTWARE"], true], "the basis carries the exact address, mailbox class and message topics that every send re-checks");
     assert.equal((await discovered("alpha")).status, "ACCEPTED"); assert.equal((await discovered("gamma")).status, "PENDING");
-    assert.equal(await db.crmAuditEvent.count({ where: { action: "CASL_EVIDENCE_ASSESSED" } }), 5);
+    assert.equal(await db.crmAuditEvent.count({ where: { action: "CASL_EVIDENCE_ASSESSED" } }), 6);
     assert.deepEqual(await counts(), { enrollments: 0, messages: 0 });
   });
 
@@ -206,7 +224,7 @@ if (!enabled) {
     }
     await makeDue();
     const t = await stage.runEvidenceStage({ deadline: Date.now() + 500, limit: 25, deps });
-    assert.equal(t.claimed, 5); assert.equal(t.assessed, 0, "no candidate is started when it cannot finish inside the tick");
+    assert.equal(t.claimed, 6); assert.equal(t.assessed, 0, "no candidate is started when it cannot finish inside the tick");
     assert.equal(await db.crmDiscoveredContact.count({ where: { assessLeaseUntil: { not: null } } }), 0, "unstarted claims are released at once");
     await evidenceRun(); // settle: everything is assessed again (identical evidence ⇒ no new history) so the following tests start from a quiet queue
   });
@@ -217,7 +235,7 @@ if (!enabled) {
     assert.equal((await evidenceRun()).claimed, 0, "nothing is due");
     await makeDue();
     const t = await evidenceRun();
-    assert.equal(t.claimed, 5);
+    assert.equal(t.claimed, 6);
     assert.deepEqual(await snap(), before, "same evidence ⇒ same keys ⇒ no new history, contact, basis or audit event");
     assert.equal(t.basesCreated, 0);
   });
@@ -225,7 +243,7 @@ if (!enabled) {
   test("concurrency: two overlapping runs never assess the same row twice (lease + SKIP LOCKED)", async () => {
     await makeDue(); hits.length = 0;
     const [a, b] = await Promise.all([evidenceRun(), evidenceRun()]);
-    assert.equal(a.claimed + b.claimed, 5, `${a.claimed}+${b.claimed}`);
+    assert.equal(a.claimed + b.claimed, 6, `${a.claimed}+${b.claimed}`);
     const alphaHome = hits.filter((h) => h === "alpha-garage.example/").length;
     assert.equal(alphaHome, 1, "one reading per due row, not one per runner");
     assert.equal(await db.crmDiscoveredContact.count({ where: { assessLeaseUntil: { not: null } } }), 0, "every lease is released");
@@ -254,7 +272,7 @@ if (!enabled) {
     await db.crmProspect.update({ where: { id: alpha.prospectId }, data: { website: "https://alpha-garage.example", websiteDomain: "alpha-garage.example" } });
     await db.crmDiscoveredContact.update({ where: { id: alpha.id }, data: { assessRuleVersion: "casl-auto-v0" } });
     assert.deepEqual(await stage.claimEvidenceWork(25, new Date()), [alpha.id], "older rule version");
-    await db.crmDiscoveredContact.updateMany({ data: { assessLeaseUntil: null, assessRuleVersion: "casl-auto-v1" } });
+    await db.crmDiscoveredContact.updateMany({ data: { assessLeaseUntil: null, assessRuleVersion: "casl-auto-v2" } });
   });
 
   test("revalidation: a restriction that appears later BLOCKS and revokes the automated basis (history appended, audited); a transient failure keeps what we know", async () => {
@@ -277,17 +295,54 @@ if (!enabled) {
     assert.equal((await db.crmDiscoveredContact.findUniqueOrThrow({ where: { id: alpha.id } })).assessOutcome, "BLOCKED");
     const [ab] = await autoBasis(alphaContact);
     assert.ok(ab.revokedAt, "the automated basis was revoked");
-    assert.equal(evaluateAutomationBasis(await db.crmSendingBasis.findMany({ where: { contactId: alphaContact } }), new Date(), { active: true, ruleVersion: "casl-auto-v1" }).valid, false);
+    assert.equal(evaluateAutomationBasis(await db.crmSendingBasis.findMany({ where: { contactId: alphaContact } }), new Date(), { active: true, ruleVersion: "casl-auto-v2" }, { topic: "SHOP_MANAGEMENT_SOFTWARE", recipientEmail: MSG_EMAIL }).valid, false);
     const hist = await db.crmCaslAssessment.findMany({ where: { discoveredContactId: alpha.id }, orderBy: { createdAt: "asc" } });
     assert.deepEqual(hist.map((h) => h.outcome), ["SUPPORTED", "BLOCKED"], "append-only: both decisions are kept");
     const audit = await db.crmAuditEvent.findFirstOrThrow({ where: { action: "CASL_EVIDENCE_ASSESSED", prospectId: alpha.prospectId }, orderBy: { createdAt: "desc" } });
     assert.deepEqual([(audit.metadata as any).outcome, (audit.metadata as any).previous], ["BLOCKED", "SUPPORTED"]);
     // the restriction is removed → SUPPORTED again with a NEW basis row (the revoked one stays as history)
-    web["alpha-garage.example"]["/contact"].body = page("Garage Alpha Auto", "403-555-0100", "T2P 1J9", `<a href="mailto:info@alpha-garage.example">info@alpha-garage.example</a><p>Open Mon–Fri</p>`);
+    web["alpha-garage.example"]["/contact"].body = page("Garage Alpha Auto", "403-555-0100", "T2P 1J9", `<p>Contact us:</p><a href="mailto:info@alpha-garage.example">info@alpha-garage.example</a><p>Open Mon–Fri</p>`);
     await makeDue(); await evidenceRun();
     const rows = await autoBasis(alphaContact);
     assert.equal(rows.length, 2); assert.ok(rows[0].revokedAt && !rows[1].revokedAt);
-    assert.equal(evaluateAutomationBasis(await db.crmSendingBasis.findMany({ where: { contactId: alphaContact } }), new Date(), { active: true, ruleVersion: "casl-auto-v1" }).valid, true);
+    assert.equal(evaluateAutomationBasis(await db.crmSendingBasis.findMany({ where: { contactId: alphaContact } }), new Date(), { active: true, ruleVersion: "casl-auto-v2" }, { topic: "SHOP_MANAGEMENT_SOFTWARE", recipientEmail: MSG_EMAIL }).valid, true);
+  });
+
+  test("restriction check reaches the terms page (CORRECTION 5): a statement there BLOCKS; an unreadable terms page is INSUFFICIENT for a new decision and keeps what a COMPLETE earlier check proved; a clean one supports", async () => {
+    const alpha = await discovered("alpha");
+    const alphaContact = (await db.crmContact.findFirstOrThrow({ where: { prospectId: alpha.prospectId } })).id;
+    const site = web["alpha-garage.example"];
+    const homeOriginal = site["/"].body;
+    site["/"].body = homeOriginal + `<a href="/conditions">Terms and conditions</a>`;
+    const liveBasis = () => db.crmSendingBasis.findMany({ where: { contactId: alphaContact, reviewStatus: "AUTO_SUPPORTED", revokedAt: null, expiresAt: { gt: new Date() } } });
+    const latest = () => db.crmCaslAssessment.findFirstOrThrow({ where: { discoveredContactId: alpha.id }, orderBy: { createdAt: "desc" } });
+    // A — a no-solicitation clause on the terms page
+    site["/conditions"] = { body: "<h1>Terms</h1><p>Unsolicited commercial messages are not accepted at any of our addresses.</p>" };
+    hits.length = 0; await makeDue(); await evidenceRun();
+    let a = await latest();
+    assert.deepEqual([a.outcome, a.reasons], ["BLOCKED", ["NO_SOLICITATION_STATEMENT"]]);
+    assert.equal((a.snapshot as any).restrictionScan.restriction.url, "https://alpha-garage.example/conditions", "the artifact names the page that carries the clause");
+    assert.equal((await liveBasis()).length, 0);
+    // B — the terms page cannot be read: a NEW decision is INSUFFICIENT (an unread page is never assumed clean)
+    delete site["/conditions"];
+    await makeDue(); await evidenceRun();
+    a = await latest();
+    assert.deepEqual([a.outcome, a.reasons.includes("RESTRICTION_CHECK_INCOMPLETE"), a.snapshot], ["INSUFFICIENT", true, null]);
+    assert.equal((await liveBasis()).length, 0, "no automated authority without a complete restriction check");
+    // C — a clean, complete check supports it again; the artifact lists every page of the scan
+    site["/conditions"] = { body: "<h1>Terms</h1><p>Warranty: 12 months on parts.</p>" };
+    await makeDue(); await evidenceRun();
+    a = await latest();
+    assert.equal(a.outcome, "SUPPORTED");
+    assert.deepEqual((a.snapshot as any).restrictionScan.pages.map((p: any) => [new URL(p.url).pathname, p.kind, p.restrictionFound]), [["/", "home", false], ["/contact", "contact", false], ["/conditions", "policy", false]]);
+    assert.equal((a.snapshot as any).restrictionScan.complete, true);
+    assert.equal((await liveBasis()).length, 1);
+    // D — continuity: a later failure to REACH the terms page does not erase what a complete check proved (it keeps its own 30-day expiry)
+    delete site["/conditions"];
+    await makeDue(); await evidenceRun();
+    assert.equal((await db.crmDiscoveredContact.findUniqueOrThrow({ where: { id: alpha.id } })).assessOutcome, "SUPPORTED");
+    assert.equal((await liveBasis()).length, 1);
+    site["/"].body = homeOriginal; // leave the fake internet as the other tests expect
   });
 
   test("global suppression wins over evidence: an address that unsubscribes is BLOCKED without any request and its automated basis stops authorising", async () => {
@@ -297,14 +352,14 @@ if (!enabled) {
     hits.length = 0; await makeDue(); await evidenceRun();
     assert.equal(hits.some((h) => h.startsWith("beta-garage.example")), false, "no request spent on a suppressed address");
     assert.equal((await db.crmDiscoveredContact.findUniqueOrThrow({ where: { id: beta.id } })).assessOutcome, "BLOCKED");
-    assert.equal(evaluateAutomationBasis(await db.crmSendingBasis.findMany({ where: { contactId: contact.id } }), new Date(), { active: true, ruleVersion: "casl-auto-v1" }).valid, false);
+    assert.equal(evaluateAutomationBasis(await db.crmSendingBasis.findMany({ where: { contactId: contact.id } }), new Date(), { active: true, ruleVersion: "casl-auto-v2" }, { topic: "SHOP_MANAGEMENT_SOFTWARE", recipientEmail: MSG_EMAIL }).valid, false);
   });
 
   test("a valid decision taken under the former workflow is never replaced by an automated row that needs activation", async () => {
     const gamma = await discovered("gamma");
     const c = await db.crmContact.create({ data: { prospectId: gamma.prospectId, name: "Business contact", email: gamma.emailNormalized, emailNormalized: gamma.emailNormalized, isPrimary: true } });
     await db.crmSendingBasis.create({ data: { contactId: c.id, kind: "IMPLIED_PUBLISHED_ADDRESS", evidence: "Approved under the former workflow", recordedByUserId: users.Root, reviewStatus: "APPROVED", reviewedByUserId: users.Root, reviewedAt: new Date(), evidenceType: "WEBSITE_PUBLICATION", sourceUrl: "https://gamma-garage.example/c", capturedAt: new Date(), supportingFacts: "Printed on the contact page.", roleRelevance: "Owner role", publishedConditionsConfirmed: true } });
-    web["gamma-garage.example"] = { "/robots.txt": { status: 404 }, "/": { body: page("Garage Gamma Auto", "306-555-0100", "K1P 5G3", `<a href="mailto:info@gamma-garage.example">info@gamma-garage.example</a>`) } };
+    web["gamma-garage.example"] = { "/robots.txt": { status: 404 }, "/": { body: page("Garage Gamma Auto", "306-555-0100", "K1P 5G3", `<p>Contact us:</p><a href="mailto:info@gamma-garage.example">info@gamma-garage.example</a>`) } };
     await db.crmProspect.update({ where: { id: gamma.prospectId }, data: { website: "https://gamma-garage.example", websiteDomain: "gamma-garage.example" } });
     await db.crmDiscoveredContact.update({ where: { id: gamma.id }, data: { nextAssessAt: new Date(Date.now() - 1000) } });
     const t = await evidenceRun();
@@ -329,7 +384,7 @@ if (!enabled) {
     assert.notEqual(a1.decision, "ELIGIBLE");
     // the owner activates ONE policy (typed confirmation); only then is the evidence usable — still subject to every other send gate
     const actor = (await resolvePlatformSalesActor(users.Root))!;
-    await setAutoCaslPolicy(actor, { active: true, ruleVersion: "casl-auto-v1", confirmation: AUTO_CASL_CONFIRMATION });
+    await setAutoCaslPolicy(actor, { active: true, ruleVersion: "casl-auto-v2", confirmation: AUTO_CASL_CONFIRMATION });
     const on = await policy.evaluatePolicy(target);
     assert.equal(on.basis?.valid, true);
     assert.equal(on.decision.allowed, false, "sending is still disabled by its own switches");
@@ -341,6 +396,41 @@ if (!enabled) {
     const comms = await db.crmCommsSettings.findUnique({ where: { id: "default" } });
     assert.ok(!comms || (!comms.sendingEnabled && !comms.automatedSendingEnabled && !comms.manualSendingEnabled && !comms.transactionalSendingEnabled), "no send switch was ever touched");
     assert.deepEqual(await counts(), { enrollments: 0, messages: 0 });
+  });
+
+  test("PER-SEND RE-CHECK (CORRECTIONS 2, 6): with the owner policy active, every evaluation re-checks freshness, the exact address, the message subject and the mailbox — and fails closed on each", async () => {
+    const alpha = await discovered("alpha");
+    const contact = await db.crmContact.findFirstOrThrow({ where: { prospectId: alpha.prospectId } });
+    const ident = await db.crmSenderIdentity.findFirstOrThrow({});
+    const actor = (await resolvePlatformSalesActor(users.Root))!;
+    await setAutoCaslPolicy(actor, { active: true, ruleVersion: "casl-auto-v2", confirmation: AUTO_CASL_CONFIRMATION });
+    try {
+      const target = { identityId: ident.id, category: "COMMERCIAL" as const, recipients: [contact.emailNormalized!], prospectId: alpha.prospectId, contactId: contact.id, languageResolved: true, origin: "AUTOMATED" as const };
+      assert.equal((await policy.evaluatePolicy(target)).basis?.valid, true, "fresh, same address, campaign subject");
+      // the message is about something the assessment did not cover
+      const other = await policy.evaluatePolicy({ ...target, messageTopic: "SOMETHING_ELSE" });
+      assert.deepEqual([other.basis?.valid, (other.basis as any).reason], [false, "MESSAGE_NOT_COVERED"]);
+      // a person's own message declares no subject: the automated basis does not cover it
+      const manual = await policy.evaluatePolicy({ ...target, origin: "MANUAL" });
+      assert.deepEqual([manual.basis?.valid, (manual.basis as any).reason], [false, "MESSAGE_NOT_COVERED"]);
+      // 31 days later nothing is relied on: the 30-day observation limit applies at send time, not only when the evidence was gathered
+      const later = await policy.evaluatePolicy(target, new Date(Date.now() + 31 * 86_400_000));
+      assert.equal(later.basis?.valid, false);
+      assert.ok(["EXPIRED", "EVIDENCE_STALE"].includes((later.basis as any).reason), (later.basis as any).reason);
+      // the contact's address was edited after the assessment: the evidence belongs to the old address
+      await db.crmContact.update({ where: { id: contact.id }, data: { emailNormalized: "someone.else@alpha-garage.example", email: "someone.else@alpha-garage.example" } });
+      const edited = await policy.evaluatePolicy({ ...target, recipients: ["someone.else@alpha-garage.example"] });
+      assert.deepEqual([edited.basis?.valid, (edited.basis as any).reason], [false, "RECIPIENT_CHANGED"]);
+      await db.crmContact.update({ where: { id: contact.id }, data: { emailNormalized: alpha.emailNormalized, email: alpha.emailNormalized } });
+      // suppression is still checked at every send, ahead of any evidence
+      await suppressEmail({ email: alpha.emailNormalized, reason: "UNSUBSCRIBE", source: "test" });
+      const supp = await policy.evaluatePolicy(target);
+      assert.equal(supp.decision.allowed, false);
+      assert.ok(["SENDING_DISABLED", "SUPPRESSED"].includes((supp.decision as any).code));
+    } finally {
+      await setAutoCaslPolicy(actor, { active: false });
+      await db.crmEmailSuppression.deleteMany({ where: { emailNormalized: alpha.emailNormalized } });
+    }
   });
 
   test("staging hygiene: unusable never-reviewed rows become tombstones and are removed; reviewed, imported and referenced rows are never touched", async () => {
@@ -375,7 +465,7 @@ if (!enabled) {
 
   test("aggregate metrics are exact counts (no personal data) and resource use is accounted", async () => {
     const m = await pipelineMetrics();
-    assert.equal(m.ruleVersion, "casl-auto-v1");
+    assert.equal(m.ruleVersion, "casl-auto-v2");
     assert.ok(m.examined >= 14 && m.commerciallyRejected >= 6 && m.rediscovered === 2);
     assert.equal(m.supported + m.insufficient + m.blocked + m.unassessed, m.emailsNeedingAssessment);
     assert.ok(m.supported >= 1 && m.blocked >= 2);

@@ -35,6 +35,7 @@ export default async function LeadRadarAutomationPage() {
   const { actor, access, locale, t, c } = await loadRadarPage("admin");
   if (!actor || !access?.admin) return <PermissionDenied t={t} />;
   const a = c.automation;
+  const recent = await db.crmCaslAssessment.findMany({ orderBy: { createdAt: "desc" }, take: 8, select: { id: true, emailNormalized: true, outcome: true, reasons: true, mailboxClass: true, createdAt: true } });
   const [d, overview, budget, sequences] = await Promise.all([
     automationDashboard(actor), leadRadarOverview(actor), budgetOverview(),
     db.crmSequence.findMany({ where: { status: "ACTIVE" }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
@@ -143,6 +144,14 @@ export default async function LeadRadarAutomationPage() {
 
         <Stage id="au-casl" title={a.casl.title}>
           <AutoCaslPanel locale={locale} view={{ evidenceEnabled: d.automation.evidenceEnabled, autoCaslActive: d.automation.autoCaslActive, ruleVersion: d.pipeline.ruleVersion, activatedAt: d.automation.autoCaslActivatedAt ? d.automation.autoCaslActivatedAt.toISOString() : null }} />
+          {recent.length > 0 && (
+            <div>
+              <h4 className="text-sm font-medium text-slate-700">{locale === "fr" ? "Dernières évaluations (ouvrez l’artéfact de preuve)" : "Latest assessments (open the evidence artifact)"}</h4>
+              <ul className="mt-1 text-sm">{recent.map((r) => (
+                <li key={r.id} className="flex flex-wrap justify-between gap-2 border-b border-slate-100 py-1"><Link href={`/platform/sales/lead-radar/evidence/${r.id}`} className="break-all text-blue-700 underline-offset-2 hover:underline">{r.emailNormalized}</Link><span className="text-slate-600">{r.outcome}{r.reasons.length ? ` · ${r.reasons.join(", ")}` : ""} · {r.mailboxClass ?? "—"} · {formatDate(r.createdAt, locale)}</span></li>
+              ))}</ul>
+            </div>
+          )}
         </Stage>
 
         <Stage id="au-5" title={a.stages.eligibility}>

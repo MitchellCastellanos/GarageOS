@@ -8,7 +8,9 @@ import { campaignDefaultFor, resolveEffectiveLanguage, territoryDefaultLanguage 
 
 const T0 = new Date("2026-03-01T12:00:00Z");
 const row = (o: Record<string, unknown> = {}) => ({ kind: "IMPLIED_PUBLISHED_ADDRESS" as const, evidence: "Published on the shop's contact page, no do-not-solicit notice", recordedAt: new Date("2026-02-01"), expiresAt: null, revokedAt: null, reviewStatus: "APPROVED" as const, ...o });
-const auto = { active: true, ruleVersion: "casl-auto-v1" };
+const auto = { active: true, ruleVersion: "casl-auto-v2" };
+const MSG = { topic: "SHOP_MANAGEMENT_SOFTWARE", recipientEmail: "info@shop.example" };
+const AUTO_FIELDS = { reviewStatus: "AUTO_SUPPORTED", ruleVersion: "casl-auto-v2", caslAssessmentId: "assess-1", capturedAt: new Date("2026-02-20"), assessedEmail: "info@shop.example", relevanceTopics: ["SHOP_MANAGEMENT_SOFTWARE"] };
 const approved = evaluateAutomationBasis([row()], T0);
 const contact = (o: Partial<OutreachContactFacts> = {}): OutreachContactFacts => ({ id: "c1", email: "info@garage.ca", doNotContact: false, archived: false, isPrimary: true, language: "UNKNOWN", basis: approved, suppression: null, duplicateAddress: false, ...o });
 const facts = (o: { prospect?: Partial<OutreachFacts["prospect"]>; contacts?: OutreachContactFacts[]; seller?: OutreachFacts["seller"]; sender?: OutreachFacts["sender"] } = {}): OutreachFacts => ({
@@ -66,13 +68,13 @@ test("CASL: only an independently APPROVED allow-listed basis reaches READY; pen
   assert.equal(st([row({ kind: "EXISTING_RELATIONSHIP" })]), "INELIGIBLE");
   for (const kind of ["IMPLIED_PUBLISHED_ADDRESS", "IMPLIED_DISCLOSED_ADDRESS", "EXPRESS_CONSENT"] as const) assert.equal(st([row({ kind })]), "READY", kind);
   // Automated evidence: classified EVIDENCE_SUPPORTED while the owner has not activated the policy, READY only once it is — never before.
-  const supported = [row({ reviewStatus: "AUTO_SUPPORTED", ruleVersion: "casl-auto-v1" })];
+  const supported = [row(AUTO_FIELDS)];
   assert.equal(ready(facts({ contacts: [contact({ basis: evaluateAutomationBasis(supported, T0) })] })), "EVIDENCE_SUPPORTED");
-  assert.equal(ready(facts({ contacts: [contact({ basis: evaluateAutomationBasis(supported, T0, auto) })] })), "READY");
-  assert.equal(ready(facts({ contacts: [contact({ basis: evaluateAutomationBasis(supported, T0, { active: true, ruleVersion: "casl-auto-v0" }) })] })), "EVIDENCE_SUPPORTED", "another version's activation does not carry over");
+  assert.equal(ready(facts({ contacts: [contact({ basis: evaluateAutomationBasis(supported, T0, auto, MSG) })] })), "READY");
+  assert.equal(ready(facts({ contacts: [contact({ basis: evaluateAutomationBasis(supported, T0, { active: true, ruleVersion: "casl-auto-v1" }) })] })), "EVIDENCE_SUPPORTED", "another version's activation does not carry over");
   // supported evidence never overrides a structural or suppression disqualifier
   assert.equal(ready(facts({ prospect: { territory: "LOCAL" }, contacts: [contact({ basis: evaluateAutomationBasis(supported, T0) })] })), "INELIGIBLE");
-  assert.equal(ready(facts({ contacts: [contact({ suppression: "UNSUBSCRIBE", basis: evaluateAutomationBasis(supported, T0, auto) })] })), "SUPPRESSED");
+  assert.equal(ready(facts({ contacts: [contact({ suppression: "UNSUBSCRIBE", basis: evaluateAutomationBasis(supported, T0, auto, MSG) })] })), "SUPPRESSED");
   const none = evaluateOutreachEligibility(facts({ contacts: [contact({ basis: evaluateAutomationBasis(supported, T0) })] }));
   assert.deepEqual(none.reasons, ["NO_OWNER", "AUTO_POLICY_NOT_ACTIVATED"]);
   assert.equal(none.decision, "NOT_ELIGIBLE", "evidence-supported is never pilot-eligible while the policy is off");
@@ -84,7 +86,7 @@ test("a BLOCKED automated assessment makes the address INELIGIBLE and cannot be 
   const blocked = evaluateOutreachEligibility(facts({ contacts: [contact({ evidenceBlocked: true })] }));
   assert.ok(blocked.reasons.includes("CASL_EVIDENCE_BLOCKED"));
   assert.equal(readinessOf(blocked.reasons), "INELIGIBLE");
-  assert.equal(ready(facts({ contacts: [contact({ evidenceBlocked: true, basis: evaluateAutomationBasis([row({ reviewStatus: "AUTO_SUPPORTED", ruleVersion: "casl-auto-v1" })], T0, auto) })] })), "INELIGIBLE");
+  assert.equal(ready(facts({ contacts: [contact({ evidenceBlocked: true, basis: evaluateAutomationBasis([row(AUTO_FIELDS)], T0, auto, MSG) })] })), "INELIGIBLE");
   assert.equal(ready(facts({ contacts: [contact({ evidenceBlocked: true, suppression: "UNSUBSCRIBE" })] })), "SUPPRESSED", "a suppression still shows as the stronger state");
 });
 
@@ -145,4 +147,12 @@ test("the production readiness SQL is one read-only SELECT with aggregate output
   // The final output is metric / k / n only: no address column is ever selected as a key.
   assert.doesNotMatch(code, /SELECT\s+'[a-z_]+'\s*,\s*"?(emailNormalized|email|phone|name)"?\s*,/i);
   assert.doesNotMatch(raw, /postgres(ql)?:\/\//i, "no connection string in the file");
+});
+
+test("QUÉBEC — automated mail to a Québec business must be French: an English language on file makes the prospect INELIGIBLE (never enrolled, never silently sent in English)", () => {
+  const qcEn = evaluateOutreachEligibility(facts({ prospect: { quebec: true }, contacts: [contact({ language: "EN" })] }));
+  assert.ok(qcEn.reasons.includes("QUEBEC_FRENCH_REQUIRED"));
+  assert.equal(qcEn.decision, "NOT_ELIGIBLE");
+  assert.equal(readinessOf(qcEn.reasons), "INELIGIBLE");
+  for (const [lang, q] of [["FR", true], ["EN", false], ["FR", false]] as const) assert.ok(!evaluateOutreachEligibility(facts({ prospect: { quebec: q }, contacts: [contact({ language: lang })] })).reasons.includes("QUEBEC_FRENCH_REQUIRED"), `${lang} quebec=${q}`);
 });

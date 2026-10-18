@@ -9,6 +9,7 @@ import { campaignDefaultFor, resolveEffectiveLanguage } from "@/domain/sales-crm
 import { decideStop, scheduleStep, DEFAULT_SEQUENCE, type StopReason } from "@/domain/sales-comms/sequences";
 import { COMMERCIAL_TEMPLATE_KEYS, isTemplateKey } from "@/domain/sales-comms/templates";
 import { evaluateAutomationBasis, isSwitchHold } from "@/domain/sales-comms/casl";
+import { CAMPAIGN_TOPIC } from "@/domain/lead-radar/casl-evidence-engine";
 import { loadAutoCaslPolicy } from "@/lib/sales-comms/auto-casl-policy";
 import { nextSendInstant } from "@/domain/sales-comms/business-days";
 import { generateMessageId, emailDomain } from "@/domain/sales-comms/email";
@@ -124,7 +125,7 @@ async function enrollCore(by: { userId: string }, prospect: Awaited<ReturnType<t
   const lang = resolveEffectiveLanguage({ override: args.languageOverride ?? null, contact: contact.preferredLanguage, prospect: langRow.preferredLanguage, territoryDefault: campaignDefaultFor(langRow) });
   if (lang.needsHumanDecision) throw new CrmError("LANGUAGE_REQUIRED");
   // Same gate as a manual send: sending enabled, active identity/domain, no suppression/DNC, documented CASL basis.
-  const { decision } = await evaluatePolicy({ identityId: identity.id, category: "COMMERCIAL", recipients: [contact.emailNormalized], prospectId: prospect.id, contactId: contact.id, languageResolved: true, automated: true, origin: "AUTOMATED" });
+  const { decision } = await evaluatePolicy({ identityId: identity.id, category: "COMMERCIAL", recipients: [contact.emailNormalized], prospectId: prospect.id, contactId: contact.id, languageResolved: true, automated: true, origin: "AUTOMATED", language: toTemplateLanguage(lang.language) });
   if (!decision.allowed && decision.code !== "DAILY_LIMIT") throw new CrmError(decision.code);
 
   const settings = await getCommsSettings();
@@ -231,7 +232,7 @@ export async function processDueEnrollments(opts: { now?: Date; limit?: number }
     const stop = decideStop({
       prospectDnc: e.prospect.doNotContact, prospectArchived: e.prospect.status === "ARCHIVED", contactDnc: e.contact.doNotContact, contactArchived: !!e.contact.archivedAt || !email,
       suppressed: supp, opportunityStage: opp?.stage ?? null, staffActive: e.staff.status === "ACTIVE", identityActive: identity?.status === "ACTIVE",
-      basisValid: evaluateAutomationBasis(bases, now, autoPolicy).valid, sequenceArchived: e.sequence.status === "ARCHIVED",
+      basisValid: evaluateAutomationBasis(bases, now, autoPolicy, { topic: CAMPAIGN_TOPIC, recipientEmail: email }).valid, sequenceArchived: e.sequence.status === "ARCHIVED",
     });
     if (stop) { await stopEnrollments({ enrollmentIds: [e.id], reason: stop }); out.stopped++; continue; }
     if (e.sequence.status === "PAUSED") { out.skipped++; continue; } // sequence-level pause: leave enrollments untouched
@@ -243,7 +244,7 @@ export async function processDueEnrollments(opts: { now?: Date; limit?: number }
     const tl = toTemplateLanguage(lang.language);
     if (!tl) { await pauseWithReason(e.id, "LANGUAGE_REQUIRED"); out.paused++; continue; }
 
-    const { decision } = await evaluatePolicy({ identityId: identity.id, category: "COMMERCIAL", recipients: [email!], prospectId: e.prospectId, contactId: e.contactId, languageResolved: true, automated: true, origin: "AUTOMATED" }, now);
+    const { decision } = await evaluatePolicy({ identityId: identity.id, category: "COMMERCIAL", recipients: [email!], prospectId: e.prospectId, contactId: e.contactId, languageResolved: true, automated: true, origin: "AUTOMATED", language: tl }, now);
     if (!decision.allowed) {
       if (decision.code === "DAILY_LIMIT" || isSwitchHold(decision.code)) {
         const next = nextSendInstant(new Date(now.getTime() + (decision.code === "DAILY_LIMIT" ? 24 : 1) * 3_600_000), e.staff.timezone, win);

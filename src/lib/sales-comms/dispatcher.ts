@@ -6,6 +6,7 @@ import { buildReplyTo } from "@/domain/sales-comms/tokens";
 import { nextSendInstant } from "@/domain/sales-comms/business-days";
 import { decideStop } from "@/domain/sales-comms/sequences";
 import { evaluateAutomationBasis, isSwitchHold, sendOriginOf } from "@/domain/sales-comms/casl";
+import { CAMPAIGN_TOPIC } from "@/domain/lead-radar/casl-evidence-engine";
 import { loadAutoCaslPolicy } from "@/lib/sales-comms/auto-casl-policy";
 import { downloadSalesEmailAttachment } from "@/lib/storage";
 import { getCommsSettings } from "@/lib/sales-comms/settings";
@@ -93,7 +94,7 @@ export async function dispatchMessage(id: string, now = new Date()): Promise<Dis
     const stop = decideStop({
       prospectDnc: e.prospect.doNotContact, prospectArchived: e.prospect.status === "ARCHIVED", contactDnc: e.contact.doNotContact, contactArchived: !!e.contact.archivedAt,
       suppressed: supp, opportunityStage: opp?.stage ?? null, staffActive: msg.identity.staff.status === "ACTIVE", identityActive: msg.identity.status === "ACTIVE",
-      basisValid: evaluateAutomationBasis(bases, now, await loadAutoCaslPolicy()).valid, sequenceArchived: e.sequence.status === "ARCHIVED",
+      basisValid: evaluateAutomationBasis(bases, now, await loadAutoCaslPolicy(), { topic: CAMPAIGN_TOPIC, recipientEmail: e.contact.emailNormalized }).valid, sequenceArchived: e.sequence.status === "ARCHIVED",
     });
     if (stop) {
       const { stopEnrollments } = await import("@/lib/sales-comms/sequences");
@@ -108,7 +109,7 @@ export async function dispatchMessage(id: string, now = new Date()): Promise<Dis
     identityId: msg.identityId, category: msg.category, recipients, prospectId: msg.prospectId, contactId: msg.contactId,
     languageResolved: msg.category !== "COMMERCIAL" || (msg.language !== null && msg.language !== "UNKNOWN"), excludeMessageId: msg.id, automated: !!msg.sequenceEnrollmentId,
     // Origin comes from server-set columns (sequence enrollment / meeting / category), so each switch governs exactly its own messages.
-    origin: sendOriginOf(msg),
+    origin: sendOriginOf(msg), language: msg.language,
   }, now);
   // The message itself is already counted in today's total: only a *different* message may trip the cap.
   const policyCode = decision.allowed ? null : decision.code;

@@ -3354,6 +3354,10 @@ model CrmSendingBasis {
   /// Automated CASL assessment that produced this row (reviewStatus AUTO_SUPPORTED) and the rule version it was decided under.
   caslAssessmentId String?
   ruleVersion      String?
+  /// AUTO_SUPPORTED rows only: the exact address that was assessed, its mailbox class and the message topics it is relevant to. A send re-checks all three against the actual recipient and message.
+  assessedEmail    String?
+  mailboxClass     String?
+  relevanceTopics  String[]            @default([])
 
   @@index([contactId, recordedAt])
   @@index([reviewStatus, recordedAt])
@@ -4506,6 +4510,13 @@ model CrmCaslAssessment {
   /// Requests, bytes and milliseconds actually used (bounded budget accounting).
   usage               Json
   evidenceKey         String
+  /// Reproducible evidence artifact (SUPPORTED, and BLOCKED by a restriction only): sanitised publication context, identity signals, restriction scan, robots outcome. Other people's addresses are redacted; never the whole page.
+  snapshot            Json?
+  /// SHA-256 over the canonical snapshot JSON, so an audit can show the stored artifact was not altered.
+  snapshotHash        String?
+  /// GENERAL_CHANNEL | MANAGEMENT | FUNCTION_SPECIFIC | NAMED | IRRELEVANT, and the campaign topics the mailbox was shown to be relevant to.
+  mailboxClass        String?
+  topics              String[]             @default([])
   createdAt           DateTime             @default(now())
 
   @@unique([discoveredContactId, evidenceKey])

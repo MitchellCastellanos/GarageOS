@@ -20,17 +20,39 @@ test("automation reading: only an allowed kind with a decided basis (a historic 
   assert.deepEqual([...AUTOMATION_BASIS_KINDS].sort(), ["EXPRESS_CONSENT", "IMPLIED_DISCLOSED_ADDRESS", "IMPLIED_PUBLISHED_ADDRESS"]);
   // never for these kinds, even approved
   for (const kind of ["EXEMPT", "IMPLIED_EXISTING_RELATIONSHIP"] as const) assert.deepEqual(evaluateAutomationBasis([row(kind, "APPROVED")], NOW), { valid: false, reason: "KIND_NOT_ALLOWED" }, kind);
-  // automated evidence: supported but inert until the owner activates the policy for this exact version
-  const auto = { active: true, ruleVersion: "casl-auto-v1" };
+  // automated evidence: supported but inert until the owner activates the policy for this exact version; re-checked against the actual recipient and message at EVERY send
+  const auto = { active: true, ruleVersion: "casl-auto-v2" };
+  const msg = { topic: "SHOP_MANAGEMENT_SOFTWARE", recipientEmail: "info@shop.example" };
+  const sup = (kind: BasisRow["kind"], o: Partial<BasisRow> = {}) => row(kind, "AUTO_SUPPORTED", { ruleVersion: "casl-auto-v2", caslAssessmentId: "assess-1", capturedAt: new Date("2026-10-10T00:00:00Z"), assessedEmail: "info@shop.example", relevanceTopics: ["SHOP_MANAGEMENT_SOFTWARE"], ...o });
   for (const kind of AUTOMATION_BASIS_KINDS) {
-    const r = row(kind, "AUTO_SUPPORTED", { ruleVersion: "casl-auto-v1" });
-    assert.deepEqual(evaluateAutomationBasis([r], NOW), { valid: false, reason: "POLICY_NOT_ACTIVATED" }, `${kind}: policy off`);
-    assert.equal(evaluateAutomationBasis([r], NOW, auto).valid, true, `${kind}: policy on`);
-    assert.deepEqual(evaluateAutomationBasis([r], NOW, { active: true, ruleVersion: "casl-auto-v2" }), { valid: false, reason: "POLICY_NOT_ACTIVATED" }, `${kind}: other version`);
-    assert.deepEqual(evaluateAutomationBasis([row(kind, "AUTO_SUPPORTED")], NOW, auto), { valid: false, reason: "POLICY_NOT_ACTIVATED" }, `${kind}: no stored version`);
+    const r = sup(kind);
+    assert.deepEqual(evaluateAutomationBasis([r], NOW, undefined, msg), { valid: false, reason: "POLICY_NOT_ACTIVATED" }, `${kind}: policy off`);
+    assert.equal(evaluateAutomationBasis([r], NOW, auto, msg).valid, true, `${kind}: policy on`);
+    assert.deepEqual(evaluateAutomationBasis([r], NOW, { active: true, ruleVersion: "casl-auto-v1" }, msg), { valid: false, reason: "POLICY_NOT_ACTIVATED" }, `${kind}: other version`);
+    assert.deepEqual(evaluateAutomationBasis([sup(kind, { ruleVersion: null })], NOW, auto, msg), { valid: false, reason: "POLICY_NOT_ACTIVATED" }, `${kind}: no stored version`);
   }
-  for (const kind of ["EXEMPT", "IMPLIED_EXISTING_RELATIONSHIP"] as const) assert.deepEqual(evaluateAutomationBasis([row(kind, "AUTO_SUPPORTED", { ruleVersion: "casl-auto-v1" })], NOW, auto), { valid: false, reason: "KIND_NOT_ALLOWED" }, `${kind} never enters automation`);
-  assert.equal(evaluateBasisForOrigin("MANUAL", [row("IMPLIED_PUBLISHED_ADDRESS", "AUTO_SUPPORTED", { ruleVersion: "casl-auto-v1" })], NOW).valid, false, "manual sends obey the same activation gate");
+  // per-send re-check: freshness (30 days from the observation), the exact address, the message subject — each fails closed
+  const day = 86_400_000;
+  assert.equal(evaluateAutomationBasis([sup("IMPLIED_PUBLISHED_ADDRESS", { capturedAt: new Date(NOW.getTime() - 29 * day) })], NOW, auto, msg).valid, true);
+  assert.deepEqual(evaluateAutomationBasis([sup("IMPLIED_PUBLISHED_ADDRESS", { capturedAt: new Date(NOW.getTime() - 31 * day) })], NOW, auto, msg), { valid: false, reason: "EVIDENCE_STALE" }, "older than 30 days: stale even if expiresAt is null/far");
+  assert.deepEqual(evaluateAutomationBasis([sup("IMPLIED_PUBLISHED_ADDRESS", { capturedAt: null })], NOW, auto, msg), { valid: false, reason: "EVIDENCE_STALE" }, "no observation time: fails closed");
+  assert.deepEqual(evaluateAutomationBasis([sup("IMPLIED_PUBLISHED_ADDRESS", { capturedAt: new Date(NOW.getTime() + 2 * day) })], NOW, auto, msg), { valid: false, reason: "EVIDENCE_STALE" }, "an observation from the future is not evidence");
+  assert.deepEqual(evaluateAutomationBasis([sup("IMPLIED_PUBLISHED_ADDRESS")], NOW, auto, { ...msg, recipientEmail: "other@shop.example" }), { valid: false, reason: "RECIPIENT_CHANGED" }, "the contact's address was edited after the assessment");
+  assert.deepEqual(evaluateAutomationBasis([sup("IMPLIED_PUBLISHED_ADDRESS", { assessedEmail: null })], NOW, auto, msg), { valid: false, reason: "RECIPIENT_CHANGED" });
+  assert.equal(evaluateAutomationBasis([sup("IMPLIED_PUBLISHED_ADDRESS")], NOW, auto, { ...msg, recipientEmail: "INFO@Shop.Example " }).valid, true, "address comparison ignores case and whitespace");
+  assert.deepEqual(evaluateAutomationBasis([sup("IMPLIED_PUBLISHED_ADDRESS")], NOW, auto, { ...msg, topic: "SOMETHING_ELSE" }), { valid: false, reason: "MESSAGE_NOT_COVERED" });
+  assert.deepEqual(evaluateAutomationBasis([sup("IMPLIED_PUBLISHED_ADDRESS")], NOW, auto, { ...msg, topic: null }), { valid: false, reason: "MESSAGE_NOT_COVERED" }, "an undeclared message subject is not covered");
+  assert.deepEqual(evaluateAutomationBasis([sup("IMPLIED_PUBLISHED_ADDRESS")], NOW, auto), { valid: false, reason: "RECIPIENT_CHANGED" }, "no message facts at all: fails closed");
+  assert.deepEqual(evaluateAutomationBasis([sup("IMPLIED_PUBLISHED_ADDRESS", { relevanceTopics: [] })], NOW, auto, msg), { valid: false, reason: "MESSAGE_NOT_COVERED" });
+  // a basis a PERSON recorded with complete structured evidence (no engine assessment) keeps the activation/version gate only — the engine's per-send checks do not apply to it
+  const human = row("EXPRESS_CONSENT", "AUTO_SUPPORTED", { ruleVersion: "casl-auto-v2" });
+  assert.equal(evaluateAutomationBasis([human], NOW, auto).valid, true);
+  assert.deepEqual(evaluateAutomationBasis([human], NOW), { valid: false, reason: "POLICY_NOT_ACTIVATED" });
+  // historic human decisions are not subject to the automated re-checks (history is honoured, never rewritten)
+  assert.equal(evaluateAutomationBasis([row("IMPLIED_PUBLISHED_ADDRESS", "APPROVED")], NOW, auto).valid, true);
+  for (const kind of ["EXEMPT", "IMPLIED_EXISTING_RELATIONSHIP"] as const) assert.deepEqual(evaluateAutomationBasis([sup(kind)], NOW, auto, msg), { valid: false, reason: "KIND_NOT_ALLOWED" }, `${kind} never enters automation`);
+  assert.equal(evaluateBasisForOrigin("MANUAL", [sup("IMPLIED_PUBLISHED_ADDRESS")], NOW, undefined, msg).valid, false, "manual sends obey the same activation gate");
+  assert.equal(evaluateBasisForOrigin("MANUAL", [sup("IMPLIED_PUBLISHED_ADDRESS")], NOW, auto).valid, false, "a person's own message declares no subject, so an automated basis does not cover it");
   // unreviewed shapes never: legacy (null), NOT_REQUIRED, LEGACY_UNREVIEWED, pending, rejected
   for (const rs of [null, "NOT_REQUIRED", "LEGACY_UNREVIEWED"] as const) assert.deepEqual(evaluateAutomationBasis([row("EXPRESS_CONSENT", rs)], NOW), { valid: false, reason: "UNREVIEWED" }, String(rs));
   assert.deepEqual(evaluateAutomationBasis([row("IMPLIED_PUBLISHED_ADDRESS", "PENDING_REVIEW")], NOW), { valid: false, reason: "PENDING_REVIEW" });

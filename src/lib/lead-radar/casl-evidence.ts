@@ -1,6 +1,6 @@
 import "server-only";
 import { Prisma } from "@prisma/client";
-import { CASL_RULE_VERSION, assessEvidence, assessRelevance, evidenceKeyOf, isDirectoryHost, nextAssessAt, registrableHost, type AssessResult } from "@/domain/lead-radar/casl-evidence-engine";
+import { CASL_RULE_VERSION, assessEvidence, classifyMailbox, evidenceKeyOf, isDirectoryHost, nextAssessAt, registrableHost, type AssessResult } from "@/domain/lead-radar/casl-evidence-engine";
 import type { ProvenanceScope } from "@/domain/lead-radar/provenance";
 import { websiteDomain } from "@/domain/sales-crm/normalize";
 import { db } from "@/lib/db";
@@ -16,7 +16,8 @@ import { writeCrmAudit } from "@/lib/sales-crm/audit";
 export const EVIDENCE_LEASE_MS = 5 * 60_000;
 export const EVIDENCE_CONCURRENCY = 4;
 const MIN_CANDIDATE_MS = 3_000;
-const TRANSIENT = new Set(["FETCH_FAILED", "BUDGET_EXHAUSTED", "ROBOTS_DISALLOWED"]);
+// A failure to REACH something (not a finding about its content): an address already SUPPORTED keeps the evidence of its last COMPLETE check until that evidence's own 30-day expiry.
+const TRANSIENT = new Set(["FETCH_FAILED", "BUDGET_EXHAUSTED", "ROBOTS_DISALLOWED", "RESTRICTION_CHECK_INCOMPLETE"]);
 const addDays = (d: Date, n: number) => new Date(d.getTime() + n * 86_400_000);
 
 export interface EvidenceTally {
@@ -61,12 +62,12 @@ export async function assessOne(id: string, now: Date, deps: FetchDeps, t: Evide
   const siteRegistrable = host && !siteIsDirectory ? registrableHost(host) : null;
   // Only spend requests when the address could still be SUPPORTED: not suppressed, not an irrelevant role, with a usable own website.
   let acq: Acquisition | null = null;
-  if (!suppressedOrDnc && siteRegistrable && assessRelevance(email, null).tri !== "NOT_MET") {
+  if (!suppressedOrDnc && !d.freeMailbox && siteRegistrable && classifyMailbox(email) !== "IRRELEVANT") {
     acq = await acquireSiteEvidence({ website: p.website!, email, prospect: { name: p.name, phoneDigits: p.phoneDigits, postalKey: p.postalKey } }, deps, { ...FETCH_LIMITS, wallMs });
     t.requests += acq.usage.requests; t.bytes += acq.usage.bytes; t.fetchMs += acq.usage.ms;
   }
   const result = assessEvidence({
-    email, freeMailbox: d.freeMailbox, now, siteRegistrable, siteIsDirectory, pages: acq?.pages ?? [], fetchOutcome: acq?.outcome ?? "NOT_ATTEMPTED", suppressedOrDnc,
+    email, freeMailbox: d.freeMailbox, now, siteRegistrable, siteIsDirectory, pages: acq?.pages ?? [], fetchOutcome: acq?.outcome ?? "NOT_ATTEMPTED", policyLinksUnread: acq?.policyLinksUnread ?? 0, robots: acq?.robots ?? [], suppressedOrDnc,
     provenance: d.provenanceScope ? { scope: d.provenanceScope as ProvenanceScope } : null,
   });
   const transient = result.outcome === "INSUFFICIENT" && result.reasons.some((r) => TRANSIENT.has(r));
@@ -94,14 +95,19 @@ async function persist(d: NonNullable<Row>, result: AssessResult, acq: Acquisiti
   await db.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM "garageos"."CrmDiscoveredContact" WHERE id = ${d.id} FOR UPDATE`;
     const cur = await tx.crmDiscoveredContact.findUniqueOrThrow({ where: { id: d.id }, select: { status: true, promotedContactId: true, assessOutcome: true } });
-    // Append-only history; the unique key makes an identical decision a no-op (re-runs and races never duplicate it).
-    let a = await tx.crmCaslAssessment.findUnique({ where: { discoveredContactId_evidenceKey: { discoveredContactId: d.id, evidenceKey: key } } });
+    // Append-only history. The SAME decision as the newest row is a no-op (re-runs never add noise); a decision that merely EQUALS an older, since-superseded one (SUPPORTED → BLOCKED →
+    // SUPPORTED on identical content) is a new event and gets its own row, so "the newest row is the current state" always holds and a returning decision creates its own fresh basis.
+    const newestRow = await tx.crmCaslAssessment.findFirst({ where: { discoveredContactId: d.id }, orderBy: [{ createdAt: "desc" }, { id: "desc" }] });
+    let a = newestRow && newestRow.evidenceKey.split("~")[0] === key ? newestRow : null;
     if (!a) {
+      const older = await tx.crmCaslAssessment.findUnique({ where: { discoveredContactId_evidenceKey: { discoveredContactId: d.id, evidenceKey: key } }, select: { id: true } });
+      const storedKey = older ? `${key}~${await tx.crmCaslAssessment.count({ where: { discoveredContactId: d.id } })}` : key;
       a = await tx.crmCaslAssessment.create({
         data: {
           discoveredContactId: d.id, prospectId: d.prospectId, emailNormalized: email, outcome: result.outcome, ruleVersion: CASL_RULE_VERSION, conditions: result.conditions as unknown as Prisma.InputJsonValue,
           reasons: result.reasons, sourceKind: result.sourceKind, sourceUrl: result.evidence?.url ?? null, publisherHost: result.evidence?.host ?? null, observedAt: result.evidence?.observedAt ?? null,
-          snippet: result.evidence?.snippet ?? null, contentHash: result.evidence?.contentHash ?? null, revalidateAt: result.revalidateAt, expiresAt: result.expiresAt, usage: usage as unknown as Prisma.InputJsonValue, evidenceKey: key,
+          snippet: result.evidence?.snippet ?? null, contentHash: result.evidence?.contentHash ?? null, revalidateAt: result.revalidateAt, expiresAt: result.expiresAt, usage: usage as unknown as Prisma.InputJsonValue, evidenceKey: storedKey,
+          snapshot: (result.snapshot as unknown as Prisma.InputJsonValue) ?? Prisma.DbNull, snapshotHash: result.snapshot?.snapshotHash ?? null, mailboxClass: result.mailboxClass, topics: result.topics,
         },
       });
     }
@@ -131,9 +137,10 @@ async function persist(d: NonNullable<Row>, result: AssessResult, acq: Acquisiti
         await tx.crmSendingBasis.create({
           data: {
             contactId, kind: "IMPLIED_PUBLISHED_ADDRESS", recordedByUserId: "system", recordedAt: now, reviewStatus: "AUTO_SUPPORTED", ruleVersion: CASL_RULE_VERSION, caslAssessmentId: a.id,
-            evidence: `Published on the business's own website (${result.evidence.host}): ${result.evidence.url}. No statement against unsolicited messages found; general business mailbox relevant to shop operations. Assessed ${now.toISOString().slice(0, 10)} under ${CASL_RULE_VERSION}.`,
+            evidence: `Published on the business's own website (${result.evidence.host}): ${result.evidence.url}. No statement against unsolicited messages found on the pages read (including linked terms). Mailbox class ${result.mailboxClass}. Observed ${result.evidence.observedAt.toISOString().slice(0, 10)}; assessed under ${CASL_RULE_VERSION}; the evidence artifact is on assessment ${a.id}.`,
             evidenceType: "WEBSITE_PUBLICATION", sourceUrl: result.evidence.url, capturedAt: result.evidence.observedAt, supportingFacts: result.evidence.snippet,
-            roleRelevance: "General business mailbox of a repair shop; a message about running the shop relates to the recipient's business.", publishedConditionsConfirmed: true, expiresAt: result.expiresAt,
+            roleRelevance: result.snapshot?.mailbox.basis ?? null, publishedConditionsConfirmed: true, expiresAt: result.expiresAt,
+            assessedEmail: email, mailboxClass: result.mailboxClass, relevanceTopics: result.topics,
           },
         });
         t.basesCreated++;

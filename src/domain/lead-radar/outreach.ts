@@ -13,13 +13,13 @@ export type OutreachReason =
   | "NO_OWNER" | "SELLER_INACTIVE" | "SELLER_BOOKING_NOT_ENABLED" | "PROSPECT_ARCHIVED" | "PROSPECT_DNC" | "OPPORTUNITY_CLOSED"
   | "NO_EMAILABLE_CONTACT" | "CONTACT_DNC" | "ADDRESS_SUPPRESSED" | "ADDRESS_BOUNCED"
   | "NO_SENDING_BASIS" | "BASIS_EXPIRED" | "BASIS_REVOKED" | "BASIS_WEAK_EVIDENCE" | "BASIS_PENDING_REVIEW" | "BASIS_REJECTED" | "BASIS_UNREVIEWED" | "BASIS_KIND_NOT_ALLOWED" | "AUTO_POLICY_NOT_ACTIVATED" | "CASL_EVIDENCE_BLOCKED"
-  | "LANGUAGE_UNRESOLVED" | "NOT_VERIFIED_REPAIR" | "TERRITORY_NOT_REMOTE" | "DUPLICATE_ADDRESS"
+  | "LANGUAGE_UNRESOLVED" | "QUEBEC_FRENCH_REQUIRED" | "NOT_VERIFIED_REPAIR" | "TERRITORY_NOT_REMOTE" | "DUPLICATE_ADDRESS"
   | "SENDER_IDENTITY_MISSING" | "SENDER_NOT_ACTIVE" | "SENDER_DOMAIN_NOT_APPROVED" | "SENDER_REPLY_PATH_UNVERIFIED"
   | "FIELD_TERRITORY_FIRST_CONTACT";
 
 export const OUTREACH_REASONS: readonly OutreachReason[] = [
   "NO_OWNER", "SELLER_INACTIVE", "SELLER_BOOKING_NOT_ENABLED", "PROSPECT_ARCHIVED", "PROSPECT_DNC", "OPPORTUNITY_CLOSED", "NO_EMAILABLE_CONTACT", "CONTACT_DNC", "ADDRESS_SUPPRESSED", "ADDRESS_BOUNCED",
-  "NO_SENDING_BASIS", "BASIS_EXPIRED", "BASIS_REVOKED", "BASIS_WEAK_EVIDENCE", "BASIS_PENDING_REVIEW", "BASIS_REJECTED", "BASIS_UNREVIEWED", "BASIS_KIND_NOT_ALLOWED", "AUTO_POLICY_NOT_ACTIVATED", "CASL_EVIDENCE_BLOCKED", "LANGUAGE_UNRESOLVED",
+  "NO_SENDING_BASIS", "BASIS_EXPIRED", "BASIS_REVOKED", "BASIS_WEAK_EVIDENCE", "BASIS_PENDING_REVIEW", "BASIS_REJECTED", "BASIS_UNREVIEWED", "BASIS_KIND_NOT_ALLOWED", "AUTO_POLICY_NOT_ACTIVATED", "CASL_EVIDENCE_BLOCKED", "LANGUAGE_UNRESOLVED", "QUEBEC_FRENCH_REQUIRED",
   "NOT_VERIFIED_REPAIR", "TERRITORY_NOT_REMOTE", "DUPLICATE_ADDRESS",
   "SENDER_IDENTITY_MISSING", "SENDER_NOT_ACTIVE", "SENDER_DOMAIN_NOT_APPROVED", "SENDER_REPLY_PATH_UNVERIFIED", "FIELD_TERRITORY_FIRST_CONTACT",
 ];
@@ -55,6 +55,8 @@ export interface OutreachFacts {
     territory: "LOCAL" | "NATIONAL" | "UNRESOLVED" | null;
     /** Deterministic campaign default (Québec → FR, elsewhere in Canada → EN). A territory default, not language detection; an explicit contact/business language still wins. */
     defaultLanguage: "FR" | "EN" | "UNKNOWN";
+    /** Québec recipient (province QC, or a Québec postal area when there is no province): automated mail to it must be in French. */
+    quebec?: boolean;
   };
   /** The standard EN/FR sequence templates all carry the seller's booking link: without an enabled booking page the worker would pause every step. */
   seller: null | { staffActive: boolean; bookingEnabled: boolean };
@@ -68,6 +70,8 @@ export interface OutreachFacts {
 const BASIS_REASON: Record<string, OutreachReason> = {
   NONE: "NO_SENDING_BASIS", EXPIRED: "BASIS_EXPIRED", REVOKED: "BASIS_REVOKED", WEAK_EVIDENCE: "BASIS_WEAK_EVIDENCE",
   PENDING_REVIEW: "BASIS_PENDING_REVIEW", REJECTED_EVIDENCE: "BASIS_REJECTED", UNREVIEWED: "BASIS_UNREVIEWED", KIND_NOT_ALLOWED: "BASIS_KIND_NOT_ALLOWED", POLICY_NOT_ACTIVATED: "AUTO_POLICY_NOT_ACTIVATED",
+  // Re-checked at every send: stale evidence is an expired basis; a changed address or an uncovered message topic means there is no basis for THIS message.
+  EVIDENCE_STALE: "BASIS_EXPIRED", RECIPIENT_CHANGED: "NO_SENDING_BASIS", MESSAGE_NOT_COVERED: "NO_SENDING_BASIS",
 };
 
 /** Contact preference: one that could be solicited today (valid basis, no suppression) beats a primary contact beats any other with an address. */
@@ -110,6 +114,7 @@ export function evaluateOutreachEligibility(f: OutreachFacts): OutreachDecisionR
     // Precedence: contact language, business language, then the territory campaign default (never detected); still UNKNOWN means a human must decide.
     const lang = c.language !== "UNKNOWN" ? c.language : p.language !== "UNKNOWN" ? p.language : p.defaultLanguage;
     if (lang === "UNKNOWN") r.add("LANGUAGE_UNRESOLVED");
+    else if (p.quebec && lang !== "FR") r.add("QUEBEC_FRENCH_REQUIRED");
   }
   if (p.fieldHeldColdContact) r.add("FIELD_TERRITORY_FIRST_CONTACT");
   const reasons = OUTREACH_REASONS.filter((x) => r.has(x));
@@ -125,7 +130,7 @@ export const READINESS_STATES: readonly Readiness[] = ["PENDING_EVIDENCE", "EVID
 
 export const OPERATIONAL_REASONS: readonly OutreachReason[] = ["NO_OWNER", "SELLER_INACTIVE", "SELLER_BOOKING_NOT_ENABLED", "SENDER_IDENTITY_MISSING", "SENDER_NOT_ACTIVE", "SENDER_DOMAIN_NOT_APPROVED", "SENDER_REPLY_PATH_UNVERIFIED"];
 const SUPPRESSED_REASONS: readonly OutreachReason[] = ["PROSPECT_DNC", "CONTACT_DNC", "ADDRESS_SUPPRESSED", "ADDRESS_BOUNCED"];
-const INELIGIBLE_REASONS: readonly OutreachReason[] = ["PROSPECT_ARCHIVED", "OPPORTUNITY_CLOSED", "NOT_VERIFIED_REPAIR", "TERRITORY_NOT_REMOTE", "DUPLICATE_ADDRESS", "NO_EMAILABLE_CONTACT", "BASIS_KIND_NOT_ALLOWED", "BASIS_REJECTED", "BASIS_REVOKED", "CASL_EVIDENCE_BLOCKED", "LANGUAGE_UNRESOLVED", "FIELD_TERRITORY_FIRST_CONTACT"];
+const INELIGIBLE_REASONS: readonly OutreachReason[] = ["QUEBEC_FRENCH_REQUIRED", "PROSPECT_ARCHIVED", "OPPORTUNITY_CLOSED", "NOT_VERIFIED_REPAIR", "TERRITORY_NOT_REMOTE", "DUPLICATE_ADDRESS", "NO_EMAILABLE_CONTACT", "BASIS_KIND_NOT_ALLOWED", "BASIS_REJECTED", "BASIS_REVOKED", "CASL_EVIDENCE_BLOCKED", "LANGUAGE_UNRESOLVED", "FIELD_TERRITORY_FIRST_CONTACT"];
 
 /**
  * Precedence: a suppression always shows as SUPPRESSED; a structural disqualifier (including a revoked/blocked basis) is INELIGIBLE; otherwise missing, expired, stale, thin or

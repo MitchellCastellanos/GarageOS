@@ -535,6 +535,8 @@ if (!enabled) {
     await contactFor(pending.id, { email: `pending-${run}@shop.ca`, basis: "PENDING_REVIEW" });
     await contactFor(none.id, { email: `none-${run}@shop.ca`, basis: "NONE" });
     await contactFor(supp.id, { email: `supp-${run}@shop.ca` });
+    // An English-language contact must be OUTSIDE Québec: automated mail to a Québec business is French-only (policy casl-auto-v2).
+    await db.crmProspect.update({ where: { id: ok2.id }, data: { province: "ON", city: "Ottawa", postalCode: "K1P 5G3" } });
     await contactFor(ok2.id, { email: `ok2-${run}@shop.ca`, lang: "EN", prospectLang: "UNKNOWN" });
     await contactFor(lang.id, { email: `lang-${run}@shop.ca`, prospectLang: "UNKNOWN" });
     await db.crmProspect.update({ where: { id: lang.id }, data: { assignedStaffId: null } }); // no seller yet: READY (contact-level) but not pilot-ELIGIBLE

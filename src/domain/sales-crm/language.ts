@@ -35,3 +35,10 @@ export function resolveEffectiveLanguage(input: {
 export function campaignDefaultFor(p: { territoryState?: string | null; province?: string | null; postalCode?: string | null }): CrmLanguage | null {
   return p.territoryState === "NATIONAL" ? territoryDefaultLanguage(p) : null;
 }
+
+/** A Québec recipient: province QC, or — only when no province is recorded — a Québec postal area (G, H, J). Used to require French in automated commercial messages. */
+export function isQuebecRecipient(p: { province?: string | null; postalCode?: string | null }): boolean {
+  const prov = provinceCode(p.province);
+  if (prov) return prov === "QC";
+  return "GHJ".includes(postalKey(p.postalCode).charAt(0) || "-");
+}

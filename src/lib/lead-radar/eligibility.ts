@@ -3,6 +3,8 @@ import { Prisma } from "@prisma/client";
 import { LEAD_RADAR_SOURCE_KEY } from "@/domain/lead-radar/bridge";
 import { evaluateOutreachEligibility, readinessOf, type OutreachContactFacts, type OutreachDecisionResult, type Readiness } from "@/domain/lead-radar/outreach";
 import { evaluateAutomationBasis } from "@/domain/sales-comms/casl";
+import { isQuebecRecipient } from "@/domain/sales-crm/language";
+import { CAMPAIGN_TOPIC } from "@/domain/lead-radar/casl-evidence-engine";
 import { emailDomain } from "@/domain/sales-comms/email";
 import { territoryDefaultLanguage } from "@/domain/sales-crm/language";
 import { classifyTerritory, evaluateColdEmail, requiredMode, resolveTerritory } from "@/domain/sales-crm/territory";
@@ -45,7 +47,7 @@ export async function assessProspects(ids: readonly string[], now = new Date()):
   ]);
   const emails = [...new Set(contacts.map((c) => c.emailNormalized).filter((e): e is string => !!e))];
   const [bases, supp, dncAddrs, sameAddress, pendingDisc, assessed] = await Promise.all([
-    db.crmSendingBasis.findMany({ where: { contactId: { in: contacts.map((c) => c.id) } }, select: { contactId: true, kind: true, evidence: true, recordedAt: true, expiresAt: true, revokedAt: true, reviewStatus: true, ruleVersion: true } }),
+    db.crmSendingBasis.findMany({ where: { contactId: { in: contacts.map((c) => c.id) } }, select: { contactId: true, kind: true, evidence: true, recordedAt: true, expiresAt: true, revokedAt: true, reviewStatus: true, ruleVersion: true, caslAssessmentId: true, capturedAt: true, assessedEmail: true, relevanceTopics: true } }),
     activeSuppressions(emails),
     emails.length ? db.crmContact.findMany({ where: { emailNormalized: { in: emails }, doNotContact: true }, select: { emailNormalized: true } }) : [],
     // One address, one recipient: every active, unmerged prospect holding the same normalised address. The lowest prospect id keeps it (deterministic and stable).
@@ -67,7 +69,7 @@ export async function assessProspects(ids: readonly string[], now = new Date()):
     const pc = contacts.filter((c) => c.prospectId === p.id);
     const cf: OutreachContactFacts[] = pc.map((c) => ({
       id: c.id, email: c.emailNormalized, doNotContact: c.doNotContact || (!!c.emailNormalized && dnc.has(c.emailNormalized)), archived: false, isPrimary: c.isPrimary,
-      language: c.preferredLanguage ?? "UNKNOWN", basis: evaluateAutomationBasis(bases.filter((b) => b.contactId === c.id), now, autoPolicy), suppression: c.emailNormalized ? supp.get(c.emailNormalized) ?? null : null,
+      language: c.preferredLanguage ?? "UNKNOWN", basis: evaluateAutomationBasis(bases.filter((b) => b.contactId === c.id), now, autoPolicy, { topic: CAMPAIGN_TOPIC, recipientEmail: c.emailNormalized }), suppression: c.emailNormalized ? supp.get(c.emailNormalized) ?? null : null,
       duplicateAddress: !!c.emailNormalized && keeper.has(c.emailNormalized) && keeper.get(c.emailNormalized) !== p.id,
       evidenceBlocked: !!c.emailNormalized && blockedKeys.has(`${p.id}|${c.emailNormalized}`),
     }));
@@ -83,7 +85,7 @@ export async function assessProspects(ids: readonly string[], now = new Date()):
     const territory = live === "NATIONAL" && p.territoryState === "NATIONAL" ? "NATIONAL" : live !== "NATIONAL" ? live : "UNRESOLVED";
     const defaultLanguage = territory === "NATIONAL" ? territoryDefaultLanguage(p) : "UNKNOWN";
     const r = evaluateOutreachEligibility({
-      prospect: { repairFit: p.repairFit, territory, defaultLanguage, archived: p.status === "ARCHIVED", doNotContact: p.doNotContact, ownerStaffId: p.assignedStaffId, language: p.preferredLanguage, opportunityClosed: !hasOpen && !!latest && CLOSED.has(latest.stage), fieldHeldColdContact: !cold.allowed },
+      prospect: { repairFit: p.repairFit, territory, defaultLanguage, quebec: isQuebecRecipient(p), archived: p.status === "ARCHIVED", doNotContact: p.doNotContact, ownerStaffId: p.assignedStaffId, language: p.preferredLanguage, opportunityClosed: !hasOpen && !!latest && CLOSED.has(latest.stage), fieldHeldColdContact: !cold.allowed },
       seller: st ? { staffActive: st.status === "ACTIVE", bookingEnabled: st.bookingEnabled } : null,
       sender: ident ? { active: ident.status === "ACTIVE", domainApproved: approvedDomains.has(emailDomain(ident.fromEmail)), replyPathVerified: !!ident.inboundVerifiedAt } : null,
       contacts: cf, blockedAddresses: blockedByProspect.get(p.id) ?? 0,

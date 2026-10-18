@@ -149,3 +149,72 @@ test("static guards for the evidence layer: it never sends, enrols, schedules or
   const engine = strip("src/domain/lead-radar/casl-evidence-engine.ts");
   assert.ok(!/\bfetch\s*\(|Date\.now\(\)|new Date\(\)|Math\.random|process\.env|@\/lib\/db/.test(engine), "the engine is pure: no network, no database, no ambient clock, no randomness");
 });
+
+// ── policy v2: the restriction check (terms / legal pages), truncation, robots record ─────────────────────────────────────
+const HOME_LINKS = `<a href="/contact">Contact</a> <a href="/conditions">Conditions d'utilisation</a> <a href="/politique-de-confidentialite">Confidentialité</a>`;
+const ROBOTS_OK = { "/robots.txt": { body: "User-agent: *\nAllow: /\n", type: "text/plain" } };
+
+test("RESTRICTION CHECK — once the address is found, every linked terms/legal page of the site is read (and the privacy page when the budget allows); a clean set completes the check", async () => {
+  const { deps, log } = net({ "garagetremblay.example": { ...ROBOTS_OK, "/": { body: HOME_LINKS }, "/contact": { body: CONTACT }, "/conditions": { body: "<p>Garantie 12 mois.</p>" }, "/politique-de-confidentialite": { body: "<p>Vos données.</p>" } } });
+  const r = await run("https://garagetremblay.example", deps);
+  assert.deepEqual(r.pages.map((p) => [new URL(p.url).pathname, p.kind]), [["/", "home"], ["/contact", "contact"], ["/conditions", "policy"], ["/politique-de-confidentialite", "policy"]]);
+  assert.equal(r.policyLinksUnread, 0);
+  assert.ok(r.pages.every((p) => p.complete));
+  assert.deepEqual(r.robots, [{ host: "garagetremblay.example", status: 200 }], "the robots.txt outcome is kept for the artifact");
+  assert.ok(log.length <= FETCH_LIMITS.maxRequests);
+});
+
+test("RESTRICTION CHECK — an unreadable terms page (404, off-site, blocked by robots, or beyond the page budget) is counted as UNREAD, never assumed clean", async () => {
+  // 404 on the linked terms page
+  const a = net({ "garagetremblay.example": { ...ROBOTS_OK, "/": { body: HOME_LINKS }, "/contact": { body: CONTACT } } });
+  assert.equal((await run("https://garagetremblay.example", a.deps)).policyLinksUnread, 1);
+  // terms hosted off-site: we never leave the shop's own site, so it cannot be read
+  const b = net({ "garagetremblay.example": { ...ROBOTS_OK, "/": { body: `<a href="/contact">c</a> <a href="https://termly.example/terms-and-conditions/abc">Terms</a>` }, "/contact": { body: CONTACT } } });
+  const rb = await run("https://garagetremblay.example", b.deps);
+  assert.equal(rb.policyLinksUnread, 1);
+  assert.ok(!b.log.some((l) => l.startsWith("termly.example")), "never fetched");
+  // robots.txt disallows the terms path
+  const c = net({ "garagetremblay.example": { "/robots.txt": { body: "User-agent: *\nDisallow: /conditions\n", type: "text/plain" }, "/": { body: HOME_LINKS }, "/contact": { body: CONTACT }, "/conditions": { body: "x" } } });
+  const rc = await run("https://garagetremblay.example", c.deps);
+  assert.equal(rc.policyLinksUnread, 1);
+  assert.ok(!c.log.includes("garagetremblay.example/conditions"));
+  // more required legal pages than the cap allows: the extra ones are unread
+  const links = ["terms", "legal", "disclaimer", "anti-spam", "mentions-legales"].map((p) => `<a href="/${p}">${p}</a>`).join(" ");
+  const pages: Record<string, { body: string }> = { "/": { body: `<a href="/contact">c</a> ${links}` }, "/contact": { body: CONTACT } };
+  for (const p of ["terms", "legal", "disclaimer", "anti-spam", "mentions-legales"]) pages[`/${p}`] = { body: "<p>ok</p>" };
+  const d = net({ "garagetremblay.example": { ...ROBOTS_OK, ...pages } });
+  const rd = await run("https://garagetremblay.example", d.deps);
+  assert.equal(rd.pages.filter((p) => p.kind === "policy").length, 3);
+  assert.equal(rd.policyLinksUnread, 2);
+});
+
+test("RESTRICTION CHECK — terms pages are only fetched when the address was found (no wasted requests); a privacy page that cannot be read is not required", async () => {
+  const none = net({ "garagetremblay.example": { ...ROBOTS_OK, "/": { body: `<a href="/conditions">t</a>` }, "/conditions": { body: "x" } } });
+  const r = await run("https://garagetremblay.example", none.deps);
+  assert.ok(!none.log.includes("garagetremblay.example/conditions"));
+  assert.equal(r.pages.some((p) => p.emailFound), false);
+  const priv = net({ "garagetremblay.example": { ...ROBOTS_OK, "/": { body: `<a href="/contact">c</a> <a href="/privacy">p</a>` }, "/contact": { body: CONTACT } } });
+  assert.equal((await run("https://garagetremblay.example", priv.deps)).policyLinksUnread, 0, "privacy pages are best-effort, not required");
+});
+
+test("RESTRICTION CHECK — a page cut at the size cap is flagged incomplete (a statement beyond the cut could not be seen)", async () => {
+  const big = `<p>Garage Tremblay &amp; Fils 514-555-0100 H2X 3K4 <a href="mailto:${EMAIL}">${EMAIL}</a></p>` + "<p>filler</p>".repeat(60_000);
+  const { deps } = net({ "garagetremblay.example": { ...ROBOTS_OK, "/": { body: big } } });
+  const r = await run("https://garagetremblay.example", deps, { ...FETCH_LIMITS, maxBytes: 5_000 });
+  assert.equal(r.pages[0].emailFound, true);
+  assert.equal(r.pages[0].complete, false);
+});
+
+test("a redirect to the same site is recorded under the FINAL url, so the artifact shows where the content really came from", async () => {
+  const { deps } = net({ "garagetremblay.example": { ...ROBOTS_OK, "/": { status: 301, location: "https://www.garagetremblay.example/accueil" } }, "www.garagetremblay.example": { "/robots.txt": { body: "", type: "text/plain" }, "/accueil": { body: CONTACT } } });
+  const r = await run("https://garagetremblay.example", deps);
+  assert.equal(new URL(r.pages[0].url).host, "www.garagetremblay.example");
+});
+
+test("PRIVACY — the crawler only ever looks for the ONE address it was given; it never collects other addresses and never builds or guesses an address", () => {
+  const src = readFileSync("src/lib/lead-radar/evidence-fetch.ts", "utf8") + readFileSync("src/lib/lead-radar/casl-evidence.ts", "utf8") + readFileSync("src/domain/lead-radar/casl-evidence-engine.ts", "utf8");
+  // The only place an address string is assembled is the decoder of a page's own "[at]/[dot]" text; its result is compared with the ONE known address and never stored on its own.
+  const withoutDecoder = src.split("\n").filter((l) => !/matchAll\(\/\(\[a-z0-9\._%\+'-\]\{1,64\}\)\\s\*\[\\\[\(\]/.test(l)).join("\n");
+  assert.ok(!/@\$\{|`\$\{[^`]*\}@|"info@"|'info@'|`info@|`contact@|`ventes@|\+\s*"@"/i.test(withoutDecoder), "no code concatenates a local part with a domain");
+  assert.ok(/e\.email === args\.email/.test(src), "extraction is matched against the one address under assessment");
+});
