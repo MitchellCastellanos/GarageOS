@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { evaluateBasisForOrigin, evaluateSendPolicy, type SendDecision, type SendOrigin } from "@/domain/sales-comms/casl";
+import { loadAutoCaslPolicy } from "@/lib/sales-comms/auto-casl-policy";
 import { emailDomain, isValidEmail, normalizeEmail } from "@/domain/sales-comms/email";
 import { getCommsSettings } from "@/lib/sales-comms/settings";
 import { activeSuppressions } from "@/lib/sales-comms/suppression";
@@ -49,8 +50,8 @@ export async function evaluatePolicy(t: PolicyTarget, now = new Date()): Promise
     // A Do-Not-Contact flag on ANY contact row holding one of these addresses blocks the send, linked or not.
     db.crmContact.count({ where: { emailNormalized: { in: recipients }, doNotContact: true } }),
   ]);
-  // System-originated (AUTOMATED) sends rely on the strict reading: allowed kind + explicit independent APPROVAL. A person's own manual email keeps the long-standing rule.
-  const basis = t.category === "COMMERCIAL" ? evaluateBasisForOrigin(t.origin, bases, now) : null;
+  // System-originated (AUTOMATED) sends rely on the strict reading: allowed kind + a decided basis (a historic approval, or an automated one while the owner has activated the policy). A person's own manual email keeps the long-standing rule.
+  const basis = t.category === "COMMERCIAL" ? evaluateBasisForOrigin(t.origin, bases, now, await loadAutoCaslPolicy()) : null;
   const tz = identity.staff.timezone;
   const sentToday = t.category === "COMMERCIAL" ? await sentTodayCount(identity.id, tz, now, t.excludeMessageId) : 0;
   const decision = evaluateSendPolicy({

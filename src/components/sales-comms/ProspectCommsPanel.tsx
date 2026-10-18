@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import type { PlatformSalesActor } from "@/domain/sales-crm/access";
 import { commsCopy } from "@/lib/admin-locale/sales-comms";
 import { evaluateSendingBasis } from "@/domain/sales-comms/casl";
+import { loadAutoCaslPolicy } from "@/lib/sales-comms/auto-casl-policy";
 import { leadCopy } from "@/lib/admin-locale/sales-lead-engine";
 import { PLATFORM } from "@/lib/routes";
 import { Badge, btnPrimary, btnSecondary, cardCls, formatDate } from "@/components/sales-crm/ui";
@@ -18,6 +19,7 @@ import { activeSuppressions } from "@/lib/sales-comms/suppression";
 export async function ProspectCommsPanel({ actor, prospectId, locale, language }: { actor: PlatformSalesActor; prospectId: string; locale: "en" | "fr"; language: "FR" | "EN" | "UNKNOWN" }) {
   const t = commsCopy(locale);
   const now = new Date();
+  const autoPolicy = await loadAutoCaslPolicy();
   const [contacts, comms] = await Promise.all([
     db.crmContact.findMany({ where: { prospectId, archivedAt: null }, orderBy: [{ isPrimary: "desc" }, { name: "asc" }], select: { id: true, name: true, email: true, emailNormalized: true, doNotContact: true, preferredLanguage: true, sendingBases: { orderBy: { recordedAt: "desc" }, take: 5 } } }),
     prospectComms(actor, prospectId),
@@ -38,7 +40,7 @@ export async function ProspectCommsPanel({ actor, prospectId, locale, language }
         <h3 className="mb-2 text-sm font-semibold text-slate-800">{t.basis.title}</h3>
         <ul className="space-y-3">
           {contacts.map((c) => {
-            const ev = evaluateSendingBasis(c.sendingBases, now);
+            const ev = evaluateSendingBasis(c.sendingBases, now, autoPolicy);
             const s = c.emailNormalized ? supp.get(c.emailNormalized) : undefined;
             return (
               <li key={c.id} className="rounded-lg border border-slate-200 p-3">

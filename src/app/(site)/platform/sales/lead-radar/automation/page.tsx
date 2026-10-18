@@ -10,6 +10,7 @@ import { leadRadarOverview } from "@/lib/lead-radar/overview";
 import { loadRadarPage } from "@/lib/lead-radar/page";
 import { Badge, btnSecondary, cardCls, formatDate, PageHeader, PermissionDenied } from "@/components/sales-crm/ui";
 import { AutomationControls } from "@/components/lead-radar/AutomationControls";
+import { AutoCaslPanel } from "@/components/lead-radar/AutoCaslPanel";
 import { PolicyPanel } from "@/components/lead-radar/PolicyPanel";
 import { PolicyComparePanel } from "@/components/lead-radar/PolicyComparePanel";
 
@@ -110,6 +111,40 @@ export default async function LeadRadarAutomationPage() {
           <Reasons title={a.assignment.lastSkips} data={d.assignment.lastSkips} labels={a.assignment.skips} />
         </Stage>
 
+        <Stage id="au-4b" title={a.pipeline.title}>
+          <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <Stat label={a.pipeline.examined} value={d.pipeline.examined} />
+            <Stat label={a.pipeline.rejected} value={d.pipeline.commerciallyRejected} />
+            <Stat label={a.pipeline.rediscovered} value={d.pipeline.rediscovered} />
+            <Stat label={a.pipeline.tombstones} value={d.pipeline.tombstones} />
+            <Stat label={a.pipeline.fieldUsable} value={d.pipeline.fieldUsable} />
+            <Stat label={a.pipeline.remoteUsable} value={d.pipeline.remoteUsable} />
+            <Stat label={a.pipeline.unresolved} value={d.pipeline.unresolvedTerritory} />
+            <Stat label={a.pipeline.needing} value={d.pipeline.emailsNeedingAssessment} />
+            <Stat label={a.pipeline.unassessed} value={d.pipeline.unassessed} />
+            <Stat label={a.pipeline.supported} value={d.pipeline.supported} tone="text-emerald-700" />
+            <Stat label={a.pipeline.insufficient} value={d.pipeline.insufficient} />
+            <Stat label={a.pipeline.blocked} value={d.pipeline.blocked} tone="text-red-700" />
+            <Stat label={a.pipeline.qualifiedFr} value={d.pipeline.readyByLanguage.FR + d.pipeline.evidenceSupportedByLanguage.FR} />
+            <Stat label={a.pipeline.qualifiedEn} value={d.pipeline.readyByLanguage.EN + d.pipeline.evidenceSupportedByLanguage.EN} />
+          </dl>
+          <h3 className="text-sm font-semibold text-slate-800">{a.pipeline.usage}</h3>
+          <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <Stat label={a.pipeline.requests} value={d.pipeline.last24h.requests} />
+            <Stat label={a.pipeline.megabytes} value={d.pipeline.last24h.megabytes} />
+            <Stat label={a.pipeline.seconds} value={d.pipeline.last24h.fetchSeconds} />
+            <Stat label={a.pipeline.failures} value={d.pipeline.last24h.fetchFailures} />
+            <Stat label={a.pipeline.robots} value={d.pipeline.last24h.robotsDisallowed} />
+            <Stat label={a.pipeline.errors} value={d.pipeline.last24h.errors} />
+          </dl>
+          <Reasons title={a.pipeline.reasons} data={d.pipeline.insufficientReasons} labels={a.pipeline.reasonLabels} />
+          <Reasons title={a.pipeline.rejectionReasons} data={d.pipeline.rejectionReasons} labels={a.pipeline.reasonLabels} />
+        </Stage>
+
+        <Stage id="au-casl" title={a.casl.title}>
+          <AutoCaslPanel locale={locale} view={{ evidenceEnabled: d.automation.evidenceEnabled, autoCaslActive: d.automation.autoCaslActive, ruleVersion: d.pipeline.ruleVersion, activatedAt: d.automation.autoCaslActivatedAt ? d.automation.autoCaslActivatedAt.toISOString() : null }} />
+        </Stage>
+
         <Stage id="au-5" title={a.stages.eligibility}>
           <dl className="grid grid-cols-3 gap-3">
             <Stat label={a.eligibility.eligible} value={d.eligibility.eligible} tone="text-emerald-700" />
@@ -119,7 +154,7 @@ export default async function LeadRadarAutomationPage() {
           <h3 className="text-sm font-semibold text-slate-800">{a.readiness.title}</h3>
           <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Stat label={a.readiness.READY} value={d.readiness.READY} tone="text-emerald-700" />
-            <Stat label={a.readiness.PENDING_REVIEW} value={d.readiness.PENDING_REVIEW} />
+            <Stat label={a.readiness.EVIDENCE_SUPPORTED} value={d.readiness.EVIDENCE_SUPPORTED} tone="text-sky-700" />
             <Stat label={a.readiness.PENDING_EVIDENCE} value={d.readiness.PENDING_EVIDENCE} />
             <Stat label={a.readiness.SUPPRESSED} value={d.readiness.SUPPRESSED} />
             <Stat label={a.readiness.INELIGIBLE} value={d.readiness.INELIGIBLE} />

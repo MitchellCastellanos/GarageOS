@@ -18,6 +18,7 @@ if (!enabled) {
   const radar = await import("../src/actions/lead-radar");
   const fitLib = await import("../src/lib/lead-radar/candidate-fit");
 
+  const { stageLegacy } = await import("./helpers/legacy-staging");
   const run = Date.now().toString(36);
   const as = (id: string | null) => setSession(id ? { user: { id, role: "VIEWER", shopId: null } } : null);
   const users: Record<string, string> = {};
@@ -61,11 +62,28 @@ if (!enabled) {
     const m: any = await radar.attachDiscoveryManifest(runId, JSON.stringify({ extractor: "garageos-overture-extract", extractorVersion: "1.3.0", planHash: r.planHash, release, recordCount: count, fileSha256: "a".repeat(64), generatedAt: new Date().toISOString(), stats }));
     assert.equal(m.ok, true, JSON.stringify(m));
   }
+  /**
+   * This suite is about rows as they exist in staging (classification, ICP tombstones, duplicates, qualification, import). The early commercial screen now keeps businesses that are not
+   * usable independent repair shops OUT of staging, so right after the real ingestion those are put back as the legacy rows the old pipeline would have staged (tombstone removed, run counters
+   * as before). The screen itself is covered by tests/casl-evidence-db.test.ts and tests/lead-radar-db.test.ts.
+   */
+  async function restoreLegacyRows(runId: string, recs: unknown[], provinces: string[], release: string) {
+    const objs = recs.filter((r): r is { id: string } => !!r && typeof r === "object" && "id" in (r as object));
+    const tombs = await db.crmDiscoveryRejection.findMany({ where: { sourceRecordId: { in: objs.map((r) => r.id) } }, select: { sourceRecordId: true } });
+    if (!tombs.length) return;
+    const ids = new Set(tombs.map((t) => t.sourceRecordId));
+    const back = objs.filter((r) => ids.has(r.id));
+    const n = await stageLegacy(db, runId, back, release, provinces);
+    await db.crmDiscoveryRejection.deleteMany({ where: { sourceRecordId: { in: [...ids] } } });
+    const withPoint = back.filter((r: any) => r.geo && r.geo.lat !== null).length;
+    await db.crmDiscoveryRun.update({ where: { id: runId }, data: { stagedNew: { increment: n }, pointsOnNew: { increment: withPoint }, screenedRecords: { decrement: tombs.length } } });
+  }
   /** Full extraction: attach, chunk, complete. Returns the run row after completion plus the completion result. */
-  async function extract(recs: unknown[], provinces: string[], release: string, stats?: Record<string, number>) {
+  async function extract(recs: unknown[], provinces: string[], release: string, stats?: Record<string, number>, opts: { restore?: boolean } = {}) {
     const runId = await startRun(provinces, release);
     await attach(runId, release, recs.length, stats);
     for (let i = 0; i * 250 < recs.length; i++) assert.equal(((await radar.ingestDiscoveryChunk(runId, i, lines(recs.slice(i * 250, (i + 1) * 250)))) as any).ok, true);
+    if (opts.restore !== false) await restoreLegacyRows(runId, recs, provinces, release);
     const done: any = await radar.completeDiscoveryRun(runId);
     return { runId, done, row: await db.crmDiscoveryRun.findUniqueOrThrow({ where: { id: runId } }) };
   }
@@ -425,10 +443,10 @@ if (!enabled) {
     extraIds.push(noAddr.id);
     const before2 = await snap();
     const risky = rec("NAPA AUTOPRO", "OTT", { phones: ["+17805550106"], address: ab("1 Test Rd NW", "Edmonton", "T5K 1A1"), websites: ["https://www.napaautopro.com/en/"], geo: { lat: 53.55, lng: -113.5 } });
-    assert.equal((await extract([{ ...risky, address: { ...(risky.address as object), freeform: null, postcode: null } }], ["AB"], "2026-11-19.0")).done.ok, true);
-    const rc = await cand(risky.id);
-    assert.equal(rc.matchState, "AMBIGUOUS"); assert.ok(rc.matchProspectId, "points at a candidate for a person to compare");
-    assert.equal(rc.repairFit, "EXCLUDED");
+    assert.equal((await extract([{ ...risky, address: { ...(risky.address as object), freeform: null, postcode: null } }], ["AB"], "2026-11-19.0", undefined, { restore: false })).done.ok, true);
+    // The chain location is not even staged any more: it leaves only a tombstone, so it consumes no review, import or assignment capacity at all.
+    assert.equal(await db.crmDiscoveryCandidate.findFirst({ where: { sourceRecordId: risky.id } }), null);
+    assert.ok((await db.crmDiscoveryRejection.findFirstOrThrow({ where: { sourceRecordId: risky.id } })).reasonCodes.includes("FIT_EXCLUDED"));
     assert.equal(await snap(), before2, "the unaddressed CRM record is untouched");
   });
 
@@ -632,8 +650,8 @@ if (!enabled) {
       assert.deepEqual([again.repairFit, again.reviewState, again.reviewNote], ["EXCLUDED", "REJECTED", "decided by a person"], "still excluded without the registry; the person's decision is kept; the row was not deleted");
       const t2 = await db.crmDiscoveryExclusion.findUniqueOrThrow({ where: { id: t1.id } });
       assert.equal(t2.seenCount, 2); assert.equal(t2.lastSeenRelease, "2026-12-17.0"); assert.equal(t2.firstExcludedAt.getTime(), t1.firstExcludedAt.getTime());
-      const rk = await cand(rekeyed.id);
-      assert.equal(rk.repairFit, "EXCLUDED"); assert.ok(rk.repairFitReasons.includes("ICP_TOMBSTONE_REKEYED"), "the same exact place+name under a new id is recognised");
+      const rkTomb = await db.crmDiscoveryExclusion.findFirstOrThrow({ where: { sourceRecordId: rekeyed.id } });
+      assert.equal(rkTomb.status, "ACTIVE", "the same exact place+name under a new id is recognised at staging (the real pipeline excluded it before any row was stored)");
       assert.equal(await db.crmDiscoveryExclusion.count({ where: { sourceRecordId: rekeyed.id, status: "ACTIVE" } }), 1, "the re-keyed id gets its own tombstone");
       // false-positive prevention: a different business is NOT suppressed by sharing the address, the name, the website domain or the name in another province
       for (const r of [sameAddressOtherBusiness, sameNameOtherPlace, sameNameOtherProvince]) {

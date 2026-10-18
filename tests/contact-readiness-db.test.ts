@@ -61,9 +61,12 @@ if (!enabled) {
     const ids = (await db.crmDiscoveryCandidate.findMany({ where: { lastRunId: created.runId, repairFit: { not: "EXCLUDED" } }, select: { id: true } })).map((c) => c.id);
     assert.equal(((await radar.reviewDiscoveryCandidates({ ids, decision: "APPROVED" })) as any).ok, true);
     const imp: any = await radar.importApprovedDiscoveryCandidates({ ids });
-    assert.equal(imp.result.created, 4);
-    // The EV station is excluded at staging, so it never reached the CRM.
-    assert.equal((await db.crmDiscoveryCandidate.findFirstOrThrow({ where: { sourceRecordId: recs[4].id } })).importState, "NOT_IMPORTED");
+    assert.equal(imp.result.created, 3, "the business without an email and the EV station never passed the early screen");
+    // The EV station (excluded) and the REMOTE business with no usable email are not kept at staging: a tombstone, no row, nothing in the CRM.
+    for (const [r, reason] of [[recs[4], "FIT_EXCLUDED"], [recs[3], "REMOTE_NO_USABLE_EMAIL"]] as const) {
+      assert.equal(await db.crmDiscoveryCandidate.findFirst({ where: { sourceRecordId: r.id } }), null);
+      assert.ok((await db.crmDiscoveryRejection.findFirstOrThrow({ where: { sourceRecordId: r.id } })).reasonCodes.includes(reason));
+    }
   });
 
   test("import itself creates no contact, no basis, no enrollment, no message (the published email stays on the prospect)", async () => {
@@ -84,10 +87,10 @@ if (!enabled) {
     assert.equal((await cr.seedDiscoveredContacts({ deadline: Date.now() + 30_000 })).stored, 0, "idempotent");
   });
 
-  test("funnel: three businesses have a discovered, sourced, validated address and stop there; the business without an email stops at the first rung", async () => {
+  test("funnel: three businesses have a discovered, sourced, validated address and stop there", async () => {
     const f = await cr.emailReadinessFunnel();
     const on = f.rows.find((r) => r.province === "ON")!;
-    assert.deepEqual([on.counts.QUALIFIED_BUSINESS, on.counts.CONTACT_DISCOVERED, on.counts.SOURCE_RECORDED, on.counts.EMAIL_VALIDATED, on.counts.LANGUAGE_DECIDED, on.counts.OUTREACH_READY], [4, 3, 3, 3, 0, 0]);
+    assert.deepEqual([on.counts.QUALIFIED_BUSINESS, on.counts.CONTACT_DISCOVERED, on.counts.SOURCE_RECORDED, on.counts.EMAIL_VALIDATED, on.counts.LANGUAGE_DECIDED, on.counts.OUTREACH_READY], [3, 3, 3, 3, 0, 0]);
     assert.ok(on.pendingReview >= 3);
   });
 

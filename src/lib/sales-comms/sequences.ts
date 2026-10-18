@@ -9,6 +9,7 @@ import { campaignDefaultFor, resolveEffectiveLanguage } from "@/domain/sales-crm
 import { decideStop, scheduleStep, DEFAULT_SEQUENCE, type StopReason } from "@/domain/sales-comms/sequences";
 import { COMMERCIAL_TEMPLATE_KEYS, isTemplateKey } from "@/domain/sales-comms/templates";
 import { evaluateAutomationBasis, isSwitchHold } from "@/domain/sales-comms/casl";
+import { loadAutoCaslPolicy } from "@/lib/sales-comms/auto-casl-policy";
 import { nextSendInstant } from "@/domain/sales-comms/business-days";
 import { generateMessageId, emailDomain } from "@/domain/sales-comms/email";
 import { randomToken, signUnsubscribeToken } from "@/domain/sales-comms/tokens";
@@ -208,6 +209,7 @@ async function stopEnrollmentsWhere(where: Prisma.CrmSequenceEnrollmentWhereInpu
 export async function processDueEnrollments(opts: { now?: Date; limit?: number } = {}) {
   const now = opts.now ?? new Date();
   const settings = await getCommsSettings();
+  const autoPolicy = await loadAutoCaslPolicy();
   const due = await db.crmSequenceEnrollment.findMany({
     where: { status: "ACTIVE", nextRunAt: { lte: now } }, orderBy: { nextRunAt: "asc" }, take: opts.limit ?? 50,
     include: {
@@ -229,7 +231,7 @@ export async function processDueEnrollments(opts: { now?: Date; limit?: number }
     const stop = decideStop({
       prospectDnc: e.prospect.doNotContact, prospectArchived: e.prospect.status === "ARCHIVED", contactDnc: e.contact.doNotContact, contactArchived: !!e.contact.archivedAt || !email,
       suppressed: supp, opportunityStage: opp?.stage ?? null, staffActive: e.staff.status === "ACTIVE", identityActive: identity?.status === "ACTIVE",
-      basisValid: evaluateAutomationBasis(bases, now).valid, sequenceArchived: e.sequence.status === "ARCHIVED",
+      basisValid: evaluateAutomationBasis(bases, now, autoPolicy).valid, sequenceArchived: e.sequence.status === "ARCHIVED",
     });
     if (stop) { await stopEnrollments({ enrollmentIds: [e.id], reason: stop }); out.stopped++; continue; }
     if (e.sequence.status === "PAUSED") { out.skipped++; continue; } // sequence-level pause: leave enrollments untouched

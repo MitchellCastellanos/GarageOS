@@ -30,9 +30,9 @@ disc AS (      -- discovered addresses per prospect
     CASE
       WHEN lr.dnc OR ct.cdnc OR ct.em IN (SELECT "emailNormalized" FROM supp) THEN 'SUPPRESSED'
       WHEN NOT lr.national OR lr.fit IS DISTINCT FROM 'VERIFIED_REPAIR' THEN 'INELIGIBLE_LANE_OR_FIT'
-      WHEN ct.contact_id IS NOT NULL AND ct.bstatus = 'APPROVED' AND ct.bkind IN ('IMPLIED_PUBLISHED_ADDRESS','IMPLIED_DISCLOSED_ADDRESS','EXPRESS_CONSENT')
-           AND ct."revokedAt" IS NULL AND (ct."expiresAt" IS NULL OR ct."expiresAt" > now()) THEN 'READY_CANDIDATE'
-      WHEN ct.bstatus = 'PENDING_REVIEW' THEN 'PENDING_REVIEW'
+      WHEN ct.contact_id IS NOT NULL AND ct.bstatus IN ('APPROVED','AUTO_SUPPORTED') AND ct.bkind IN ('IMPLIED_PUBLISHED_ADDRESS','IMPLIED_DISCLOSED_ADDRESS','EXPRESS_CONSENT')
+           AND ct."revokedAt" IS NULL AND (ct."expiresAt" IS NULL OR ct."expiresAt" > now()) THEN CASE WHEN ct.bstatus = 'APPROVED' THEN 'READY_CANDIDATE_HISTORIC_APPROVAL' ELSE 'EVIDENCE_SUPPORTED_CANDIDATE' END
+      WHEN ct.bstatus = 'PENDING_REVIEW' THEN 'PENDING_EVIDENCE_FORMER_WORKFLOW_ROW'
       WHEN ct.contact_id IS NOT NULL AND ct.bstatus IS NULL THEN 'PENDING_EVIDENCE_CONTACT_NO_BASIS'
       WHEN ct.contact_id IS NOT NULL THEN 'BASIS_NOT_USABLE_FOR_AUTOMATION'      -- legacy / NOT_REQUIRED / REJECTED / revoked / expired / EXEMPT / existing-relationship
       WHEN COALESCE(disc.pending_usable,0) > 0 THEN 'PENDING_EVIDENCE_DISCOVERED_NOT_ACCEPTED'
@@ -51,10 +51,16 @@ UNION ALL SELECT 'discovered_pending_mx_checked', "mxStatus", count(*) FROM gara
 UNION ALL SELECT 'discovered_pending_prospect_has_website', (p."websiteDomain" IS NOT NULL)::text, count(*) FROM garageos."CrmDiscoveredContact" d JOIN garageos."CrmProspect" p ON p.id=d."prospectId" WHERE d.status='PENDING' GROUP BY 2
 UNION ALL SELECT 'discovered_pending_addresses_on_many_prospects', NULL, count(*) FROM (SELECT "emailNormalized" FROM garageos."CrmDiscoveredContact" GROUP BY 1 HAVING count(DISTINCT "prospectId") > 1) t
 UNION ALL SELECT 'basis_by_kind_status', kind::text||'/'||COALESCE("reviewStatus"::text,'LEGACY_NULL'), count(*) FROM garageos."CrmSendingBasis" GROUP BY 2
+UNION ALL SELECT 'discovered_by_assessment_outcome', COALESCE("assessOutcome", 'UNASSESSED'), count(*) FROM garageos."CrmDiscoveredContact" WHERE "syntaxValid" AND status IN ('PENDING','ACCEPTED') GROUP BY 2
+UNION ALL SELECT 'discovered_by_provenance_scope', COALESCE("provenanceScope", 'NONE'), count(*) FROM garageos."CrmDiscoveredContact" WHERE "syntaxValid" GROUP BY 2
+UNION ALL SELECT 'casl_assessments_by_outcome_and_rule', outcome||'/'||"ruleVersion", count(*) FROM garageos."CrmCaslAssessment" GROUP BY 2
+UNION ALL SELECT 'casl_insufficient_reasons_30d', r, count(*) FROM garageos."CrmCaslAssessment", unnest(reasons) r WHERE "createdAt" > now() - interval '30 days' AND outcome = 'INSUFFICIENT' GROUP BY 2
+UNION ALL SELECT 'exclusion_tombstones_by_reason', r, count(*) FROM garageos."CrmDiscoveryRejection", unnest("reasonCodes") r GROUP BY 2
+UNION ALL SELECT 'auto_bases_by_state', CASE WHEN "revokedAt" IS NOT NULL THEN 'REVOKED' WHEN "expiresAt" IS NOT NULL AND "expiresAt" <= now() THEN 'EXPIRED' ELSE 'CURRENT' END, count(*) FROM garageos."CrmSendingBasis" WHERE "reviewStatus"::text = 'AUTO_SUPPORTED' GROUP BY 2
 UNION ALL SELECT 'eligibility_rows', decision::text, count(*) FROM garageos."CrmOutreachEligibility" GROUP BY 2
 UNION ALL SELECT 'eligibility_readiness_language', COALESCE("readiness"::text,'UNASSESSED_BY_PR_A')||'/'||COALESCE("campaignLanguage"::text,'-'), count(*) FROM garageos."CrmOutreachEligibility" GROUP BY 2
 UNION ALL SELECT 'contact_addresses_on_many_active_prospects', NULL, count(*) FROM (SELECT c."emailNormalized" FROM garageos."CrmContact" c JOIN garageos."CrmProspect" q ON q.id = c."prospectId" AND q.status = 'ACTIVE' AND q."mergedIntoId" IS NULL WHERE c."archivedAt" IS NULL AND c."emailNormalized" IS NOT NULL GROUP BY 1 HAVING count(DISTINCT c."prospectId") > 1) t
-UNION ALL SELECT 'switches', 'automation_enabled='||a.enabled||' rollout='||a."rolloutEnabled"||' eligibility='||a."eligibilityEnabled"||' pilot='||a."pilotEnabled"||' sending='||c."sendingEnabled"||' automated='||c."automatedSendingEnabled"||' manual='||c."manualSendingEnabled"||' daily_limit='||c."defaultDailyLimit", 1
+UNION ALL SELECT 'switches', 'automation_enabled='||a.enabled||' rollout='||a."rolloutEnabled"||' eligibility='||a."eligibilityEnabled"||' pilot='||a."pilotEnabled"||' evidence_stage='||a."evidenceEnabled"||' auto_casl_policy_active='||a."autoCaslActive"||' sending='||c."sendingEnabled"||' automated='||c."automatedSendingEnabled"||' manual='||c."manualSendingEnabled"||' daily_limit='||c."defaultDailyLimit", 1
   FROM garageos."CrmLeadAutomation" a CROSS JOIN garageos."CrmCommsSettings" c
 UNION ALL SELECT 'live_enrollments_or_queued_mail', NULL, (SELECT count(*) FROM garageos."CrmSequenceEnrollment" WHERE status IN ('ACTIVE','PAUSED')) + (SELECT count(*) FROM garageos."CrmEmailMessage" WHERE direction='OUTBOUND' AND status IN ('QUEUED','SCHEDULED','SENDING'))
 ORDER BY 1, 2;

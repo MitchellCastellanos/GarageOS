@@ -20,7 +20,6 @@ if (!enabled) {
   const imports = await import("../src/actions/sales-import");
   const dupes = await import("../src/actions/sales-duplicates");
   const assignment = await import("../src/actions/sales-assignment");
-  const caslActions = await import("../src/actions/sales-casl");
   const legacyActions = await import("../src/actions/sales-casl-legacy");
   const inbox = await import("../src/actions/sales-inbox");
   const queries = await import("../src/lib/sales-crm/queries");
@@ -97,28 +96,32 @@ if (!enabled) {
     assert.equal(evaluateSendingBasis(await db.crmSendingBasis.findMany({ where: { contactId: c2.id } }), new Date()).valid, false);
   });
 
-  test("new address-based bases still require structured evidence AND approval, even next to a valid legacy row; every other kind a person records now needs structured evidence and review too (no free-text consent)", async () => {
+  test("every basis a person records needs structured evidence; a complete record is decided by rule (AUTO_SUPPORTED, no reviewer) and authorises nothing until the owner activates the automated policy", async () => {
     as(users.FieldA);
     const own: any = await prospects.createProspect(fd({ name: `NewBasis ${run}`, city: "Laval", province: "QC", address: "9 rue N", postalCode: "H7A 9N9" }));
     const contact: any = await prospects.addContact(own.prospectId, fd({ name: "Nia", email: `nia-${run}@new.test`, isPrimary: "on" }));
     await db.crmSendingBasis.create({ data: { contactId: contact.contactId, kind: "IMPLIED_PUBLISHED_ADDRESS", evidence: "Legacy self-attested basis from before", recordedByUserId: ids.root, recordedAt: new Date(Date.now() - 86_400_000) } });
     assert.equal(evaluateSendingBasis(await db.crmSendingBasis.findMany({ where: { contactId: contact.contactId } }), new Date()).valid, true, "legacy row valid as before");
     const bare: any = await inbox.recordSendingBasis(fd({ contactId: contact.contactId, kind: "IMPLIED_PUBLISHED_ADDRESS", evidence: "Address published on the shop contact page" }));
-    assert.deepEqual([bare.ok, bare.error], [false, "EVIDENCE_INCOMPLETE"], "structured evidence is mandatory for new address-based bases");
+    assert.deepEqual([bare.ok, bare.error], [false, "EVIDENCE_INCOMPLETE"], "INSUFFICIENT evidence is refused, never queued for anyone's decision");
     const rec: any = await inbox.recordSendingBasis(fd({ contactId: contact.contactId, kind: "IMPLIED_PUBLISHED_ADDRESS", evidence: "Address published on the shop contact page", evidenceType: "WEBSITE_PUBLICATION", sourceUrl: "https://new.test/c", capturedAt: "2026-10-05", supportingFacts: "Printed on the contact page with no refusal wording.", roleRelevance: "Owner decides on shop software", publishedConditionsConfirmed: "on" }));
-    assert.equal(rec.pendingReview, true);
+    assert.equal(rec.ok, true, JSON.stringify(rec));
+    assert.equal(rec.evidenceSupported, true);
     const stored = await db.crmSendingBasis.findUniqueOrThrow({ where: { id: rec.basisId } });
-    assert.equal(stored.reviewStatus, "PENDING_REVIEW");
-    assert.equal(evaluateSendingBasis(await db.crmSendingBasis.findMany({ where: { contactId: contact.contactId } }), new Date()).valid, false, "the new pending row (newest) shadows the legacy one: no shortcut around approval");
-    // The bypass is closed: a one-line free-text "express consent" / "exempt" / "existing relationship" is refused; with structured evidence it is stored PENDING_REVIEW and authorises nothing.
+    assert.deepEqual([stored.reviewStatus, stored.ruleVersion, stored.reviewedByUserId], ["AUTO_SUPPORTED", "casl-auto-v1", null], "decided by rule: no reviewer, no approval timestamp");
+    const rows = () => db.crmSendingBasis.findMany({ where: { contactId: contact.contactId } });
+    assert.deepEqual(evaluateSendingBasis(await rows(), new Date()), { valid: false, reason: "POLICY_NOT_ACTIVATED" }, "newest (supported) row shadows the legacy one and authorises nothing while the policy is off");
+    assert.equal(evaluateSendingBasis(await rows(), new Date(), { active: true, ruleVersion: "casl-auto-v1" }).valid, true, "valid only under the activated policy of the same version");
+    assert.equal(evaluateSendingBasis(await rows(), new Date(), { active: true, ruleVersion: "casl-auto-v0" }).valid, false, "a different policy version never inherits an activation");
+    // Free text alone cannot create any basis (express consent / exempt / existing relationship included); with structured evidence it is recorded the same way.
     for (const kind of ["EXPRESS_CONSENT", "EXEMPT", "IMPLIED_EXISTING_RELATIONSHIP"]) {
       const bareFree: any = await inbox.recordSendingBasis(fd({ contactId: contact.contactId, kind, evidence: "Nia wrote to ask for our emails" }));
       assert.deepEqual([bareFree.ok, bareFree.error], [false, "EVIDENCE_INCOMPLETE"], `${kind}: free text alone cannot create a basis`);
     }
     const express: any = await inbox.recordSendingBasis(fd({ contactId: contact.contactId, kind: "EXPRESS_CONSENT", evidence: "Nia wrote to ask for our emails", evidenceType: "EMAIL_THREAD", capturedAt: new Date().toISOString().slice(0, 10), supportingFacts: "Thread dated today in which Nia asks to receive our emails." }));
-    assert.equal(express.pendingReview, true);
-    assert.equal((await db.crmSendingBasis.findUniqueOrThrow({ where: { id: express.basisId } })).reviewStatus, "PENDING_REVIEW");
-    assert.equal(evaluateSendingBasis(await db.crmSendingBasis.findMany({ where: { contactId: contact.contactId } }), new Date()).valid, false, "pending consent authorises nothing");
+    assert.equal(express.ok, true);
+    assert.equal((await db.crmSendingBasis.findUniqueOrThrow({ where: { id: express.basisId } })).reviewStatus, "AUTO_SUPPORTED");
+    assert.equal(await db.crmSendingBasis.count({ where: { reviewStatus: "PENDING_REVIEW", contactId: contact.contactId } }), 0, "no pending-review row can be created any more");
   });
 
   test("legacy reclassification procedure: Super Admin only, preview with real policy impact, token-bound idempotent execute, audited, revertible, never touches other kinds' behaviour", async () => {
@@ -393,7 +396,7 @@ if (!enabled) {
     assert.ok(dnc.rows.some((r) => r.id === ids.Optout) && dnc.rows.every((r) => r.doNotContact));
   });
 
-  test("CASL evidence: structured, approval-gated, scoped; rep cannot approve; other team cannot; own evidence cannot be self-approved (manager); an independent Super Admin can; one decision only; nothing is sent or enrolled", async () => {
+  test("CASL evidence: structured, rule-decided, policy-gated; no approval authority exists; reps record, nobody reviews; nothing is sent or enrolled", async () => {
     as(users.FieldA);
     const created: any = await prospects.createProspect(fd({ name: `Evidence Garage ${run}`, city: "Laval", province: "QC", address: "3 rue E", postalCode: "H7A 3E3" }));
     assert.equal(created.ok, true, JSON.stringify(created));
@@ -402,111 +405,21 @@ if (!enabled) {
     const incomplete: any = await inbox.recordSendingBasis(fd(base));
     assert.deepEqual([incomplete.ok, incomplete.error], [false, "EVIDENCE_INCOMPLETE"]);
     const rec: any = await inbox.recordSendingBasis(fd({ ...base, evidenceType: "WEBSITE_PUBLICATION", sourceUrl: "https://evid.test/contact", capturedAt: "2026-10-01", supportingFacts: "Address shown on the contact page with no refusal wording.", roleRelevance: "Owner decides on shop software", publishedConditionsConfirmed: "on" }));
-    assert.equal(rec.ok, true, JSON.stringify(rec)); assert.equal(rec.pendingReview, true);
+    assert.equal(rec.ok, true, JSON.stringify(rec));
     const rows = () => db.crmSendingBasis.findMany({ where: { contactId: contact.contactId } });
-    assert.equal(evaluateSendingBasis(await rows(), new Date()).valid, false, "pending evidence authorises nothing");
-    // rep cannot approve (no capability); manager of another team cannot see it; same-team manager can
-    await assert.rejects(caslActions.approveSendingBasis(rec.basisId), /SALES_FORBIDDEN/);
-    as(users.MgrB);
-    assert.deepEqual(await caslActions.approveSendingBasis(rec.basisId), { ok: false, error: "NOT_FOUND" });
-    assert.equal((await reviewQueries.listPendingEvidence(await actorOf("MgrB"))).some((e) => e.id === rec.basisId), false);
-    as(users.MgrA);
-    assert.equal((await reviewQueries.listPendingEvidence(await actorOf("MgrA"))).some((e) => e.id === rec.basisId), true);
-    // same-team manager approves the rep's evidence → now valid by itself
-    const ok: any = await caslActions.approveSendingBasis(rec.basisId, "checked the page");
-    assert.equal(ok.ok, true, JSON.stringify(ok));
+    assert.equal(evaluateSendingBasis(await rows(), new Date()).valid, false, "supported evidence authorises nothing until the owner activates the policy");
+    // The approval machinery is gone: no module, no action, no capability, no queue.
+    const gone = "../src/actions/sales-casl";
+    await assert.rejects(import(gone), /Cannot find module|ERR_MODULE_NOT_FOUND/);
+    assert.equal((reviewQueries as Record<string, unknown>).listPendingEvidence, undefined);
+    // An older decision taken under the former workflow is honoured as it stands (history is never rewritten).
+    await db.crmSendingBasis.create({ data: { contactId: contact.contactId, kind: "IMPLIED_PUBLISHED_ADDRESS", evidence: "Approved under the former workflow", recordedByUserId: users.FieldA, reviewStatus: "APPROVED", reviewedByUserId: users.MgrA, reviewedAt: new Date(), evidenceType: "WEBSITE_PUBLICATION", sourceUrl: "https://evid.test/contact", capturedAt: new Date(), supportingFacts: "Printed on the contact page.", roleRelevance: "Owner role", publishedConditionsConfirmed: true } });
     assert.equal(evaluateSendingBasis(await rows(), new Date()).valid, true);
-    assert.deepEqual(await caslActions.approveSendingBasis(rec.basisId), { ok: false, error: "CASL_NOT_PENDING" }, "one decision only");
-    const approved = await db.crmSendingBasis.findUniqueOrThrow({ where: { id: rec.basisId } });
-    assert.equal(approved.reviewStatus, "APPROVED"); assert.equal(approved.reviewedByUserId, users.MgrA);
-    // a manager cannot approve evidence they recorded themselves; a newer pending row shadows the older approved one
-    const own: any = await inbox.recordSendingBasis(fd({ ...base, evidenceType: "WEBSITE_PUBLICATION", sourceUrl: "https://evid.test/contact", capturedAt: "2026-10-02", supportingFacts: "Second capture of the same published address.", roleRelevance: "Owner decides on shop software", publishedConditionsConfirmed: "on" }));
-    assert.equal(own.ok, true, JSON.stringify(own));
-    assert.equal(evaluateSendingBasis(await rows(), new Date()).valid, false);
-    assert.deepEqual(await caslActions.approveSendingBasis(own.basisId), { ok: false, error: "CASL_SELF_APPROVAL" });
-    // Super Admin approves globally
-    as(users.Root);
-    assert.equal(((await caslActions.approveSendingBasis(own.basisId)) as any).ok, true);
-    assert.equal(evaluateSendingBasis(await rows(), new Date()).valid, true);
-    // rejection needs a reason and blocks the send
-    as(users.MgrA);
-    const third: any = await inbox.recordSendingBasis(fd({ ...base, evidenceType: "DIRECTORY_LISTING", sourceUrl: "https://dir.test/x", capturedAt: "2026-10-03", supportingFacts: "Listed in a public business directory.", roleRelevance: "Owner decides on shop software", publishedConditionsConfirmed: "on" }));
-    as(users.Root);
-    assert.deepEqual(await caslActions.rejectSendingBasis(third.basisId, "x"), { ok: false, error: "NOTE_REQUIRED" });
-    assert.equal(((await caslActions.rejectSendingBasis(third.basisId, "Directory is not conspicuous publication")) as any).ok, true);
-    assert.deepEqual(evaluateSendingBasis(await rows(), new Date()), { valid: false, reason: "REJECTED_EVIDENCE" });
-    // express consent now follows the same rule: structured evidence, PENDING_REVIEW, valid only once an independent person approved it
-    as(users.FieldA);
-    const express: any = await inbox.recordSendingBasis(fd({ contactId: contact.contactId, kind: "EXPRESS_CONSENT", evidence: "Pat asked in writing to receive our emails", evidenceType: "EMAIL_THREAD", capturedAt: "2026-10-04", supportingFacts: "Written request from Pat in the thread dated 4 Oct 2026." }));
-    assert.equal(express.ok, true); assert.equal(express.pendingReview, true);
-    assert.equal(evaluateSendingBasis(await rows(), new Date()).valid, false);
-    as(users.MgrA);
-    assert.equal(((await caslActions.approveSendingBasis(express.basisId)) as any).ok, true);
-    assert.equal(evaluateSendingBasis(await rows(), new Date()).valid, true);
-    // audit history, and nothing was sent or enrolled by any of this
-    const hist = await db.crmAuditEvent.findMany({ where: { entityType: "CrmSendingBasis", entityId: { in: [rec.basisId, own.basisId, third.basisId] } }, select: { action: true } });
-    for (const a of ["SENDING_BASIS_RECORDED", "SENDING_BASIS_APPROVED", "SENDING_BASIS_REJECTED"]) assert.ok(hist.some((h) => h.action === a), a);
+    const hist = await db.crmAuditEvent.findMany({ where: { entityType: "CrmSendingBasis", entityId: rec.basisId }, select: { action: true } });
+    assert.ok(hist.some((h) => h.action === "SENDING_BASIS_RECORDED"));
+    assert.equal(hist.some((h) => h.action === "SENDING_BASIS_APPROVED" || h.action === "SENDING_BASIS_REJECTED"), false);
     assert.equal(await db.crmSequenceEnrollment.count({ where: { prospectId: created.prospectId } }), 0);
     assert.equal(await db.crmEmailMessage.count({ where: { prospectId: created.prospectId } }), 0);
-  });
-
-  async function pendingBasis(owner: string, over: Record<string, unknown> = {}) {
-    const p = await db.crmProspect.create({ data: { name: `Race ${Math.random().toString(36).slice(2, 8)} ${run}`, nameNormalized: `race ${run}`, assignedStaffId: owner, createdByUserId: ids.root } });
-    const c = await db.crmContact.create({ data: { prospectId: p.id, name: "R", email: `r${Math.random().toString(36).slice(2, 8)}-${run}@x.test`, emailNormalized: `r-${Math.random()}-${run}@x.test` } });
-    const b = await db.crmSendingBasis.create({ data: { contactId: c.id, kind: "IMPLIED_PUBLISHED_ADDRESS", evidence: "Address published on the shop contact page", recordedByUserId: users.FieldA, reviewStatus: "PENDING_REVIEW", evidenceType: "WEBSITE_PUBLICATION", sourceUrl: "https://x.test/c", capturedAt: new Date(), supportingFacts: "Printed on the contact page, no refusal wording.", roleRelevance: "Owner decides on shop software", publishedConditionsConfirmed: true, ...over } });
-    return { p, c, b };
-  }
-  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-  test("CASL concurrency: team authority is re-checked against the CURRENT owner when the decision commits — a reassignment racing an approval/rejection wins; the stale decision cannot go through", async () => {
-    for (const action of ["approve", "reject"] as const) {
-      const { p, b } = await pendingBasis(staff.FieldA);
-      as(users.MgrA);
-      const decide = () => (action === "approve" ? caslActions.approveSendingBasis(b.id) : caslActions.rejectSendingBasis(b.id, "Not conspicuous publication"));
-      // Reassign to the OTHER team inside a transaction that is still open when the decision starts: the decision must wait on the prospect row lock
-      // and then see the new owner.
-      let racing: Promise<any> | null = null;
-      await db.$transaction(async (tx) => {
-        await tx.crmProspect.update({ where: { id: p.id }, data: { assignedStaffId: staff.RemoteB } });
-        racing = decide();
-        await sleep(600); // the decision is now blocked behind our row lock
-      });
-      assert.deepEqual(await racing, { ok: false, error: "NOT_FOUND" }, `${action}: stale team authorisation must fail`);
-      assert.equal((await db.crmSendingBasis.findUniqueOrThrow({ where: { id: b.id } })).reviewStatus, "PENDING_REVIEW", `${action}: nothing was decided`);
-      // the NEW owner's manager can decide; the old one cannot any more
-      as(users.MgrB);
-      assert.equal(((await (action === "approve" ? caslActions.approveSendingBasis(b.id) : caslActions.rejectSendingBasis(b.id, "Not conspicuous publication"))) as any).ok, true, `${action}: new team manager decides`);
-    }
-    // Opposite order: a decision that commits first is valid and a later reassignment does not undo or fail it.
-    const { p, b } = await pendingBasis(staff.FieldA);
-    as(users.MgrA);
-    assert.equal(((await caslActions.approveSendingBasis(b.id)) as any).ok, true);
-    await db.crmProspect.update({ where: { id: p.id }, data: { assignedStaffId: staff.RemoteB } });
-    assert.equal((await db.crmSendingBasis.findUniqueOrThrow({ where: { id: b.id } })).reviewStatus, "APPROVED");
-    // Concurrent double decision: exactly one wins
-    const two = await pendingBasis(staff.FieldA);
-    as(users.MgrA);
-    const res: any[] = await Promise.all([caslActions.approveSendingBasis(two.b.id), caslActions.rejectSendingBasis(two.b.id, "Changed my mind about it")]);
-    assert.equal(res.filter((r) => r.ok).length, 1, "one decision only");
-    assert.equal(await db.crmAuditEvent.count({ where: { entityType: "CrmSendingBasis", entityId: two.b.id, action: { in: ["SENDING_BASIS_APPROVED", "SENDING_BASIS_REJECTED"] } } }), 1);
-  });
-
-  test("CASL rejection is authorised separately from evidence completeness: incomplete evidence can be rejected (never approved) by the right reviewer; the wrong reviewer cannot do either", async () => {
-    const { b } = await pendingBasis(staff.FieldA, { evidenceType: null, capturedAt: null, supportingFacts: null, roleRelevance: null, sourceUrl: null, publishedConditionsConfirmed: false });
-    as(users.MgrA);
-    assert.deepEqual(await caslActions.approveSendingBasis(b.id), { ok: false, error: "CASL_EVIDENCE_INCOMPLETE" });
-    as(users.MgrB);
-    assert.deepEqual(await caslActions.rejectSendingBasis(b.id, "Not our team at all"), { ok: false, error: "NOT_FOUND" }, "out-of-team reviewers cannot reject either");
-    as(users.FieldA);
-    await assert.rejects(caslActions.rejectSendingBasis(b.id, "A rep cannot reject"), /SALES_FORBIDDEN/);
-    as(users.MgrA);
-    assert.deepEqual(await caslActions.rejectSendingBasis(b.id, "x"), { ok: false, error: "NOTE_REQUIRED" });
-    assert.equal(((await caslActions.rejectSendingBasis(b.id, "Evidence is empty, cannot be relied on")) as any).ok, true);
-    const row = await db.crmSendingBasis.findUniqueOrThrow({ where: { id: b.id } });
-    assert.equal(row.reviewStatus, "REJECTED"); assert.equal(row.reviewedByUserId, users.MgrA);
-    // self-review rule applies to rejection too
-    const mine = await pendingBasis(staff.FieldA, { recordedByUserId: users.MgrA });
-    assert.deepEqual(await caslActions.rejectSendingBasis(mine.b.id, "Rejecting my own evidence"), { ok: false, error: "CASL_SELF_APPROVAL" });
   });
 
   test("tenant isolation: a user without an active platform sales profile (e.g. a shop owner) cannot use any Lead Engine action", async () => {
@@ -515,7 +428,6 @@ if (!enabled) {
     await assert.rejects(imports.previewProspectImport(csvForm("name\nX")), /SALES_FORBIDDEN/);
     await assert.rejects(assignment.previewAssignmentRun(fd({})), /SALES_FORBIDDEN/);
     await assert.rejects(dupes.decideDuplicateReview(ids.review, "LINK"), /SALES_FORBIDDEN/);
-    await assert.rejects(caslActions.approveSendingBasis("x"), /SALES_FORBIDDEN/);
     await assert.rejects(assignment.recomputeProspectDerived(), /SALES_FORBIDDEN/);
     as(users.MgrA);
     await assert.rejects(assignment.recomputeProspectDerived(), /SALES_FORBIDDEN/, "maintenance is Super Admin only");

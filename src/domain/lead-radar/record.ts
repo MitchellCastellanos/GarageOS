@@ -10,6 +10,7 @@ import { classify, type Tier } from "@/domain/lead-radar/taxonomy";
 import { resolveGeo, type ProvinceCode } from "@/domain/lead-radar/geo";
 import { evaluateLicenses } from "@/domain/lead-radar/license";
 import { checkSourceCoordinates } from "@/domain/sales-crm/source-location";
+import { emailProvenanceOf, normaliseSourceItems, sourceItemSchema, MAX_SOURCE_ITEMS, type EmailProvenance } from "@/domain/lead-radar/provenance";
 
 export const RECORD_SCHEMA_VERSION = 1;
 const str = (max: number) => z.string().max(max).nullish();
@@ -30,6 +31,8 @@ export const rawRecordSchema = z.object({
   websites: z.array(z.string()).max(6).nullish(),
   emails: z.array(z.string()).max(6).nullish(),
   sources: z.array(z.object({ dataset: str(80), license: str(60) })).max(20).nullish(),
+  /** Per-property attribution (extractor >= 1.4.0): email-level vs place-level provenance. Optional: older extracts have none (provenance scope NONE, never guessed). */
+  sourceItems: z.array(sourceItemSchema).max(MAX_SOURCE_ITEMS).nullish(),
   /** The place's own point (extractor >= 1.1.0). Optional: older extracts have none. Validated again in toCandidate; never used as a business fact. */
   geo: z.object({ lat: z.number().nullish(), lng: z.number().nullish() }).nullish(),
 });
@@ -48,6 +51,10 @@ export interface StagedCandidate {
   taxonomyPrimary: string | null; tier: Tier; industry: string | null; classReasons: string[]; chainSignal: "CHAIN_SIGNAL" | "NO_CHAIN_SIGNAL";
   sourceConfidence: number | null; completeness: number; qualityFlags: QualityFlag[];
   licenses: string[]; datasets: string[]; licenseOk: boolean; contentFingerprint: string;
+  /** Minimal normalised provenance of the picked email (null when there is no email). NOT part of contentFingerprint. */
+  emailProvenance: EmailProvenance | null;
+  /** Source operating status (transient: used by the early commercial screen only, never stored). */
+  operatingStatus: string | null;
   /** Source point, only when it passed the Canada/province plausibility check. NOT part of contentFingerprint (a refreshed point must never re-open an approval). */
   sourceLatitude: number | null; sourceLongitude: number | null;
   /** Diagnostics only (never stored): why `sourceLatitude/Longitude` are null. */
@@ -92,7 +99,7 @@ const clean = (v: string | null | undefined, max: number) => { const t = neutral
  * Raw object → staging candidate, or a rejection code. `isSuppressed` lets the caller drop an email that is on the CRM suppression list
  * (the candidate is still stageable, just without that email).
  */
-export function toCandidate(input: unknown, scope: ScopeFilter, opts: { isSuppressed?: (emailNormalized: string) => boolean; cityKeyOf: (c: string | null) => string }): { ok: true; candidate: StagedCandidate } | { ok: false; issue: RecordIssue } {
+export function toCandidate(input: unknown, scope: ScopeFilter, opts: { isSuppressed?: (emailNormalized: string) => boolean; cityKeyOf: (c: string | null) => string; release?: string | null }): { ok: true; candidate: StagedCandidate } | { ok: false; issue: RecordIssue } {
   if (input && typeof input === "object" && "v" in input && (input as { v: unknown }).v !== RECORD_SCHEMA_VERSION) return { ok: false, issue: "SCHEMA_VERSION_UNSUPPORTED" };
   const parsed = rawRecordSchema.safeParse(input);
   if (!parsed.success) return { ok: false, issue: "SCHEMA_INVALID" };
@@ -114,6 +121,7 @@ export function toCandidate(input: unknown, scope: ScopeFilter, opts: { isSuppre
   const phone = pickPhone(r.phones);
   let email = pickEmail(r.emails);
   const flags = new Set<QualityFlag>(geo.flags);
+  const emailIndex = email ? (r.emails ?? []).findIndex((e) => normalizeEmail(e) === email) : -1;
   if (email && opts.isSuppressed?.(email)) { email = null; flags.add("EMAIL_SUPPRESSED"); }
   if (email) flags.add("EMAIL_UNVERIFIED");
   if (!street) flags.add("NO_ADDRESS");
@@ -145,6 +153,8 @@ export function toCandidate(input: unknown, scope: ScopeFilter, opts: { isSuppre
       sourceConfidence: r.confidence ?? null,
       completeness: completenessScore({ name: true, address: !!street, postal: !!postalCode, phone: !!phone, website: !!website, email: !!email }),
       qualityFlags: [...flags].sort(), licenses: lic.licenses, datasets: lic.datasets, licenseOk: lic.ok, contentFingerprint: fingerprint,
+      operatingStatus: clean(r.operatingStatus, 40),
+      emailProvenance: email ? emailProvenanceOf({ placeId: r.id, release: opts.release ?? null, email, emailIndex: Math.max(0, emailIndex), items: normaliseSourceItems(r.sourceItems) }) : null,
       sourceLatitude: point ? Math.round(point.lat * 1e7) / 1e7 : null, sourceLongitude: point ? Math.round(point.lng * 1e7) / 1e7 : null,
       // Why a point is missing (diagnostics only): absent from the file vs present but rejected (outside Canada / outside the business's province).
       sourcePointIssue: pointCheck.ok ? null : pointCheck.issue,

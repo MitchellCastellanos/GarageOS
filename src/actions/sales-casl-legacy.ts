@@ -1,9 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { PLATFORM } from "@/lib/routes";
 import { requireCrmActor } from "@/lib/sales-crm/access";
 import { writeCrmAudit } from "@/lib/sales-crm/audit";
 import { computeLegacyImpact, DEFAULT_LEGACY_KINDS, sanitizeKinds, type LegacyImpact } from "@/lib/sales-crm/legacy-basis";
@@ -58,7 +56,6 @@ export async function reclassifyLegacyBases(kinds: string[], token: string) {
       });
       return { updated: upd.count, auditId: ev.id, impact };
     }, { timeout: 60_000 });
-    revalidatePath(PLATFORM.salesEvidence);
     return { updated: res.updated, auditId: res.auditId, remaining: Math.max(0, res.impact.remainingRows - res.updated) };
   });
 }
@@ -76,7 +73,6 @@ export async function revertLegacyReclassification(auditId: string) {
       if (r.count > 0) await writeCrmAudit({ actorUserId: actor.userId, action: "LEGACY_BASES_REVERTED", entityType: "CrmSendingBasis", metadata: { of: auditId, count: r.count } }, tx);
       return r.count;
     });
-    revalidatePath(PLATFORM.salesEvidence);
     return { reverted };
   });
 }

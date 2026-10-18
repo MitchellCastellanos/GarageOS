@@ -50,9 +50,24 @@ export const autoEn = {
     notes: { NO_ELIGIBLE_SELLERS_CONFIGURED: "No seller is named for automatic assignment.", NO_CAPACITY: "Every named seller is at capacity.", NO_ACTIVE_SELLER: "No named seller is active." } as Record<string, string>,
   },
   readiness: {
-    title: "Contact readiness (independent of seller, sender and capacity)", READY: "Ready for outreach", PENDING_REVIEW: "Pending independent review", PENDING_EVIDENCE: "Pending evidence", SUPPRESSED: "Suppressed", INELIGIBLE: "Ineligible",
+    title: "Contact readiness (independent of seller, sender and capacity)", READY: "Ready for outreach", EVIDENCE_SUPPORTED: "Evidence-supported (policy not activated)", PENDING_EVIDENCE: "Pending evidence", SUPPRESSED: "Suppressed", INELIGIBLE: "Ineligible",
     readyFr: "Ready · French (Québec REMOTE)", readyEn: "Ready · English (rest of Canada)", unassessed: "Not yet assessed",
-    note: "Ready means the recipient could be enrolled today: verified repair shop, REMOTE territory, one deduplicated address, an independently approved CASL basis and no suppression. It does not start any sending.",
+    note: "Ready = verified repair shop, REMOTE territory, one deduplicated address, automated CASL evidence SUPPORTED under the activated policy, no suppression. Evidence-supported = the same, but the automated policy is not activated, so nothing is send-authorized. Nobody approves individual contacts. This starts no sending.",
+  },
+  pipeline: {
+    title: "Qualification pipeline (aggregate counts only)", examined: "Businesses examined", rejected: "Commercially rejected (not stored)", rediscovered: "Rediscovered in a later release", tombstones: "Exclusion tombstones kept",
+    fieldUsable: "FIELD usable (visitable)", remoteUsable: "REMOTE usable", unresolved: "Territory unresolved (never REMOTE)", needing: "Emails needing evidence assessment", unassessed: "Not yet assessed",
+    supported: "Evidence SUPPORTED", insufficient: "Evidence INSUFFICIENT", blocked: "Evidence BLOCKED", qualifiedFr: "Qualified · French", qualifiedEn: "Qualified · English",
+    usage: "Verification in the last 24 h", requests: "Page requests", megabytes: "MB read", seconds: "Fetch seconds", failures: "Fetch failures", robots: "Blocked by robots.txt", errors: "Stage errors",
+    reasons: "Why evidence was insufficient (30 days)", rejectionReasons: "Why businesses were not kept",
+    reasonLabels: { NO_OWN_WEBSITE: "No own website on record", WEBSITE_IS_DIRECTORY: "Website is a directory / social page", THIRD_PARTY_ONLY: "Address known only from a third-party dataset", PROVENANCE_ONLY: "Dataset provenance is not evidence of publication", EMAIL_NOT_FOUND_ON_OWN_SITE: "Address not found on the shop’s own site", FETCH_FAILED: "Site could not be read", ROBOTS_DISALLOWED: "robots.txt disallows reading", NOT_ATTRIBUTABLE: "Address not tied to this business", ROLE_RELEVANCE_UNKNOWN: "Mailbox role not clearly relevant", EVIDENCE_NOT_DOCUMENTED: "Evidence not fully documented", EVIDENCE_STALE: "Evidence stale", BUDGET_EXHAUSTED: "Read budget exhausted", NO_SOLICITATION_STATEMENT: "Site states no unsolicited messages", ROLE_NOT_RELEVANT: "Mailbox role not relevant (HR, privacy, billing…)", SUPPRESSED_OR_DNC: "Suppressed / do not contact", LICENSE_BLOCKED: "Licence not permitted", TIER_EXCLUDED: "Excluded category", FIT_EXCLUDED: "Not an independent repair shop", FIT_NOT_VERIFIED: "Repair fit not verified", NOT_OPERATING: "Not operating", INSUFFICIENT_CONTACT: "Insufficient contact data", TERRITORY_UNRESOLVED: "Territory unresolved", FIELD_NOT_VISITABLE: "FIELD address not visitable", REMOTE_NO_USABLE_EMAIL: "REMOTE without a usable email" } as Record<string, string>,
+  },
+  casl: {
+    title: "Automated CASL policy", version: "Policy version", stage: "Evidence stage (reads each qualified shop’s own website within a hard budget)", stageOn: "Evidence stage is ON", stageOff: "Evidence stage is OFF", turnOn: "Turn evidence stage on", turnOff: "Turn evidence stage off",
+    status: "Live authorization", inactive: "NOT ACTIVATED. Evidence-supported contacts are classified only; none is send-authorized. Activation needs legal review of the policy and your explicit decision (one policy-level decision, never per contact).",
+    active: "ACTIVATED for this version by a Super Admin. Supported evidence can satisfy the basis requirement; every other send gate still applies.", activatedAt: "Activated",
+    confirmLabel: "To activate, type exactly", confirmPhrase: "ACTIVATE AUTOMATED CASL POLICY", activate: "Activate policy", deactivate: "Deactivate policy (immediate)",
+    nobody: "No individual contact is ever approved by a person under this policy. INSUFFICIENT and BLOCKED results never authorize anything.",
   },
   eligibility: {
     eligible: "Eligible for the pilot", notEligible: "Not eligible for automated outreach", awaiting: "Awaiting assessment", reasons: "Why not eligible",
@@ -60,9 +75,9 @@ export const autoEn = {
     reasonLabels: {
       NO_OWNER: "No assigned seller", SELLER_INACTIVE: "Seller inactive", SELLER_BOOKING_NOT_ENABLED: "Seller’s booking page is not enabled (the standard templates link to it)", PROSPECT_ARCHIVED: "Archived", PROSPECT_DNC: "Do not contact", OPPORTUNITY_CLOSED: "Opportunity closed", NO_EMAILABLE_CONTACT: "No contact with an email address",
       CONTACT_DNC: "Contact marked do not contact", ADDRESS_SUPPRESSED: "Address unsubscribed / suppressed", ADDRESS_BOUNCED: "Address bounced or complained", NO_SENDING_BASIS: "No documented CASL basis", BASIS_EXPIRED: "CASL basis expired",
-      BASIS_REVOKED: "CASL basis revoked", BASIS_WEAK_EVIDENCE: "CASL evidence too thin", BASIS_PENDING_REVIEW: "CASL evidence awaiting approval", BASIS_REJECTED: "CASL evidence rejected", BASIS_UNREVIEWED: "CASL evidence not reviewed", BASIS_KIND_NOT_ALLOWED: "CASL basis type not allowed for automated email",
+      BASIS_REVOKED: "CASL basis revoked", BASIS_WEAK_EVIDENCE: "CASL evidence too thin", BASIS_PENDING_REVIEW: "Recorded under the former review workflow (never approved); automated evidence will supersede it", BASIS_REJECTED: "CASL evidence rejected", BASIS_UNREVIEWED: "CASL evidence not reviewed", BASIS_KIND_NOT_ALLOWED: "CASL basis type not allowed for automated email",
       LANGUAGE_UNRESOLVED: "Language not decided (EN/FR)", SENDER_IDENTITY_MISSING: "Seller has no sender identity", SENDER_NOT_ACTIVE: "Sender identity not active", SENDER_DOMAIN_NOT_APPROVED: "Sender domain not approved",
-      SENDER_REPLY_PATH_UNVERIFIED: "Sender reply path not verified", NOT_VERIFIED_REPAIR: "Not a verified independent repair shop", TERRITORY_NOT_REMOTE: "Not in the national REMOTE territory (FIELD or unresolved)", DUPLICATE_ADDRESS: "Same address already belongs to another prospect", FIELD_TERRITORY_FIRST_CONTACT: "FIELD territory: no automated cold first contact",
+      SENDER_REPLY_PATH_UNVERIFIED: "Sender reply path not verified", CASL_EVIDENCE_BLOCKED: "Automated CASL assessment BLOCKED this address (restriction, irrelevant role or suppression)", AUTO_POLICY_NOT_ACTIVATED: "Evidence supported by automated rules; automated CASL policy not activated (nothing is send-authorized)", NOT_VERIFIED_REPAIR: "Not a verified independent repair shop", TERRITORY_NOT_REMOTE: "Not in the national REMOTE territory (FIELD or unresolved)", DUPLICATE_ADDRESS: "Same address already belongs to another prospect", FIELD_TERRITORY_FIRST_CONTACT: "FIELD territory: no automated cold first contact",
     } as Record<string, string>,
   },
   sending: {
@@ -108,7 +123,7 @@ export const autoEn = {
   errors: {
     INVALID_POLICY: "The policy rules are not valid.", POLICY_VERSION_CONFLICT: "Another draft was created at the same moment. Try again.", POLICY_NOT_DRAFT: "Only a draft can be activated.", POLICY_NOT_PREVIEWED: "Preview this draft before activating it.",
     POLICY_PREVIEW_STALE: "The preview is older than 24 hours. Preview again.", POLICY_TAMPERED: "The stored rules no longer match their recorded fingerprint.", NO_ACTIVE_POLICY: "Activate a qualification policy first.", INVALID_LIMITS: "Check the limits (chunk 1–200, daily ≤ total).",
-    INVALID_SELLER: "Only active Sales Rep accounts can receive automatic assignments.", PILOT_NEEDS_SEQUENCE: "Choose a pilot sequence first.", PILOT_NEEDS_SELLER: "Name at least one seller first.", SEQUENCE_NOT_ACTIVE: "The pilot sequence must be active.",
+    INVALID_SELLER: "Only active Sales Rep accounts can receive automatic assignments.", POLICY_VERSION_MISMATCH: "The policy version shown is no longer current. Reload the page.", CONFIRMATION_REQUIRED: "Type the confirmation sentence exactly.", PILOT_NEEDS_SEQUENCE: "Choose a pilot sequence first.", PILOT_NEEDS_SELLER: "Name at least one seller first.", SEQUENCE_NOT_ACTIVE: "The pilot sequence must be active.",
     AUTOMATION_DISABLED: "Automation is off. Turn it on first.", ALREADY_RUNNING: "A cycle is already running.",
   } as Record<string, string>,
 };
@@ -165,9 +180,24 @@ export const autoFr: AutoCopy = {
     notes: { NO_ELIGIBLE_SELLERS_CONFIGURED: "Aucun vendeur n’est désigné pour l’assignation automatique.", NO_CAPACITY: "Chaque vendeur désigné est à pleine capacité.", NO_ACTIVE_SELLER: "Aucun vendeur désigné n’est actif." },
   },
   readiness: {
-    title: "État de préparation des contacts (indépendant du vendeur, de l’expéditeur et de la capacité)", READY: "Prêts pour le démarchage", PENDING_REVIEW: "En attente de révision indépendante", PENDING_EVIDENCE: "En attente de preuve", SUPPRESSED: "Supprimés", INELIGIBLE: "Non admissibles",
+    title: "État de préparation des contacts (indépendant du vendeur, de l’expéditeur et de la capacité)", READY: "Prêts pour le démarchage", EVIDENCE_SUPPORTED: "Preuve confirmée (politique non activée)", PENDING_EVIDENCE: "En attente de preuve", SUPPRESSED: "Supprimés", INELIGIBLE: "Non admissibles",
     readyFr: "Prêts · français (REMOTE Québec)", readyEn: "Prêts · anglais (reste du Canada)", unassessed: "Pas encore évalués",
-    note: "Prêt signifie que le destinataire pourrait être inscrit aujourd’hui : atelier indépendant vérifié, territoire REMOTE, adresse unique dédupliquée, base LCAP approuvée de façon indépendante et aucune suppression. Cela ne déclenche aucun envoi.",
+    note: "Prêt = atelier indépendant vérifié, territoire REMOTE, adresse unique dédupliquée, preuve LCAP automatisée CONFIRMÉE sous la politique activée, aucune suppression. Preuve confirmée = la même chose, mais la politique automatisée n’est pas activée : rien n’est autorisé à l’envoi. Personne n’approuve les contacts individuellement. Cela ne déclenche aucun envoi.",
+  },
+  pipeline: {
+    title: "Pipeline de qualification (comptes agrégés seulement)", examined: "Entreprises examinées", rejected: "Rejetées commercialement (non conservées)", rediscovered: "Redécouvertes dans une version ultérieure", tombstones: "Marqueurs d’exclusion conservés",
+    fieldUsable: "TERRAIN utilisables (visitables)", remoteUsable: "REMOTE utilisables", unresolved: "Territoire non résolu (jamais REMOTE)", needing: "Courriels nécessitant une évaluation de preuve", unassessed: "Pas encore évalués",
+    supported: "Preuve CONFIRMÉE", insufficient: "Preuve INSUFFISANTE", blocked: "Preuve BLOQUÉE", qualifiedFr: "Qualifiés · français", qualifiedEn: "Qualifiés · anglais",
+    usage: "Vérification des dernières 24 h", requests: "Requêtes de pages", megabytes: "Mo lus", seconds: "Secondes de lecture", failures: "Échecs de lecture", robots: "Bloqué par robots.txt", errors: "Erreurs de l’étape",
+    reasons: "Pourquoi la preuve était insuffisante (30 jours)", rejectionReasons: "Pourquoi des entreprises n’ont pas été conservées",
+    reasonLabels: { NO_OWN_WEBSITE: "Aucun site propre au dossier", WEBSITE_IS_DIRECTORY: "Le site est un annuaire / une page sociale", THIRD_PARTY_ONLY: "Adresse connue seulement d’un jeu de données tiers", PROVENANCE_ONLY: "La provenance du jeu de données n’est pas une preuve de publication", EMAIL_NOT_FOUND_ON_OWN_SITE: "Adresse introuvable sur le site de l’atelier", FETCH_FAILED: "Site illisible", ROBOTS_DISALLOWED: "robots.txt interdit la lecture", NOT_ATTRIBUTABLE: "Adresse non liée à cette entreprise", ROLE_RELEVANCE_UNKNOWN: "Rôle de la boîte non clairement pertinent", EVIDENCE_NOT_DOCUMENTED: "Preuve non entièrement documentée", EVIDENCE_STALE: "Preuve périmée", BUDGET_EXHAUSTED: "Budget de lecture épuisé", NO_SOLICITATION_STATEMENT: "Le site refuse les messages non sollicités", ROLE_NOT_RELEVANT: "Rôle de la boîte non pertinent (RH, vie privée, facturation…)", SUPPRESSED_OR_DNC: "Supprimé / ne pas contacter", LICENSE_BLOCKED: "Licence non permise", TIER_EXCLUDED: "Catégorie exclue", FIT_EXCLUDED: "Pas un atelier indépendant", FIT_NOT_VERIFIED: "Type d’atelier non vérifié", NOT_OPERATING: "N’opère pas", INSUFFICIENT_CONTACT: "Coordonnées insuffisantes", TERRITORY_UNRESOLVED: "Territoire non résolu", FIELD_NOT_VISITABLE: "Adresse TERRAIN non visitable", REMOTE_NO_USABLE_EMAIL: "REMOTE sans courriel utilisable" } as Record<string, string>,
+  },
+  casl: {
+    title: "Politique LCAP automatisée", version: "Version de la politique", stage: "Étape de preuve (lit le site propre de chaque atelier qualifié dans un budget strict)", stageOn: "L’étape de preuve est ACTIVE", stageOff: "L’étape de preuve est INACTIVE", turnOn: "Activer l’étape de preuve", turnOff: "Désactiver l’étape de preuve",
+    status: "Autorisation en production", inactive: "NON ACTIVÉE. Les contacts à preuve confirmée sont seulement classés ; aucun n’est autorisé à l’envoi. L’activation exige un examen juridique de la politique et votre décision explicite (une seule décision de politique, jamais par contact).",
+    active: "ACTIVÉE pour cette version par un Super Admin. Une preuve confirmée peut satisfaire l’exigence de base ; toutes les autres barrières d’envoi s’appliquent toujours.", activatedAt: "Activée",
+    confirmLabel: "Pour activer, saisissez exactement", confirmPhrase: "ACTIVATE AUTOMATED CASL POLICY", activate: "Activer la politique", deactivate: "Désactiver la politique (immédiat)",
+    nobody: "Sous cette politique, personne n’approuve un contact individuel. Les résultats INSUFFISANT et BLOQUÉ n’autorisent jamais rien.",
   },
   eligibility: {
     eligible: "Admissibles au pilote", notEligible: "Non admissibles au démarchage automatisé", awaiting: "En attente d’évaluation", reasons: "Pourquoi non admissibles",
@@ -175,9 +205,9 @@ export const autoFr: AutoCopy = {
     reasonLabels: {
       NO_OWNER: "Aucun vendeur assigné", SELLER_INACTIVE: "Vendeur inactif", SELLER_BOOKING_NOT_ENABLED: "La page de réservation du vendeur n’est pas activée (les modèles standards y renvoient)", PROSPECT_ARCHIVED: "Archivé", PROSPECT_DNC: "Ne pas contacter", OPPORTUNITY_CLOSED: "Occasion fermée", NO_EMAILABLE_CONTACT: "Aucun contact avec une adresse courriel",
       CONTACT_DNC: "Contact marqué ne pas contacter", ADDRESS_SUPPRESSED: "Adresse désabonnée / supprimée", ADDRESS_BOUNCED: "Adresse en rebond ou plainte", NO_SENDING_BASIS: "Aucune base LCAP documentée", BASIS_EXPIRED: "Base LCAP expirée",
-      BASIS_REVOKED: "Base LCAP révoquée", BASIS_WEAK_EVIDENCE: "Preuve LCAP trop mince", BASIS_PENDING_REVIEW: "Preuve LCAP en attente d’approbation", BASIS_REJECTED: "Preuve LCAP rejetée", BASIS_UNREVIEWED: "Preuve LCAP non révisée", BASIS_KIND_NOT_ALLOWED: "Type de base LCAP non permis pour le courriel automatisé",
+      BASIS_REVOKED: "Base LCAP révoquée", BASIS_WEAK_EVIDENCE: "Preuve LCAP trop mince", BASIS_PENDING_REVIEW: "Consignée sous l’ancien flux de vérification (jamais approuvée) ; la preuve automatisée la remplacera", BASIS_REJECTED: "Preuve LCAP rejetée", BASIS_UNREVIEWED: "Preuve LCAP non révisée", BASIS_KIND_NOT_ALLOWED: "Type de base LCAP non permis pour le courriel automatisé",
       LANGUAGE_UNRESOLVED: "Langue non décidée (EN/FR)", SENDER_IDENTITY_MISSING: "Le vendeur n’a pas d’identité d’expéditeur", SENDER_NOT_ACTIVE: "Identité d’expéditeur inactive", SENDER_DOMAIN_NOT_APPROVED: "Domaine d’expédition non approuvé",
-      SENDER_REPLY_PATH_UNVERIFIED: "Chemin de réponse de l’expéditeur non vérifié", NOT_VERIFIED_REPAIR: "Pas un atelier de réparation indépendant vérifié", TERRITORY_NOT_REMOTE: "Hors du territoire REMOTE national (TERRAIN ou non résolu)", DUPLICATE_ADDRESS: "Cette adresse appartient déjà à un autre prospect", FIELD_TERRITORY_FIRST_CONTACT: "Territoire TERRAIN : pas de premier contact automatisé à froid",
+      SENDER_REPLY_PATH_UNVERIFIED: "Chemin de réponse de l’expéditeur non vérifié", CASL_EVIDENCE_BLOCKED: "L’évaluation LCAP automatisée a BLOQUÉ cette adresse (restriction, rôle non pertinent ou suppression)", AUTO_POLICY_NOT_ACTIVATED: "Preuve confirmée par les règles automatisées ; politique LCAP automatisée non activée (rien n’est autorisé à l’envoi)", NOT_VERIFIED_REPAIR: "Pas un atelier de réparation indépendant vérifié", TERRITORY_NOT_REMOTE: "Hors du territoire REMOTE national (TERRAIN ou non résolu)", DUPLICATE_ADDRESS: "Cette adresse appartient déjà à un autre prospect", FIELD_TERRITORY_FIRST_CONTACT: "Territoire TERRAIN : pas de premier contact automatisé à froid",
     },
   },
   sending: {
@@ -223,7 +253,7 @@ export const autoFr: AutoCopy = {
   errors: {
     INVALID_POLICY: "Les règles de la politique ne sont pas valides.", POLICY_VERSION_CONFLICT: "Un autre brouillon a été créé au même moment. Réessayez.", POLICY_NOT_DRAFT: "Seul un brouillon peut être activé.", POLICY_NOT_PREVIEWED: "Prévisualisez ce brouillon avant de l’activer.",
     POLICY_PREVIEW_STALE: "L’aperçu date de plus de 24 heures. Prévisualisez de nouveau.", POLICY_TAMPERED: "Les règles enregistrées ne correspondent plus à leur empreinte.", NO_ACTIVE_POLICY: "Activez d’abord une politique de qualification.", INVALID_LIMITS: "Vérifiez les limites (bloc 1–200, quotidien ≤ total).",
-    INVALID_SELLER: "Seuls les comptes de représentants actifs peuvent recevoir des assignations automatiques.", PILOT_NEEDS_SEQUENCE: "Choisissez d’abord une séquence pour le pilote.", PILOT_NEEDS_SELLER: "Désignez d’abord au moins un vendeur.", SEQUENCE_NOT_ACTIVE: "La séquence du pilote doit être active.",
+    POLICY_VERSION_MISMATCH: "La version de la politique affichée n’est plus à jour. Rechargez la page.", CONFIRMATION_REQUIRED: "Saisissez exactement la phrase de confirmation.", INVALID_SELLER: "Seuls les comptes de représentants actifs peuvent recevoir des assignations automatiques.", PILOT_NEEDS_SEQUENCE: "Choisissez d’abord une séquence pour le pilote.", PILOT_NEEDS_SELLER: "Désignez d’abord au moins un vendeur.", SEQUENCE_NOT_ACTIVE: "La séquence du pilote doit être active.",
     AUTOMATION_DISABLED: "L’automatisation est inactive. Activez-la d’abord.", ALREADY_RUNNING: "Un cycle est déjà en cours.",
   },
 };

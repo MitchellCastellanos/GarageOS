@@ -6,6 +6,7 @@ import { composeProspects } from "@/lib/sales-comms/queries";
 import { Composer, type ComposerInitial } from "@/components/sales-comms/Composer";
 import { COMMERCIAL_TEMPLATE_KEYS } from "@/domain/sales-comms/templates";
 import { evaluateSendingBasis } from "@/domain/sales-comms/casl";
+import { loadAutoCaslPolicy } from "@/lib/sales-comms/auto-casl-policy";
 import { getCommsSettings } from "@/lib/sales-comms/settings";
 import { applyTemplate } from "@/lib/sales-comms/compose";
 
@@ -23,6 +24,7 @@ export default async function ComposePage({ searchParams }: { searchParams: Prom
     actor.staffId ? db.crmSenderIdentity.findUnique({ where: { staffId: actor.staffId }, include: { staff: { select: { timezone: true, bookingEnabled: true } } } }) : null,
   ]);
   const settings = await getCommsSettings();
+  const autoPolicy = await loadAutoCaslPolicy();
 
   // Resume a draft owned by this seller, or start fresh (optionally pre-selecting prospect/contact/template from the query string).
   const draft = one(sp.draft) ? await db.crmEmailMessage.findFirst({ where: { id: one(sp.draft), authorUserId: actor.userId, status: "DRAFT" }, include: { attachments: { select: { id: true, filename: true, sizeBytes: true } } } }) : null;
@@ -45,7 +47,7 @@ export default async function ComposePage({ searchParams }: { searchParams: Prom
         locale={locale} initial={initial} isReply={false} timezone={identity?.staff.timezone ?? "America/Toronto"}
         prospects={prospects.map((x) => ({
           id: x.id, name: x.name, language: x.preferredLanguage,
-          contacts: x.contacts.filter((c) => !c.doNotContact).map((c) => ({ id: c.id, name: c.name, email: c.email, language: c.preferredLanguage === "FR" || c.preferredLanguage === "EN" ? c.preferredLanguage : null, basis: evaluateSendingBasis(c.sendingBases, now).valid ? "valid" as const : "none" as const })),
+          contacts: x.contacts.filter((c) => !c.doNotContact).map((c) => ({ id: c.id, name: c.name, email: c.email, language: c.preferredLanguage === "FR" || c.preferredLanguage === "EN" ? c.preferredLanguage : null, basis: evaluateSendingBasis(c.sendingBases, now, autoPolicy).valid ? "valid" as const : "none" as const })),
         }))}
         templates={COMMERCIAL_TEMPLATE_KEYS.map((k) => ({ key: k, label: t.templateNames[k] }))}
         sender={identity ? { name: identity.fromName, email: identity.fromEmail } : null} bookingEnabled={!!identity?.staff.bookingEnabled} sendReady={!!identity && identity.status === "ACTIVE" && settings.sendingEnabled && settings.manualSendingEnabled}

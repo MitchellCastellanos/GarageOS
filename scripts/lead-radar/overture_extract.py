@@ -28,7 +28,7 @@ import time
 from datetime import datetime, timezone
 
 EXTRACTOR = "garageos-overture-extract"
-EXTRACTOR_VERSION = "1.3.0"
+EXTRACTOR_VERSION = "1.4.0"
 BUCKET_HOST = "overturemaps-us-west-2.s3.amazonaws.com"
 BUCKET_BASE = f"https://{BUCKET_HOST}/"
 STAC_ROOT = "https://stac.overturemaps.org/catalog.json"
@@ -154,6 +154,23 @@ def source_point(row: dict):
     return {"lat": round(lat, 7), "lng": round(lng, 7)}
 
 
+def _clip(v, n):
+    return str(v)[:n] if v is not None else None
+
+
+def source_item(s: dict) -> dict:
+    """Whitelisted projection of one Overture `sources[]` item (property, dataset, license, record_id, update_time, confidence)."""
+    conf = s.get("confidence")
+    return {
+        "property": _clip(s.get("property"), 120) or "",
+        "dataset": _clip(s.get("dataset"), 80),
+        "license": _clip(s.get("license"), 60),
+        "recordId": _clip(s.get("record_id"), 120),
+        "updateTime": _clip(s.get("update_time"), 40),
+        "confidence": float(conf) if isinstance(conf, (int, float)) and 0 <= conf <= 1 else None,
+    }
+
+
 def to_record(row: dict) -> dict:
     """Whitelisted, schema-v1 projection. Nothing outside this list is ever written."""
     tax = row.get("taxonomy") or {}
@@ -173,6 +190,9 @@ def to_record(row: dict) -> dict:
         "websites": list(row.get("websites") or [])[:3],
         "emails": list(row.get("emails") or [])[:3],
         "sources": [{"dataset": s.get("dataset"), "license": s.get("license")} for s in (row.get("sources") or [])][:20],
+        # Additive (v1.4.0): the per-property attribution Overture publishes (JSON-pointer `property`, dataset, license, dataset-specific record id, source update time, source confidence).
+        # Nothing is invented and nothing else of the source item is copied. An item whose property points at /emails is email-level provenance; the root item ("") is place-level only.
+        "sourceItems": [source_item(s) for s in (row.get("sources") or [])][:30],
         # Additive (schema v1 stays valid): the place's own point, so GarageOS never has to geocode what the source already located.
         "geo": source_point(row),
     }

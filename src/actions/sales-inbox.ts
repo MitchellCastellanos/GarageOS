@@ -14,7 +14,8 @@ import { requireScopedThread } from "@/lib/sales-comms/threads";
 import { videoLinkFor } from "@/lib/sales-video";
 import { suppressEmail } from "@/lib/sales-comms/suppression";
 import { suggestedBasisExpiry } from "@/domain/sales-comms/casl";
-import { evidenceGaps, evidenceInputSchema, requiresApproval } from "@/domain/sales-crm/casl-evidence";
+import { evidenceGaps, evidenceInputSchema } from "@/domain/sales-crm/casl-evidence";
+import { CASL_RULE_VERSION } from "@/domain/lead-radar/casl-evidence-engine";
 import { validateAttachment, MAX_ATTACHMENTS, MAX_TOTAL_ATTACHMENT_BYTES } from "@/domain/sales-comms/attachments";
 import { isStorageConfigured, uploadSalesEmailAttachment, signedUrlForSalesEmailAttachment } from "@/lib/storage";
 import { publishInboxSignal } from "@/lib/sales-comms/realtime";
@@ -262,8 +263,8 @@ export async function attachmentDownloadUrl(attachmentId: string) {
 
 /**
  * CASL: documents WHY this contact may receive commercial email. Without a valid basis, no commercial email leaves.
- * Published/disclosed-address bases require structured evidence and are stored PENDING_REVIEW: they authorise nothing until
- * a Sales Manager (own team) or Super Admin approves them. An imported address or a FIELD visit never creates a basis.
+ * Every basis needs structured evidence; completeness is verified by rule (no reviewer, no second-person approval) and a complete record is stored AUTO_SUPPORTED. Like every
+ * automated decision it authorises nothing until the owner activates the automated CASL policy. An imported address or a FIELD visit never creates a basis.
  */
 export async function recordSendingBasis(form: FormData) {
   const actor = await requireCrmActor("send_sales_email");
@@ -275,20 +276,19 @@ export async function recordSendingBasis(form: FormData) {
     const now = new Date();
     const expiresAt = v.expiresAt ?? suggestedBasisExpiry(v.kind, now);
     if (expiresAt && Number.isNaN(expiresAt.getTime())) throw new CrmError("INVALID");
-    const needsReview = requiresApproval(v.kind);
-    if (needsReview && evidenceGaps({ ...v, evidenceType: v.evidenceType, publishedConditionsConfirmed: v.publishedConditionsConfirmed }).length) throw new CrmError("EVIDENCE_INCOMPLETE");
+    // INSUFFICIENT evidence is never recorded as a basis: an incomplete record is refused, not queued for anyone's decision.
+    if (evidenceGaps({ ...v, evidenceType: v.evidenceType, publishedConditionsConfirmed: v.publishedConditionsConfirmed }).length) throw new CrmError("EVIDENCE_INCOMPLETE");
     const basis = await db.crmSendingBasis.create({
       data: {
         contactId: c.id, kind: v.kind, evidence: v.evidence, expiresAt, recordedByUserId: actor.userId,
-        reviewStatus: needsReview ? "PENDING_REVIEW" : "NOT_REQUIRED", evidenceType: v.evidenceType, sourceUrl: v.sourceUrl, capturedAt: v.capturedAt,
+        reviewStatus: "AUTO_SUPPORTED", ruleVersion: CASL_RULE_VERSION, evidenceType: v.evidenceType, sourceUrl: v.sourceUrl, capturedAt: v.capturedAt,
         supportingFacts: v.supportingFacts, roleRelevance: v.roleRelevance, publishedConditionsConfirmed: v.publishedConditionsConfirmed,
       },
       select: { id: true },
     });
-    await writeCrmAudit({ actorUserId: actor.userId, action: "SENDING_BASIS_RECORDED", entityType: "CrmSendingBasis", entityId: basis.id, prospectId: c.prospectId, metadata: { contactId: c.id, kind: v.kind, expiresAt: expiresAt?.toISOString() ?? null, reviewStatus: needsReview ? "PENDING_REVIEW" : "NOT_REQUIRED", evidenceType: v.evidenceType } });
+    await writeCrmAudit({ actorUserId: actor.userId, action: "SENDING_BASIS_RECORDED", entityType: "CrmSendingBasis", entityId: basis.id, prospectId: c.prospectId, metadata: { contactId: c.id, kind: v.kind, expiresAt: expiresAt?.toISOString() ?? null, reviewStatus: "AUTO_SUPPORTED", ruleVersion: CASL_RULE_VERSION, evidenceType: v.evidenceType } });
     revalidatePath(PLATFORM.salesProspect(c.prospectId));
-    revalidatePath(PLATFORM.salesEvidence);
-    return { basisId: basis.id, pendingReview: needsReview };
+    return { basisId: basis.id, evidenceSupported: true };
   });
 }
 

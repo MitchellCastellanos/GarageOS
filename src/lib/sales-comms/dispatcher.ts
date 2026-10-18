@@ -6,6 +6,7 @@ import { buildReplyTo } from "@/domain/sales-comms/tokens";
 import { nextSendInstant } from "@/domain/sales-comms/business-days";
 import { decideStop } from "@/domain/sales-comms/sequences";
 import { evaluateAutomationBasis, isSwitchHold, sendOriginOf } from "@/domain/sales-comms/casl";
+import { loadAutoCaslPolicy } from "@/lib/sales-comms/auto-casl-policy";
 import { downloadSalesEmailAttachment } from "@/lib/storage";
 import { getCommsSettings } from "@/lib/sales-comms/settings";
 import { evaluatePolicy } from "@/lib/sales-comms/policy";
@@ -92,7 +93,7 @@ export async function dispatchMessage(id: string, now = new Date()): Promise<Dis
     const stop = decideStop({
       prospectDnc: e.prospect.doNotContact, prospectArchived: e.prospect.status === "ARCHIVED", contactDnc: e.contact.doNotContact, contactArchived: !!e.contact.archivedAt,
       suppressed: supp, opportunityStage: opp?.stage ?? null, staffActive: msg.identity.staff.status === "ACTIVE", identityActive: msg.identity.status === "ACTIVE",
-      basisValid: evaluateAutomationBasis(bases, now).valid, sequenceArchived: e.sequence.status === "ARCHIVED",
+      basisValid: evaluateAutomationBasis(bases, now, await loadAutoCaslPolicy()).valid, sequenceArchived: e.sequence.status === "ARCHIVED",
     });
     if (stop) {
       const { stopEnrollments } = await import("@/lib/sales-comms/sequences");

@@ -40,8 +40,8 @@ export async function seedDiscoveredContacts(opts: { deadline: number; maxPages?
       const [{ got }] = await tx.$queryRaw<{ got: boolean }[]>(Prisma.sql`SELECT pg_try_advisory_xact_lock(${SEED_LOCK}) AS got`);
       if (!got) return { locked: true as const };
       // The regex prefilter is the same address syntax as checkEmailShape, so rows that can never be stored do not sit at the head of the queue.
-      const rows = await tx.$queryRaw<{ id: string; prospectId: string; email: string; datasets: string[]; seen: Date; dnc: boolean }[]>(Prisma.sql`
-        SELECT c."id", c."importedProspectId" AS "prospectId", c."email", c."datasets", c."createdAt" AS seen,
+      const rows = await tx.$queryRaw<{ id: string; prospectId: string; email: string; datasets: string[]; seen: Date; dnc: boolean; placeId: string; release: string; prov: { scope?: string } | null }[]>(Prisma.sql`
+        SELECT c."id", c."importedProspectId" AS "prospectId", c."email", c."datasets", c."createdAt" AS seen, c."sourceRecordId" AS "placeId", c."lastSeenRelease" AS release, c."emailProvenance" AS prov,
           (p."doNotContact" OR EXISTS (SELECT 1 FROM "garageos"."CrmContact" k WHERE k."prospectId" = p."id" AND k."doNotContact" = true AND k."emailNormalized" = lower(btrim(c."email")))) AS dnc
         FROM "garageos"."CrmDiscoveryCandidate" c JOIN "garageos"."CrmProspect" p ON p."id" = c."importedProspectId"
         WHERE c."email" IS NOT NULL AND c."importState" IN ('CREATED','LINKED') AND p."status" = 'ACTIVE' AND c."id" > ${after}
@@ -61,6 +61,8 @@ export async function seedDiscoveredContacts(opts: { deadline: number; maxPages?
         data.push({
           prospectId: x.prospectId, emailNormalized: s.normalized, source: "OVERTURE_PUBLISHED", sourceDataset: x.datasets.join(",").slice(0, 200) || null, capturedAt: x.seen,
           syntaxValid: s.syntaxValid, roleBased: s.roleBased, freeMailbox: s.freeMailbox,
+          // Email-level vs place-level provenance, kept minimal. A dataset is never the recipient's own publication: this is for audit and rediscovery, not permission.
+          placeId: x.placeId, overtureRelease: x.release, provenanceScope: x.prov?.scope ?? "NONE", ...(x.prov ? { provenance: x.prov as Prisma.InputJsonValue } : {}),
           ...(suppressed || x.dnc ? { status: "REJECTED", reviewNote: suppressed ? "SUPPRESSED_ADDRESS" : "DO_NOT_CONTACT" } : {}),
         });
       }

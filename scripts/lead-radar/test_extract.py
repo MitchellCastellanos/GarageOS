@@ -7,7 +7,7 @@ ex = importlib.util.module_from_spec(spec); spec.loader.exec_module(ex)
 PLAN = {"taxonomyPrimaries": ["automotive_repair"], "hierarchyAny": ["vehicle_service"], "minConfidence": 0.3, "bboxes": [[-74.05, 45.35, -73.4, 45.75]]}
 ROW = {"id": "abc-12345678", "confidence": 0.9, "names": {"primary": "Garage X"}, "taxonomy": {"primary": "automotive_repair", "hierarchy": ["a", "vehicle_service"], "alternates": None},
        "addresses": [{"freeform": "1 Rue A", "locality": "Montréal", "postcode": "H2X1Y4", "region": "QC", "country": "CA"}], "phones": ["+15145550100"], "websites": None, "emails": None,
-       "sources": [{"dataset": "meta", "license": "CDLA-Permissive-2.0", "record_id": "SECRET-UPSTREAM", "update_time": "x"}], "brand": None, "operating_status": None, "bbox": {"xmin": -73.6, "xmax": -73.6, "ymin": 45.5, "ymax": 45.5}}
+       "sources": [{"property": "", "dataset": "meta", "license": "CDLA-Permissive-2.0", "record_id": "UPSTREAM-1", "update_time": "x", "between": [0, 1], "extra": "NEVER-COPIED"}, {"property": "/emails/0", "dataset": "meta", "license": "CDLA-Permissive-2.0", "record_id": "FB-PAGE-1", "update_time": "2026-01-01T00:00:00Z", "confidence": 0.8}], "brand": None, "operating_status": None, "bbox": {"xmin": -73.6, "xmax": -73.6, "ymin": 45.5, "ymax": 45.5}}
 
 class T(unittest.TestCase):
     def test_wants_by_primary_and_hierarchy(self):
@@ -21,8 +21,14 @@ class T(unittest.TestCase):
         self.assertTrue(ex.wants({**ROW, "addresses": [{"country": None}]}, PLAN))
     def test_projection_is_whitelisted(self):
         rec = ex.to_record(ROW)
-        self.assertEqual(rec["sources"], [{"dataset": "meta", "license": "CDLA-Permissive-2.0"}])
-        self.assertNotIn("SECRET-UPSTREAM", ex.dump_line(rec))
+        self.assertEqual(rec["sources"], [{"dataset": "meta", "license": "CDLA-Permissive-2.0"}, {"dataset": "meta", "license": "CDLA-Permissive-2.0"}])
+        self.assertNotIn("NEVER-COPIED", ex.dump_line(rec))
+        # v1.4.0: per-property attribution is preserved (email-level vs place-level) and nothing outside the whitelist is.
+        self.assertEqual(rec["sourceItems"][0], {"property": "", "dataset": "meta", "license": "CDLA-Permissive-2.0", "recordId": "UPSTREAM-1", "updateTime": "x", "confidence": None})
+        self.assertEqual(rec["sourceItems"][1]["property"], "/emails/0")
+        self.assertEqual(rec["sourceItems"][1]["recordId"], "FB-PAGE-1")
+        self.assertEqual(rec["sourceItems"][1]["confidence"], 0.8)
+        self.assertNotIn("provider", rec["sourceItems"][1])
         self.assertEqual(rec["v"], 1)
     def test_source_point_from_degenerate_bbox(self):
         self.assertEqual(ex.to_record(ROW)["geo"], {"lat": 45.5, "lng": -73.6})
@@ -80,7 +86,7 @@ def overture_table(rows):
         ("brand", pa.struct([("wikidata", pa.string())])),
         ("addresses", pa.list_(pa.struct([("freeform", pa.string()), ("locality", pa.string()), ("postcode", pa.string()), ("region", pa.string()), ("country", pa.string())]))),
         ("phones", pa.list_(pa.string())), ("websites", pa.list_(pa.string())), ("emails", pa.list_(pa.string())), ("operating_status", pa.string()),
-        ("sources", pa.list_(pa.struct([("property", pa.string()), ("dataset", pa.string()), ("license", pa.string()), ("record_id", pa.string()), ("update_time", pa.string())]))),
+        ("sources", pa.list_(pa.struct([("property", pa.string()), ("dataset", pa.string()), ("license", pa.string()), ("record_id", pa.string()), ("update_time", pa.string()), ("confidence", pa.float64())]))),
     ])
     cols = {n: [] for n in schema.names}
     for r in rows:
@@ -91,13 +97,16 @@ def overture_table(rows):
         cols["taxonomy"].append({"primary": r.get("primary", "automotive_repair"), "hierarchy": ["travel_and_transportation", "vehicle_service", "automotive_repair"], "alternates": None})
         cols["brand"].append(None)
         cols["addresses"].append([{"freeform": r["street"], "locality": r["city"], "postcode": r["postcode"], "region": r["region"], "country": r.get("country", "CA")}])
-        cols["phones"].append(["+15145550100"]); cols["websites"].append(None); cols["emails"].append(None); cols["operating_status"].append("open")
-        cols["sources"].append([{"property": "", "dataset": "meta", "license": "CDLA-Permissive-2.0", "record_id": "UPSTREAM-SECRET", "update_time": "2026-01-01"}])
+        cols["phones"].append(["+15145550100"]); cols["websites"].append(None); cols["emails"].append(r.get("emails")); cols["operating_status"].append("open")
+        items = [{"property": "", "dataset": "meta", "license": "CDLA-Permissive-2.0", "record_id": "UPSTREAM-1", "update_time": "2026-01-01", "confidence": None}]
+        if r.get("emails"):  # email-level attribution, as Overture publishes it for a single property
+            items.append({"property": "/emails/0", "dataset": "meta", "license": "CDLA-Permissive-2.0", "record_id": "FB-PAGE-1", "update_time": "2026-01-02", "confidence": 0.7})
+        cols["sources"].append(items)
     return pa.table(cols, schema=schema)
 
 
 ROWS = [
-    {"id": "11111111-aaaa-4aaa-8aaa-000000000001", "name": "Garage Tremblay & Fils", "pt": (-73.5673, 45.5017), "street": "1200 Rue Saint-Denis", "city": "Montréal", "postcode": "H2X 3K4", "region": "QC"},
+    {"id": "11111111-aaaa-4aaa-8aaa-000000000001", "name": "Garage Tremblay & Fils", "pt": (-73.5673, 45.5017), "street": "1200 Rue Saint-Denis", "city": "Montréal", "postcode": "H2X 3K4", "region": "QC", "emails": ["info@garagetremblay.example"]},
     {"id": "11111111-aaaa-4aaa-8aaa-000000000002", "name": "Speedy Auto Service", "pt": (-79.3832, 43.6532), "street": "88 Queen St W", "city": "Toronto", "postcode": "M5H 2M9", "region": "ON"},
     {"id": "11111111-aaaa-4aaa-8aaa-000000000003", "name": "Pacific Brake & Muffler", "pt": (-123.1207, 49.2827), "street": "1450 W Broadway", "city": "Vancouver", "postcode": "V6H 1H6", "region": "BC"},
     {"id": "11111111-aaaa-4aaa-8aaa-000000000004", "name": "Northern Lights Auto", "pt": (-135.0568, 60.7212), "street": "4 Main St", "city": "Whitehorse", "postcode": "Y1A 2B5", "region": "YT"},

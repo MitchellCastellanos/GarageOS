@@ -28,6 +28,8 @@ Verify campaign UI cannot send to suppressed recipients; unsubscribe links work 
 - Before real outreach, validate the precise applicable CASL grounds and unsubscribe/identification requirements with qualified counsel; do not treat product policy as legal advice.
 - See [GarageOS Lead Engine and Field Planner roadmap](../garageos-lead-engine-field-planner-roadmap.md) for implementation gates. **These rules are approved requirements, not a claim that code has already implemented them.**
 
+> **Superseded (policy change).** Evidence is now decided by automated, auditable rules and is policy-gated; there is no per-contact human approval. See [automated-casl-evidence.md](automated-casl-evidence.md). The text below records the former review workflow and is kept as history.
+
 ## Implementation status — Lead Engine evidence & approval (code, 2026-10-12)
 Implemented in the Lead Engine PR (see [lead-engine-contracts.md](../lead-engine-contracts.md)); **not legal advice and not yet live in Production**.
 - Published-/disclosed-address bases require structured evidence (type, source URL for published addresses, capture date, supporting facts, role relevance, published-conditions confirmation) and are stored `PENDING_REVIEW`; they authorise nothing until `APPROVED` by a Sales Manager **for their own team** or a Super Admin. Reps cannot approve; nobody but a Super Admin approves their own evidence. Every decision is audited.

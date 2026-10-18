@@ -28,7 +28,6 @@ if (!enabled) {
   const { db } = await import("../src/lib/db");
   const inbox = await import("../src/actions/sales-inbox");
   const legacyActions = await import("../src/actions/sales-casl-legacy");
-  const caslReview = await import("../src/actions/sales-casl");
   const admin = await import("../src/actions/sales-comms-admin");
   const seqActions = await import("../src/actions/sales-sequences");
   const calendar = await import("../src/actions/sales-calendar");
@@ -165,15 +164,14 @@ if (!enabled) {
     assert.deepEqual([r.ok, r.error], [false, "NO_VALID_BASIS"], "commercial email without a documented basis is refused");
 
     as(ids.Alice);
-    // Every basis a person records needs structured evidence and an INDEPENDENT approval (PR-1): free text alone is refused, and a pending row authorises nothing.
+    // Every basis a person records needs structured evidence: free text alone is refused, and a complete record is decided by rule (AUTO_SUPPORTED) and authorises nothing until the owner activates the automated policy.
     const free: any = await inbox.recordSendingBasis(fd({ contactId: c.id, kind: "IMPLIED_EXISTING_RELATIONSHIP", evidence: "Existing customer enquiry received from laurent-garage.example" }));
     assert.deepEqual([free.ok, free.error], [false, "EVIDENCE_INCOMPLETE"]);
     const b: any = await inbox.recordSendingBasis(fd({ contactId: c.id, kind: "IMPLIED_EXISTING_RELATIONSHIP", evidence: "Existing customer enquiry received from laurent-garage.example", evidenceType: "EMAIL_THREAD", capturedAt: "2026-10-10", supportingFacts: "Enquiry thread from the shop owner received this month." }));
-    assert.equal(b.ok, true, JSON.stringify(b)); assert.equal(b.pendingReview, true);
+    assert.equal(b.ok, true, JSON.stringify(b)); assert.equal(b.evidenceSupported, true);
     r = await send("Alice", { ...base, languageOverride: "EN" });
-    assert.deepEqual([r.ok, r.error], [false, "NO_VALID_BASIS"], "pending evidence authorises nothing");
-    as(ids.root);
-    assert.equal(((await caslReview.approveSendingBasis(b.basisId, "thread checked")) as any).ok, true);
+    assert.deepEqual([r.ok, r.error], [false, "NO_VALID_BASIS"], "supported evidence authorises nothing while the automated policy is off");
+    await db.crmLeadAutomation.upsert({ where: { id: "default" }, create: { id: "default", autoCaslActive: true, autoCaslRuleVersion: "casl-auto-v1" }, update: { autoCaslActive: true, autoCaslRuleVersion: "casl-auto-v1" } }); // the owner-level, policy-wide activation
     as(ids.Alice);
 
     r = await send("Alice", base);
