@@ -326,9 +326,11 @@ export async function runAutomationTick(opts: { trigger: "CRON" | "MANUAL"; budg
   const run = await db.crmLeadAutomationRun.create({ data: { trigger: opts.trigger, policyVersion: policy?.version ?? null }, select: { id: true } });
   const counters: Record<string, unknown> = {};
   const errors: Record<string, string> = {};
+  const timings: Record<string, { atMs: number; grantedMs: number; ranMs: number }> = {};
   const stage = async <T>(name: keyof typeof SHARE, enabled: boolean, fn: (deadline: number) => Promise<T>) => {
     if (!enabled) { counters[name] = { skipped: "STAGE_OFF" }; return; }
     const deadline = Math.min(started + budget, Date.now() + Math.max(2_000, budget * SHARE[name] * 1.5));
+    const t0 = Date.now();
     try {
       // The master switch is re-read between stages: pausing takes effect before the next stage starts.
       if (!(await readAutomation()).enabled) { counters[name] = { skipped: "PAUSED" }; return; }
@@ -337,6 +339,9 @@ export async function runAutomationTick(opts: { trigger: "CRON" | "MANUAL"; budg
       errors[name] = e instanceof CrmError ? e.code : "STAGE_FAILED";
       counters[name] = { error: errors[name] };
       console.error(`[lead-radar] automation stage ${name} failed`, e instanceof Error ? e.message : "unknown");
+    } finally {
+      // Measured, not assumed: when the stage started inside the tick, how much time it was given, and how long it actually ran. Counts and milliseconds only.
+      (timings[name] ??= { atMs: t0 - started, grantedMs: Math.max(0, deadline - t0), ranMs: Date.now() - t0 });
     }
   };
 
@@ -370,9 +375,9 @@ export async function runAutomationTick(opts: { trigger: "CRON" | "MANUAL"; budg
     }
   } finally {
     const failed = Object.keys(errors).length > 0;
-    await db.crmLeadAutomationRun.update({ where: { id: run.id }, data: { status: failed ? "FAILED" : "COMPLETED", counters: { ...counters, ms: Date.now() - started } as unknown as Prisma.InputJsonValue, errorCode: Object.values(errors)[0] ?? null, finishedAt: new Date() } });
+    await db.crmLeadAutomationRun.update({ where: { id: run.id }, data: { status: failed ? "FAILED" : "COMPLETED", counters: { ...counters, timings, ms: Date.now() - started } as unknown as Prisma.InputJsonValue, errorCode: Object.values(errors)[0] ?? null, finishedAt: new Date() } });
     await db.crmLeadAutomation.updateMany({ where: { id: ID, leaseOwner: owner }, data: { leaseOwner: null, leaseUntil: null, lastTickAt: new Date() } });
   }
   const failed = Object.keys(errors).length > 0;
-  return { status: failed ? "FAILED" : "COMPLETED", runId: run.id, counters, ...(failed ? { reason: Object.values(errors)[0] } : {}) };
+  return { status: failed ? "FAILED" : "COMPLETED", runId: run.id, counters: { ...counters, timings }, ...(failed ? { reason: Object.values(errors)[0] } : {}) };
 }

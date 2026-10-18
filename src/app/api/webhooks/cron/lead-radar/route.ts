@@ -13,6 +13,25 @@ export const maxDuration = 60;
 // Least privilege: LEAD_RADAR_CRON_SECRET (GitHub Actions caller) authorizes ONLY this endpoint; CRON_SECRET stays accepted for Vercel's daily cron.
 const authorized = (request: Request) => isAuthorizedCronRequest(request, process.env.LEAD_RADAR_CRON_SECRET) || isAuthorizedCronRequest(request);
 
+/** Counts, codes and milliseconds only (never a name, address, URL or id): numbers and short strings per stage, one nested level of numbers (reason tallies). */
+function summarize(counters: Record<string, unknown> | undefined) {
+  const out: Record<string, unknown> = {};
+  for (const [stage, v] of Object.entries(counters ?? {})) {
+    if (typeof v === "number") { out[stage] = v; continue; }
+    if (!v || typeof v !== "object") continue;
+    const flat: Record<string, unknown> = {};
+    for (const [k, x] of Object.entries(v as Record<string, unknown>)) {
+      if (typeof x === "number" || typeof x === "boolean" || (typeof x === "string" && x.length <= 40)) flat[k] = x;
+      else if (x && typeof x === "object" && !Array.isArray(x)) {
+        const nums = Object.fromEntries(Object.entries(x as Record<string, unknown>).filter(([, n]) => typeof n === "number").slice(0, 12));
+        if (Object.keys(nums).length) flat[k] = nums;
+      }
+    }
+    out[stage] = flat;
+  }
+  return out;
+}
+
 export async function GET(request: Request) {
   if (!authorized(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   // Discovery housekeeping first (recover stalled worker runs, detect a new Overture release, queue an opted-in province). Independent of the automation master switch
@@ -24,5 +43,5 @@ export async function GET(request: Request) {
   // Record published business emails as PENDING discovered contacts (staging only: no CRM contact, no basis, no sending). Needs live discovery + the automation switch; independent of the eligibility stage.
   try { await seedDiscoveredContactsIfEnabled(); } catch (e) { console.error("[lead-radar] contact discovery failed", e instanceof Error ? e.message : "unknown"); }
   // Counters and codes only — never business data.
-  return NextResponse.json({ status: r.status, reason: r.reason ?? null, runId: r.runId ?? null, discovery }, { status: r.status === "FAILED" ? 500 : 200 });
+  return NextResponse.json({ status: r.status, reason: r.reason ?? null, runId: r.runId ?? null, discovery, stages: summarize(r.counters) }, { status: r.status === "FAILED" ? 500 : 200 });
 }
