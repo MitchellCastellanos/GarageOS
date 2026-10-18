@@ -153,7 +153,10 @@ if (!enabled) {
     await tick();
     const s = await state();
     assert.deepEqual([s.rolloutHaltProvince, s.rolloutHaltCode, s.enabled], ["MB", "EXTRACTION_FAILED", false]);
-    assert.equal((await tick()).status, "SKIPPED", "a halted rollout does nothing until a person resumes");
+    const halted: any = await tick();
+    assert.equal(halted.status, "COMPLETED");
+    assert.match(String(halted.counters.note), /^ROLLOUT_HALTED_EVIDENCE_ONLY:EXTRACTION_FAILED/);
+    for (const k of ["classify", "rollout", "qualify", "import", "assign"]) assert.equal(k in halted.counters, false, `a halted rollout runs no ${k} until a person resumes (only the read-only CASL evidence stage continues)`);
     const actor = (await access.resolvePlatformSalesActor(users.Root))!;
     const before = (await workerRuns()).length;
     await roLib.resumeNationalRollout(actor);

@@ -12,7 +12,7 @@ const COPY = {
   en: {
     title: "Qualified email contacts", subtitle: "The one campaign-selectable inventory. A contact is listed as available only while its CASL v3 evidence is current and it is not suppressed. This page sends nothing and enrolls no one.",
     back: "Lead Radar", headline: "Verified, currently eligible, campaign-selectable email contacts", report: "National program",
-    r: ["Jurisdictions completed", "Source records processed", "Rejected by commercial screening", "Email candidates evaluated", "CASL SUPPORTED", "CASL INSUFFICIENT", "CASL BLOCKED", "Technical retry backlog", "Admitted and selectable", "National workload"],
+    r: ["Jurisdictions completed", "Source records processed", "Rejected by commercial screening", "Email candidates evaluated", "CASL SUPPORTED", "CASL INSUFFICIENT", "CASL BLOCKED", "Technical retries (transient + parked)", "Admitted and selectable", "National workload", "First-pass pending (waiting for a decision)", "Not yet CASL candidates (FIELD / unverified shop)"],
     status: { RUNNING: "Still running", COMPLETED: "Fully completed", NOT_RUNNING: "Not running" }, juris: "Jurisdictions (candidates staged · prospects)", throughput: "CASL checks completed in the last 24 h · avg seconds per address",
     jState: { COMPLETED: "Completed", COMPLETED_NO_CANDIDATES: "Completed, no candidates", HALTED: "Halted", IN_PROGRESS: "In progress", NOT_STARTED: "Not started" } as Record<string, string>, field: "FIELD prospects without email (separate field-sales view, never counted as email-ready)",
     f: { state: "Status", province: "Province", language: "Language", business: "Business", outreach: "Previous outreach", campaign: "Campaign history", any: "Any", apply: "Filter", reset: "Reset", expiring: "Evidence expires within (days)" },
@@ -23,7 +23,7 @@ const COPY = {
   fr: {
     title: "Contacts courriel qualifiés", subtitle: "L'unique inventaire sélectionnable pour les campagnes. Un contact n'est disponible que tant que sa preuve LCAP v3 est valide et qu'il n'est pas supprimé. Cette page n'envoie rien et n'inscrit personne.",
     back: "Radar de prospects", headline: "Contacts courriel vérifiés, actuellement admissibles et sélectionnables", report: "Programme national",
-    r: ["Juridictions terminées", "Enregistrements source traités", "Rejetés par le tri commercial", "Courriels candidats évalués", "LCAP SUPPORTED", "LCAP INSUFFICIENT", "LCAP BLOCKED", "Reprises techniques en attente", "Admis et sélectionnables", "Traitement national"],
+    r: ["Juridictions terminées", "Enregistrements source traités", "Rejetés par le tri commercial", "Courriels candidats évalués", "LCAP SUPPORTED", "LCAP INSUFFICIENT", "LCAP BLOCKED", "Reprises techniques (transitoires + suspendues)", "Admis et sélectionnables", "Traitement national", "Première passe en attente de décision", "Pas encore candidats LCAP (TERRAIN / commerce non vérifié)"],
     status: { RUNNING: "En cours", COMPLETED: "Entièrement terminé", NOT_RUNNING: "Non démarré" }, juris: "Juridictions (candidats en zone d'attente · prospects)", throughput: "Vérifications LCAP terminées en 24 h · secondes moyennes par adresse",
     jState: { COMPLETED: "Terminé", COMPLETED_NO_CANDIDATES: "Terminé, aucun candidat", HALTED: "Arrêté", IN_PROGRESS: "En cours", NOT_STARTED: "Non démarré" } as Record<string, string>, field: "Prospects TERRAIN sans courriel (vue de vente terrain séparée, jamais comptés comme prêts par courriel)",
     f: { state: "Statut", province: "Province", language: "Langue", business: "Entreprise", outreach: "Envois antérieurs", campaign: "Historique de campagne", any: "Tous", apply: "Filtrer", reset: "Réinitialiser", expiring: "Preuve expire dans (jours)" },
@@ -51,7 +51,7 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
   const page = Math.max(1, Number(sp.page) || 1);
   const [report, counts, list] = await Promise.all([nationalProgramReport(), inventoryCounts(), listInventory(filter)]);
   const num = (n: number) => n.toLocaleString(locale === "fr" ? "fr-CA" : "en-CA");
-  const nums = [`${report.jurisdictionsCompleted} / ${report.jurisdictionsTotal}`, num(report.sourceRecordsProcessed), num(report.rejectedByCommercialScreening), num(report.emailCandidatesEvaluated), num(report.supported), num(report.insufficient), num(report.blocked), num(report.technicalRetryBacklog), num(report.selectable), k.status[report.status]];
+  const nums = [`${report.jurisdictionsCompleted} / ${report.jurisdictionsTotal}`, num(report.sourceRecordsProcessed), num(report.rejectedByCommercialScreening), num(report.emailCandidatesEvaluated), num(report.supported), num(report.insufficient), num(report.blocked), num(report.technicalRetryBacklog), num(report.selectable), k.status[report.status], num(report.firstPassPending), num(report.notYetCaslCandidates)];
   const qs = (over: Record<string, string | number | undefined>) => {
     const p = new URLSearchParams();
     for (const [key, v] of Object.entries({ state: sp.state, province: sp.province, language: sp.language, business: sp.business, expiring: sp.expiring, outreach: sp.outreach, campaign: sp.campaign, ...over })) if (v !== undefined && v !== "") p.set(key, String(v));
@@ -67,7 +67,7 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
         <div className="text-4xl font-semibold text-slate-900">{num(counts.selectable)}</div>
         <div className="mt-1 text-xs text-slate-500">{Object.entries(counts.byProvince).sort().map(([p, n]) => `${p} ${num(n)}`).join(" · ") || "—"}</div>
       </section>
-      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-5" aria-label={k.report}>
+      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4" aria-label={k.report}>
         {k.r.map((label, i) => <div key={label} className="min-w-0 rounded-xl border border-slate-200 bg-white p-3"><dt className="text-xs text-slate-500">{label}</dt><dd className="text-lg font-semibold text-slate-900">{nums[i]}</dd></div>)}
       </dl>
       <section className={`${cardCls} text-sm`} aria-label={k.juris}>

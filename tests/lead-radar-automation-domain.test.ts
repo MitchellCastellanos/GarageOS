@@ -430,3 +430,23 @@ test("narrowed guard: the exempt automation files keep every original guarantee 
   // (e) nothing in lead-radar/automation touches company-wide sending or sequence status.
   for (const s of Object.values(exempt)) assert.ok(!/crmCommsSettings\.(update|upsert|updateMany)|crmSequence\.(update|updateMany)|setSequenceStatus/.test(s));
 });
+
+test("stage deadlines: qualify / import / assign always leave the evidence stage its reserved slice; evidence may use all that is left", async () => {
+  const { stageDeadline, EVIDENCE_RESERVE } = await import("../src/domain/lead-radar/tick-budget");
+  const started = 1_000_000, budget = 50_000;
+  const evidenceStart = started + budget * (1 - EVIDENCE_RESERVE); // earliest moment evidence may start when every earlier stage used its slice
+  for (const name of ["qualify", "import", "assign", "locate", "screen"] as const) {
+    const d = stageDeadline({ name, started, budget, now: started + 100, evidenceEnabled: true });
+    assert.ok(d <= evidenceStart, `${name} must end by ${evidenceStart - started} ms into the tick, got ${d - started}`);
+  }
+  const ev = stageDeadline({ name: "evidence", started, budget, now: evidenceStart, evidenceEnabled: true });
+  assert.ok(ev - evidenceStart >= budget * EVIDENCE_RESERVE - 1, "evidence is granted at least its reserved slice");
+  assert.ok(ev <= started + budget, "never beyond the tick budget");
+  // with evidence OFF nothing is reserved
+  const late = started + 20_000;
+  assert.equal(stageDeadline({ name: "import", started, budget, now: late, evidenceEnabled: true }), evidenceStart, "evidence ON: import is cut at the reserve line");
+  assert.ok(stageDeadline({ name: "import", started, budget, now: late, evidenceEnabled: false }) > evidenceStart, "evidence OFF: nothing is reserved");
+  // a stage that starts late still gets a minimal second (cheap stages keep working) but never past the tick
+  assert.ok(stageDeadline({ name: "classify", started, budget, now: started + 49_000, evidenceEnabled: true }) <= started + 50_000);
+});
+

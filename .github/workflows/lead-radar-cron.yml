@@ -22,7 +22,7 @@ concurrency:
 jobs:
   tick:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 25
     steps:
       - name: Call the Lead Radar automation worker
         env:
@@ -34,7 +34,18 @@ jobs:
             exit 1
           fi
           case "$BASE_URL" in https://*) ;; *) echo "::error::SALES_CRON_BASE_URL must be an https origin"; exit 1;; esac
-          code="$(curl -sS -m 90 -o /tmp/out.json -w '%{http_code}' -H "Authorization: Bearer ${SECRET}" "${BASE_URL%/}/api/webhooks/cron/lead-radar")" || { echo "::error::request failed"; exit 1; }
-          echo "HTTP ${code}"
-          head -c 300 /tmp/out.json; echo
-          [ "$code" = "200" ] || { echo "::error::Lead Radar worker returned HTTP ${code}"; exit 1; }
+          # GitHub's scheduler is unreliable for sub-hourly cron (measured: one run every 2-3 hours instead of every 15 minutes). So each scheduled run keeps calling the SAME idempotent endpoint
+          # back to back for up to ~20 minutes while there is work; it stops as soon as a tick is idle (finished in < 12 s), skipped (switch off / another runner holds the lease) or fails.
+          # Each call is one bounded tick (<= 50 s, single-runner lease), so this changes the number of ticks, never what a tick may do. The repository is public: Actions minutes are free.
+          end=$((SECONDS + 1200)); n=0
+          while :; do
+            n=$((n + 1))
+            code="$(curl -sS -m 90 -o /tmp/out.json -w '%{http_code}' -H "Authorization: Bearer ${SECRET}" "${BASE_URL%/}/api/webhooks/cron/lead-radar")" || { echo "::error::request failed"; exit 1; }
+            echo "tick ${n}: HTTP ${code}"
+            head -c 6000 /tmp/out.json; echo
+            [ "$code" = "200" ] || { echo "::error::Lead Radar worker returned HTTP ${code}"; exit 1; }
+            grep -q '"status":"SKIPPED"' /tmp/out.json && { echo "skipped: stopping"; break; }
+            ms="$(sed -n 's/.*"ms":\([0-9][0-9]*\).*/\1/p' /tmp/out.json | tail -1)"
+            if [ -n "$ms" ] && [ "$ms" -lt 12000 ]; then echo "idle tick (${ms} ms): stopping"; break; fi
+            [ "$SECONDS" -ge "$end" ] && { echo "time budget used: stopping"; break; }
+          done

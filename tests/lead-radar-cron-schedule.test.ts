@@ -54,3 +54,12 @@ test("bearer validation rejects missing, wrong, short and cross-endpoint secrets
   assert.equal(isAuthorizedCronRequest(req(`Bearer ${lr}`), vercel), false); // dedicated secret does not satisfy CRON_SECRET-protected endpoints
   assert.equal(isAuthorizedCronRequest(req(`Bearer ${vercel}`), vercel), true);
 });
+
+test("each scheduled run drains work in a bounded loop (measured: GitHub fires sub-hourly cron every 2-3 hours) and stops when idle, skipped, failed or out of time", () => {
+  const run = wf.replace(/#.*$/gm, "");
+  assert.match(wf, /timeout-minutes: 25/);
+  assert.match(run, /end=\$\(\(SECONDS \+ 1200\)\)/);
+  assert.match(run, /"status":"SKIPPED"/);
+  assert.match(run, /-lt 12000/);
+  assert.match(run, /\/api\/webhooks\/cron\/lead-radar/);
+});
