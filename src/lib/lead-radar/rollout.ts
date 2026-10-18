@@ -2,7 +2,7 @@ import "server-only";
 import type { PlatformSalesActor } from "@/domain/sales-crm/access";
 import { can } from "@/domain/sales-crm/access";
 import {
-  HALT_CODES, ROLLOUT_ASSIGN_PROVINCES, ROLLOUT_EXISTING, ROLLOUT_NEVER, ROLLOUT_PROVINCES, ROLLOUT_SELLER_EMAIL, planRollout, safetyViolation,
+  HALT_CODES, ROLLOUT_ASSIGN_PROVINCES, extractorAtLeast, ROLLOUT_EXISTING, ROLLOUT_NEVER, ROLLOUT_PROVINCES, ROLLOUT_SELLER_EMAIL, planRollout, safetyViolation,
   type HaltCode, type ProvinceFacts, type SafetyFacts,
 } from "@/domain/lead-radar/rollout";
 import { LEAD_RADAR_SOURCE_KEY } from "@/domain/lead-radar/bridge";
@@ -11,6 +11,7 @@ import { db } from "@/lib/db";
 import { MAX_IMPORT_ATTEMPTS, readAutomation, type AutomationSettings } from "@/lib/lead-radar/automation";
 import { isLive, readSettings } from "@/lib/lead-radar/settings";
 import { getActivePolicy } from "@/lib/lead-radar/policy";
+import { EVIDENCE_BATCH_NATIONAL, MAX_FIRST_PASS_ERRORS } from "@/lib/lead-radar/casl-evidence";
 import { nationalReadiness } from "@/lib/lead-radar/national";
 import { deferredNoEmailByProvince, prospectUsableEmailSql } from "@/lib/lead-radar/remote-email";
 import { queueWorkerRun } from "@/lib/lead-radar/worker";
@@ -49,8 +50,8 @@ export async function activateNationalRollout(actor: PlatformSalesActor) {
   await db.crmLeadAutomation.update({
     where: { id: ID },
     data: {
-      enabled: true, pausedAt: null, pausedReason: null, qualifyEnabled: true, importEnabled: true, assignEnabled: true, eligibilityEnabled: false, releaseUnavailable: false,
-      assignStaffIds: [seller.id], rolloutEnabled: true, rolloutPaused: false, rolloutProvinces: [...ROLLOUT_PROVINCES], rolloutStaffId: seller.id, rolloutStartedAt: new Date(),
+      enabled: true, pausedAt: null, pausedReason: null, qualifyEnabled: true, importEnabled: true, assignEnabled: true, evidenceEnabled: true, eligibilityEnabled: false, releaseUnavailable: false,
+      assignStaffIds: [seller.id], evidenceBatch: Math.max(a.evidenceBatch, EVIDENCE_BATCH_NATIONAL), rolloutEnabled: true, rolloutPaused: false, rolloutProvinces: [...ROLLOUT_PROVINCES], rolloutStaffId: seller.id, rolloutStartedAt: new Date(),
       rolloutFinishedAt: null, rolloutHaltProvince: null, rolloutHaltCode: null, rolloutHaltAt: null, updatedByUserId: actor.userId,
     },
   });
@@ -104,7 +105,7 @@ async function provinceFacts(a: AutomationSettings): Promise<ProvinceFacts[]> {
   const scope = [...ROLLOUT_EXISTING, ...a.rolloutProvinces];
   const [national, runs, queued, stuck, noEmail] = await Promise.all([
     nationalReadiness(),
-    db.crmDiscoveryRun.findMany({ orderBy: { createdAt: "desc" }, take: 200, select: { status: true, scope: true, qualityVerdict: true, errorCode: true } }),
+    db.crmDiscoveryRun.findMany({ orderBy: { createdAt: "desc" }, take: 200, select: { status: true, scope: true, qualityVerdict: true, errorCode: true, manifest: true } }),
     // What the importer will actually still take (its own queue filter): approved, not imported, importable, not given up on.
     db.crmDiscoveryCandidate.groupBy({ by: ["province"], where: { province: { in: scope }, reviewState: "APPROVED", importState: "NOT_IMPORTED", licenseOk: true, tier: { not: "EXCLUDED" }, duplicateOfCandidateId: null, importAttempts: { lt: MAX_IMPORT_ATTEMPTS } }, _count: { _all: true } }),
     // Approved candidates the importer gave up on after repeated attempts are import errors, not "pending".
@@ -116,7 +117,8 @@ async function provinceFacts(a: AutomationSettings): Promise<ProvinceFacts[]> {
   return scope.map((province) => {
     const row = national.rows.find((r) => r.province === province)!;
     const mine = runs.filter((r) => (((r.scope as { provinces?: string[] }).provinces) ?? []).includes(province));
-    const latest = mine.find((r) => r.status === "COMPLETED" || r.status === "FAILED" || r.status === "CANCELLED") ?? null;
+    // A finished run counts only if the current extractor made it (older runs lack email provenance / points): the province is then swept again, idempotently.
+    const latest = mine.find((r) => (r.status === "COMPLETED" || r.status === "FAILED" || r.status === "CANCELLED") && extractorAtLeast((r.manifest as { extractorVersion?: string } | null)?.extractorVersion)) ?? null;
     return {
       province, existing: ROLLOUT_EXISTING.includes(province), activeRun: mine.some((r) => r.status === "PLANNED" || r.status === "INGESTING"),
       latestRun: latest ? { status: latest.status as "COMPLETED" | "FAILED" | "CANCELLED", verdict: latest.qualityVerdict, errorCode: latest.errorCode } : null,
@@ -137,6 +139,19 @@ async function pendingAssignment() {
   return Number(row?.n ?? 0);
 }
 
+/**
+ * Addresses of qualified REMOTE shops (active, VERIFIED_REPAIR, NATIONAL territory, not DNC) that have never had a CASL evidence decision. This is the national first pass: it ends when
+ * every such address has an outcome (SUPPORTED / INSUFFICIENT / BLOCKED), including a documented INSUFFICIENT for a technical failure that is now on its bounded retry schedule.
+ * Later revalidations are maintenance and never keep the one-time rollout open.
+ */
+export async function pendingEvidenceFirstPass() {
+  const [row] = await db.$queryRaw<{ n: bigint }[]>(Prisma.sql`
+    SELECT count(*) AS n FROM "garageos"."CrmDiscoveredContact" d JOIN "garageos"."CrmProspect" p ON p."id" = d."prospectId"
+    WHERE d."syntaxValid" = true AND d."status" IN ('PENDING','ACCEPTED') AND d."assessedAt" IS NULL AND d."assessAttempts" < ${MAX_FIRST_PASS_ERRORS}
+      AND p."status" = 'ACTIVE' AND p."doNotContact" = false AND p."mergedIntoId" IS NULL AND p."repairFit" = 'VERIFIED_REPAIR' AND p."territoryState" = 'NATIONAL'`);
+  return Number(row?.n ?? 0);
+}
+
 export interface RolloutTally { halted?: { province: string; code: string }; queued?: string; openedImport: string[]; finished?: boolean; waiting?: string }
 
 /** Tick stage: safety first, then at most one extraction queued, import scope opened only for provinces whose extraction passed every gate. Idempotent and resumable (state is derived from the tables). */
@@ -145,7 +160,7 @@ export async function rolloutStage(actor: PlatformSalesActor, a: AutomationSetti
   if (!a.rolloutEnabled || a.rolloutPaused) return { ...t, waiting: "ROLLOUT_OFF" };
   const unsafe = safetyViolation(await safetyFacts(a));
   if (unsafe) { await halt(actor, "*", unsafe.code, unsafe.detail); t.halted = { province: "*", code: unsafe.code }; return t; }
-  const plan = planRollout(await provinceFacts(a), await pendingAssignment());
+  const plan = planRollout(await provinceFacts(a), await pendingAssignment(), await pendingEvidenceFirstPass());
   if (plan.halt) { await halt(actor, plan.halt.province, plan.halt.code, plan.halt.detail); t.halted = { province: plan.halt.province, code: plan.halt.code }; return t; }
   if (plan.openImport.length) {
     const next = [...new Set([...a.importProvinces, ...plan.openImport])].sort();
@@ -164,8 +179,11 @@ export async function rolloutStage(actor: PlatformSalesActor, a: AutomationSetti
     }
   }
   if (plan.waitingForAssignment) t.waiting = "ASSIGNMENT";
+  else if (plan.waitingForEvidence) t.waiting = "EVIDENCE";
   if (plan.finished) {
-    await db.crmLeadAutomation.update({ where: { id: ID }, data: { rolloutEnabled: false, rolloutFinishedAt: new Date(), enabled: false, pausedAt: new Date(), pausedReason: "ROLLOUT_COMPLETE" } });
+    // The one-time national extraction, qualification, import and assignment stop here. The master switch stays ON on purpose so the CASL evidence stage keeps revalidating (30-day freshness,
+    // expiry, revocation) and any later incremental refresh keeps working; every outreach switch (eligibility, release, pilot) and every send switch is untouched and stays OFF.
+    await db.crmLeadAutomation.update({ where: { id: ID }, data: { rolloutEnabled: false, rolloutFinishedAt: new Date(), qualifyEnabled: false, importEnabled: false, assignEnabled: false, evidenceEnabled: true, pausedAt: null, pausedReason: null } });
     await writeCrmAudit({ actorUserId: actor.userId, action: "LEAD_RADAR_ROLLOUT_FINISHED", entityType: "CrmLeadAutomation", entityId: ID, metadata: { provinces: a.rolloutProvinces } });
     t.finished = true;
   }

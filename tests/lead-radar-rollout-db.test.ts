@@ -57,7 +57,7 @@ if (!enabled) {
   async function workerExtract(runId: string, recs: unknown[], stats?: Record<string, number>) {
     const r = await db.crmDiscoveryRun.findUniqueOrThrow({ where: { id: runId } });
     const actor = { userId: r.createdByUserId };
-    await runsLib.attachManifest(actor, runId, { extractor: "t", extractorVersion: "1", planHash: r.planHash, release: "2026-12-01.0", recordCount: recs.length, fileSha256: "a".repeat(64), generatedAt: new Date().toISOString(), stats: stats ?? { rowGroupsScanned: 3, rowsExamined: 900, rowsEmitted: recs.length } });
+    await runsLib.attachManifest(actor, runId, { extractor: "t", extractorVersion: "1.4.0", planHash: r.planHash, release: "2026-12-01.0", recordCount: recs.length, fileSha256: "a".repeat(64), generatedAt: new Date().toISOString(), stats: stats ?? { rowGroupsScanned: 3, rowsExamined: 900, rowsEmitted: recs.length } });
     for (let i = 0; i * 250 < recs.length; i++) await runsLib.ingestChunk(actor, runId, i, lines(recs.slice(i * 250, (i + 1) * 250)));
     return runsLib.completeRun(actor, runId);
   }
@@ -97,7 +97,7 @@ if (!enabled) {
     const a = await roLib.activateNationalRollout(actor);
     assert.deepEqual([a.enabled, a.qualifyEnabled, a.importEnabled, a.assignEnabled, a.eligibilityEnabled, a.releaseUnavailable, a.pilotEnabled], [true, true, true, true, false, false, false]);
     assert.deepEqual(a.assignStaffIds, [rep]); assert.equal(a.rolloutStaffId, rep);
-    assert.deepEqual(a.rolloutProvinces, ["BC", "MB", "SK", "NS", "NB", "NL", "PE", "YT", "NT", "NU"]);
+    assert.deepEqual(a.rolloutProvinces, ["BC", "MB", "SK", "NS", "NB", "NL", "PE", "YT", "NT", "NU", "QC"]);
     assert.deepEqual(a.importProvinces, ["ON"], "activation itself does not widen the import scope");
     await assert.rejects(roLib.activateNationalRollout(actor), /ROLLOUT_ALREADY_ACTIVE/);
   });
@@ -137,7 +137,9 @@ if (!enabled) {
     assert.ok(!bc.some((p) => /kal tire/i.test(p.name)), "a chain is never imported");
     for (const p of bc) assert.ok(p.assignedStaffId === null || (p.assignedStaffId === rep && p.assignmentMode === "REMOTE"), "only the one seller, only REMOTE");
     assert.ok(bc.some((p) => p.assignedStaffId === rep), "REMOTE prospects were assigned to the rollout seller");
-    assert.equal(await db.crmProspect.count({ where: { id: { in: [unrelated[1], unrelated[2]] }, assignedStaffId: { not: null } } }), 0, "unrelated unassigned prospects (QC, non-Lead-Radar) are never assigned");
+    assert.equal(await db.crmProspect.count({ where: { id: unrelated[2], assignedStaffId: { not: null } } }), 0, "an unrelated non-Lead-Radar prospect is never assigned");
+    const qcUnrelated = await db.crmProspect.findUniqueOrThrow({ where: { id: unrelated[1] } });
+    assert.ok(qcUnrelated.assignedStaffId === null || (qcUnrelated.assignedStaffId === rep && qcUnrelated.assignmentMode === "REMOTE"), "Québec is in scope now: a REMOTE Québec prospect may only go to the one seller, as REMOTE");
     const st = await state();
     assert.equal(st.rolloutHaltCode, null);
   });
@@ -193,8 +195,8 @@ if (!enabled) {
     const paused = await roLib.pauseNationalRollout(actor);
     assert.deepEqual([paused.enabled, paused.rolloutPaused], [false, true]);
     assert.equal((await tick()).status, "SKIPPED");
-    const qc = await db.crmProspect.count({ where: { province: "QC", assignedStaffId: { not: null }, autoAssignedAt: { not: null } } });
-    assert.equal(qc, 0, "Québec prospects are never auto-assigned by the rollout");
+    const qc = await db.crmProspect.findMany({ where: { province: "QC", assignedStaffId: { not: null }, autoAssignedAt: { not: null } }, select: { assignedStaffId: true, assignmentMode: true, territoryState: true } });
+    for (const q of qc) assert.deepEqual([q.assignedStaffId, q.assignmentMode, q.territoryState], [rep, "REMOTE", "NATIONAL"], "Québec auto-assignment is REMOTE only (FIELD geography is untouched), to the one seller");
     await roLib.resumeNationalRollout(actor);
     assert.equal((await state()).enabled, true);
   });
@@ -207,21 +209,30 @@ if (!enabled) {
     // An Alberta Lead Radar REMOTE prospect (verified, unassigned) and a Québec one: only the first counts as work left.
     await db.crmProspect.update({ where: { id: abId }, data: { repairFit: "VERIFIED_REPAIR", repairFitSource: "AUTO" } });
     await db.crmProspect.update({ where: { id: qcId }, data: { repairFit: "VERIFIED_REPAIR", repairFitSource: "AUTO" } });
-    await db.crmProspect.update({ where: { id: abId }, data: { assignedStaffId: null, assignmentMode: null, autoAssignedAt: null } });
+    await db.crmProspect.updateMany({ where: { id: { in: [abId, qcId] } }, data: { assignedStaffId: null, assignmentMode: null, autoAssignedAt: null } });
     const t1 = await roLib.rolloutStage(actor, await state());
     assert.equal(t1.halted, undefined, JSON.stringify(t1));
     let s = await state();
     assert.deepEqual([t1.finished, t1.waiting, s.rolloutEnabled, s.enabled, s.rolloutFinishedAt], [undefined, "ASSIGNMENT", true, true, null], "all extractions/imports done but an AB REMOTE prospect is unassigned: NOT complete, master stays ON");
-    assert.equal((await roLib.rolloutStatus()).pendingAssignment, 1, "Québec never counts as work left");
+    assert.equal((await roLib.rolloutStatus()).pendingAssignment, 2, "AB and the REMOTE Québec prospect are work left");
     // The automation assigns it (the scoped assignment stage includes AB).
     const asg = await autoLib.assignStage(actor, [rep], Date.now() + 20_000, { provinces: (await import("../src/domain/lead-radar/rollout")).ROLLOUT_ASSIGN_PROVINCES, remoteOnly: true });
     void asg;
     s = await state();
-    assert.equal((await db.crmProspect.findUniqueOrThrow({ where: { id: qcId } })).assignedStaffId, null, "Québec is never assigned");
-    await db.crmProspect.updateMany({ where: { id: abId, assignedStaffId: null }, data: { assignedStaffId: rep } });
+    await db.crmProspect.updateMany({ where: { id: { in: [abId, qcId] }, assignedStaffId: null }, data: { assignedStaffId: rep } });
+    // The national first CASL evidence pass must be reconciled too: an address of a qualified REMOTE shop with no decision yet keeps the one-time rollout open.
+    const dc = await db.crmDiscoveredContact.create({ data: { prospectId: abId, emailNormalized: `ev-${run}@example.ca`, source: "OVERTURE_PUBLISHED", capturedAt: new Date(), syntaxValid: true, roleBased: false, freeMailbox: false } });
+    const tEv = await roLib.rolloutStage(actor, await state());
+    assert.deepEqual([tEv.finished, tEv.waiting], [undefined, "EVIDENCE"], "an address that never had an evidence decision is not reconciled");
+    assert.equal(await roLib.pendingEvidenceFirstPass(), 1);
+    // A poison address whose assessment keeps crashing is parked after the bounded attempts: it cannot hold the national pass open forever (it stays visible as a technical state).
+    await db.crmDiscoveredContact.update({ where: { id: dc.id }, data: { assessAttempts: 5 } });
+    assert.equal(await roLib.pendingEvidenceFirstPass(), 0);
+    await db.crmDiscoveredContact.update({ where: { id: dc.id }, data: { assessAttempts: 0, assessedAt: new Date(), assessOutcome: "INSUFFICIENT", nextAssessAt: new Date(Date.now() + 7 * 86_400_000) } });
     const t2 = await roLib.rolloutStage(actor, await state());
     s = await state();
-    assert.deepEqual([t2.finished, s.rolloutEnabled, s.enabled, s.pausedReason], [true, false, false, "ROLLOUT_COMPLETE"]);
+    // One-time work stops (qualify / import / assign OFF, rollout finished); the master switch and the evidence stage stay ON so CASL revalidation continues; outreach stays OFF.
+    assert.deepEqual([t2.finished, s.rolloutEnabled, s.enabled, s.pausedReason, s.qualifyEnabled, s.importEnabled, s.assignEnabled, s.evidenceEnabled, s.eligibilityEnabled, s.pilotEnabled], [true, false, true, null, false, false, false, true, false, false]);
     assert.ok(s.rolloutFinishedAt);
   });
 
@@ -360,7 +371,7 @@ if (!enabled) {
     assert.equal(t2.finished, true, "only deferred no-email candidates/prospects remain: the rollout completes instead of stalling");
     assert.ok(await db.crmDiscoveryCandidate.count({ where: { province: "BC", importState: "NOT_IMPORTED", reviewState: "APPROVED" } }) >= 8, "deferred candidates are still there for coverage / future enrichment");
     const s = await state();
-    assert.deepEqual([s.pilotEnabled, s.eligibilityEnabled, s.releaseUnavailable, s.enabled], [false, false, false, false], "outreach/release/pilot stay OFF");
+    assert.deepEqual([s.pilotEnabled, s.eligibilityEnabled, s.releaseUnavailable, s.enabled, s.evidenceEnabled], [false, false, false, true, true], "outreach/release/pilot stay OFF; the master and the evidence stage stay ON for CASL maintenance");
   });
 
   test("eligibility is available DURING the rollout (read-only advice for prospects with an emailable contact) without enabling outreach, release or the pilot", async () => {
@@ -393,5 +404,25 @@ if (!enabled) {
     const a = await state();
     assert.deepEqual([a.pilotEnabled, a.rolloutEnabled], [false, true], "the rollout and the pilot switch were not touched");
     await db.crmLeadAutomation.update({ where: { id: "default" }, data: { enabled: false, rolloutEnabled: false, releaseUnavailable: false } });
+  });
+
+  test("Québec is swept in full: a finished run from an older extractor does not count (the province is queued once, idempotently); one from the current extractor does", async () => {
+    const actor = (await access.resolvePlatformSalesActor(users.Root))!;
+    await db.crmDiscoveryRun.deleteMany({ where: { scope: { path: ["provinces"], array_contains: ["QC"] } } });
+    const mkRun = (extractorVersion: string) => db.crmDiscoveryRun.create({ data: {
+      source: "OVERTURE", sourceRelease: "2026-09-23.1", status: "COMPLETED", scope: { provinces: ["QC"], groups: ["REPAIR", "BODY_GLASS"] }, planHash: "q".repeat(64), manifest: { extractorVersion }, qualityVerdict: "OK", finishedAt: new Date(), createdByUserId: users.Root } });
+    await db.crmDiscoveryRun.updateMany({ where: { status: { in: ["PLANNED", "INGESTING"] } }, data: { status: "CANCELLED", finishedAt: new Date() } });
+    await db.crmLeadAutomation.update({ where: { id: "default" }, data: { enabled: true, rolloutEnabled: true, rolloutPaused: false, rolloutFinishedAt: null, rolloutHaltCode: null, rolloutHaltProvince: null, rolloutProvinces: ["QC"], importProvinces: ["AB", "ON", "QC"], assignStaffIds: [rep], rolloutStaffId: rep, pilotEnabled: false } });
+    const old = await mkRun("1.1.0");
+    const t1 = await roLib.rolloutStage(actor, await state());
+    assert.equal(t1.queued, "QC", JSON.stringify(t1));
+    const t2 = await roLib.rolloutStage(actor, await state());
+    assert.equal(t2.queued, undefined, "while the sweep is queued/extracting nothing more is queued (idempotent)");
+    assert.equal(await db.crmDiscoveryRun.count({ where: { scope: { path: ["provinces"], array_contains: ["QC"] }, status: "PLANNED" } }), 1);
+    await db.crmDiscoveryRun.updateMany({ where: { status: "PLANNED", id: { not: old.id } }, data: { status: "CANCELLED", finishedAt: new Date() } });
+    await db.crmDiscoveryRun.update({ where: { id: old.id }, data: { manifest: { extractorVersion: "1.4.0" } } });
+    const t3 = await roLib.rolloutStage(actor, await state());
+    assert.equal(t3.queued, undefined, "a run from the current extractor satisfies the sweep");
+    await db.crmLeadAutomation.update({ where: { id: "default" }, data: { enabled: false, rolloutEnabled: false } });
   });
 }

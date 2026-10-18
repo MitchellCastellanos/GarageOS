@@ -3,13 +3,25 @@ import type { ProvinceCode } from "@/domain/lead-radar/geo";
 // One-time national rollout: pure decision logic. The orchestrator (src/lib/lead-radar/rollout.ts) only gathers facts and applies the decision; every stage it
 // drives (worker extraction, quality gate, ICP, qualification, import, assignment) is the existing one.
 
-/** Remaining provinces/territories, in extraction order. AB and QC are never extracted again; ON is already extracted and importing. */
-export const ROLLOUT_PROVINCES: readonly ProvinceCode[] = ["BC", "MB", "SK", "NS", "NB", "NL", "PE", "YT", "NT", "NU"];
+/**
+ * Remaining provinces/territories, in extraction order (largest/most delicate last). Québec is swept IN FULL like every other jurisdiction: its FIELD geography (Greater Montréal / Laval / Rive-Sud)
+ * is preserved by the territory rules at import, REMOTE classification and the French default come from the same rules, and earlier staged Québec candidates are refreshed in place
+ * (unique per source record), never duplicated. ON and AB were extracted earlier and are reconciled, not re-extracted.
+ */
+export const ROLLOUT_PROVINCES: readonly ProvinceCode[] = ["BC", "MB", "SK", "NS", "NB", "NL", "PE", "YT", "NT", "NU", "QC"];
 /** Never extracted (again) by the rollout. */
-export const ROLLOUT_NEVER: readonly string[] = ["AB", "QC"];
+export const ROLLOUT_NEVER: readonly string[] = [];
+/** A completed run only counts as a province's extraction when it was made by this extractor version or newer (email-level provenance, source points). Older runs are swept again; the refresh is idempotent. */
+export const ROLLOUT_MIN_EXTRACTOR = "1.4.0";
+export function extractorAtLeast(version: string | null | undefined, min: string = ROLLOUT_MIN_EXTRACTOR): boolean {
+  const parse = (v: string) => v.split(".").map((x) => Number.parseInt(x, 10) || 0);
+  const a = parse(version ?? "0"), b = parse(min);
+  for (let i = 0; i < 3; i++) { if ((a[i] ?? 0) !== (b[i] ?? 0)) return (a[i] ?? 0) > (b[i] ?? 0); }
+  return true;
+}
 /** Already extracted before the rollout: never queued or gated here, but their candidates must still finish qualification, import and assignment before the rollout can complete. */
 export const ROLLOUT_EXISTING: readonly string[] = ["ON", "AB"];
-/** Provinces whose REMOTE prospects the rollout may assign: the rollout provinces plus ON and AB. Never QC; FIELD prospects are never assigned. */
+/** Provinces whose REMOTE prospects the rollout may assign: the rollout provinces plus ON and AB. FIELD prospects are never assigned. */
 export const ROLLOUT_ASSIGN_PROVINCES: readonly string[] = [...ROLLOUT_PROVINCES, ...ROLLOUT_EXISTING];
 export const ROLLOUT_SELLER_EMAIL = "mcastellanos@garage-os.ca";
 
@@ -78,15 +90,17 @@ export interface RolloutPlan {
   /** Provinces to add to the automatic-import scope now (their extraction passed every gate). */
   openImport: string[];
   halt: { province: string; code: HaltCode; detail?: string } | null;
-  /** True only when every province is DONE (qualified and imported) AND no assignable REMOTE prospect is left unassigned. Finishing extractions never completes the rollout. */
+  /** True only when every province is DONE (qualified and imported) AND no assignable REMOTE prospect is left unassigned AND every discoverable address of a qualified REMOTE shop has a first CASL evidence decision. Finishing extractions never completes the rollout. */
   finished: boolean;
   waitingForAssignment: boolean;
+  /** Every province is done but an emailable address of a qualified REMOTE shop has never had its first CASL evidence decision: the national pass is not reconciled yet. */
+  waitingForEvidence: boolean;
   steps: { province: string; step: RolloutStep }[];
 }
 
 /** Walks the provinces in order. Extraction is sequential (nothing is queued while a rollout province is extracting); import/qualification of finished provinces proceeds in parallel. */
-export function planRollout(facts: readonly ProvinceFacts[], pendingAssignment = 0): RolloutPlan {
-  const plan: RolloutPlan = { queue: null, openImport: [], halt: null, finished: false, waitingForAssignment: false, steps: [] };
+export function planRollout(facts: readonly ProvinceFacts[], pendingAssignment = 0, pendingEvidence = 0): RolloutPlan {
+  const plan: RolloutPlan = { queue: null, openImport: [], halt: null, finished: false, waitingForAssignment: false, waitingForEvidence: false, steps: [] };
   let extractionBusy = facts.some((f) => f.activeRun);
   for (const f of facts) {
     const step = provinceStep(f);
@@ -97,7 +111,8 @@ export function planRollout(facts: readonly ProvinceFacts[], pendingAssignment =
   }
   const allDone = plan.steps.every((s) => s.step.kind === "DONE");
   plan.waitingForAssignment = allDone && pendingAssignment > 0;
-  plan.finished = allDone && pendingAssignment === 0;
+  plan.waitingForEvidence = allDone && pendingEvidence > 0;
+  plan.finished = allDone && pendingAssignment === 0 && pendingEvidence === 0;
   return plan;
 }
 

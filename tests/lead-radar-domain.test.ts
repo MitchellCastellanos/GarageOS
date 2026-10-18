@@ -189,7 +189,7 @@ const walk = (dir: string): string[] => readdirSync(dir).flatMap((f) => { const 
 // The AUTOMATION LAYER (policy → handoff → assignment → eligibility → pilot enrollment) deliberately reads and, for assignment/enrollment, writes outreach and ownership
 // tables, so it is held to its own, narrower static guards in tests/lead-radar-automation-domain.test.ts (never creates or sends a message, reads no credential,
 // gated by two switches + lease, every action re-checks Super Admin). EVERYTHING ELSE here (acquisition, staging, review, import, budget) keeps the original strict guard.
-const AUTOMATION_LAYER = new Set(["automation.ts", "eligibility.ts", "dashboard.ts", "casl-evidence.ts", "evidence-fetch.ts"]); // the last two (automated CASL evidence) are held to their own guards in tests/evidence-fetch.test.ts
+const AUTOMATION_LAYER = new Set(["automation.ts", "eligibility.ts", "dashboard.ts", "casl-evidence.ts", "evidence-fetch.ts", "inventory.ts"]); // inventory.ts only READS outreach tables (counts of emails/enrollments per contact) and is held to the read-only guard below; the evidence pair (automated CASL evidence) are held to their own guards in tests/evidence-fetch.test.ts
 const sources = () => [...walk(path.join(root, "src/lib/lead-radar")), ...walk(path.join(root, "src/domain/lead-radar")), path.join(root, "src/actions/lead-radar.ts")].filter((f) => /\.tsx?$/.test(f) && !(f.includes("src/lib/lead-radar/") && AUTOMATION_LAYER.has(path.basename(f))));
 
 test("every Lead Radar server action re-checks authorization on the server before doing anything", () => {
@@ -211,6 +211,12 @@ test("Lead Radar never sends anything, never touches sending bases or sequences,
     assert.ok(!/assignedStaffId\s*:[ \t]*(?![ \t]|null\b|true\b)/.test(s), `${path.relative(root, f)} must not assign owners`);
     assert.ok(!/crmProspect\.(update|updateMany|create|createMany|delete)\b/.test(s), `${path.relative(root, f)} must not write prospects directly (only the shared import transaction does)`);
   }
+});
+
+test("the contact inventory is strictly read-only: no writes, no network, no switch, no send", () => {
+  const s = readFileSync(path.join(root, "src/lib/lead-radar/inventory.ts"), "utf8").replace(/\/\/.*$/gm, "");
+  assert.ok(!/\bfetch\s*\(|axios|node:https?|node:net\b|\$executeRaw|\$transaction|\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\(|\b(INSERT|UPDATE|DELETE)\s/.test(s));
+  assert.ok(!/sendEmail|sendSms|twilio|resend|enrollAutomated|sendingEnabled|autoCaslActive/i.test(s));
 });
 
 test("extractor and docs: the only hosts are the Overture bucket and its STAC catalog; no credentials; output whitelisted", () => {

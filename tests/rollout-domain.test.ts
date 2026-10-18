@@ -1,19 +1,25 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { ROLLOUT_ASSIGN_PROVINCES, ROLLOUT_EXISTING, ROLLOUT_NEVER, ROLLOUT_PROVINCES, planRollout, provinceStep, safetyViolation, type ProvinceFacts, type SafetyFacts } from "../src/domain/lead-radar/rollout";
+import { ROLLOUT_ASSIGN_PROVINCES, ROLLOUT_EXISTING, ROLLOUT_NEVER, ROLLOUT_PROVINCES, extractorAtLeast, planRollout, provinceStep, safetyViolation, type ProvinceFacts, type SafetyFacts } from "../src/domain/lead-radar/rollout";
 
 const done: ProvinceFacts = { province: "BC", activeRun: false, latestRun: { status: "COMPLETED", verdict: "OK", errorCode: null }, staged: 500, duplicates: 20, unclassified: 0, withPoint: 495, verified: 300, review: 50, excluded: 150, importFailed: 0, approvedNotImported: 0, awaitingQualification: 0, inImportScope: true };
 const f = (o: Partial<ProvinceFacts> = {}): ProvinceFacts => ({ ...done, ...o });
 const fresh = (province: string): ProvinceFacts => ({ ...done, province, latestRun: null, staged: 0, duplicates: 0, withPoint: 0, verified: 0, review: 0, excluded: 0, inImportScope: false });
 
-test("rollout scope never contains AB or QC; ON is only an assignment province; the order is fixed", () => {
-  for (const p of ROLLOUT_NEVER) assert.ok(!ROLLOUT_PROVINCES.includes(p as never), `${p} is never extracted by the rollout`);
-  assert.ok(!ROLLOUT_ASSIGN_PROVINCES.includes("QC"), "Québec is never in the assignment scope");
+test("rollout scope: Québec is swept in full like every other jurisdiction; ON and AB are reconciled, never re-extracted; the order is fixed", () => {
+  assert.deepEqual(ROLLOUT_NEVER, []);
+  assert.ok(ROLLOUT_PROVINCES.includes("QC") && ROLLOUT_ASSIGN_PROVINCES.includes("QC"), "Québec is part of the sweep and of the REMOTE assignment scope");
   for (const p of ["ON", "AB"]) { assert.ok(!ROLLOUT_PROVINCES.includes(p as never)); assert.ok(ROLLOUT_ASSIGN_PROVINCES.includes(p), `${p} prospects are assigned`); assert.ok(ROLLOUT_EXISTING.includes(p)); }
-  assert.equal(ROLLOUT_PROVINCES.length, 10);
-  assert.deepEqual(provinceStep(f({ province: "QC" })).kind, "HALT");
-  assert.deepEqual(provinceStep(f({ province: "AB", latestRun: null })).kind, "HALT", "a non-existing AB would never be queued");
+  assert.equal(ROLLOUT_PROVINCES.length, 11);
+  assert.equal(ROLLOUT_PROVINCES.at(-1), "QC", "the largest and most delicate province goes last");
+  assert.equal(new Set([...ROLLOUT_PROVINCES, ...ROLLOUT_EXISTING]).size, 13, "all 13 jurisdictions are covered");
+  assert.deepEqual(provinceStep(f({ province: "QC", latestRun: null })).kind, "QUEUE", "never swept ⇒ queued");
+  assert.deepEqual(provinceStep(f({ province: "AB", existing: true, inImportScope: true, approvedNotImported: 0 })).kind, "DONE");
+});
+
+test("extractor gate: a finished run counts only when made by extractor 1.4.0 or newer (older runs are swept again)", () => {
+  assert.deepEqual(["1.4.0", "1.4.1", "1.10.0", "2.0.0", "1.3.9", "1.2.0", null, ""].map((v) => extractorAtLeast(v)), [true, true, true, true, false, false, false, false]);
 });
 
 test("province step: every gate halts with its own code, nothing is skipped silently", () => {
@@ -97,6 +103,9 @@ test("existing provinces (ON, AB): never queued or gated again, but they must fi
 test("completion: finishing every extraction does NOT complete the rollout; qualification, import and assignment of ON, AB and the new provinces must all finish", () => {
   const allDone = [existing("ON"), existing("AB"), ...ROLLOUT_PROVINCES.map((p) => f({ province: p }))];
   assert.equal(planRollout(allDone, 0).finished, true);
+  const waitEv = planRollout(allDone, 0, 3);
+  assert.deepEqual([waitEv.finished, waitEv.waitingForEvidence, waitEv.waitingForAssignment], [false, true, false], "every province done but the first CASL evidence pass is not reconciled: not complete");
+  assert.deepEqual([planRollout(allDone, 2, 3).waitingForEvidence, planRollout(allDone, 0, 0).waitingForEvidence], [true, false]);
   const noAssign = planRollout(allDone, 1);
   assert.deepEqual([noAssign.finished, noAssign.waitingForAssignment], [false, true], "assignable REMOTE prospects still unassigned: not complete");
   assert.equal(planRollout([existing("ON"), existing("AB", { approvedNotImported: 1 }), ...ROLLOUT_PROVINCES.map((p) => f({ province: p }))], 0).finished, false, "AB still importing");
