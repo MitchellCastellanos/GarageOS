@@ -4,6 +4,7 @@ import {
   HeaderInjectionError, assertSafeHeaderValue, cleanSubject, formatMailbox, isAutomatedMessage, isValidEmail, looksLikeOptOut,
   normalizeSubject, parseAddress, parseMessageIdList, parseRecipientList, replySubject,
 } from "../src/domain/sales-comms/email";
+import { senderIdentificationGaps } from "../src/domain/sales-comms/casl";
 import { buildReplyTo, extractReplyKey, newReplyKey, randomToken, signUnsubscribeToken, verifyUnsubscribeToken } from "../src/domain/sales-comms/tokens";
 import { htmlToText, stripQuotedReply, textToHtml } from "../src/domain/sales-comms/html";
 import { validateAttachment, sanitizeFilename } from "../src/domain/sales-comms/attachments";
@@ -358,7 +359,7 @@ test("thread matching: reply key beats Message-ID beats subject; subject never c
 // ── Sender setup ─────────────────────────────────────────────────────────────────────────────
 const fullSetup = (over: Partial<SetupInput> = {}): SetupInput => ({
   providerKeyConfigured: true, providerSideEffectsEnabled: true, webhookSecretConfigured: true, unsubscribeSecretConfigured: true,
-  settings: { sendingEnabled: true, manualSendingEnabled: true, approvedDomains: ["sales.garage-os.ca"], inboundDomain: "sales.garage-os.ca", mailingAddress: "1 rue Exemple, Montréal QC" },
+  settings: { sendingEnabled: true, manualSendingEnabled: true, approvedDomains: ["sales.garage-os.ca"], inboundDomain: "sales.garage-os.ca", legalName: "GarageOS Inc.", mailingAddress: "1 rue Exemple, Montréal QC", contactEmail: null, contactPhone: null, websiteUrl: "https://www.garage-os.ca" },
   identity: { fromEmail: "alexandre@sales.garage-os.ca", status: "ACTIVE", replyToEmail: null, inboundVerifiedAt: null, staffActive: true },
   fromDomain: { found: true, status: "verified", sendingEnabled: true, receivingEnabled: true },
   inboundDomainFact: { found: true, status: "verified", sendingEnabled: true, receivingEnabled: true }, lookupError: null, ...over,
@@ -488,4 +489,18 @@ test("a manual cold email still needs a documented CASL basis, a decided languag
 test("every switch-off code is a HOLD (message stays queued); real policy failures are not", () => {
   for (const c of ["SENDING_DISABLED", "MANUAL_SENDING_DISABLED", "AUTOMATED_SENDING_DISABLED", "TRANSACTIONAL_SENDING_DISABLED"] as const) assert.equal(isSwitchHold(c), true, c);
   for (const c of ["NO_VALID_BASIS", "SUPPRESSED", "CONTACT_DNC", "DAILY_LIMIT", "IDENTITY_INACTIVE", "TERRITORY_FIELD_FIRST_CONTACT"] as const) assert.equal(isSwitchHold(c), false, c);
+});
+
+test("sender identification: legal name, a plausible mailing address and one more contact channel are all required", () => {
+  const ok = { legalName: "GarageOS Inc.", mailingAddress: "1 rue Exemple, Montréal QC H2X 1Y4", contactEmail: null, contactPhone: null, websiteUrl: "https://www.garage-os.ca" };
+  assert.deepEqual(senderIdentificationGaps(ok), []);
+  assert.deepEqual(senderIdentificationGaps({ ...ok, legalName: " " }), ["LEGAL_NAME"]);
+  assert.deepEqual(senderIdentificationGaps({ ...ok, mailingAddress: null }), ["MAILING_ADDRESS"]);
+  assert.deepEqual(senderIdentificationGaps({ ...ok, mailingAddress: "x" }), ["MAILING_ADDRESS"], "a placeholder is not an address");
+  assert.deepEqual(senderIdentificationGaps({ ...ok, mailingAddress: "Montréal, Québec" }), ["MAILING_ADDRESS"], "no street number");
+  assert.deepEqual(senderIdentificationGaps({ ...ok, websiteUrl: "" }), ["CONTACT_CHANNEL"]);
+  assert.deepEqual(senderIdentificationGaps({ ...ok, websiteUrl: "http://insecure.example" }), ["CONTACT_CHANNEL"]);
+  assert.deepEqual(senderIdentificationGaps({ ...ok, websiteUrl: "", contactPhone: "514-555-0100" }), []);
+  assert.deepEqual(senderIdentificationGaps({ ...ok, websiteUrl: "", contactEmail: "hello@garage-os.ca" }), []);
+  assert.deepEqual(senderIdentificationGaps({ legalName: "", mailingAddress: "", contactEmail: null, contactPhone: "123", websiteUrl: null }), ["LEGAL_NAME", "MAILING_ADDRESS", "CONTACT_CHANNEL"]);
 });

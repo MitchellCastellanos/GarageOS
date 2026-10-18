@@ -187,7 +187,7 @@ if (!enabled) {
     assert.ok(t.requests > 0 && t.requests <= 5 * 6);
     // append-only history with the five conditions, rule version and a bounded snippet
     const a = await db.crmCaslAssessment.findFirstOrThrow({ where: { discoveredContact: { id: (await discovered("alpha")).id } } });
-    assert.deepEqual([a.outcome, a.ruleVersion, a.sourceKind, a.sourceUrl, a.publisherHost], ["SUPPORTED", "casl-auto-v2", "OWN_WEBSITE", "https://alpha-garage.example/contact", "alpha-garage.example"]);
+    assert.deepEqual([a.outcome, a.ruleVersion, a.sourceKind, a.sourceUrl, a.publisherHost], ["SUPPORTED", "casl-auto-v3", "OWN_WEBSITE", "https://alpha-garage.example/contact", "alpha-garage.example"]);
     assert.deepEqual(a.conditions, { identityCorroborated: "MET", publishedByRecipient: "MET", noRestriction: "MET", relevant: "MET", attributable: "MET", documented: "MET" });
     assert.deepEqual([a.mailboxClass, a.topics], ["GENERAL_CHANNEL", ["SHOP_MANAGEMENT_SOFTWARE"]]);
     // CORRECTION 4: a reproducible, tamper-evident evidence artifact is stored with the decision — and only with a SUPPORTED/restriction decision
@@ -208,7 +208,7 @@ if (!enabled) {
     assert.equal(await db.crmContact.count(), 2);
     const bases = await db.crmSendingBasis.findMany();
     assert.equal(bases.length, 2);
-    for (const b of bases) assert.deepEqual([b.reviewStatus, b.ruleVersion, b.recordedByUserId, b.reviewedByUserId, b.kind, !!b.caslAssessmentId, !!b.expiresAt, b.evidenceType], ["AUTO_SUPPORTED", "casl-auto-v2", "system", null, "IMPLIED_PUBLISHED_ADDRESS", true, true, "WEBSITE_PUBLICATION"]);
+    for (const b of bases) assert.deepEqual([b.reviewStatus, b.ruleVersion, b.recordedByUserId, b.reviewedByUserId, b.kind, !!b.caslAssessmentId, !!b.expiresAt, b.evidenceType], ["AUTO_SUPPORTED", "casl-auto-v3", "system", null, "IMPLIED_PUBLISHED_ADDRESS", true, true, "WEBSITE_PUBLICATION"]);
     const ab = bases.find((b) => b.assessedEmail === "info@alpha-garage.example")!;
     assert.deepEqual([ab.mailboxClass, ab.relevanceTopics, ab.capturedAt!.getTime() > Date.now() - 60_000], ["GENERAL_CHANNEL", ["SHOP_MANAGEMENT_SOFTWARE"], true], "the basis carries the exact address, mailbox class and message topics that every send re-checks");
     assert.equal((await discovered("alpha")).status, "ACCEPTED"); assert.equal((await discovered("gamma")).status, "PENDING");
@@ -272,7 +272,7 @@ if (!enabled) {
     await db.crmProspect.update({ where: { id: alpha.prospectId }, data: { website: "https://alpha-garage.example", websiteDomain: "alpha-garage.example" } });
     await db.crmDiscoveredContact.update({ where: { id: alpha.id }, data: { assessRuleVersion: "casl-auto-v0" } });
     assert.deepEqual(await stage.claimEvidenceWork(25, new Date()), [alpha.id], "older rule version");
-    await db.crmDiscoveredContact.updateMany({ data: { assessLeaseUntil: null, assessRuleVersion: "casl-auto-v2" } });
+    await db.crmDiscoveredContact.updateMany({ data: { assessLeaseUntil: null, assessRuleVersion: "casl-auto-v3" } });
   });
 
   test("revalidation: a restriction that appears later BLOCKS and revokes the automated basis (history appended, audited); a transient failure keeps what we know", async () => {
@@ -295,7 +295,7 @@ if (!enabled) {
     assert.equal((await db.crmDiscoveredContact.findUniqueOrThrow({ where: { id: alpha.id } })).assessOutcome, "BLOCKED");
     const [ab] = await autoBasis(alphaContact);
     assert.ok(ab.revokedAt, "the automated basis was revoked");
-    assert.equal(evaluateAutomationBasis(await db.crmSendingBasis.findMany({ where: { contactId: alphaContact } }), new Date(), { active: true, ruleVersion: "casl-auto-v2" }, { topic: "SHOP_MANAGEMENT_SOFTWARE", recipientEmail: MSG_EMAIL }).valid, false);
+    assert.equal(evaluateAutomationBasis(await db.crmSendingBasis.findMany({ where: { contactId: alphaContact } }), new Date(), { active: true, ruleVersion: "casl-auto-v3" }, { topic: "SHOP_MANAGEMENT_SOFTWARE", recipientEmail: MSG_EMAIL }).valid, false);
     const hist = await db.crmCaslAssessment.findMany({ where: { discoveredContactId: alpha.id }, orderBy: { createdAt: "asc" } });
     assert.deepEqual(hist.map((h) => h.outcome), ["SUPPORTED", "BLOCKED"], "append-only: both decisions are kept");
     const audit = await db.crmAuditEvent.findFirstOrThrow({ where: { action: "CASL_EVIDENCE_ASSESSED", prospectId: alpha.prospectId }, orderBy: { createdAt: "desc" } });
@@ -305,7 +305,7 @@ if (!enabled) {
     await makeDue(); await evidenceRun();
     const rows = await autoBasis(alphaContact);
     assert.equal(rows.length, 2); assert.ok(rows[0].revokedAt && !rows[1].revokedAt);
-    assert.equal(evaluateAutomationBasis(await db.crmSendingBasis.findMany({ where: { contactId: alphaContact } }), new Date(), { active: true, ruleVersion: "casl-auto-v2" }, { topic: "SHOP_MANAGEMENT_SOFTWARE", recipientEmail: MSG_EMAIL }).valid, true);
+    assert.equal(evaluateAutomationBasis(await db.crmSendingBasis.findMany({ where: { contactId: alphaContact } }), new Date(), { active: true, ruleVersion: "casl-auto-v3" }, { topic: "SHOP_MANAGEMENT_SOFTWARE", recipientEmail: MSG_EMAIL }).valid, true);
   });
 
   test("restriction check reaches the terms page (CORRECTION 5): a statement there BLOCKS; an unreadable terms page is INSUFFICIENT for a new decision and keeps what a COMPLETE earlier check proved; a clean one supports", async () => {
@@ -352,7 +352,7 @@ if (!enabled) {
     hits.length = 0; await makeDue(); await evidenceRun();
     assert.equal(hits.some((h) => h.startsWith("beta-garage.example")), false, "no request spent on a suppressed address");
     assert.equal((await db.crmDiscoveredContact.findUniqueOrThrow({ where: { id: beta.id } })).assessOutcome, "BLOCKED");
-    assert.equal(evaluateAutomationBasis(await db.crmSendingBasis.findMany({ where: { contactId: contact.id } }), new Date(), { active: true, ruleVersion: "casl-auto-v2" }, { topic: "SHOP_MANAGEMENT_SOFTWARE", recipientEmail: MSG_EMAIL }).valid, false);
+    assert.equal(evaluateAutomationBasis(await db.crmSendingBasis.findMany({ where: { contactId: contact.id } }), new Date(), { active: true, ruleVersion: "casl-auto-v3" }, { topic: "SHOP_MANAGEMENT_SOFTWARE", recipientEmail: MSG_EMAIL }).valid, false);
   });
 
   test("a valid decision taken under the former workflow is never replaced by an automated row that needs activation", async () => {
@@ -384,7 +384,7 @@ if (!enabled) {
     assert.notEqual(a1.decision, "ELIGIBLE");
     // the owner activates ONE policy (typed confirmation); only then is the evidence usable — still subject to every other send gate
     const actor = (await resolvePlatformSalesActor(users.Root))!;
-    await setAutoCaslPolicy(actor, { active: true, ruleVersion: "casl-auto-v2", confirmation: AUTO_CASL_CONFIRMATION });
+    await setAutoCaslPolicy(actor, { active: true, ruleVersion: "casl-auto-v3", confirmation: AUTO_CASL_CONFIRMATION });
     const on = await policy.evaluatePolicy(target);
     assert.equal(on.basis?.valid, true);
     assert.equal(on.decision.allowed, false, "sending is still disabled by its own switches");
@@ -403,7 +403,7 @@ if (!enabled) {
     const contact = await db.crmContact.findFirstOrThrow({ where: { prospectId: alpha.prospectId } });
     const ident = await db.crmSenderIdentity.findFirstOrThrow({});
     const actor = (await resolvePlatformSalesActor(users.Root))!;
-    await setAutoCaslPolicy(actor, { active: true, ruleVersion: "casl-auto-v2", confirmation: AUTO_CASL_CONFIRMATION });
+    await setAutoCaslPolicy(actor, { active: true, ruleVersion: "casl-auto-v3", confirmation: AUTO_CASL_CONFIRMATION });
     try {
       const target = { identityId: ident.id, category: "COMMERCIAL" as const, recipients: [contact.emailNormalized!], prospectId: alpha.prospectId, contactId: contact.id, languageResolved: true, origin: "AUTOMATED" as const };
       assert.equal((await policy.evaluatePolicy(target)).basis?.valid, true, "fresh, same address, campaign subject");
@@ -465,7 +465,7 @@ if (!enabled) {
 
   test("aggregate metrics are exact counts (no personal data) and resource use is accounted", async () => {
     const m = await pipelineMetrics();
-    assert.equal(m.ruleVersion, "casl-auto-v2");
+    assert.equal(m.ruleVersion, "casl-auto-v3");
     assert.ok(m.examined >= 14 && m.commerciallyRejected >= 6 && m.rediscovered === 2);
     assert.equal(m.supported + m.insufficient + m.blocked + m.unassessed, m.emailsNeedingAssessment);
     assert.ok(m.supported >= 1 && m.blocked >= 2);

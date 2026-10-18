@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { evaluateBasisForOrigin, evaluateSendPolicy, type SendDecision, type SendOrigin } from "@/domain/sales-comms/casl";
+import { evaluateBasisForOrigin, evaluateSendPolicy, senderIdentificationGaps, type SendDecision, type SendOrigin } from "@/domain/sales-comms/casl";
 import { loadAutoCaslPolicy } from "@/lib/sales-comms/auto-casl-policy";
 import { emailDomain, isValidEmail, normalizeEmail } from "@/domain/sales-comms/email";
 import { getCommsSettings } from "@/lib/sales-comms/settings";
@@ -71,7 +71,7 @@ export async function evaluatePolicy(t: PolicyTarget, now = new Date()): Promise
     basis, languageResolved: t.languageResolved, sentToday,
     quebecRecipient: !!prospect && isQuebecRecipient(prospect), messageLanguage: t.language === "EN" || t.language === "FR" ? t.language : null,
     dailyLimit: Math.min(identity.dailyLimit ?? settings.defaultDailyLimit, settings.defaultDailyLimit),
-    commercialFooterConfigured: !!settings.mailingAddress?.trim(),
+    commercialFooterConfigured: senderIdentificationGaps(settings).length === 0,
   });
   if (decision.allowed && t.category === "COMMERCIAL" && t.prospectId) {
     const territory = await evaluateTerritoryPolicy(t.prospectId, { automated: !!t.automated, senderMode: identity.staff.salesMode, senderUserId: identity.staff.userId }, now);

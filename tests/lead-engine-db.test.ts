@@ -108,10 +108,10 @@ if (!enabled) {
     assert.equal(rec.ok, true, JSON.stringify(rec));
     assert.equal(rec.evidenceSupported, true);
     const stored = await db.crmSendingBasis.findUniqueOrThrow({ where: { id: rec.basisId } });
-    assert.deepEqual([stored.reviewStatus, stored.ruleVersion, stored.reviewedByUserId], ["AUTO_SUPPORTED", "casl-auto-v2", null], "decided by rule: no reviewer, no approval timestamp");
+    assert.deepEqual([stored.reviewStatus, stored.ruleVersion, stored.reviewedByUserId], ["AUTO_SUPPORTED", "casl-auto-v3", null], "decided by rule: no reviewer, no approval timestamp");
     const rows = () => db.crmSendingBasis.findMany({ where: { contactId: contact.contactId } });
     assert.deepEqual(evaluateSendingBasis(await rows(), new Date()), { valid: false, reason: "POLICY_NOT_ACTIVATED" }, "newest (supported) row shadows the legacy one and authorises nothing while the policy is off");
-    assert.equal(evaluateSendingBasis(await rows(), new Date(), { active: true, ruleVersion: "casl-auto-v2" }).valid, true, "valid only under the activated policy of the same version");
+    assert.equal(evaluateSendingBasis(await rows(), new Date(), { active: true, ruleVersion: "casl-auto-v3" }).valid, true, "valid only under the activated policy of the same version");
     assert.equal(evaluateSendingBasis(await rows(), new Date(), { active: true, ruleVersion: "casl-auto-v0" }).valid, false, "a different policy version never inherits an activation");
     // Free text alone cannot create any basis (express consent / exempt / existing relationship included); with structured evidence it is recorded the same way.
     for (const kind of ["EXPRESS_CONSENT", "EXEMPT", "IMPLIED_EXISTING_RELATIONSHIP"]) {

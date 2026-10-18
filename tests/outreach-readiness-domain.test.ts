@@ -8,9 +8,9 @@ import { campaignDefaultFor, resolveEffectiveLanguage, territoryDefaultLanguage 
 
 const T0 = new Date("2026-03-01T12:00:00Z");
 const row = (o: Record<string, unknown> = {}) => ({ kind: "IMPLIED_PUBLISHED_ADDRESS" as const, evidence: "Published on the shop's contact page, no do-not-solicit notice", recordedAt: new Date("2026-02-01"), expiresAt: null, revokedAt: null, reviewStatus: "APPROVED" as const, ...o });
-const auto = { active: true, ruleVersion: "casl-auto-v2" };
+const auto = { active: true, ruleVersion: "casl-auto-v3" };
 const MSG = { topic: "SHOP_MANAGEMENT_SOFTWARE", recipientEmail: "info@shop.example" };
-const AUTO_FIELDS = { reviewStatus: "AUTO_SUPPORTED", ruleVersion: "casl-auto-v2", caslAssessmentId: "assess-1", capturedAt: new Date("2026-02-20"), assessedEmail: "info@shop.example", relevanceTopics: ["SHOP_MANAGEMENT_SOFTWARE"] };
+const AUTO_FIELDS = { reviewStatus: "AUTO_SUPPORTED", ruleVersion: "casl-auto-v3", caslAssessmentId: "assess-1", capturedAt: new Date("2026-02-20"), assessedEmail: "info@shop.example", relevanceTopics: ["SHOP_MANAGEMENT_SOFTWARE"] };
 const approved = evaluateAutomationBasis([row()], T0);
 const contact = (o: Partial<OutreachContactFacts> = {}): OutreachContactFacts => ({ id: "c1", email: "info@garage.ca", doNotContact: false, archived: false, isPrimary: true, language: "UNKNOWN", basis: approved, suppression: null, duplicateAddress: false, ...o });
 const facts = (o: { prospect?: Partial<OutreachFacts["prospect"]>; contacts?: OutreachContactFacts[]; seller?: OutreachFacts["seller"]; sender?: OutreachFacts["sender"] } = {}): OutreachFacts => ({
