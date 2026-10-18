@@ -4283,6 +4283,17 @@ enum CrmOutreachDecision {
   @@schema("garageos")
 }
 
+/// Contact-level readiness for the automated REMOTE campaign (see src/domain/lead-radar/outreach.ts `readinessOf`).
+enum CrmReadiness {
+  PENDING_EVIDENCE
+  PENDING_REVIEW
+  READY
+  SUPPRESSED
+  INELIGIBLE
+
+  @@schema("garageos")
+}
+
 /// Immutable, versioned qualification policy. `rules` is validated by the application (domain/lead-radar/qualification.ts). A draft must be
 /// PREVIEWED (previewHash = rulesHash) before it can be activated; exactly one policy is ACTIVE (partial unique index in the migration).
 model CrmLeadPolicy {
@@ -4380,9 +4391,14 @@ model CrmOutreachEligibility {
   staffId     String?
   decision    CrmOutreachDecision
   reasons     String[]            @default([])
+  /// Contact-level readiness (see `readinessOf`): independent of seller/sender/capacity conditions, which only affect `decision`. null = assessed before this column existed.
+  readiness   CrmReadiness?
+  /// Deterministic campaign language (contact > business > territory default). null when not a REMOTE recipient or undecided.
+  campaignLanguage CrmLanguage?
   evaluatedAt DateTime            @default(now())
 
   @@index([decision])
+  @@index([readiness, campaignLanguage])
   @@index([staffId, decision])
   @@schema("garageos")
 }

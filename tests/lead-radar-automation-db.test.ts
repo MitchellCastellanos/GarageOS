@@ -527,6 +527,7 @@ if (!enabled) {
     await contactFor(supp.id, { email: `supp-${run}@shop.ca` });
     await contactFor(ok2.id, { email: `ok2-${run}@shop.ca`, lang: "EN", prospectLang: "UNKNOWN" });
     await contactFor(lang.id, { email: `lang-${run}@shop.ca`, prospectLang: "UNKNOWN" });
+    await db.crmProspect.update({ where: { id: lang.id }, data: { assignedStaffId: null } }); // no seller yet: READY (contact-level) but not pilot-ELIGIBLE
     await suppression.suppressEmail({ email: `supp-${run}@shop.ca`, reason: "UNSUBSCRIBE", source: "test" });
     const noSender = pool[6], unverified = pool[7], draft = pool[8] ?? pool[7];
     await contactFor(noSender.id, { email: `ns-${run}@shop.ca` }); await contactFor(unverified.id, { email: `un-${run}@shop.ca` });
@@ -541,11 +542,13 @@ if (!enabled) {
     assert.deepEqual(why(none).reasons, ["NO_SENDING_BASIS"]);
     assert.deepEqual(why(supp).reasons, ["CONTACT_DNC", "ADDRESS_SUPPRESSED"], "an unsubscribe suppresses the address AND marks the contact do-not-contact");
     assert.deepEqual([why(ok2).decision, why(ok2).contactId !== null], ["ELIGIBLE", true], "contact language EN decides when the business language is unknown");
-    assert.deepEqual(why(lang).reasons, ["LANGUAGE_UNRESOLVED"]);
+    assert.deepEqual(why(lang).reasons, ["NO_OWNER"], "no explicit language anywhere: the REMOTE territory default (Québec → FR, elsewhere → EN) decides — it is never detected or guessed per business; only the missing seller blocks the pilot");
+    assert.ok(why(lang).language === "FR" || why(lang).language === "EN");
+    assert.equal(why(lang).readiness, "READY", "contact-level readiness does not depend on a seller");
     assert.deepEqual(why(noSender).reasons, ["SENDER_IDENTITY_MISSING"]);
     assert.deepEqual(why(unverified).reasons, ["SENDER_REPLY_PATH_UNVERIFIED"]);
     if (draft.id !== unverified.id) assert.deepEqual(why(draft).reasons, ["SENDER_NOT_ACTIVE", "SENDER_REPLY_PATH_UNVERIFIED"]);
-    assert.deepEqual(why(fieldOne).reasons, ["FIELD_TERRITORY_FIRST_CONTACT"], "FIELD-held prospects are never an automated cold first contact");
+    assert.deepEqual(why(fieldOne).reasons, ["TERRITORY_NOT_REMOTE", "FIELD_TERRITORY_FIRST_CONTACT"], "FIELD-held prospects are never an automated cold first contact");
     // Persisted with the DB invariant (eligible ⇔ no reasons); refresh is idempotent.
     await db.crmOutreachEligibility.updateMany({ data: { evaluatedAt: new Date(Date.now() - 7 * 3600_000) } });
     const t = await eligLib.refreshEligibility({ deadline: soon() });

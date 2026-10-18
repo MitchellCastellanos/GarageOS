@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { canAccessAssignedStaff, type PlatformSalesActor } from "@/domain/sales-crm/access";
 import { CrmError, requireScopedProspect } from "@/lib/sales-crm/prospects";
 import { writeCrmAudit } from "@/lib/sales-crm/audit";
-import { resolveEffectiveLanguage } from "@/domain/sales-crm/language";
+import { campaignDefaultFor, resolveEffectiveLanguage } from "@/domain/sales-crm/language";
 import { decideStop, scheduleStep, DEFAULT_SEQUENCE, type StopReason } from "@/domain/sales-comms/sequences";
 import { COMMERCIAL_TEMPLATE_KEYS, isTemplateKey } from "@/domain/sales-comms/templates";
 import { evaluateAutomationBasis, isSwitchHold } from "@/domain/sales-comms/casl";
@@ -119,8 +119,8 @@ async function enrollCore(by: { userId: string }, prospect: Awaited<ReturnType<t
   if (!identity) throw new CrmError("NO_SENDER_IDENTITY");
   if (opts.automated && !identity.inboundVerifiedAt) throw new CrmError("REPLY_PATH_UNVERIFIED");
 
-  const prospectLang = (await db.crmProspect.findUniqueOrThrow({ where: { id: prospect.id }, select: { preferredLanguage: true } })).preferredLanguage;
-  const lang = resolveEffectiveLanguage({ override: args.languageOverride ?? null, contact: contact.preferredLanguage, prospect: prospectLang });
+  const langRow = await db.crmProspect.findUniqueOrThrow({ where: { id: prospect.id }, select: { preferredLanguage: true, territoryState: true, province: true, postalCode: true } });
+  const lang = resolveEffectiveLanguage({ override: args.languageOverride ?? null, contact: contact.preferredLanguage, prospect: langRow.preferredLanguage, territoryDefault: campaignDefaultFor(langRow) });
   if (lang.needsHumanDecision) throw new CrmError("LANGUAGE_REQUIRED");
   // Same gate as a manual send: sending enabled, active identity/domain, no suppression/DNC, documented CASL basis.
   const { decision } = await evaluatePolicy({ identityId: identity.id, category: "COMMERCIAL", recipients: [contact.emailNormalized], prospectId: prospect.id, contactId: contact.id, languageResolved: true, automated: true, origin: "AUTOMATED" });
@@ -237,7 +237,7 @@ export async function processDueEnrollments(opts: { now?: Date; limit?: number }
     // Lead Radar pilot enrollments only ever send from a mailbox whose reply path was proven by a real round trip.
     if (e.autoEnrolledAt && !identity.inboundVerifiedAt) { await pauseWithReason(e.id, "REPLY_PATH_UNVERIFIED"); out.paused++; continue; }
 
-    const lang = resolveEffectiveLanguage({ override: e.languageOverride, contact: e.contact.preferredLanguage, prospect: e.prospect.preferredLanguage });
+    const lang = resolveEffectiveLanguage({ override: e.languageOverride, contact: e.contact.preferredLanguage, prospect: e.prospect.preferredLanguage, territoryDefault: campaignDefaultFor(e.prospect) });
     const tl = toTemplateLanguage(lang.language);
     if (!tl) { await pauseWithReason(e.id, "LANGUAGE_REQUIRED"); out.paused++; continue; }
 

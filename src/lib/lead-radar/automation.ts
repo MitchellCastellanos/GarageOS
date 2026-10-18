@@ -277,7 +277,7 @@ export async function pilotStage(actor: PlatformSalesActor, a: AutomationSetting
     if (budget <= 0 || Date.now() > deadline) break;
     t.considered++;
     const live = (await assessProspects([c.prospectId])).get(c.prospectId);
-    if (live) await saveAssessments([{ prospectId: c.prospectId, contactId: live.contactId, staffId: live.staffId, decision: live.decision, reasons: live.reasons }]);
+    if (live) await saveAssessments([{ prospectId: c.prospectId, contactId: live.contactId, staffId: live.staffId, decision: live.decision, reasons: live.reasons, readiness: live.readiness, language: live.language }]);
     if (!live || live.decision !== "ELIGIBLE" || !live.contactId) { t.blocked[live?.reasons[0] ?? "NOT_FOUND"] = (t.blocked[live?.reasons[0] ?? "NOT_FOUND"] ?? 0) + 1; continue; }
     try {
       await enrollAutomated(a.pilotActivatedByUserId ?? actor.userId, { sequenceId: a.pilotSequenceId, prospectId: c.prospectId, contactId: live.contactId });

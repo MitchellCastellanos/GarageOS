@@ -112,12 +112,14 @@ if (!enabled) {
   test("accepted contact climbs only as far as the engine allows: language unresolved, no CASL basis → NOT outreach-ready; the eligibility engine is the only source of READY", async () => {
     const p = await prospectOf(recs[0]);
     const res = (await elig.assessProspects([p.id])).get(p.id)!;
-    await elig.saveAssessments([{ prospectId: p.id, contactId: res.contactId, staffId: res.staffId, decision: res.decision, reasons: res.reasons }]);
+    await elig.saveAssessments([{ prospectId: p.id, contactId: res.contactId, staffId: res.staffId, decision: res.decision, reasons: res.reasons, readiness: res.readiness, language: res.language }]);
     assert.equal(res.decision, "NOT_ELIGIBLE");
-    assert.ok(res.reasons.includes("NO_SENDING_BASIS") && res.reasons.includes("LANGUAGE_UNRESOLVED") && res.reasons.includes("NO_OWNER"));
+    // Ontario, imported as NATIONAL: the territory default decides English (no LANGUAGE_UNRESOLVED), so the only contact-level gap is the missing CASL basis.
+    assert.ok(res.reasons.includes("NO_SENDING_BASIS") && res.reasons.includes("NO_OWNER") && !res.reasons.includes("LANGUAGE_UNRESOLVED"));
+    assert.equal(res.readiness, "PENDING_EVIDENCE");
     const f = await cr.emailReadinessFunnel();
     const on = f.rows.find((r) => r.province === "ON")!;
-    assert.equal(on.counts.EMAIL_VALIDATED, 2, "the rejected address no longer counts"); assert.equal(on.counts.LANGUAGE_DECIDED, 0); assert.equal(on.counts.OUTREACH_READY, 0);
+    assert.equal(on.counts.EMAIL_VALIDATED, 2, "the rejected address no longer counts"); assert.equal(on.counts.LANGUAGE_DECIDED, 1); assert.equal(on.counts.OUTREACH_READY, 0);
     assert.equal(f.total.OUTREACH_READY, 0);
   });
 

@@ -1,4 +1,5 @@
 import "server-only";
+import { READINESS_STATES, type Readiness } from "@/domain/lead-radar/outreach";
 import { Prisma } from "@prisma/client";
 import type { PlatformSalesActor } from "@/domain/sales-crm/access";
 import { LEAD_RADAR_SOURCE_KEY } from "@/domain/lead-radar/bridge";
@@ -35,13 +36,15 @@ export async function automationDashboard(actor: PlatformSalesActor) {
   const reasonsBy = (lane: string) => Object.fromEntries(laneReasons.filter((r) => r.lane === lane).map((r) => [r.k as string, n(r.c)])) as Record<string, number>;
   const imp = Object.fromEntries(importByState.map((r) => [r.importState, r._count._all])) as Record<string, number>;
 
-  const [lrTotal, assignedBy, unassignedBy, eligRows, eligReasons, eligPending, enrollRows, msgRows, replies, pausedBy, recentRuns, lastRun] = await Promise.all([
+  const [lrTotal, assignedBy, unassignedBy, eligRows, eligReasons, eligPending, readyRows, readyLang, enrollRows, msgRows, replies, pausedBy, recentRuns, lastRun] = await Promise.all([
     db.$queryRaw<{ c: bigint }[]>`SELECT count(*)::bigint AS c FROM "garageos"."CrmProspect" p WHERE p."status" = 'ACTIVE' AND ${LR}`,
     db.$queryRaw<Pair[]>`SELECT COALESCE(p."assignmentMode"::text,'UNTAGGED') AS k, count(*)::bigint AS c FROM "garageos"."CrmProspect" p WHERE p."status" = 'ACTIVE' AND p."assignedStaffId" IS NOT NULL AND ${LR} GROUP BY 1`,
     db.$queryRaw<Pair[]>`SELECT COALESCE(p."territoryState"::text,'NONE') AS k, count(*)::bigint AS c FROM "garageos"."CrmProspect" p WHERE p."status" = 'ACTIVE' AND p."assignedStaffId" IS NULL AND ${LR} GROUP BY 1`,
     db.$queryRaw<Pair[]>`SELECT e."decision"::text AS k, count(*)::bigint AS c FROM "garageos"."CrmOutreachEligibility" e JOIN "garageos"."CrmProspect" p ON p."id" = e."prospectId" WHERE p."status" = 'ACTIVE' AND ${LR} GROUP BY 1`,
     db.$queryRaw<Pair[]>`SELECT r AS k, count(*)::bigint AS c FROM "garageos"."CrmOutreachEligibility" e JOIN "garageos"."CrmProspect" p ON p."id" = e."prospectId", unnest(e."reasons") r WHERE p."status" = 'ACTIVE' AND ${LR} GROUP BY 1`,
     db.$queryRaw<{ c: bigint }[]>`SELECT count(*)::bigint AS c FROM "garageos"."CrmProspect" p LEFT JOIN "garageos"."CrmOutreachEligibility" e ON e."prospectId" = p."id" WHERE p."status" = 'ACTIVE' AND e."id" IS NULL AND ${LR}`,
+    db.$queryRaw<Pair[]>`SELECT COALESCE(e."readiness"::text,'UNASSESSED') AS k, count(*)::bigint AS c FROM "garageos"."CrmOutreachEligibility" e JOIN "garageos"."CrmProspect" p ON p."id" = e."prospectId" WHERE p."status" = 'ACTIVE' AND ${LR} GROUP BY 1`,
+    db.$queryRaw<Pair[]>`SELECT COALESCE(e."campaignLanguage"::text,'NONE') AS k, count(*)::bigint AS c FROM "garageos"."CrmOutreachEligibility" e JOIN "garageos"."CrmProspect" p ON p."id" = e."prospectId" WHERE p."status" = 'ACTIVE' AND e."readiness" = 'READY' AND ${LR} GROUP BY 1`,
     db.crmSequenceEnrollment.groupBy({ by: ["status"], where: { autoEnrolledAt: { not: null } }, _count: { _all: true } }),
     db.$queryRaw<Pair[]>`SELECT m."status"::text AS k, count(*)::bigint AS c FROM "garageos"."CrmEmailMessage" m JOIN "garageos"."CrmSequenceEnrollment" e ON e."id" = m."sequenceEnrollmentId" WHERE e."autoEnrolledAt" IS NOT NULL AND m."direction" = 'OUTBOUND' GROUP BY 1`,
     db.$queryRaw<Pair[]>`SELECT e."stopReason" AS k, count(*)::bigint AS c FROM "garageos"."CrmSequenceEnrollment" e WHERE e."autoEnrolledAt" IS NOT NULL AND e."status" = 'STOPPED' GROUP BY 1`,
@@ -106,6 +109,7 @@ export async function automationDashboard(actor: PlatformSalesActor) {
       unassignedByTerritoryState: toMap(unassignedBy), lastSkips: lastAssign.skips ?? {}, lastNote: lastAssign.note ?? null, workload,
     },
     eligibility: { eligible: toMap(eligRows).ELIGIBLE ?? 0, notEligible: toMap(eligRows).NOT_ELIGIBLE ?? 0, awaitingAssessment: n(eligPending[0]?.c), reasons: toMap(eligReasons) },
+    readiness: { ...Object.fromEntries(READINESS_STATES.map((x) => [x, toMap(readyRows)[x] ?? 0])) as Record<Readiness, number>, unassessed: toMap(readyRows).UNASSESSED ?? 0, readyByLanguage: { FR: toMap(readyLang).FR ?? 0, EN: toMap(readyLang).EN ?? 0 } },
     sending: {
       sendingEnabled: comms.sendingEnabled && comms.automatedSendingEnabled, enrollments: enr, messages: msg, prospectsWithMessagesSent: sent, replied: stops.REPLIED ?? 0, unsubscribed: stops.OPTED_OUT ?? 0, bounced: stops.BOUNCED ?? 0,
       meetingBooked: stops.MEETING_BOOKED ?? 0, pausedReasons: toMap(pausedBy),
