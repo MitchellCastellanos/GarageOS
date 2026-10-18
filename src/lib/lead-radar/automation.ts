@@ -353,7 +353,7 @@ export async function runAutomationTick(opts: { trigger: "CRON" | "MANUAL"; budg
     const admin = await principal(policy?.activatedByUserId ?? a.updatedByUserId);
     if (evidenceOnly) {
       counters.note = `ROLLOUT_HALTED_EVIDENCE_ONLY:${a.rolloutHaltCode}`;
-      await stage("evidence", true, (deadline) => runEvidenceStage({ deadline, limit: a.evidenceBatch }));
+      await stage("evidence", true, (deadline) => runEvidenceStage({ deadline, limit: Math.max(a.evidenceBatch, 40) }));
     } else if (!admin) {
       errors.principal = "ACTOR_INVALID";
       counters.note = "AUTOMATION_PRINCIPAL_NOT_SUPER_ADMIN";
@@ -374,7 +374,7 @@ export async function runAutomationTick(opts: { trigger: "CRON" | "MANUAL"; budg
       await stage("screen", a.qualifyEnabled, (deadline) => purgeUnusableCandidates({ limit: 500, deadline }));
       // Automated CASL evidence: bounded reads of each qualified shop's OWN website, deterministic SUPPORTED / INSUFFICIENT / BLOCKED decisions. Creates contacts and AUTO_SUPPORTED bases for
       // supported addresses only; none of it authorises a send until the owner activates the automated policy, and nothing here enrols or sends.
-      await stage("evidence", a.evidenceEnabled, (deadline) => runEvidenceStage({ deadline, limit: a.evidenceBatch }));
+      await stage("evidence", a.evidenceEnabled, (deadline) => runEvidenceStage({ deadline, limit: Math.max(a.evidenceBatch, 40) }));
       // Eligibility is read-only ADVICE (it creates no contact, basis, enrollment or message), so it follows its own switch even during the national rollout — the owner can turn it on
       // to measure readiness without enabling outreach. During the rollout it only assesses prospects that have an emailable contact (the rest cannot progress and would be wasted work).
       await stage("eligibility", a.eligibilityEnabled, (deadline) => refreshEligibility({ deadline, requireContact: a.rolloutEnabled }));

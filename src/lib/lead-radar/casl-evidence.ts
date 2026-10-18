@@ -20,6 +20,8 @@ export const EVIDENCE_LEASE_MS = 5 * 60_000;
 export const EVIDENCE_CONCURRENCY = 8;
 /** Per-tick ceiling applied when the national rollout starts (the owner can still change it). */
 export const EVIDENCE_BATCH_NATIONAL = 120;
+/** Safety stop for the claim rounds inside one tick (the tick deadline is the real bound). */
+const MAX_ROUNDS = 60;
 const MIN_CANDIDATE_MS = 3_000;
 /** A never-assessed address whose assessment keeps CRASHING (not a website failure: those produce a documented INSUFFICIENT) is parked after this many attempts so it cannot hold the national pass open forever. */
 export const MAX_FIRST_PASS_ERRORS = 5;
@@ -186,30 +188,37 @@ export async function runEvidenceStage(opts: { deadline: number; limit: number; 
   const t = emptyTally();
   const now = opts.now ?? new Date();
   const deps = opts.deps ?? defaultDeps;
-  const ids = await claimEvidenceWork(Math.max(0, opts.limit), now);
-  t.claimed = ids.length;
-  const domains = new Map((await db.crmDiscoveredContact.findMany({ where: { id: { in: ids } }, select: { id: true, prospect: { select: { websiteDomain: true } } } })).map((r) => [r.id, r.prospect.websiteDomain ?? null]));
-  const queue = [...ids];
-  const inFlight = new Set<string>();
-  const worker = async () => {
-    for (;;) {
-      if (!queue.length) return;
-      // Never start work that cannot finish inside the tick: each candidate gets at most the time that is left (capped by its own budget), so the tick cannot overrun its function limit.
-      const left = opts.deadline - Date.now();
-      if (left < MIN_CANDIDATE_MS) return;
-      // At most one candidate per website domain at a time (politeness toward shared hosts); an address whose domain is busy waits behind the others.
-      const at = queue.findIndex((q) => { const dom = domains.get(q); return !dom || !inFlight.has(dom); });
-      if (at < 0) { await new Promise((r) => setTimeout(r, 150)); continue; }
-      const [id] = queue.splice(at, 1);
-      const dom = domains.get(id) ?? null;
-      if (dom) inFlight.add(dom);
-      try { await assessOne(id, now, deps, t, Math.min(FETCH_LIMITS.wallMs, left)); } catch (e) {
-        t.errors++; console.error("[lead-radar] evidence assessment failed", e instanceof Error ? e.message : "unknown");
-        await db.crmDiscoveredContact.updateMany({ where: { id }, data: { assessLeaseUntil: null, assessAttempts: { increment: 1 } } });
-      } finally { if (dom) inFlight.delete(dom); }
-    }
-  };
-  await Promise.all(Array.from({ length: Math.max(1, Math.min(opts.concurrency ?? EVIDENCE_CONCURRENCY, 8)) }, worker));
-  if (queue.length) await db.crmDiscoveredContact.updateMany({ where: { id: { in: queue } }, data: { assessLeaseUntil: null } }); // unstarted claims go back immediately
+  // Rounds of `limit` claims (a CHUNK size, not a ceiling): measured on production, 25 addresses took 5 s of a 50 s grant and the stage stopped with work left. The stage now keeps claiming rounds
+  // until the time granted by the tick is used or nothing is claimable. Processed rows get a future nextAssessAt, so a later round never re-selects them.
+  for (let round = 0; round < MAX_ROUNDS; round++) {
+    if (opts.deadline - Date.now() < MIN_CANDIDATE_MS) break;
+    const ids = await claimEvidenceWork(Math.max(1, opts.limit), now);
+    if (!ids.length) break;
+    t.claimed += ids.length;
+    const domains = new Map((await db.crmDiscoveredContact.findMany({ where: { id: { in: ids } }, select: { id: true, prospect: { select: { websiteDomain: true } } } })).map((r) => [r.id, r.prospect.websiteDomain ?? null]));
+    const queue = [...ids];
+    const inFlight = new Set<string>();
+    const worker = async () => {
+      for (;;) {
+        if (!queue.length) return;
+        // Never start work that cannot finish inside the tick: each candidate gets at most the time that is left (capped by its own budget), so the tick cannot overrun its function limit.
+        const left = opts.deadline - Date.now();
+        if (left < MIN_CANDIDATE_MS) return;
+        // At most one candidate per website domain at a time (politeness toward shared hosts); an address whose domain is busy waits behind the others.
+        const at = queue.findIndex((q) => { const dom = domains.get(q); return !dom || !inFlight.has(dom); });
+        if (at < 0) { await new Promise((r) => setTimeout(r, 150)); continue; }
+        const [id] = queue.splice(at, 1);
+        const dom = domains.get(id) ?? null;
+        if (dom) inFlight.add(dom);
+        try { await assessOne(id, now, deps, t, Math.min(FETCH_LIMITS.wallMs, left)); } catch (e) {
+          t.errors++; console.error("[lead-radar] evidence assessment failed", e instanceof Error ? e.message : "unknown");
+          await db.crmDiscoveredContact.updateMany({ where: { id }, data: { assessLeaseUntil: null, assessAttempts: { increment: 1 } } });
+        } finally { if (dom) inFlight.delete(dom); }
+      }
+    };
+    await Promise.all(Array.from({ length: Math.max(1, Math.min(opts.concurrency ?? EVIDENCE_CONCURRENCY, 8)) }, worker));
+    if (queue.length) await db.crmDiscoveredContact.updateMany({ where: { id: { in: queue } }, data: { assessLeaseUntil: null } }); // unstarted claims go back immediately
+    if (queue.length || ids.length < Math.max(1, opts.limit)) break; // time ran out, or the claimable work is drained
+  }
   return t;
 }
