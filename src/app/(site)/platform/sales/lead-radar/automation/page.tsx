@@ -116,6 +116,18 @@ export default async function LeadRadarAutomationPage() {
             <Stat label={a.eligibility.notEligible} value={d.eligibility.notEligible} />
             <Stat label={a.eligibility.awaiting} value={d.eligibility.awaitingAssessment} />
           </dl>
+          <h3 className="text-sm font-semibold text-slate-800">{a.readiness.title}</h3>
+          <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <Stat label={a.readiness.READY} value={d.readiness.READY} tone="text-emerald-700" />
+            <Stat label={a.readiness.PENDING_REVIEW} value={d.readiness.PENDING_REVIEW} />
+            <Stat label={a.readiness.PENDING_EVIDENCE} value={d.readiness.PENDING_EVIDENCE} />
+            <Stat label={a.readiness.SUPPRESSED} value={d.readiness.SUPPRESSED} />
+            <Stat label={a.readiness.INELIGIBLE} value={d.readiness.INELIGIBLE} />
+            <Stat label={a.readiness.readyFr} value={d.readiness.readyByLanguage.FR} />
+            <Stat label={a.readiness.readyEn} value={d.readiness.readyByLanguage.EN} />
+            <Stat label={a.readiness.unassessed} value={d.readiness.unassessed} />
+          </dl>
+          <p className="text-xs text-slate-500">{a.readiness.note}</p>
           <Reasons title={a.eligibility.reasons} data={d.eligibility.reasons} labels={a.eligibility.reasonLabels} />
           <p className="text-xs text-slate-500">{a.eligibility.legal}</p>
         </Stage>

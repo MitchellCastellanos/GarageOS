@@ -232,9 +232,9 @@ test("assignment: large-volume plan — 20,000 prospects across three sellers st
 // ── outreach eligibility ────────────────────────────────────────────────────────────────────────────────
 const T0 = new Date("2026-03-01T12:00:00Z");
 const approvedBasis = evaluateSendingBasis([{ kind: "IMPLIED_PUBLISHED_ADDRESS", evidence: "Published on contact page, no do-not-solicit notice", recordedAt: new Date("2026-02-01"), expiresAt: null, revokedAt: null, reviewStatus: "APPROVED" }], T0);
-const contact = (o: Partial<OutreachContactFacts> = {}): OutreachContactFacts => ({ id: "c1", email: "info@garage.ca", doNotContact: false, archived: false, isPrimary: true, language: "FR", basis: approvedBasis, suppression: null, ...o });
+const contact = (o: Partial<OutreachContactFacts> = {}): OutreachContactFacts => ({ id: "c1", email: "info@garage.ca", doNotContact: false, archived: false, isPrimary: true, language: "FR", basis: approvedBasis, suppression: null, duplicateAddress: false, ...o });
 const base = (o: { prospect?: Partial<OutreachFacts["prospect"]>; sender?: OutreachFacts["sender"]; seller?: OutreachFacts["seller"]; contacts?: OutreachContactFacts[] } = {}): OutreachFacts => ({
-  prospect: { archived: false, doNotContact: false, ownerStaffId: "s1", language: "FR", opportunityClosed: false, fieldHeldColdContact: false, ...o.prospect },
+  prospect: { archived: false, doNotContact: false, ownerStaffId: "s1", language: "FR", opportunityClosed: false, fieldHeldColdContact: false, repairFit: "VERIFIED_REPAIR", territory: "NATIONAL", defaultLanguage: "UNKNOWN", ...o.prospect },
   seller: o.seller === undefined ? { staffActive: true, bookingEnabled: true } : o.seller,
   sender: o.sender === undefined ? { active: true, domainApproved: true, replyPathVerified: true } : o.sender,
   contacts: o.contacts ?? [contact()],

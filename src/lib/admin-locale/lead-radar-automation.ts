@@ -49,6 +49,11 @@ export const autoEn = {
     } as Record<string, string>,
     notes: { NO_ELIGIBLE_SELLERS_CONFIGURED: "No seller is named for automatic assignment.", NO_CAPACITY: "Every named seller is at capacity.", NO_ACTIVE_SELLER: "No named seller is active." } as Record<string, string>,
   },
+  readiness: {
+    title: "Contact readiness (independent of seller, sender and capacity)", READY: "Ready for outreach", PENDING_REVIEW: "Pending independent review", PENDING_EVIDENCE: "Pending evidence", SUPPRESSED: "Suppressed", INELIGIBLE: "Ineligible",
+    readyFr: "Ready · French (Québec REMOTE)", readyEn: "Ready · English (rest of Canada)", unassessed: "Not yet assessed",
+    note: "Ready means the recipient could be enrolled today: verified repair shop, REMOTE territory, one deduplicated address, an independently approved CASL basis and no suppression. It does not start any sending.",
+  },
   eligibility: {
     eligible: "Eligible for the pilot", notEligible: "Not eligible for automated outreach", awaiting: "Awaiting assessment", reasons: "Why not eligible",
     legal: "Eligibility is not permission to send. A published email address is not consent: without a reviewed CASL basis a contact stays in the CRM as not eligible. Legal review of the basis rules is still required before any wider use.",
@@ -57,7 +62,7 @@ export const autoEn = {
       CONTACT_DNC: "Contact marked do not contact", ADDRESS_SUPPRESSED: "Address unsubscribed / suppressed", ADDRESS_BOUNCED: "Address bounced or complained", NO_SENDING_BASIS: "No documented CASL basis", BASIS_EXPIRED: "CASL basis expired",
       BASIS_REVOKED: "CASL basis revoked", BASIS_WEAK_EVIDENCE: "CASL evidence too thin", BASIS_PENDING_REVIEW: "CASL evidence awaiting approval", BASIS_REJECTED: "CASL evidence rejected", BASIS_UNREVIEWED: "CASL evidence not reviewed", BASIS_KIND_NOT_ALLOWED: "CASL basis type not allowed for automated email",
       LANGUAGE_UNRESOLVED: "Language not decided (EN/FR)", SENDER_IDENTITY_MISSING: "Seller has no sender identity", SENDER_NOT_ACTIVE: "Sender identity not active", SENDER_DOMAIN_NOT_APPROVED: "Sender domain not approved",
-      SENDER_REPLY_PATH_UNVERIFIED: "Sender reply path not verified", FIELD_TERRITORY_FIRST_CONTACT: "FIELD territory: no automated cold first contact",
+      SENDER_REPLY_PATH_UNVERIFIED: "Sender reply path not verified", NOT_VERIFIED_REPAIR: "Not a verified independent repair shop", TERRITORY_NOT_REMOTE: "Not in the national REMOTE territory (FIELD or unresolved)", DUPLICATE_ADDRESS: "Same address already belongs to another prospect", FIELD_TERRITORY_FIRST_CONTACT: "FIELD territory: no automated cold first contact",
     } as Record<string, string>,
   },
   sending: {
@@ -159,6 +164,11 @@ export const autoFr: AutoCopy = {
     },
     notes: { NO_ELIGIBLE_SELLERS_CONFIGURED: "Aucun vendeur n’est désigné pour l’assignation automatique.", NO_CAPACITY: "Chaque vendeur désigné est à pleine capacité.", NO_ACTIVE_SELLER: "Aucun vendeur désigné n’est actif." },
   },
+  readiness: {
+    title: "État de préparation des contacts (indépendant du vendeur, de l’expéditeur et de la capacité)", READY: "Prêts pour le démarchage", PENDING_REVIEW: "En attente de révision indépendante", PENDING_EVIDENCE: "En attente de preuve", SUPPRESSED: "Supprimés", INELIGIBLE: "Non admissibles",
+    readyFr: "Prêts · français (REMOTE Québec)", readyEn: "Prêts · anglais (reste du Canada)", unassessed: "Pas encore évalués",
+    note: "Prêt signifie que le destinataire pourrait être inscrit aujourd’hui : atelier indépendant vérifié, territoire REMOTE, adresse unique dédupliquée, base LCAP approuvée de façon indépendante et aucune suppression. Cela ne déclenche aucun envoi.",
+  },
   eligibility: {
     eligible: "Admissibles au pilote", notEligible: "Non admissibles au démarchage automatisé", awaiting: "En attente d’évaluation", reasons: "Pourquoi non admissibles",
     legal: "L’admissibilité n’est pas une permission d’envoyer. Une adresse courriel publiée n’est pas un consentement : sans base LCAP révisée, un contact reste au CRM comme non admissible. Une révision juridique des règles de base reste requise avant tout usage élargi.",
@@ -167,7 +177,7 @@ export const autoFr: AutoCopy = {
       CONTACT_DNC: "Contact marqué ne pas contacter", ADDRESS_SUPPRESSED: "Adresse désabonnée / supprimée", ADDRESS_BOUNCED: "Adresse en rebond ou plainte", NO_SENDING_BASIS: "Aucune base LCAP documentée", BASIS_EXPIRED: "Base LCAP expirée",
       BASIS_REVOKED: "Base LCAP révoquée", BASIS_WEAK_EVIDENCE: "Preuve LCAP trop mince", BASIS_PENDING_REVIEW: "Preuve LCAP en attente d’approbation", BASIS_REJECTED: "Preuve LCAP rejetée", BASIS_UNREVIEWED: "Preuve LCAP non révisée", BASIS_KIND_NOT_ALLOWED: "Type de base LCAP non permis pour le courriel automatisé",
       LANGUAGE_UNRESOLVED: "Langue non décidée (EN/FR)", SENDER_IDENTITY_MISSING: "Le vendeur n’a pas d’identité d’expéditeur", SENDER_NOT_ACTIVE: "Identité d’expéditeur inactive", SENDER_DOMAIN_NOT_APPROVED: "Domaine d’expédition non approuvé",
-      SENDER_REPLY_PATH_UNVERIFIED: "Chemin de réponse de l’expéditeur non vérifié", FIELD_TERRITORY_FIRST_CONTACT: "Territoire TERRAIN : pas de premier contact automatisé à froid",
+      SENDER_REPLY_PATH_UNVERIFIED: "Chemin de réponse de l’expéditeur non vérifié", NOT_VERIFIED_REPAIR: "Pas un atelier de réparation indépendant vérifié", TERRITORY_NOT_REMOTE: "Hors du territoire REMOTE national (TERRAIN ou non résolu)", DUPLICATE_ADDRESS: "Cette adresse appartient déjà à un autre prospect", FIELD_TERRITORY_FIRST_CONTACT: "Territoire TERRAIN : pas de premier contact automatisé à froid",
     },
   },
   sending: {

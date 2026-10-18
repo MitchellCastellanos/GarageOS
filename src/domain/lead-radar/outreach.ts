@@ -13,13 +13,14 @@ export type OutreachReason =
   | "NO_OWNER" | "SELLER_INACTIVE" | "SELLER_BOOKING_NOT_ENABLED" | "PROSPECT_ARCHIVED" | "PROSPECT_DNC" | "OPPORTUNITY_CLOSED"
   | "NO_EMAILABLE_CONTACT" | "CONTACT_DNC" | "ADDRESS_SUPPRESSED" | "ADDRESS_BOUNCED"
   | "NO_SENDING_BASIS" | "BASIS_EXPIRED" | "BASIS_REVOKED" | "BASIS_WEAK_EVIDENCE" | "BASIS_PENDING_REVIEW" | "BASIS_REJECTED" | "BASIS_UNREVIEWED" | "BASIS_KIND_NOT_ALLOWED"
-  | "LANGUAGE_UNRESOLVED"
+  | "LANGUAGE_UNRESOLVED" | "NOT_VERIFIED_REPAIR" | "TERRITORY_NOT_REMOTE" | "DUPLICATE_ADDRESS"
   | "SENDER_IDENTITY_MISSING" | "SENDER_NOT_ACTIVE" | "SENDER_DOMAIN_NOT_APPROVED" | "SENDER_REPLY_PATH_UNVERIFIED"
   | "FIELD_TERRITORY_FIRST_CONTACT";
 
 export const OUTREACH_REASONS: readonly OutreachReason[] = [
   "NO_OWNER", "SELLER_INACTIVE", "SELLER_BOOKING_NOT_ENABLED", "PROSPECT_ARCHIVED", "PROSPECT_DNC", "OPPORTUNITY_CLOSED", "NO_EMAILABLE_CONTACT", "CONTACT_DNC", "ADDRESS_SUPPRESSED", "ADDRESS_BOUNCED",
   "NO_SENDING_BASIS", "BASIS_EXPIRED", "BASIS_REVOKED", "BASIS_WEAK_EVIDENCE", "BASIS_PENDING_REVIEW", "BASIS_REJECTED", "BASIS_UNREVIEWED", "BASIS_KIND_NOT_ALLOWED", "LANGUAGE_UNRESOLVED",
+  "NOT_VERIFIED_REPAIR", "TERRITORY_NOT_REMOTE", "DUPLICATE_ADDRESS",
   "SENDER_IDENTITY_MISSING", "SENDER_NOT_ACTIVE", "SENDER_DOMAIN_NOT_APPROVED", "SENDER_REPLY_PATH_UNVERIFIED", "FIELD_TERRITORY_FIRST_CONTACT",
 ];
 
@@ -35,6 +36,8 @@ export interface OutreachContactFacts {
   language: "FR" | "EN" | "UNKNOWN";
   basis: BasisEvaluation;
   suppression: SuppressionKind | null;
+  /** The same normalised address already belongs to another active prospect (the lowest prospect id keeps it). One address is one recipient, never two. */
+  duplicateAddress: boolean;
 }
 
 export interface OutreachFacts {
@@ -44,6 +47,12 @@ export interface OutreachFacts {
     opportunityClosed: boolean;
     /** Territory policy: a FIELD-held prospect is never a cold automated first contact; a qualified visit, a reply or an active opportunity unlocks it. */
     fieldHeldColdContact: boolean;
+    /** Registry/human verdict on "independent automotive repair shop". Only VERIFIED_REPAIR may ever be solicited by the automated campaign. */
+    repairFit: "VERIFIED_REPAIR" | "HUMAN_REVIEW" | "EXCLUDED" | null;
+    /** Explicit territory gate: only a positively NATIONAL (outside every FIELD territory) prospect is a REMOTE recipient. LOCAL and UNRESOLVED (e.g. Québec with no city/postal) never are. */
+    territory: "LOCAL" | "NATIONAL" | "UNRESOLVED" | null;
+    /** Deterministic campaign default (Québec → FR, elsewhere in Canada → EN). A territory default, not language detection; an explicit contact/business language still wins. */
+    defaultLanguage: "FR" | "EN" | "UNKNOWN";
   };
   /** The standard EN/FR sequence templates all carry the seller's booking link: without an enabled booking page the worker would pause every step. */
   seller: null | { staffActive: boolean; bookingEnabled: boolean };
@@ -60,7 +69,7 @@ const BASIS_REASON: Record<string, OutreachReason> = {
 /** Contact preference: one that could be solicited today (valid basis, no suppression) beats a primary contact beats any other with an address. */
 export function pickOutreachContact(contacts: readonly OutreachContactFacts[]): OutreachContactFacts | null {
   const withEmail = contacts.filter((c) => c.email && !c.archived);
-  const score = (c: OutreachContactFacts) => (c.basis.valid ? 8 : 0) + (!c.suppression ? 4 : 0) + (!c.doNotContact ? 2 : 0) + (c.isPrimary ? 1 : 0);
+  const score = (c: OutreachContactFacts) => (c.basis.valid ? 16 : 0) + (!c.duplicateAddress ? 8 : 0) + (!c.suppression ? 4 : 0) + (!c.doNotContact ? 2 : 0) + (c.isPrimary ? 1 : 0);
   return [...withEmail].sort((a, b) => score(b) - score(a) || a.id.localeCompare(b.id))[0] ?? null;
 }
 
@@ -73,6 +82,8 @@ export function evaluateOutreachEligibility(f: OutreachFacts): OutreachDecisionR
   if (p.archived) r.add("PROSPECT_ARCHIVED");
   if (p.doNotContact) r.add("PROSPECT_DNC");
   if (p.opportunityClosed) r.add("OPPORTUNITY_CLOSED");
+  if (p.repairFit !== "VERIFIED_REPAIR") r.add("NOT_VERIFIED_REPAIR");
+  if (p.territory !== "NATIONAL") r.add("TERRITORY_NOT_REMOTE");
   if (!p.ownerStaffId) r.add("NO_OWNER");
   else if (!f.seller || !f.seller.staffActive) r.add("SELLER_INACTIVE");
   else if (!f.seller.bookingEnabled) r.add("SELLER_BOOKING_NOT_ENABLED");
@@ -87,14 +98,42 @@ export function evaluateOutreachEligibility(f: OutreachFacts): OutreachDecisionR
   const c = pickOutreachContact(f.contacts);
   if (!c) r.add("NO_EMAILABLE_CONTACT");
   else {
+    if (c.duplicateAddress) r.add("DUPLICATE_ADDRESS");
     if (c.doNotContact) r.add("CONTACT_DNC");
     if (c.suppression) r.add(c.suppression === "HARD_BOUNCE" || c.suppression === "COMPLAINT" ? "ADDRESS_BOUNCED" : "ADDRESS_SUPPRESSED");
     if (!c.basis.valid) r.add(BASIS_REASON[c.basis.reason] ?? "NO_SENDING_BASIS");
-    // Same precedence as the sender: contact language, then business language; UNKNOWN means a human must decide (never default to French).
-    const lang = c.language !== "UNKNOWN" ? c.language : p.language;
+    // Precedence: contact language, business language, then the territory campaign default (never detected); still UNKNOWN means a human must decide.
+    const lang = c.language !== "UNKNOWN" ? c.language : p.language !== "UNKNOWN" ? p.language : p.defaultLanguage;
     if (lang === "UNKNOWN") r.add("LANGUAGE_UNRESOLVED");
   }
   if (p.fieldHeldColdContact) r.add("FIELD_TERRITORY_FIRST_CONTACT");
   const reasons = OUTREACH_REASONS.filter((x) => r.has(x));
   return { decision: reasons.length ? "NOT_ELIGIBLE" : "ELIGIBLE", reasons, contactId: c?.id ?? null };
+}
+
+// ── Contact-level readiness ────────────────────────────────────────────────────────────────────────────────────────────
+// READY answers "is this recipient fit to be enrolled in the approved campaign?" and nothing else. Who owns the prospect, whether the seller has a booking page,
+// whether the sender is verified and how much capacity is left are OPERATIONAL conditions (they change daily and are fixed in settings, not by research), so they
+// never block READY; `decision` (ELIGIBLE) still requires them, which is what the pilot/release uses.
+export type Readiness = "PENDING_EVIDENCE" | "PENDING_REVIEW" | "READY" | "SUPPRESSED" | "INELIGIBLE";
+export const READINESS_STATES: readonly Readiness[] = ["PENDING_EVIDENCE", "PENDING_REVIEW", "READY", "SUPPRESSED", "INELIGIBLE"];
+
+export const OPERATIONAL_REASONS: readonly OutreachReason[] = ["NO_OWNER", "SELLER_INACTIVE", "SELLER_BOOKING_NOT_ENABLED", "SENDER_IDENTITY_MISSING", "SENDER_NOT_ACTIVE", "SENDER_DOMAIN_NOT_APPROVED", "SENDER_REPLY_PATH_UNVERIFIED"];
+const SUPPRESSED_REASONS: readonly OutreachReason[] = ["PROSPECT_DNC", "CONTACT_DNC", "ADDRESS_SUPPRESSED", "ADDRESS_BOUNCED"];
+const INELIGIBLE_REASONS: readonly OutreachReason[] = ["PROSPECT_ARCHIVED", "OPPORTUNITY_CLOSED", "NOT_VERIFIED_REPAIR", "TERRITORY_NOT_REMOTE", "DUPLICATE_ADDRESS", "NO_EMAILABLE_CONTACT", "BASIS_KIND_NOT_ALLOWED", "BASIS_REJECTED", "BASIS_REVOKED", "LANGUAGE_UNRESOLVED", "FIELD_TERRITORY_FIRST_CONTACT"];
+const REVIEW_REASONS: readonly OutreachReason[] = ["BASIS_PENDING_REVIEW", "BASIS_UNREVIEWED"];
+
+/**
+ * Precedence: a suppression always shows as SUPPRESSED; a structural disqualifier is INELIGIBLE; otherwise evidence that exists but is not yet independently approved is
+ * PENDING_REVIEW, and missing/expired/weak evidence is PENDING_EVIDENCE. A prospect whose only gap is "no contact yet" is PENDING_EVIDENCE when an address is waiting in the
+ * discovery list. Pure; the same reasons always give the same state.
+ */
+export function readinessOf(reasons: readonly OutreachReason[], opts: { pendingDiscovery?: boolean } = {}): Readiness {
+  const has = (list: readonly OutreachReason[]) => reasons.some((x) => list.includes(x));
+  if (has(SUPPRESSED_REASONS)) return "SUPPRESSED";
+  const structural = reasons.filter((x) => INELIGIBLE_REASONS.includes(x) && !(x === "NO_EMAILABLE_CONTACT" && opts.pendingDiscovery));
+  if (structural.length) return "INELIGIBLE";
+  if (has(REVIEW_REASONS)) return "PENDING_REVIEW";
+  if (reasons.some((x) => !OPERATIONAL_REASONS.includes(x))) return "PENDING_EVIDENCE";
+  return "READY";
 }
