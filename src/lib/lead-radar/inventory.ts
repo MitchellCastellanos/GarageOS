@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { CASL_RULE_VERSION } from "@/domain/lead-radar/casl-evidence-engine";
 import { db } from "@/lib/db";
 import { nationalReadiness } from "@/lib/lead-radar/national";
+import { MAX_FIRST_PASS_ERRORS } from "@/lib/lead-radar/casl-evidence";
 import { pendingEvidenceFirstPass, rolloutStatus } from "@/lib/lead-radar/rollout";
 
 // THE campaign-selectable email inventory. One definition, computed from the evidence rows themselves (not from the optional eligibility advice), so it is true whether or not the
@@ -120,16 +121,22 @@ const TRANSIENT_REASONS = ["FETCH_FAILED", "BUDGET_EXHAUSTED", "RESTRICTION_CHEC
  * outcome counts are the CURRENT outcome of each address (an address that changed from SUPPORTED to BLOCKED counts once, as BLOCKED).
  */
 export async function nationalProgramReport() {
-  const [national, runs, outcomes, backlog, ro, firstPass, counts, fieldNoEmail, tp] = await Promise.all([
+  const [national, runs, outcomes, queue, ro, firstPass, counts, fieldNoEmail, tp] = await Promise.all([
     nationalReadiness(),
     db.$queryRaw<{ received: bigint; screened: bigint; rediscovered: bigint }[]>`SELECT COALESCE(sum("receivedRecords"),0)::bigint AS received, COALESCE(sum("screenedRecords"),0)::bigint AS screened, COALESCE(sum("rediscoveredRecords"),0)::bigint AS rediscovered FROM "garageos"."CrmDiscoveryRun" WHERE status = 'COMPLETED'`,
     db.$queryRaw<{ k: string; n: bigint }[]>`SELECT COALESCE(d."assessOutcome",'UNASSESSED') AS k, count(DISTINCT d."emailNormalized")::bigint AS n FROM "garageos"."CrmDiscoveredContact" d WHERE d."syntaxValid" = true GROUP BY 1`,
-    db.$queryRaw<{ n: bigint }[]>(Prisma.sql`
-      SELECT count(*)::bigint AS n FROM "garageos"."CrmDiscoveredContact" d
-      WHERE d."syntaxValid" = true AND d."status" IN ('PENDING','ACCEPTED') AND d."assessLeaseUntil" IS NULL
-        AND (d."assessedAt" IS NULL OR (d."assessOutcome" = 'INSUFFICIENT' AND EXISTS (
+    // Where every discovered address stands, split by what the evidence stage can actually do with it. "Claimable" uses EXACTLY the claim query's prospect predicates, so the numbers cannot disagree with the work the stage selects.
+    db.$queryRaw<{ first_pass: bigint; transient: bigint; parked: bigint; not_claimable: bigint }[]>(Prisma.sql`
+      SELECT
+        count(*) FILTER (WHERE c.ok AND d."assessedAt" IS NULL AND d."assessAttempts" < ${MAX_FIRST_PASS_ERRORS})::bigint AS first_pass,
+        count(*) FILTER (WHERE c.ok AND d."assessedAt" IS NOT NULL AND d."assessOutcome" = 'INSUFFICIENT' AND EXISTS (
           SELECT 1 FROM "garageos"."CrmCaslAssessment" a WHERE a."discoveredContactId" = d."id" AND a."reasons" && ${TRANSIENT_REASONS}::text[]
-            AND a."id" = (SELECT x."id" FROM "garageos"."CrmCaslAssessment" x WHERE x."discoveredContactId" = d."id" ORDER BY x."createdAt" DESC, x."id" DESC LIMIT 1))))`),
+            AND a."id" = (SELECT x."id" FROM "garageos"."CrmCaslAssessment" x WHERE x."discoveredContactId" = d."id" ORDER BY x."createdAt" DESC, x."id" DESC LIMIT 1)))::bigint AS transient,
+        count(*) FILTER (WHERE c.ok AND d."assessedAt" IS NULL AND d."assessAttempts" >= ${MAX_FIRST_PASS_ERRORS})::bigint AS parked,
+        count(*) FILTER (WHERE NOT c.ok AND d."assessedAt" IS NULL)::bigint AS not_claimable
+      FROM "garageos"."CrmDiscoveredContact" d JOIN "garageos"."CrmProspect" p ON p."id" = d."prospectId"
+      CROSS JOIN LATERAL (SELECT (p."status" = 'ACTIVE' AND p."doNotContact" = false AND p."mergedIntoId" IS NULL AND p."repairFit" = 'VERIFIED_REPAIR' AND p."territoryState" = 'NATIONAL') AS ok) c
+      WHERE d."syntaxValid" = true AND d."status" IN ('PENDING','ACCEPTED')`),
     rolloutStatus(),
     pendingEvidenceFirstPass(),
     inventoryCounts(),
@@ -155,7 +162,8 @@ export async function nationalProgramReport() {
     jurisdictionsCompleted: completed, jurisdictionsTotal: national.rows.length,
     sourceRecordsProcessed: Number(runs[0]?.received ?? 0), rejectedByCommercialScreening: Number(runs[0]?.screened ?? 0),
     emailCandidatesEvaluated: evaluated, supported: o.SUPPORTED ?? 0, insufficient: o.INSUFFICIENT ?? 0, blocked: o.BLOCKED ?? 0, unassessed: o.UNASSESSED ?? 0,
-    technicalRetryBacklog: Number(backlog[0]?.n ?? 0), firstPassOutstanding: firstPass,
+    firstPassPending: Number(queue[0]?.first_pass ?? 0), technicalRetryBacklog: Number(queue[0]?.transient ?? 0) + Number(queue[0]?.parked ?? 0), parkedAfterErrors: Number(queue[0]?.parked ?? 0),
+    notYetCaslCandidates: Number(queue[0]?.not_claimable ?? 0), firstPassOutstanding: firstPass,
     selectable: counts.selectable, admitted: counts.admitted, withheld: counts.admitted - counts.selectable, byState: counts.byState,
     fieldProspectsWithoutEmail: Number(fieldNoEmail[0]?.n ?? 0),
     rollout: { state: ro.state, halt: ro.halt, finishedAt: ro.finishedAt },

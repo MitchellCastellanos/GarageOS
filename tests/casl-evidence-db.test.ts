@@ -595,4 +595,46 @@ if (!enabled) {
     assert.equal(maxSameHost, 1, "never two requests to one host at the same time");
     assert.equal(await db.crmDiscoveredContact.count({ where: { prospectId: { in: made }, assessedAt: { not: null } } }), 10, "all ten have a documented outcome");
   });
+
+  test("a rollout SAFETY HALT (master OFF) does not stop the CASL evidence stage; an owner PAUSE, a missing halt or evidence OFF still stop it; nothing else runs", async () => {
+    const autoLib = await import("../src/lib/lead-radar/automation");
+    await autoLib.readAutomation(); // creates the singleton when absent
+    const set = (data: Record<string, unknown>) => db.crmLeadAutomation.update({ where: { id: "default" }, data });
+    const pr = await mkProspect("Garage Halt Auto", { website: null, websiteDomain: null });
+    const d = await mkDiscovered(pr.id, "info@halt-garage.example");
+    await set({ enabled: false, evidenceEnabled: true, rolloutEnabled: true, rolloutPaused: false, rolloutHaltCode: "SETTINGS_UNSAFE", rolloutHaltProvince: "*", leaseUntil: null, leaseOwner: null });
+    const t = await autoLib.runAutomationTick({ trigger: "MANUAL", budgetMs: 30_000 });
+    assert.equal(t.status, "COMPLETED", JSON.stringify(t));
+    const c = t.counters as any;
+    assert.match(String(c.note), /^ROLLOUT_HALTED_EVIDENCE_ONLY:SETTINGS_UNSAFE/);
+    assert.ok(c.evidence.assessed >= 1 && c.timings.evidence.grantedMs > 0, JSON.stringify(c.timings));
+    for (const stageName of ["qualify", "import", "assign", "classify", "rollout", "release", "pilot", "eligibility"]) assert.equal(stageName in c, false, `${stageName} must not run during a halt`);
+    assert.ok((await db.crmDiscoveredContact.findUniqueOrThrow({ where: { id: d.id } })).assessedAt, "the address got its documented outcome while the rollout was halted");
+    // stop conditions
+    await set({ rolloutPaused: true });
+    assert.deepEqual([(await autoLib.runAutomationTick({ trigger: "MANUAL" })).status, "owner pause"], ["SKIPPED", "owner pause"]);
+    await set({ rolloutPaused: false, rolloutHaltCode: null });
+    assert.equal((await autoLib.runAutomationTick({ trigger: "MANUAL" })).status, "SKIPPED", "master OFF without a halt = switched off");
+    await set({ rolloutHaltCode: "SETTINGS_UNSAFE", evidenceEnabled: false });
+    assert.equal((await autoLib.runAutomationTick({ trigger: "MANUAL" })).status, "SKIPPED", "evidence OFF");
+    await set({ enabled: false, evidenceEnabled: true, rolloutEnabled: false, rolloutHaltCode: null, rolloutHaltProvince: null });
+    assert.deepEqual(await counts(), { enrollments: 0, messages: 0 });
+  });
+
+  test("the backlog is split by what the stage can actually do: first-pass pending (claimable), transient retries, parked, and addresses of shops that are not CASL candidates", async () => {
+    const before = await inv.nationalProgramReport();
+    const claimable = await mkProspect("Garage Backlog Claimable", { website: null, websiteDomain: null });
+    const field = await mkProspect("Garage Backlog Field", { website: null, websiteDomain: null, territoryState: "LOCAL" });
+    const review = await mkProspect("Garage Backlog Review", { website: null, websiteDomain: null, repairFit: "HUMAN_REVIEW" });
+    await mkDiscovered(claimable.id, "info@backlog-claimable.example"); await mkDiscovered(field.id, "info@backlog-field.example"); await mkDiscovered(review.id, "info@backlog-review.example");
+    const mid = await inv.nationalProgramReport();
+    assert.equal(mid.firstPassPending - before.firstPassPending, 1, "only the claimable shop counts as pending first-pass work");
+    assert.equal(mid.notYetCaslCandidates - before.notYetCaslCandidates, 2, "FIELD and unverified shops are reported apart, never as a CASL backlog");
+    assert.equal(mid.technicalRetryBacklog, before.technicalRetryBacklog, "first-time work is not a technical retry");
+    const t = await evidenceRun();
+    assert.ok(t.claimed >= 1);
+    const after = await inv.nationalProgramReport();
+    assert.equal(after.firstPassPending, before.firstPassPending, "the claimable one was decided");
+    assert.equal(after.notYetCaslCandidates - before.notYetCaslCandidates, 2, "the others were never selected, as designed");
+  });
 }

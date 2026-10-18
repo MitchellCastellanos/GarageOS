@@ -24,6 +24,7 @@ import { qualifyPending } from "@/lib/lead-radar/qualify";
 import { backfillCandidateFit } from "@/lib/lead-radar/candidate-fit";
 import { isLive, readSettings } from "@/lib/lead-radar/settings";
 import { rolloutStage } from "@/lib/lead-radar/rollout";
+import { stageDeadline, type TickStage } from "@/domain/lead-radar/tick-budget";
 import { ROLLOUT_ASSIGN_PROVINCES } from "@/domain/lead-radar/rollout";
 
 // Lead Radar automation by approved policy. ONE tick = bounded, idempotent, resumable work over durable queues (the tables themselves):
@@ -33,8 +34,8 @@ import { ROLLOUT_ASSIGN_PROVINCES } from "@/domain/lead-radar/rollout";
 const ID = "default";
 export const TICK_BUDGET_MS = 50_000; // function limit is 60 s (maxDuration); the lease adds LEASE_SLACK_MS
 export const LEASE_SLACK_MS = 30_000;
+
 export const MAX_IMPORT_ATTEMPTS = 3;
-const SHARE = { classify: 0.05, rollout: 0.05, qualify: 0.3, import: 0.3, assign: 0.15, release: 0.05, locate: 0.1, screen: 0.05, evidence: 0.9, eligibility: 0.1, pilot: 0.1 } as const;
 
 export async function readAutomation(client: Pick<typeof db, "crmLeadAutomation"> = db) {
   return (await client.crmLeadAutomation.findUnique({ where: { id: ID } })) ?? (await client.crmLeadAutomation.upsert({ where: { id: ID }, create: { id: ID }, update: {} }));
@@ -314,7 +315,10 @@ export async function runAutomationTick(opts: { trigger: "CRON" | "MANUAL"; budg
   const settings = await readSettings();
   if (!isLive(settings)) return { status: "SKIPPED", reason: "LEAD_RADAR_DISABLED" };
   const a = await readAutomation();
-  if (!a.enabled) return { status: "SKIPPED", reason: "AUTOMATION_DISABLED" };
+  // A rollout SAFETY HALT switches the master OFF to stop qualification, import and assignment. The CASL evidence stage is read-only on the shops' own public pages (it creates no contact for
+  // anything but a SUPPORTED address, enrolls and sends nothing), so it keeps working through a halt; an owner PAUSE, a finished rollout that was switched off, or evidence OFF stop it as before.
+  const evidenceOnly = !a.enabled && a.evidenceEnabled && a.rolloutEnabled && !a.rolloutPaused && !!a.rolloutHaltCode;
+  if (!a.enabled && !evidenceOnly) return { status: "SKIPPED", reason: "AUTOMATION_DISABLED" };
 
   // Single-runner lease (compare-and-set): overlapping cron invocations or a manual run during a cron run simply skip.
   const owner = randomUUID();
@@ -327,13 +331,13 @@ export async function runAutomationTick(opts: { trigger: "CRON" | "MANUAL"; budg
   const counters: Record<string, unknown> = {};
   const errors: Record<string, string> = {};
   const timings: Record<string, { atMs: number; grantedMs: number; ranMs: number }> = {};
-  const stage = async <T>(name: keyof typeof SHARE, enabled: boolean, fn: (deadline: number) => Promise<T>) => {
+  const stage = async <T>(name: TickStage, enabled: boolean, fn: (deadline: number) => Promise<T>) => {
     if (!enabled) { counters[name] = { skipped: "STAGE_OFF" }; return; }
-    const deadline = Math.min(started + budget, Date.now() + Math.max(2_000, budget * SHARE[name] * 1.5));
+    const deadline = stageDeadline({ name, started, budget, now: Date.now(), evidenceEnabled: a.evidenceEnabled });
     const t0 = Date.now();
     try {
       // The master switch is re-read between stages: pausing takes effect before the next stage starts.
-      if (!(await readAutomation()).enabled) { counters[name] = { skipped: "PAUSED" }; return; }
+      if (!(await readAutomation()).enabled && !(evidenceOnly && name === "evidence")) { counters[name] = { skipped: "PAUSED" }; return; }
       counters[name] = await fn(deadline);
     } catch (e) {
       errors[name] = e instanceof CrmError ? e.code : "STAGE_FAILED";
@@ -347,7 +351,10 @@ export async function runAutomationTick(opts: { trigger: "CRON" | "MANUAL"; budg
 
   try {
     const admin = await principal(policy?.activatedByUserId ?? a.updatedByUserId);
-    if (!admin) {
+    if (evidenceOnly) {
+      counters.note = `ROLLOUT_HALTED_EVIDENCE_ONLY:${a.rolloutHaltCode}`;
+      await stage("evidence", true, (deadline) => runEvidenceStage({ deadline, limit: a.evidenceBatch }));
+    } else if (!admin) {
       errors.principal = "ACTOR_INVALID";
       counters.note = "AUTOMATION_PRINCIPAL_NOT_SUPER_ADMIN";
     } else {
@@ -379,5 +386,5 @@ export async function runAutomationTick(opts: { trigger: "CRON" | "MANUAL"; budg
     await db.crmLeadAutomation.updateMany({ where: { id: ID, leaseOwner: owner }, data: { leaseOwner: null, leaseUntil: null, lastTickAt: new Date() } });
   }
   const failed = Object.keys(errors).length > 0;
-  return { status: failed ? "FAILED" : "COMPLETED", runId: run.id, counters: { ...counters, timings }, ...(failed ? { reason: Object.values(errors)[0] } : {}) };
+  return { status: failed ? "FAILED" : "COMPLETED", runId: run.id, counters: { ...counters, timings, ms: Date.now() - started }, ...(failed ? { reason: Object.values(errors)[0] } : {}) };
 }
