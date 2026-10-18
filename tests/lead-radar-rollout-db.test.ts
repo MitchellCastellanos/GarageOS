@@ -219,9 +219,19 @@ if (!enabled) {
     s = await state();
     assert.equal((await db.crmProspect.findUniqueOrThrow({ where: { id: qcId } })).assignedStaffId, null, "Québec is never assigned");
     await db.crmProspect.updateMany({ where: { id: abId, assignedStaffId: null }, data: { assignedStaffId: rep } });
+    // The national first CASL evidence pass must be reconciled too: an address of a qualified REMOTE shop with no decision yet keeps the one-time rollout open.
+    const dc = await db.crmDiscoveredContact.create({ data: { prospectId: abId, emailNormalized: `ev-${run}@example.ca`, source: "OVERTURE_PUBLISHED", capturedAt: new Date(), syntaxValid: true, roleBased: false, freeMailbox: false } });
+    const tEv = await roLib.rolloutStage(actor, await state());
+    assert.deepEqual([tEv.finished, tEv.waiting], [undefined, "EVIDENCE"], "an address that never had an evidence decision is not reconciled");
+    assert.equal(await roLib.pendingEvidenceFirstPass(), 1);
+    // A poison address whose assessment keeps crashing is parked after the bounded attempts: it cannot hold the national pass open forever (it stays visible as a technical state).
+    await db.crmDiscoveredContact.update({ where: { id: dc.id }, data: { assessAttempts: 5 } });
+    assert.equal(await roLib.pendingEvidenceFirstPass(), 0);
+    await db.crmDiscoveredContact.update({ where: { id: dc.id }, data: { assessAttempts: 0, assessedAt: new Date(), assessOutcome: "INSUFFICIENT", nextAssessAt: new Date(Date.now() + 7 * 86_400_000) } });
     const t2 = await roLib.rolloutStage(actor, await state());
     s = await state();
-    assert.deepEqual([t2.finished, s.rolloutEnabled, s.enabled, s.pausedReason], [true, false, false, "ROLLOUT_COMPLETE"]);
+    // One-time work stops (qualify / import / assign OFF, rollout finished); the master switch and the evidence stage stay ON so CASL revalidation continues; outreach stays OFF.
+    assert.deepEqual([t2.finished, s.rolloutEnabled, s.enabled, s.pausedReason, s.qualifyEnabled, s.importEnabled, s.assignEnabled, s.evidenceEnabled, s.eligibilityEnabled, s.pilotEnabled], [true, false, true, null, false, false, false, true, false, false]);
     assert.ok(s.rolloutFinishedAt);
   });
 
@@ -360,7 +370,7 @@ if (!enabled) {
     assert.equal(t2.finished, true, "only deferred no-email candidates/prospects remain: the rollout completes instead of stalling");
     assert.ok(await db.crmDiscoveryCandidate.count({ where: { province: "BC", importState: "NOT_IMPORTED", reviewState: "APPROVED" } }) >= 8, "deferred candidates are still there for coverage / future enrichment");
     const s = await state();
-    assert.deepEqual([s.pilotEnabled, s.eligibilityEnabled, s.releaseUnavailable, s.enabled], [false, false, false, false], "outreach/release/pilot stay OFF");
+    assert.deepEqual([s.pilotEnabled, s.eligibilityEnabled, s.releaseUnavailable, s.enabled, s.evidenceEnabled], [false, false, false, true, true], "outreach/release/pilot stay OFF; the master and the evidence stage stay ON for CASL maintenance");
   });
 
   test("eligibility is available DURING the rollout (read-only advice for prospects with an emailable contact) without enabling outreach, release or the pilot", async () => {

@@ -16,17 +16,19 @@ import { writeCrmAudit } from "@/lib/sales-crm/audit";
 export const EVIDENCE_LEASE_MS = 5 * 60_000;
 export const EVIDENCE_CONCURRENCY = 4;
 const MIN_CANDIDATE_MS = 3_000;
+/** A never-assessed address whose assessment keeps CRASHING (not a website failure: those produce a documented INSUFFICIENT) is parked after this many attempts so it cannot hold the national pass open forever. */
+export const MAX_FIRST_PASS_ERRORS = 5;
 // A failure to REACH something (not a finding about its content): an address already SUPPORTED keeps the evidence of its last COMPLETE check until that evidence's own 30-day expiry.
 const TRANSIENT = new Set(["FETCH_FAILED", "BUDGET_EXHAUSTED", "ROBOTS_DISALLOWED", "RESTRICTION_CHECK_INCOMPLETE"]);
 const addDays = (d: Date, n: number) => new Date(d.getTime() + n * 86_400_000);
 
 export interface EvidenceTally {
   claimed: number; assessed: number; supported: number; insufficient: number; blocked: number; unchanged: number; errors: number;
-  contactsCreated: number; basesCreated: number; basesExpired: number; keptExistingApproval: number;
+  contactsCreated: number; duplicateEmail: number; basesCreated: number; basesExpired: number; keptExistingApproval: number;
   noWebsite: number; fetchFailed: number; robotsDisallowed: number; requests: number; bytes: number; fetchMs: number;
   reasons: Record<string, number>;
 }
-const emptyTally = (): EvidenceTally => ({ claimed: 0, assessed: 0, supported: 0, insufficient: 0, blocked: 0, unchanged: 0, errors: 0, contactsCreated: 0, basesCreated: 0, basesExpired: 0, keptExistingApproval: 0, noWebsite: 0, fetchFailed: 0, robotsDisallowed: 0, requests: 0, bytes: 0, fetchMs: 0, reasons: {} });
+const emptyTally = (): EvidenceTally => ({ claimed: 0, assessed: 0, supported: 0, insufficient: 0, blocked: 0, unchanged: 0, errors: 0, contactsCreated: 0, duplicateEmail: 0, basesCreated: 0, basesExpired: 0, keptExistingApproval: 0, noWebsite: 0, fetchFailed: 0, robotsDisallowed: 0, requests: 0, bytes: 0, fetchMs: 0, reasons: {} });
 
 /**
  * Claims work with a lease (FOR UPDATE SKIP LOCKED), so two overlapping runs can never take the same row. Work = a discovered address of an active, commercially verified,
@@ -40,7 +42,8 @@ export async function claimEvidenceWork(limit: number, now: Date): Promise<strin
       WHERE d2."syntaxValid" = true AND d2."status" IN ('PENDING','ACCEPTED')
         AND p."status" = 'ACTIVE' AND p."doNotContact" = false AND p."mergedIntoId" IS NULL AND p."repairFit" = 'VERIFIED_REPAIR' AND p."territoryState" = 'NATIONAL'
         AND (d2."assessLeaseUntil" IS NULL OR d2."assessLeaseUntil" < ${now})
-        AND (d2."assessedAt" IS NULL OR d2."nextAssessAt" <= ${now} OR d2."assessRuleVersion" IS DISTINCT FROM ${CASL_RULE_VERSION} OR d2."assessWebsiteDomain" IS DISTINCT FROM p."websiteDomain")
+        AND ((d2."assessedAt" IS NULL AND d2."assessAttempts" < ${MAX_FIRST_PASS_ERRORS})
+          OR (d2."assessedAt" IS NOT NULL AND (d2."nextAssessAt" <= ${now} OR d2."assessRuleVersion" IS DISTINCT FROM ${CASL_RULE_VERSION} OR d2."assessWebsiteDomain" IS DISTINCT FROM p."websiteDomain")))
       ORDER BY d2."nextAssessAt" ASC NULLS FIRST, d2."id" ASC LIMIT ${limit} FOR UPDATE OF d2 SKIP LOCKED)
     RETURNING d."id"`);
   return rows.map((r) => r.id).sort();
@@ -116,9 +119,18 @@ async function persist(d: NonNullable<Row>, result: AssessResult, acq: Acquisiti
       data: { assessOutcome: result.outcome, assessRuleVersion: CASL_RULE_VERSION, assessAttempts: attempts, assessedAt: now, nextAssessAt: next, assessLeaseUntil: null, assessWebsiteDomain: d.prospect.websiteDomain ?? null },
     });
     if (result.outcome === "SUPPORTED") {
+      // One address is admitted ONCE for the whole country: two Overture records (or two imported prospects) carrying the same mailbox must not create two sales contacts. The lock serialises
+      // concurrent workers admitting the same address; the loser records its (valid) assessment but creates no contact and no basis.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`casl-admit:${email}`}))`;
       let contactId = cur.promotedContactId;
       if (!contactId) {
         const existing = await tx.crmContact.findFirst({ where: { prospectId: d.prospectId, emailNormalized: email, archivedAt: null }, select: { id: true } });
+        const other = existing ? null : await tx.crmContact.findFirst({ where: { emailNormalized: email, archivedAt: null, prospectId: { not: d.prospectId }, prospect: { status: "ACTIVE", mergedIntoId: null } }, select: { prospectId: true } });
+        if (other) {
+          await tx.crmDiscoveredContact.update({ where: { id: d.id }, data: { status: "REJECTED", reviewNote: `DUPLICATE_EMAIL:${other.prospectId}` } });
+          t.duplicateEmail++;
+          return;
+        }
         if (existing) contactId = existing.id;
         else {
           const count = await tx.crmContact.count({ where: { prospectId: d.prospectId, archivedAt: null } });
@@ -180,7 +192,7 @@ export async function runEvidenceStage(opts: { deadline: number; limit: number; 
       if (left < MIN_CANDIDATE_MS) { queue.unshift(id); return; }
       try { await assessOne(id, now, deps, t, Math.min(FETCH_LIMITS.wallMs, left)); } catch (e) {
         t.errors++; console.error("[lead-radar] evidence assessment failed", e instanceof Error ? e.message : "unknown");
-        await db.crmDiscoveredContact.updateMany({ where: { id }, data: { assessLeaseUntil: null } });
+        await db.crmDiscoveredContact.updateMany({ where: { id }, data: { assessLeaseUntil: null, assessAttempts: { increment: 1 } } });
       }
     }
   };

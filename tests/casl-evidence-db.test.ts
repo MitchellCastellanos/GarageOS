@@ -485,4 +485,96 @@ if (!enabled) {
     assert.ok(!a || (!a.pilotEnabled && !a.autoCaslActive));
     assert.deepEqual(await counts(), { enrollments: 0, messages: 0 });
   });
+
+  // ── National program: the single campaign-selectable inventory and one-time admission of an address ─────────────────────────────────────────────
+  const inv = await import("../src/lib/lead-radar/inventory");
+  web["sigma-garage.example"] = { "/robots.txt": { status: 404 }, "/": { body: page("Garage Sigma Auto", "613-555-0177", "K1P 5G3", `<p>Contact us: <a href="mailto:contact@sigma-garage.example">contact@sigma-garage.example</a></p>`) } };
+  const mkProspect = (name: string, extra: Record<string, unknown> = {}) => db.crmProspect.create({ data: {
+    name, nameNormalized: name.toLowerCase(), city: "Ottawa", province: "ON", territoryState: "NATIONAL", territoryKey: "canada", repairFit: "VERIFIED_REPAIR", repairFitSource: "AUTO", website: "https://sigma-garage.example", websiteDomain: "sigma-garage.example",
+    phone: "613-555-0177", phoneDigits: "6135550177", postalKey: "K1P5G3", createdByUserId: users.Root, ...extra } });
+  const mkDiscovered = (prospectId: string, email: string) => db.crmDiscoveredContact.create({ data: { prospectId, emailNormalized: email, source: "OVERTURE_PUBLISHED", capturedAt: new Date(), syntaxValid: true, roleBased: true, freeMailbox: false, provenanceScope: "EMAIL" } });
+  const SIGMA = "contact@sigma-garage.example";
+  const sigma: { prospectId: string; contactId: string } = { prospectId: "", contactId: "" };
+  const stateOf = async (contactId: string) => (await inv.listInventory({ state: "ANY", limit: 500 })).rows.find((r) => r.contactId === contactId)?.state;
+
+  test("inventory: a SUPPORTED, current, unsuppressed address becomes selectable; the number is derived from the evidence rows themselves", async () => {
+    const pr = await mkProspect("Garage Sigma Auto");
+    await mkDiscovered(pr.id, SIGMA);
+    const t = await evidenceRun();
+    assert.ok(t.supported >= 1 && t.errors === 0, JSON.stringify(t));
+    const c = await db.crmContact.findFirstOrThrow({ where: { prospectId: pr.id, emailNormalized: SIGMA } });
+    sigma.prospectId = pr.id; sigma.contactId = c.id;
+    const all = await inv.listInventory({ state: "SELECTABLE", limit: 500 });
+    const row = all.rows.find((r) => r.contactId === c.id)!;
+    assert.ok(row, "admitted address is in the selectable inventory");
+    assert.deepEqual([row.email, row.language, row.province, row.state, row.messagesSent, row.enrollments], [SIGMA, "EN", "ON", "SELECTABLE", 0, 0]);
+    assert.ok(row.assessmentId && row.evidenceUrl === "https://sigma-garage.example/", "linked to its persisted evidence");
+    // nothing that is not SUPPORTED (BLOCKED / INSUFFICIENT / never assessed) can be in the inventory, whatever else exists in the tables
+    const selectableEmails = new Set(all.rows.map((r) => r.email));
+    for (const k of ["gamma", "delta", "epsilon", "omega"]) assert.equal(selectableEmails.has((await discovered(k)).emailNormalized), false, `${k} is not selectable`);
+    const counts_ = await inv.inventoryCounts();
+    assert.equal(counts_.selectable, all.total);
+    const rep = await inv.nationalProgramReport();
+    assert.equal(rep.selectable, all.total);
+    assert.ok(rep.supported >= 1 && rep.emailCandidatesEvaluated >= rep.supported + rep.insufficient + rep.blocked - 0 && rep.jurisdictionsTotal === 13);
+    assert.equal(JSON.stringify(rep).includes("@"), false, "the report carries counts only");
+  });
+
+  test("inventory: expiry, revocation, suppression, a newer rule version and a tampered address each remove the contact automatically; the CRM record and evidence trail stay; restoring brings it back", async () => {
+    const basis = await db.crmSendingBasis.findFirstOrThrow({ where: { contactId: sigma.contactId, reviewStatus: "AUTO_SUPPORTED" }, orderBy: { recordedAt: "desc" } });
+    const reset = () => db.crmSendingBasis.update({ where: { id: basis.id }, data: { expiresAt: basis.expiresAt, revokedAt: null, ruleVersion: basis.ruleVersion, assessedEmail: basis.assessedEmail } });
+    assert.equal(await stateOf(sigma.contactId), "SELECTABLE");
+    await db.crmSendingBasis.update({ where: { id: basis.id }, data: { expiresAt: new Date(Date.now() - 1000) } });
+    assert.equal(await stateOf(sigma.contactId), "EXPIRED"); await reset();
+    await db.crmSendingBasis.update({ where: { id: basis.id }, data: { revokedAt: new Date() } });
+    assert.equal(await stateOf(sigma.contactId), "REVOKED"); await reset();
+    await db.crmSendingBasis.update({ where: { id: basis.id }, data: { ruleVersion: "casl-auto-v2" } });
+    assert.equal(await stateOf(sigma.contactId), "STALE_RULE"); await reset();
+    await db.crmSendingBasis.update({ where: { id: basis.id }, data: { assessedEmail: "someone-else@sigma-garage.example" } });
+    assert.equal(await stateOf(sigma.contactId), "NOT_SUPPORTED", "evidence for a different address never covers this one"); await reset();
+    await suppressEmail({ email: SIGMA, reason: "UNSUBSCRIBE", source: "test" });
+    assert.equal(await stateOf(sigma.contactId), "SUPPRESSED");
+    assert.equal((await inv.listInventory({ state: "SELECTABLE", limit: 500 })).rows.some((r) => r.contactId === sigma.contactId), false, "withdrawn from the selectable view immediately");
+    assert.equal((await inv.listInventory({ state: "SUPPRESSED", limit: 500 })).rows.some((r) => r.contactId === sigma.contactId), true, "still visible under its status");
+    await db.crmEmailSuppression.updateMany({ where: { emailNormalized: SIGMA }, data: { liftedAt: new Date() } });
+    await db.crmContact.updateMany({ where: { emailNormalized: SIGMA }, data: { doNotContact: false } }); // an unsubscribe also flags the contact; the test undoes both to prove restoration
+    await db.crmProspect.update({ where: { id: sigma.prospectId }, data: { doNotContact: false } });
+    await db.crmProspect.update({ where: { id: sigma.prospectId }, data: { territoryState: "LOCAL" } });
+    assert.equal(await stateOf(sigma.contactId), "OUT_OF_SCOPE", "a FIELD (LOCAL) business is never in the email inventory");
+    await db.crmProspect.update({ where: { id: sigma.prospectId }, data: { territoryState: "NATIONAL" } });
+    assert.equal(await stateOf(sigma.contactId), "SELECTABLE", "restored by the same evidence once the cause is gone");
+    assert.ok(await db.crmContact.findUnique({ where: { id: sigma.contactId } }) && await db.crmSendingBasis.findUnique({ where: { id: basis.id } }) && await db.crmCaslAssessment.count({ where: { prospectId: sigma.prospectId } }) >= 1, "nothing was deleted");
+  });
+
+  test("inventory filters: province, language, business, outreach and campaign history", async () => {
+    const f = async (x: Parameters<typeof inv.listInventory>[0]) => (await inv.listInventory({ ...x, limit: 500 })).rows.some((r) => r.contactId === sigma.contactId);
+    assert.deepEqual([await f({ province: "ON" }), await f({ province: "AB" }), await f({ language: "EN" }), await f({ language: "FR" }), await f({ business: "sigma" }), await f({ business: "zzz" }), await f({ business: "%" })], [true, false, true, false, true, false, false]);
+    assert.deepEqual([await f({ outreach: "NONE" }), await f({ outreach: "PREVIOUS" }), await f({ campaign: "NONE" }), await f({ campaign: "ENROLLED" }), await f({ expiresWithinDays: 1 }), await f({ expiresWithinDays: 30 })], [true, false, true, false, false, true]);
+  });
+
+  test("admission is once per address for the whole country: a second business with the same mailbox is not admitted again, even with two workers racing", async () => {
+    const before = await db.crmContact.count({ where: { emailNormalized: SIGMA, archivedAt: null } });
+    const twinA = await mkProspect("Garage Sigma Auto Twin A"), twinB = await mkProspect("Garage Sigma Auto Twin B");
+    await mkDiscovered(twinA.id, SIGMA); await mkDiscovered(twinB.id, SIGMA);
+    const [r1, r2] = await Promise.all([evidenceRun(), evidenceRun()]);
+    assert.equal(r1.claimed + r2.claimed, 2, "each row is claimed by exactly one worker");
+    assert.equal(r1.errors + r2.errors, 0);
+    assert.equal(await db.crmContact.count({ where: { emailNormalized: SIGMA, archivedAt: null } }), before, "no second sales contact");
+    assert.equal(r1.duplicateEmail + r2.duplicateEmail, 2);
+    const rows = await db.crmDiscoveredContact.findMany({ where: { prospectId: { in: [twinA.id, twinB.id] } } });
+    assert.ok(rows.every((d) => d.status === "REJECTED" && d.reviewNote?.startsWith("DUPLICATE_EMAIL:") && d.assessedAt), "documented terminal state; their (valid) assessments are kept");
+    assert.equal(await db.crmSendingBasis.count({ where: { contact: { prospectId: { in: [twinA.id, twinB.id] } } } }), 0);
+    assert.equal(await stateOf(sigma.contactId), "SELECTABLE", "the original admission is untouched");
+  });
+
+  test("a never-assessed address whose assessment keeps crashing is parked after bounded attempts (it is not retried forever)", async () => {
+    const pr = await mkProspect("Garage Poison Auto", { website: "https://poison.example", websiteDomain: "poison.example" });
+    const d = await mkDiscovered(pr.id, "info@poison.example");
+    const failing: Deps = { ...deps, fetch: async () => { throw new Error("boom"); } };
+    for (let i = 0; i < 6; i++) await stage.runEvidenceStage({ deadline: Date.now() + 60_000, limit: 25, deps: failing });
+    const row = await db.crmDiscoveredContact.findUniqueOrThrow({ where: { id: d.id } });
+    assert.ok(row.assessedAt !== null || row.assessAttempts >= 5, "a fetch exception becomes a documented outcome or is parked after 5 attempts");
+    assert.equal((await stage.runEvidenceStage({ deadline: Date.now() + 60_000, limit: 25, deps })).claimed >= 0, true);
+    assert.deepEqual(await counts(), { enrollments: 0, messages: 0 }, "nothing is enrolled or sent by any of this");
+  });
 }

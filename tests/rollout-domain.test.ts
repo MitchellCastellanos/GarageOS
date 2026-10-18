@@ -97,6 +97,9 @@ test("existing provinces (ON, AB): never queued or gated again, but they must fi
 test("completion: finishing every extraction does NOT complete the rollout; qualification, import and assignment of ON, AB and the new provinces must all finish", () => {
   const allDone = [existing("ON"), existing("AB"), ...ROLLOUT_PROVINCES.map((p) => f({ province: p }))];
   assert.equal(planRollout(allDone, 0).finished, true);
+  const waitEv = planRollout(allDone, 0, 3);
+  assert.deepEqual([waitEv.finished, waitEv.waitingForEvidence, waitEv.waitingForAssignment], [false, true, false], "every province done but the first CASL evidence pass is not reconciled: not complete");
+  assert.deepEqual([planRollout(allDone, 2, 3).waitingForEvidence, planRollout(allDone, 0, 0).waitingForEvidence], [true, false]);
   const noAssign = planRollout(allDone, 1);
   assert.deepEqual([noAssign.finished, noAssign.waitingForAssignment], [false, true], "assignable REMOTE prospects still unassigned: not complete");
   assert.equal(planRollout([existing("ON"), existing("AB", { approvedNotImported: 1 }), ...ROLLOUT_PROVINCES.map((p) => f({ province: p }))], 0).finished, false, "AB still importing");

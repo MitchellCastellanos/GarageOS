@@ -78,15 +78,17 @@ export interface RolloutPlan {
   /** Provinces to add to the automatic-import scope now (their extraction passed every gate). */
   openImport: string[];
   halt: { province: string; code: HaltCode; detail?: string } | null;
-  /** True only when every province is DONE (qualified and imported) AND no assignable REMOTE prospect is left unassigned. Finishing extractions never completes the rollout. */
+  /** True only when every province is DONE (qualified and imported) AND no assignable REMOTE prospect is left unassigned AND every discoverable address of a qualified REMOTE shop has a first CASL evidence decision. Finishing extractions never completes the rollout. */
   finished: boolean;
   waitingForAssignment: boolean;
+  /** Every province is done but an emailable address of a qualified REMOTE shop has never had its first CASL evidence decision: the national pass is not reconciled yet. */
+  waitingForEvidence: boolean;
   steps: { province: string; step: RolloutStep }[];
 }
 
 /** Walks the provinces in order. Extraction is sequential (nothing is queued while a rollout province is extracting); import/qualification of finished provinces proceeds in parallel. */
-export function planRollout(facts: readonly ProvinceFacts[], pendingAssignment = 0): RolloutPlan {
-  const plan: RolloutPlan = { queue: null, openImport: [], halt: null, finished: false, waitingForAssignment: false, steps: [] };
+export function planRollout(facts: readonly ProvinceFacts[], pendingAssignment = 0, pendingEvidence = 0): RolloutPlan {
+  const plan: RolloutPlan = { queue: null, openImport: [], halt: null, finished: false, waitingForAssignment: false, waitingForEvidence: false, steps: [] };
   let extractionBusy = facts.some((f) => f.activeRun);
   for (const f of facts) {
     const step = provinceStep(f);
@@ -97,7 +99,8 @@ export function planRollout(facts: readonly ProvinceFacts[], pendingAssignment =
   }
   const allDone = plan.steps.every((s) => s.step.kind === "DONE");
   plan.waitingForAssignment = allDone && pendingAssignment > 0;
-  plan.finished = allDone && pendingAssignment === 0;
+  plan.waitingForEvidence = allDone && pendingEvidence > 0;
+  plan.finished = allDone && pendingAssignment === 0 && pendingEvidence === 0;
   return plan;
 }
 
