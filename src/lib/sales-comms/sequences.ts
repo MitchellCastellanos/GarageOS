@@ -135,6 +135,13 @@ async function enrollCore(by: { userId: string }, prospect: Awaited<ReturnType<t
   const nextRunAt = scheduleStep({ enrolledAt: now, dayOffset: first.dayOffset, tz: staff.timezone, window: { startHour: settings.sendWindowStartHour, endHour: settings.sendWindowEndHour, businessDaysOnly: seq.businessDaysOnly }, now });
   try {
     const e = await db.$transaction(async (tx) => {
+      // One ADDRESS is enrolled once, whatever contact or business it hangs on: shared mailboxes (two shops publishing the same info@) stay two businesses with their own history, but the
+      // mailbox itself is never in two live sequences and never starts a sequence it already finished. The advisory lock makes two concurrent enrollments of the same address serialise.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`enroll-address:${contact.emailNormalized}`}))`;
+      const clash = await tx.crmSequenceEnrollment.findFirst({
+        where: { contact: { emailNormalized: contact.emailNormalized }, OR: [{ status: { in: [...LIVE] } }, { sequenceId: seq.id, status: "COMPLETED" }] }, select: { id: true, contactId: true },
+      });
+      if (clash) throw new CrmError(clash.contactId === contact.id ? "ALREADY_ENROLLED" : "EMAIL_ALREADY_ENROLLED");
       const row = await tx.crmSequenceEnrollment.create({
         data: { sequenceId: seq.id, prospectId: prospect.id, contactId: contact.id, opportunityId: opp?.id ?? null, staffId: prospect.assignedStaffId!, languageOverride: args.languageOverride ?? null, nextStepIndex: 0, nextRunAt, startedAt: now, enrolledByUserId: by.userId, ...(opts.automated ? { autoEnrolledAt: now } : {}) },
       });
@@ -235,6 +242,10 @@ export async function processDueEnrollments(opts: { now?: Date; limit?: number }
       basisValid: evaluateAutomationBasis(bases, now, autoPolicy, { topic: CAMPAIGN_TOPIC, recipientEmail: email }).valid, sequenceArchived: e.sequence.status === "ARCHIVED",
     });
     if (stop) { await stopEnrollments({ enrollmentIds: [e.id], reason: stop }); out.stopped++; continue; }
+    // Same address already in an EARLIER live enrollment (legacy data, or two contacts that came to share an address): only the first one sends; this one stops before any message exists.
+    if (email && await db.crmSequenceEnrollment.findFirst({ where: { id: { not: e.id }, status: { in: [...LIVE] }, contact: { emailNormalized: email }, OR: [{ startedAt: { lt: e.startedAt } }, { startedAt: e.startedAt, id: { lt: e.id } }] }, select: { id: true } })) {
+      await stopEnrollments({ enrollmentIds: [e.id], reason: "DUPLICATE_ADDRESS" }); out.stopped++; continue;
+    }
     if (e.sequence.status === "PAUSED") { out.skipped++; continue; } // sequence-level pause: leave enrollments untouched
     if (!identity) { out.skipped++; continue; }
     // Lead Radar pilot enrollments only ever send from a mailbox whose reply path was proven by a real round trip.

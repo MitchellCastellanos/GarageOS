@@ -13,7 +13,8 @@ const COPY = {
     title: "Qualified email contacts", subtitle: "The one campaign-selectable inventory. A contact is listed as available only while its CASL v3 evidence is current and it is not suppressed. This page sends nothing and enrolls no one.",
     back: "Lead Radar", headline: "Verified, currently eligible, campaign-selectable email contacts", report: "National program",
     r: ["Jurisdictions completed", "Source records processed", "Rejected by commercial screening", "Email candidates evaluated", "CASL SUPPORTED", "CASL INSUFFICIENT", "CASL BLOCKED", "Technical retry backlog", "Admitted and selectable", "National workload"],
-    status: { RUNNING: "Still running", COMPLETED: "Fully completed", NOT_RUNNING: "Not running" }, field: "FIELD prospects without email (separate field-sales view, never counted as email-ready)",
+    status: { RUNNING: "Still running", COMPLETED: "Fully completed", NOT_RUNNING: "Not running" }, juris: "Jurisdictions (candidates staged · prospects)", throughput: "CASL checks completed in the last 24 h · avg seconds per address",
+    jState: { COMPLETED: "Completed", COMPLETED_NO_CANDIDATES: "Completed, no candidates", HALTED: "Halted", IN_PROGRESS: "In progress", NOT_STARTED: "Not started" } as Record<string, string>, field: "FIELD prospects without email (separate field-sales view, never counted as email-ready)",
     f: { state: "Status", province: "Province", language: "Language", business: "Business", outreach: "Previous outreach", campaign: "Campaign history", any: "Any", apply: "Filter", reset: "Reset", expiring: "Evidence expires within (days)" },
     outreach: { NONE: "Never emailed", PREVIOUS: "Emailed before" }, campaign: { NONE: "Never enrolled", ENROLLED: "Enrolled before", ACTIVE: "In an active sequence" },
     th: ["Business", "Email", "Province", "Language", "Status", "Evidence expires", "Emails sent", "Enrollments"], none: "No contacts match.", total: "matching", prev: "Previous", next: "Next",
@@ -23,7 +24,8 @@ const COPY = {
     title: "Contacts courriel qualifiés", subtitle: "L'unique inventaire sélectionnable pour les campagnes. Un contact n'est disponible que tant que sa preuve LCAP v3 est valide et qu'il n'est pas supprimé. Cette page n'envoie rien et n'inscrit personne.",
     back: "Radar de prospects", headline: "Contacts courriel vérifiés, actuellement admissibles et sélectionnables", report: "Programme national",
     r: ["Juridictions terminées", "Enregistrements source traités", "Rejetés par le tri commercial", "Courriels candidats évalués", "LCAP SUPPORTED", "LCAP INSUFFICIENT", "LCAP BLOCKED", "Reprises techniques en attente", "Admis et sélectionnables", "Traitement national"],
-    status: { RUNNING: "En cours", COMPLETED: "Entièrement terminé", NOT_RUNNING: "Non démarré" }, field: "Prospects TERRAIN sans courriel (vue de vente terrain séparée, jamais comptés comme prêts par courriel)",
+    status: { RUNNING: "En cours", COMPLETED: "Entièrement terminé", NOT_RUNNING: "Non démarré" }, juris: "Juridictions (candidats en zone d'attente · prospects)", throughput: "Vérifications LCAP terminées en 24 h · secondes moyennes par adresse",
+    jState: { COMPLETED: "Terminé", COMPLETED_NO_CANDIDATES: "Terminé, aucun candidat", HALTED: "Arrêté", IN_PROGRESS: "En cours", NOT_STARTED: "Non démarré" } as Record<string, string>, field: "Prospects TERRAIN sans courriel (vue de vente terrain séparée, jamais comptés comme prêts par courriel)",
     f: { state: "Statut", province: "Province", language: "Langue", business: "Entreprise", outreach: "Envois antérieurs", campaign: "Historique de campagne", any: "Tous", apply: "Filtrer", reset: "Réinitialiser", expiring: "Preuve expire dans (jours)" },
     outreach: { NONE: "Jamais contacté", PREVIOUS: "Déjà contacté" }, campaign: { NONE: "Jamais inscrit", ENROLLED: "Déjà inscrit", ACTIVE: "Dans une séquence active" },
     th: ["Entreprise", "Courriel", "Province", "Langue", "Statut", "Preuve expire", "Courriels envoyés", "Inscriptions"], none: "Aucun contact ne correspond.", total: "correspondants", prev: "Précédent", next: "Suivant",
@@ -68,6 +70,19 @@ export default async function InventoryPage({ searchParams }: { searchParams: Pr
       <dl className="grid grid-cols-2 gap-3 sm:grid-cols-5" aria-label={k.report}>
         {k.r.map((label, i) => <div key={label} className="min-w-0 rounded-xl border border-slate-200 bg-white p-3"><dt className="text-xs text-slate-500">{label}</dt><dd className="text-lg font-semibold text-slate-900">{nums[i]}</dd></div>)}
       </dl>
+      <section className={`${cardCls} text-sm`} aria-label={k.juris}>
+        <h2 className="font-semibold text-slate-900">{k.juris}</h2>
+        <ul className="mt-2 grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
+          {report.jurisdictions.map((j) => (
+            <li key={j.province} className="flex items-center justify-between gap-2 rounded-lg border border-slate-100 px-2 py-1">
+              <span className="font-medium">{j.province}</span>
+              <span className="text-xs text-slate-500">{num(j.staged)} · {num(j.prospects)}</span>
+              <Badge tone={j.state.startsWith("COMPLETED") ? "bg-emerald-100 text-emerald-800" : j.state === "HALTED" ? "bg-red-100 text-red-800" : "bg-blue-100 text-blue-800"}>{k.jState[j.state]}{j.haltCode ? ` · ${j.haltCode}` : ""}</Badge>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-2 text-xs text-slate-500">{k.throughput}: {num(report.evidenceLast24h.assessed)} / 24 h{report.evidenceLast24h.avgSecondsPerAddress !== null ? ` · ${report.evidenceLast24h.avgSecondsPerAddress} s` : ""}</p>
+      </section>
       <p className="text-xs text-slate-500">{k.field}: {num(report.fieldProspectsWithoutEmail)}</p>
       <form method="get" className={`${cardCls} grid gap-3 sm:grid-cols-3 lg:grid-cols-4`}>
         <label className={labelCls}>{k.f.state}<select name="state" defaultValue={filter.state} className={inputCls}>{INVENTORY_STATES.map((s) => <option key={s} value={s}>{k.state[s]}</option>)}<option value="ANY">{k.f.any}</option></select></label>

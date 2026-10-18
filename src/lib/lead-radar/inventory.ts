@@ -120,7 +120,7 @@ const TRANSIENT_REASONS = ["FETCH_FAILED", "BUDGET_EXHAUSTED", "RESTRICTION_CHEC
  * outcome counts are the CURRENT outcome of each address (an address that changed from SUPPORTED to BLOCKED counts once, as BLOCKED).
  */
 export async function nationalProgramReport() {
-  const [national, runs, outcomes, backlog, ro, firstPass, counts, fieldNoEmail] = await Promise.all([
+  const [national, runs, outcomes, backlog, ro, firstPass, counts, fieldNoEmail, tp] = await Promise.all([
     nationalReadiness(),
     db.$queryRaw<{ received: bigint; screened: bigint; rediscovered: bigint }[]>`SELECT COALESCE(sum("receivedRecords"),0)::bigint AS received, COALESCE(sum("screenedRecords"),0)::bigint AS screened, COALESCE(sum("rediscoveredRecords"),0)::bigint AS rediscovered FROM "garageos"."CrmDiscoveryRun" WHERE status = 'COMPLETED'`,
     db.$queryRaw<{ k: string; n: bigint }[]>`SELECT COALESCE(d."assessOutcome",'UNASSESSED') AS k, count(DISTINCT d."emailNormalized")::bigint AS n FROM "garageos"."CrmDiscoveredContact" d WHERE d."syntaxValid" = true GROUP BY 1`,
@@ -134,12 +134,24 @@ export async function nationalProgramReport() {
     pendingEvidenceFirstPass(),
     inventoryCounts(),
     db.$queryRaw<{ n: bigint }[]>`SELECT count(*)::bigint AS n FROM "garageos"."CrmProspect" p WHERE p."status" = 'ACTIVE' AND p."territoryState" = 'LOCAL' AND p."repairFit" = 'VERIFIED_REPAIR' AND p."mergedIntoId" IS NULL`,
+    db.$queryRaw<{ ticks: bigint; assessed: bigint; fetch_ms: bigint }[]>`SELECT count(*)::bigint AS ticks, COALESCE(sum((counters->'evidence'->>'assessed')::bigint),0)::bigint AS assessed, COALESCE(sum((counters->'evidence'->>'fetchMs')::bigint),0)::bigint AS fetch_ms
+      FROM "garageos"."CrmLeadAutomationRun" WHERE "startedAt" > now() - interval '24 hours' AND jsonb_typeof(counters->'evidence') = 'object'`,
   ]);
   const o = Object.fromEntries(outcomes.map((r) => [r.k, Number(r.n)])) as Record<string, number>;
   const completed = national.rows.filter((r) => r.stage === "READY").length;
   const evaluated = (o.SUPPORTED ?? 0) + (o.INSUFFICIENT ?? 0) + (o.BLOCKED ?? 0);
   const running = ro.state === "RUNNING" || ro.state === "PAUSED" || ro.state === "HALTED" || firstPass > 0;
+  // Every jurisdiction must reach a DOCUMENTED terminal state: COMPLETED (nothing downstream unfinished), COMPLETED_NO_CANDIDATES (examined, nothing usable), HALTED (a safety/quality gate stopped it, with its code)
+  // or an explicit in-progress stage. Nothing is silently skipped.
+  const haltedAt = ro.halt?.province ?? null;
+  const jurisdictions = national.rows.map((r) => {
+    const halted = haltedAt === r.province || (haltedAt === "*" && r.stage !== "READY");
+    const state = halted ? ("HALTED" as const) : r.stage === "READY" ? (r.candidates.staged === 0 ? ("COMPLETED_NO_CANDIDATES" as const) : ("COMPLETED" as const)) : r.stage === "NOT_STARTED" ? ("NOT_STARTED" as const) : ("IN_PROGRESS" as const);
+    return { province: r.province, state, stage: r.stage, staged: r.candidates.staged, verified: r.candidates.verified, prospects: r.crm.prospects, haltCode: halted ? ro.halt?.code ?? null : null };
+  });
   return {
+    jurisdictions,
+    evidenceLast24h: { ticks: Number(tp[0]?.ticks ?? 0), assessed: Number(tp[0]?.assessed ?? 0), avgSecondsPerAddress: Number(tp[0]?.assessed ?? 0) > 0 ? Math.round((Number(tp[0]?.fetch_ms ?? 0) / Number(tp[0]?.assessed ?? 1)) / 100) / 10 : null },
     jurisdictionsCompleted: completed, jurisdictionsTotal: national.rows.length,
     sourceRecordsProcessed: Number(runs[0]?.received ?? 0), rejectedByCommercialScreening: Number(runs[0]?.screened ?? 0),
     emailCandidatesEvaluated: evaluated, supported: o.SUPPORTED ?? 0, insufficient: o.INSUFFICIENT ?? 0, blocked: o.BLOCKED ?? 0, unassessed: o.UNASSESSED ?? 0,

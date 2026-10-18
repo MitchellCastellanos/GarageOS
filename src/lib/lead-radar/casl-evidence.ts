@@ -14,7 +14,12 @@ import { writeCrmAudit } from "@/lib/sales-crm/audit";
 // AUTO_SUPPORTED basis authorises nothing until the owner activates the automated policy (loadAutoCaslPolicy), and every send switch is separate.
 
 export const EVIDENCE_LEASE_MS = 5 * 60_000;
-export const EVIDENCE_CONCURRENCY = 4;
+// Throughput (cost-bounded by construction): every candidate is capped at 9 requests / 400 KB / 15 s (evidence-fetch FETCH_LIMITS), distinct shops are distinct hosts, and at most ONE candidate per
+// website domain is in flight (shared/chain domains are never hit in parallel). The tick deadline — not the batch size — is the real ceiling, so a larger batch costs nothing extra: it only lets a
+// tick keep working until its time share ends. 8 workers (the hard cap below) over the ~35 s a tick leaves the evidence stage, at 2–6 s per typical shop, is about 50–140 addresses per tick.
+export const EVIDENCE_CONCURRENCY = 8;
+/** Per-tick ceiling applied when the national rollout starts (the owner can still change it). */
+export const EVIDENCE_BATCH_NATIONAL = 120;
 const MIN_CANDIDATE_MS = 3_000;
 /** A never-assessed address whose assessment keeps CRASHING (not a website failure: those produce a documented INSUFFICIENT) is parked after this many attempts so it cannot hold the national pass open forever. */
 export const MAX_FIRST_PASS_ERRORS = 5;
@@ -125,9 +130,10 @@ async function persist(d: NonNullable<Row>, result: AssessResult, acq: Acquisiti
       let contactId = cur.promotedContactId;
       if (!contactId) {
         const existing = await tx.crmContact.findFirst({ where: { prospectId: d.prospectId, emailNormalized: email, archivedAt: null }, select: { id: true } });
-        const other = existing ? null : await tx.crmContact.findFirst({ where: { emailNormalized: email, archivedAt: null, prospectId: { not: d.prospectId }, prospect: { status: "ACTIVE", mergedIntoId: null } }, select: { prospectId: true } });
+        const other = existing ? null : await tx.crmContact.findFirst({ where: { emailNormalized: email, archivedAt: null, prospectId: { not: d.prospectId }, prospect: { status: "ACTIVE", mergedIntoId: null } }, select: { id: true, prospectId: true } });
         if (other) {
-          await tx.crmDiscoveredContact.update({ where: { id: d.id }, data: { status: "REJECTED", reviewNote: `DUPLICATE_EMAIL:${other.prospectId}` } });
+          // The two businesses stay two businesses (nothing is merged); this one records which admitted contact carries its published address and is never claimed again.
+          await tx.crmDiscoveredContact.update({ where: { id: d.id }, data: { status: "REJECTED", reviewNote: `DUPLICATE_EMAIL:${other.prospectId}:${other.id}` } });
           t.duplicateEmail++;
           return;
         }
@@ -182,18 +188,25 @@ export async function runEvidenceStage(opts: { deadline: number; limit: number; 
   const deps = opts.deps ?? defaultDeps;
   const ids = await claimEvidenceWork(Math.max(0, opts.limit), now);
   t.claimed = ids.length;
+  const domains = new Map((await db.crmDiscoveredContact.findMany({ where: { id: { in: ids } }, select: { id: true, prospect: { select: { websiteDomain: true } } } })).map((r) => [r.id, r.prospect.websiteDomain ?? null]));
   const queue = [...ids];
+  const inFlight = new Set<string>();
   const worker = async () => {
     for (;;) {
-      const id = queue.shift();
-      if (!id) return;
+      if (!queue.length) return;
       // Never start work that cannot finish inside the tick: each candidate gets at most the time that is left (capped by its own budget), so the tick cannot overrun its function limit.
       const left = opts.deadline - Date.now();
-      if (left < MIN_CANDIDATE_MS) { queue.unshift(id); return; }
+      if (left < MIN_CANDIDATE_MS) return;
+      // At most one candidate per website domain at a time (politeness toward shared hosts); an address whose domain is busy waits behind the others.
+      const at = queue.findIndex((q) => { const dom = domains.get(q); return !dom || !inFlight.has(dom); });
+      if (at < 0) { await new Promise((r) => setTimeout(r, 150)); continue; }
+      const [id] = queue.splice(at, 1);
+      const dom = domains.get(id) ?? null;
+      if (dom) inFlight.add(dom);
       try { await assessOne(id, now, deps, t, Math.min(FETCH_LIMITS.wallMs, left)); } catch (e) {
         t.errors++; console.error("[lead-radar] evidence assessment failed", e instanceof Error ? e.message : "unknown");
         await db.crmDiscoveredContact.updateMany({ where: { id }, data: { assessLeaseUntil: null, assessAttempts: { increment: 1 } } });
-      }
+      } finally { if (dom) inFlight.delete(dom); }
     }
   };
   await Promise.all(Array.from({ length: Math.max(1, Math.min(opts.concurrency ?? EVIDENCE_CONCURRENCY, 8)) }, worker));

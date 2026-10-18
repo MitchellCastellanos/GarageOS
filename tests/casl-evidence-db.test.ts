@@ -577,4 +577,22 @@ if (!enabled) {
     assert.equal((await stage.runEvidenceStage({ deadline: Date.now() + 60_000, limit: 25, deps })).claimed >= 0, true);
     assert.deepEqual(await counts(), { enrollments: 0, messages: 0 }, "nothing is enrolled or sent by any of this");
   });
+
+  test("throughput: 8 workers, but never two candidates of the same website domain at once; every address still gets a documented outcome", async () => {
+    let active = 0, maxSameHost = 0; const perHost = new Map<string, number>();
+    const tracking: Deps = { ...deps, fetch: async (url, init) => {
+      const h = new URL(url).host; perHost.set(h, (perHost.get(h) ?? 0) + 1); maxSameHost = Math.max(maxSameHost, perHost.get(h)!); active++;
+      await new Promise((r) => setTimeout(r, 15));
+      try { return await deps.fetch(url, init); } finally { active--; perHost.set(h, perHost.get(h)! - 1); }
+    } };
+    web["shared-chain.example"] = { "/robots.txt": { status: 404 }, "/": { body: page("Garage Shared Chain", "613-555-0188", "K1P 5G3", "") } };
+    const made = [] as string[];
+    for (let i = 0; i < 4; i++) { const pr = await mkProspect(`Garage Conc ${i}`, { website: "https://shared-chain.example", websiteDomain: "shared-chain.example", phone: "613-555-0188", phoneDigits: "6135550188" }); await mkDiscovered(pr.id, `info${i}@shared-chain.example`); made.push(pr.id); }
+    for (let i = 0; i < 6; i++) { const host = `solo${i}-garage.example`; web[host] = { "/robots.txt": { status: 404 }, "/": { body: page(`Garage Solo ${i}`, `613-555-02${10 + i}`, "K1P 5G3", "") } }; const pr = await mkProspect(`Garage Solo ${i}`, { website: `https://${host}`, websiteDomain: host, phone: `613-555-02${10 + i}`, phoneDigits: `61355502${10 + i}` }); await mkDiscovered(pr.id, `info@${host}`); made.push(pr.id); }
+    const t = await stage.runEvidenceStage({ deadline: Date.now() + 60_000, limit: 120, deps: tracking });
+    assert.equal(t.claimed, 10); assert.equal(t.errors, 0);
+    assert.equal(maxSameHost <= 4, true); // requests of ONE candidate are sequential: the 4 same-domain candidates never overlapped, so no more than one request per host was ever in flight
+    assert.equal(maxSameHost, 1, "never two requests to one host at the same time");
+    assert.equal(await db.crmDiscoveredContact.count({ where: { prospectId: { in: made }, assessedAt: { not: null } } }), 10, "all ten have a documented outcome");
+  });
 }

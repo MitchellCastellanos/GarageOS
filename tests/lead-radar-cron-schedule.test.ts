@@ -5,8 +5,8 @@ import { readFileSync } from "node:fs";
 const wf = readFileSync(".github/workflows/lead-radar-cron.yml", "utf8");
 const cron = /- cron: "([^"]+)"/.exec(wf)?.[1] ?? "";
 
-test("Lead Radar cron runs every 15 minutes, 11:00–23:59 UTC, all seven days", () => {
-  assert.deepEqual(cron.split(" ").slice(0, 5), ["*/15", "11-23", "*", "*", "*"]);
+test("Lead Radar cron runs every 15 minutes around the clock, all seven days", () => {
+  assert.deepEqual(cron.split(" ").slice(0, 5), ["*/15", "*", "*", "*", "*"]);
 });
 
 test("workflow has no weekday guard, does not overlap, and is read-only", () => {

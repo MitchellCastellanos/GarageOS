@@ -31,10 +31,10 @@ import { ROLLOUT_ASSIGN_PROVINCES } from "@/domain/lead-radar/rollout";
 // Nothing here sends an email. Every stage is independently switchable and the whole tick is gated by TWO switches (live discovery AND automation) plus a lease.
 
 const ID = "default";
-export const TICK_BUDGET_MS = 45_000;
+export const TICK_BUDGET_MS = 50_000; // function limit is 60 s (maxDuration); the lease adds LEASE_SLACK_MS
 export const LEASE_SLACK_MS = 30_000;
 export const MAX_IMPORT_ATTEMPTS = 3;
-const SHARE = { classify: 0.05, rollout: 0.05, qualify: 0.3, import: 0.3, assign: 0.15, release: 0.05, locate: 0.1, screen: 0.05, evidence: 0.3, eligibility: 0.1, pilot: 0.1 } as const;
+const SHARE = { classify: 0.05, rollout: 0.05, qualify: 0.3, import: 0.3, assign: 0.15, release: 0.05, locate: 0.1, screen: 0.05, evidence: 0.9, eligibility: 0.1, pilot: 0.1 } as const;
 
 export async function readAutomation(client: Pick<typeof db, "crmLeadAutomation"> = db) {
   return (await client.crmLeadAutomation.findUnique({ where: { id: ID } })) ?? (await client.crmLeadAutomation.upsert({ where: { id: ID }, create: { id: ID }, update: {} }));

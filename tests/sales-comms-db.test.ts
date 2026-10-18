@@ -629,6 +629,35 @@ if (!enabled) {
     assert.deepEqual((({ status, stopReason }) => [status, stopReason])(await db.crmSequenceEnrollment.findUniqueOrThrow({ where: { id: e3.enrollmentId } })), ["STOPPED", "MANUAL"]);
   });
 
+  test("SHARED MAILBOX: one address is enrolled and sent to once, whatever business it hangs on; the two businesses stay distinct and unmerged", async () => {
+    const seq = await seqSetup();
+    as(ids.Alice);
+    const enrollIt = (x: { p: { id: string }; c: { id: string } }) => seqActions.enrollProspect(fd({ sequenceId: seq, prospectId: x.p.id, contactId: x.c.id })) as Promise<any>;
+    const shared = `shared-${run}@shop.test`;
+    const a = await makeProspect("SharedA", staff.Alice, { lang: "FR", email: shared });
+    const b = await makeProspect("SharedB", staff.Alice, { lang: "FR", email: shared });
+    const ea = await enrollIt(a);
+    assert.equal(ea.ok, true);
+    const eb = await enrollIt(b);
+    assert.deepEqual([eb.ok, eb.error], [false, "EMAIL_ALREADY_ENROLLED"], "the second business cannot enroll the same address");
+    // two enrollments racing for one new address: exactly one wins
+    const raceEmail = `race-${run}@shop.test`;
+    const c = await makeProspect("RaceC", staff.Alice, { lang: "FR", email: raceEmail }), d = await makeProspect("RaceD", staff.Alice, { lang: "FR", email: raceEmail });
+    const raced = await Promise.all([enrollIt(c), enrollIt(d)]);
+    assert.deepEqual(raced.map((r) => r.ok).sort(), [false, true], JSON.stringify(raced));
+    // legacy data (two live enrollments for one address, created outside the guard): only the earlier one ever sends
+    const legacy = await db.crmSequenceEnrollment.create({ data: { sequenceId: seq, prospectId: b.p.id, contactId: b.c.id, staffId: staff.Alice, status: "ACTIVE", nextStepIndex: 0, nextRunAt: new Date(Date.now() - 1000), enrolledByUserId: ids.Alice, startedAt: new Date(Date.now() + 5000) } });
+    await seqLib.processDueEnrollments({ now: new Date(Date.now() + 24 * 3_600_000) });
+    const l = await db.crmSequenceEnrollment.findUniqueOrThrow({ where: { id: legacy.id } });
+    assert.deepEqual([l.status, l.stopReason], ["STOPPED", "DUPLICATE_ADDRESS"]);
+    assert.equal(await db.crmEmailMessage.count({ where: { sequenceEnrollmentId: legacy.id } }), 0, "no message ever exists for the duplicate");
+    assert.equal(await db.crmEmailMessage.count({ where: { sequenceEnrollmentId: ea.enrollmentId } }), 1, "the first enrollment sends once");
+    // the businesses are untouched: two prospects, two contacts, nothing merged
+    const ps = await db.crmProspect.findMany({ where: { id: { in: [a.p.id, b.p.id] } } });
+    assert.deepEqual(ps.map((x) => x.mergedIntoId), [null, null]);
+    assert.equal(await db.crmContact.count({ where: { prospectId: { in: [a.p.id, b.p.id] }, emailNormalized: shared } }), 2);
+  });
+
   test("daily cap: the seller's identity cannot exceed the daily commercial limit; sequence steps defer instead of failing", async () => {
     const id = await db.crmSenderIdentity.findUniqueOrThrow({ where: { staffId: staff.Bob } });
     await db.crmSenderIdentity.update({ where: { id: id.id }, data: { dailyLimit: 2 } });
@@ -1228,7 +1257,7 @@ if (!enabled) {
     }
     // fresh prospects holding reclassified address-based legacy rows
     for (const kind of KINDS) {
-      const x = await makeProspect(`LegD${kind.length}${kind.slice(0, 4)}`, staff.Bob, { basis: false });
+      const x = await makeProspect(`LegD${KINDS.indexOf(kind)}${kind.slice(0, 4)}`, staff.Bob, { basis: false });
       await db.crmSendingBasis.create({ data: { contactId: x.c.id, kind, evidence: "Pre-migration self-attested basis on file", recordedByUserId: ids.root, reviewStatus: needsApproval(kind) ? "LEGACY_UNREVIEWED" : null } });
       const r = await send("Bob", { prospectId: x.p.id, contactId: x.c.id, to: x.email });
       as(ids.Bob);

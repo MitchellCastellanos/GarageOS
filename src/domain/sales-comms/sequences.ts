@@ -31,7 +31,7 @@ export function scheduleStep(args: {
 
 export type StopReason =
   | "REPLIED" | "MEETING_BOOKED" | "OPTED_OUT" | "BOUNCED" | "DO_NOT_CONTACT" | "CONVERTED" | "MANUAL"
-  | "SUPPRESSED" | "PROSPECT_ARCHIVED" | "OPPORTUNITY_CLOSED" | "STAFF_INACTIVE" | "IDENTITY_INACTIVE" | "NO_VALID_BASIS" | "CONTACT_REMOVED" | "SEQUENCE_ARCHIVED";
+  | "SUPPRESSED" | "PROSPECT_ARCHIVED" | "OPPORTUNITY_CLOSED" | "STAFF_INACTIVE" | "IDENTITY_INACTIVE" | "NO_VALID_BASIS" | "CONTACT_REMOVED" | "SEQUENCE_ARCHIVED" | "DUPLICATE_ADDRESS";
 
 export interface StopContext {
   prospectDnc: boolean; prospectArchived: boolean; contactDnc: boolean; contactArchived: boolean;

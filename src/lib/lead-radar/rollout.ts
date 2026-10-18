@@ -2,7 +2,7 @@ import "server-only";
 import type { PlatformSalesActor } from "@/domain/sales-crm/access";
 import { can } from "@/domain/sales-crm/access";
 import {
-  HALT_CODES, ROLLOUT_ASSIGN_PROVINCES, ROLLOUT_EXISTING, ROLLOUT_NEVER, ROLLOUT_PROVINCES, ROLLOUT_SELLER_EMAIL, planRollout, safetyViolation,
+  HALT_CODES, ROLLOUT_ASSIGN_PROVINCES, extractorAtLeast, ROLLOUT_EXISTING, ROLLOUT_NEVER, ROLLOUT_PROVINCES, ROLLOUT_SELLER_EMAIL, planRollout, safetyViolation,
   type HaltCode, type ProvinceFacts, type SafetyFacts,
 } from "@/domain/lead-radar/rollout";
 import { LEAD_RADAR_SOURCE_KEY } from "@/domain/lead-radar/bridge";
@@ -11,7 +11,7 @@ import { db } from "@/lib/db";
 import { MAX_IMPORT_ATTEMPTS, readAutomation, type AutomationSettings } from "@/lib/lead-radar/automation";
 import { isLive, readSettings } from "@/lib/lead-radar/settings";
 import { getActivePolicy } from "@/lib/lead-radar/policy";
-import { MAX_FIRST_PASS_ERRORS } from "@/lib/lead-radar/casl-evidence";
+import { EVIDENCE_BATCH_NATIONAL, MAX_FIRST_PASS_ERRORS } from "@/lib/lead-radar/casl-evidence";
 import { nationalReadiness } from "@/lib/lead-radar/national";
 import { deferredNoEmailByProvince, prospectUsableEmailSql } from "@/lib/lead-radar/remote-email";
 import { queueWorkerRun } from "@/lib/lead-radar/worker";
@@ -51,7 +51,7 @@ export async function activateNationalRollout(actor: PlatformSalesActor) {
     where: { id: ID },
     data: {
       enabled: true, pausedAt: null, pausedReason: null, qualifyEnabled: true, importEnabled: true, assignEnabled: true, evidenceEnabled: true, eligibilityEnabled: false, releaseUnavailable: false,
-      assignStaffIds: [seller.id], rolloutEnabled: true, rolloutPaused: false, rolloutProvinces: [...ROLLOUT_PROVINCES], rolloutStaffId: seller.id, rolloutStartedAt: new Date(),
+      assignStaffIds: [seller.id], evidenceBatch: Math.max(a.evidenceBatch, EVIDENCE_BATCH_NATIONAL), rolloutEnabled: true, rolloutPaused: false, rolloutProvinces: [...ROLLOUT_PROVINCES], rolloutStaffId: seller.id, rolloutStartedAt: new Date(),
       rolloutFinishedAt: null, rolloutHaltProvince: null, rolloutHaltCode: null, rolloutHaltAt: null, updatedByUserId: actor.userId,
     },
   });
@@ -105,7 +105,7 @@ async function provinceFacts(a: AutomationSettings): Promise<ProvinceFacts[]> {
   const scope = [...ROLLOUT_EXISTING, ...a.rolloutProvinces];
   const [national, runs, queued, stuck, noEmail] = await Promise.all([
     nationalReadiness(),
-    db.crmDiscoveryRun.findMany({ orderBy: { createdAt: "desc" }, take: 200, select: { status: true, scope: true, qualityVerdict: true, errorCode: true } }),
+    db.crmDiscoveryRun.findMany({ orderBy: { createdAt: "desc" }, take: 200, select: { status: true, scope: true, qualityVerdict: true, errorCode: true, manifest: true } }),
     // What the importer will actually still take (its own queue filter): approved, not imported, importable, not given up on.
     db.crmDiscoveryCandidate.groupBy({ by: ["province"], where: { province: { in: scope }, reviewState: "APPROVED", importState: "NOT_IMPORTED", licenseOk: true, tier: { not: "EXCLUDED" }, duplicateOfCandidateId: null, importAttempts: { lt: MAX_IMPORT_ATTEMPTS } }, _count: { _all: true } }),
     // Approved candidates the importer gave up on after repeated attempts are import errors, not "pending".
@@ -117,7 +117,8 @@ async function provinceFacts(a: AutomationSettings): Promise<ProvinceFacts[]> {
   return scope.map((province) => {
     const row = national.rows.find((r) => r.province === province)!;
     const mine = runs.filter((r) => (((r.scope as { provinces?: string[] }).provinces) ?? []).includes(province));
-    const latest = mine.find((r) => r.status === "COMPLETED" || r.status === "FAILED" || r.status === "CANCELLED") ?? null;
+    // A finished run counts only if the current extractor made it (older runs lack email provenance / points): the province is then swept again, idempotently.
+    const latest = mine.find((r) => (r.status === "COMPLETED" || r.status === "FAILED" || r.status === "CANCELLED") && extractorAtLeast((r.manifest as { extractorVersion?: string } | null)?.extractorVersion)) ?? null;
     return {
       province, existing: ROLLOUT_EXISTING.includes(province), activeRun: mine.some((r) => r.status === "PLANNED" || r.status === "INGESTING"),
       latestRun: latest ? { status: latest.status as "COMPLETED" | "FAILED" | "CANCELLED", verdict: latest.qualityVerdict, errorCode: latest.errorCode } : null,
