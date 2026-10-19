@@ -666,4 +666,40 @@ if (!enabled) {
     assert.equal(JSON.stringify(d).includes("@"), false, "no address in the diagnostic");
     assert.equal(/https?:\/\//.test(JSON.stringify(d)), false, "no URL in the diagnostic");
   });
+
+  test("RECOVERY LANE — an INSUFFICIENT result from an older crawler for a recoverable reason is re-opened ONCE; the improved crawler converts it, history is appended, one contact is admitted, unrecoverable reasons are left alone, and the cohort report attributes the gain", async () => {
+    const { recoveryReport } = await import("../src/lib/lead-radar/evidence-diagnostics");
+    const E = "contact@recov-garage.example";
+    const recovSite = { "/robots.txt": { status: 404 }, "/": { body: page("Garage Recov Auto", "613-555-0166", "K1P 5G3", `<p>Contact us: <a href="mailto:${E}">${E}</a></p>`) } };
+    const pr = await mkProspect("Garage Recov Auto", { website: "http://recov-garage.example", websiteDomain: "recov-garage.example", phone: "613-555-0166", phoneDigits: "6135550166" });
+    const d = await mkDiscovered(pr.id, E);
+    const nowebsite = await mkProspect("Garage Recov NoSite", { website: null, websiteDomain: null });
+    const dn = await mkDiscovered(nowebsite.id, "info@recov-nosite.example");
+    await evidenceRun(); // the site does not answer at all yet (every request 404s) ⇒ FETCH_FAILED
+    web["www.recov-garage.example"] = recovSite; // ... later the SAME site's www form answers (the recorded bare host never will)
+    const first = await db.crmCaslAssessment.findFirstOrThrow({ where: { discoveredContactId: d.id }, orderBy: { createdAt: "desc" } });
+    assert.equal(first.outcome, "INSUFFICIENT"); assert.ok(first.reasons.includes("FETCH_FAILED"));
+    // make both look like they were produced by the ORIGINAL crawler (no acquisition version) and not yet due by the normal schedule
+    await db.$executeRaw`UPDATE "garageos"."CrmCaslAssessment" SET "usage" = "usage" - 'acq' WHERE "discoveredContactId" IN (${d.id}, ${dn.id})`;
+    await db.crmDiscoveredContact.updateMany({ where: { id: { in: [d.id, dn.id] } }, data: { nextAssessAt: new Date(Date.now() + 5 * 86_400_000), assessLeaseUntil: null } });
+    await new Promise((r) => setTimeout(r, 30));
+    const since = new Date();
+    const claimed = await stage.claimEvidenceWork(50, new Date());
+    assert.deepEqual(claimed.includes(d.id), true, "recoverable reason + older crawler ⇒ re-opened");
+    assert.equal(claimed.includes(dn.id), false, "NO_OWN_WEBSITE is not a recoverable reason: a better crawler cannot invent a website");
+    await db.crmDiscoveredContact.updateMany({ where: { id: { in: claimed } }, data: { assessLeaseUntil: null } });
+    const t = await evidenceRun();
+    assert.ok(t.supported >= 1 && t.errors === 0, JSON.stringify(t));
+    const hist = await db.crmCaslAssessment.findMany({ where: { discoveredContactId: d.id }, orderBy: { createdAt: "asc" } });
+    assert.deepEqual(hist.map((h) => h.outcome), ["INSUFFICIENT", "SUPPORTED"], "history appended, nothing erased");
+    assert.equal(((hist[1].usage as any).variant), "www"); assert.equal(((hist[1].usage as any).acq), 2);
+    assert.equal(await db.crmContact.count({ where: { emailNormalized: E, archivedAt: null } }), 1, "exactly one contact admitted");
+    assert.equal((await stage.claimEvidenceWork(50, new Date())).includes(d.id), false, "re-opened once, not again");
+    const rep = await recoveryReport(since);
+    const cat = rep.byCategory.find((c) => c.category === "FETCH_FAILED");
+    assert.ok(cat && cat.toSupported >= 1 && cat.supportedViaHostFallback >= 1 && cat.reassessed >= 1, JSON.stringify(rep));
+    assert.ok(rep.newUniqueContactsAdmitted >= 1);
+    assert.equal(JSON.stringify(rep).includes("@"), false);
+    assert.deepEqual(await counts(), { enrollments: 0, messages: 0 });
+  });
 }

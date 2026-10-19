@@ -8,8 +8,12 @@ on:
       what:
         description: "Diagnostic to run"
         type: choice
-        options: [evidence]
+        options: [evidence, recovery]
         default: evidence
+      since:
+        description: "recovery only: ISO timestamp that fixes the cohort (INSUFFICIENT before this instant)"
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -24,10 +28,11 @@ jobs:
           SECRET: ${{ secrets.LEAD_RADAR_CRON_SECRET }}
           BASE_URL: ${{ secrets.SALES_CRON_BASE_URL }}
           WHAT: ${{ inputs.what }}
+          SINCE: ${{ inputs.since }}
         run: |
           if [ -z "$SECRET" ] || [ -z "$BASE_URL" ]; then echo "::error::secrets not configured"; exit 1; fi
           case "$BASE_URL" in https://*) ;; *) echo "::error::SALES_CRON_BASE_URL must be an https origin"; exit 1;; esac
-          code="$(curl -sS -m 60 -o /tmp/diag.json -w '%{http_code}' -H "Authorization: Bearer ${SECRET}" "${BASE_URL%/}/api/webhooks/cron/lead-radar?diag=${WHAT}")" || { echo "::error::request failed"; exit 1; }
+          code="$(curl -sS -m 60 -o /tmp/diag.json -w '%{http_code}' -H "Authorization: Bearer ${SECRET}" "${BASE_URL%/}/api/webhooks/cron/lead-radar?diag=${WHAT}&since=${SINCE}")" || { echo "::error::request failed"; exit 1; }
           echo "HTTP ${code}"
           head -c 60000 /tmp/diag.json; echo
           [ "$code" = "200" ] || exit 1
