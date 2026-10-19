@@ -1,0 +1,33 @@
+name: Lead Radar evidence diagnostic (read-only, counts only)
+
+# Calls the Lead Radar cron endpoint in DIAGNOSTIC mode: it runs NO tick and changes nothing; it returns aggregate counts of the CASL evidence population (no address, name, URL or id).
+# Manual only. Uses the same secrets as the 15-minute worker.
+on:
+  workflow_dispatch:
+    inputs:
+      what:
+        description: "Diagnostic to run"
+        type: choice
+        options: [evidence]
+        default: evidence
+
+permissions:
+  contents: read
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fetch the aggregate diagnostic
+        env:
+          SECRET: ${{ secrets.LEAD_RADAR_CRON_SECRET }}
+          BASE_URL: ${{ secrets.SALES_CRON_BASE_URL }}
+          WHAT: ${{ inputs.what }}
+        run: |
+          if [ -z "$SECRET" ] || [ -z "$BASE_URL" ]; then echo "::error::secrets not configured"; exit 1; fi
+          case "$BASE_URL" in https://*) ;; *) echo "::error::SALES_CRON_BASE_URL must be an https origin"; exit 1;; esac
+          code="$(curl -sS -m 60 -o /tmp/diag.json -w '%{http_code}' -H "Authorization: Bearer ${SECRET}" "${BASE_URL%/}/api/webhooks/cron/lead-radar?diag=${WHAT}")" || { echo "::error::request failed"; exit 1; }
+          echo "HTTP ${code}"
+          head -c 60000 /tmp/diag.json; echo
+          [ "$code" = "200" ] || exit 1

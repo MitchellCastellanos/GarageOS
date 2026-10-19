@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { isAuthorizedCronRequest } from "@/lib/cron-auth";
 import { runAutomationTick } from "@/lib/lead-radar/automation";
 import { readAutomation } from "@/lib/lead-radar/automation";
+import { evidenceDiagnostics } from "@/lib/lead-radar/evidence-diagnostics";
 import { getCommsSettings } from "@/lib/sales-comms/settings";
 import { runDiscoveryMaintenance } from "@/lib/lead-radar/worker";
 import { seedDiscoveredContactsIfEnabled } from "@/lib/sales-comms/contact-readiness";
@@ -36,6 +37,10 @@ function summarize(counters: Record<string, unknown> | undefined) {
 
 export async function GET(request: Request) {
   if (!authorized(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Read-only aggregate diagnostic (counts only), same cron authentication; runs no tick and changes nothing.
+  if (new URL(request.url).searchParams.get("diag") === "evidence") {
+    try { return NextResponse.json(await evidenceDiagnostics()); } catch (e) { console.error("[lead-radar] diagnostic failed", e instanceof Error ? e.message : "unknown"); return NextResponse.json({ error: "DIAGNOSTIC_FAILED" }, { status: 500 }); }
+  }
   // Discovery housekeeping first (recover stalled worker runs, detect a new Overture release, queue an opted-in province). Independent of the automation master switch
   // (it only needs live discovery) and a failure here must never block the automation tick below.
   let discovery: { skipped?: string; newRelease: boolean; scheduled: number; stalled: number } | { error: string };

@@ -652,4 +652,18 @@ if (!enabled) {
     assert.equal(late.claimed, 0); assert.equal((await db.crmDiscoveredContact.findUniqueOrThrow({ where: { id: d.id } })).assessLeaseUntil, null);
     await stage.runEvidenceStage({ deadline: Date.now() + 60_000, limit: 10, deps });
   });
+
+  test("evidence diagnostics: aggregate counts only, reasons add up against the population, transient is a subset of INSUFFICIENT, no address or URL leaves", async () => {
+    const { evidenceDiagnostics } = await import("../src/lib/lead-radar/evidence-diagnostics");
+    const d = await evidenceDiagnostics();
+    const pop = d.population.currentInsufficientRows;
+    assert.ok(pop > 0, "the suite produced INSUFFICIENT rows");
+    const sigTotal = Object.values(d.exclusiveSignatures).reduce((x, v) => x + v.n, 0);
+    assert.ok(sigTotal <= pop && sigTotal > 0, "exclusive signatures never exceed the population");
+    assert.equal(d.transientVsPermanent.transientOnlyOrWithOthers + d.transientVsPermanent.noTransientReason, pop, "every INSUFFICIENT row is transient XOR permanent: nothing double-counted");
+    assert.ok(d.transientVsPermanent.transientMixedWithOtherReasons <= d.transientVsPermanent.transientOnlyOrWithOthers);
+    assert.equal(Object.values(d.nextLookDue).reduce((x, v) => x + v, 0), pop);
+    assert.equal(JSON.stringify(d).includes("@"), false, "no address in the diagnostic");
+    assert.equal(/https?:\/\//.test(JSON.stringify(d)), false, "no URL in the diagnostic");
+  });
 }
