@@ -1,13 +1,15 @@
 import "server-only";
 import dns from "node:dns/promises";
 import net from "node:net";
-import { analyzePage, isDirectoryHost, registrableHost, type AssessInput, type PageKind, type PageObservation, type RobotsRecord } from "@/domain/lead-radar/casl-evidence-engine";
+import { analyzePage, htmlToText, isDirectoryHost, registrableHost, type AssessInput, type PageKind, type PageObservation, type RobotsRecord } from "@/domain/lead-radar/casl-evidence-engine";
 import { normalizeWebsite } from "@/domain/sales-crm/normalize";
 
 // Bounded, polite acquisition of CASL evidence from a shop's OWN website. Hard limits per candidate (below), no retries inside a run, never off the shop's own site, robots.txt
 // honoured (RFC 9309), SSRF-safe (public addresses only, re-checked on every redirect). It reads at most a handful of pages and keeps only a hash, a URL and a short snippet.
 
-export const FETCH_LIMITS = { maxPages: 6, maxRequests: 9, maxBytes: 400_000, timeoutMs: 6_000, wallMs: 15_000, maxRedirects: 3, delayMs: 250 } as const;
+// maxPages / maxRequests were 6 / 9: measured on production, ~7% of unresolved addresses ended with BUDGET_EXHAUSTED and hundreds read only the homepage. The per-candidate ceiling is still small, bytes/time/politeness are unchanged,
+// and a typical site still needs 2-4 requests.
+export const FETCH_LIMITS = { maxPages: 8, maxRequests: 12, maxBytes: 400_000, timeoutMs: 6_000, wallMs: 15_000, maxRedirects: 3, delayMs: 250 } as const;
 export type FetchLimits = { [K in keyof typeof FETCH_LIMITS]: number };
 export const BOT_PRODUCT = "garageos-evidencebot";
 export const USER_AGENT = "GarageOS-EvidenceBot/1.0 (+https://www.garage-os.ca)";
@@ -79,7 +81,7 @@ export function parseRobots(text: string): Robots {
 }
 
 export interface Acquisition {
-  pages: PageObservation[]; outcome: AssessInput["fetchOutcome"]; usage: { requests: number; bytes: number; ms: number; pages: number };
+  pages: PageObservation[]; outcome: AssessInput["fetchOutcome"]; usage: { requests: number; bytes: number; ms: number; pages: number; variant?: string; probed?: number; found?: string };
   /** Terms / legal / disclaimer / anti-spam pages linked from what we read that could NOT be read (off-site, blocked, error, over budget). Any > 0 ⇒ the restriction check is incomplete. */
   policyLinksUnread: number;
   robots: RobotsRecord[];
@@ -91,6 +93,12 @@ const TERMS_PATH = /(terms|conditions|legal|mentions-?legales|avis-?legal|discla
 const PRIVACY_PATH = /(privacy|confidentialit|vie-?privee|politique)/i;
 const MAX_POLICY_PAGES = 3;
 const CONTACT_PATH = /(contact|nous-?joindre|joindre|a-?propos|apropos|about|coordonn|rendez-?vous|appointment|location|emplacement)/i;
+/** The visible text of a link that leads to a contact-like page (sites whose URLs say nothing, e.g. /page-4821, still label the link). */
+const CONTACT_TEXT = /^(?:contact(?:ez[- ]nous|\s*us)?|nous\s+(?:joindre|rejoindre|contacter)|[àa]\s+propos(?:\s+de\s+nous)?|about(?:\s+us)?|coordonn[ée]es|get\s+in\s+touch|find\s+us|visit\s+us|location|emplacement|rendez-?vous|book(?:\s+an?)?\s+appointment|team|[ée]quipe)\b/i;
+/** Conventional contact URLs, tried only when the homepage links did not lead to a page carrying the address. Same site, same limits, robots honoured. */
+const CONTACT_PROBES = ["/contact", "/contact-us", "/nous-joindre", "/contactez-nous", "/nous-contacter", "/a-propos", "/about", "/about-us"];
+const MAX_CONTACT_PAGES = 4;
+const MAX_PROBES = 4;
 
 async function readCapped(res: Response, cap: number): Promise<{ text: string; bytes: number; truncated: boolean }> {
   if (!res.body) return { text: "", bytes: 0, truncated: false };
@@ -179,7 +187,15 @@ export async function acquireSiteEvidence(
   const termsLinks = new Map<string, URL>();
   const privacyLinks = new Map<string, URL>();
   let emailPage = false;
+  const queueContact = (u: URL) => { if (!contactQueue.some((q) => q.hostname === u.hostname && q.pathname === u.pathname) && contactQueue.length < MAX_CONTACT_PAGES) contactQueue.push(u); };
   const harvestLinks = (html: string, from: URL) => {
+    for (const m of html.matchAll(/<a\b[^>]*?href\s*=\s*["']([^"'#]+)["'][^>]*>([\s\S]{0,240}?)<\/a>/gi)) {
+      try {
+        const u = new URL(m[1].replace(/&amp;/g, "&"), from);
+        if ((u.protocol !== "https:" && u.protocol !== "http:") || registrableHost(u.hostname) !== site || /\.(pdf|jpe?g|png|gif|webp|zip|docx?)$/i.test(u.pathname) || TERMS_PATH.test(u.pathname) || PRIVACY_PATH.test(u.pathname)) continue;
+        if (CONTACT_TEXT.test(htmlToText(m[2]).slice(0, 80))) queueContact(u);
+      } catch { /* malformed href */ }
+    }
     for (const m of html.matchAll(/href\s*=\s*["']([^"'#]+)["']/gi)) {
       try {
         const u = new URL(m[1].replace(/&amp;/g, "&"), from);
@@ -189,12 +205,12 @@ export async function acquireSiteEvidence(
         if (TERMS_PATH.test(u.pathname)) { termsLinks.set(key, u); continue; }          // required, on-site or not
         if (!sameSite) continue;
         if (PRIVACY_PATH.test(u.pathname)) privacyLinks.set(key, u);
-        else if (CONTACT_PATH.test(u.pathname) && !contactQueue.some((q) => q.hostname === u.hostname && q.pathname === u.pathname) && contactQueue.length < 3) contactQueue.push(u);
+        else if (CONTACT_PATH.test(u.pathname)) queueContact(u);
       } catch { /* malformed href */ }
     }
   };
   async function readPage(url: URL, kind: PageKind): Promise<PageObservation | null> {
-    const key = url.hostname + url.pathname;
+    const key = url.protocol + url.hostname + url.pathname;
     if (seen.has(key)) return null;
     seen.add(key);
     if (usage.requests) await deps.sleep(limits.delayMs);
@@ -206,13 +222,43 @@ export async function acquireSiteEvidence(
     harvestLinks(res.text, res.finalUrl);
     return obs;
   }
-  // 1 — the homepage, then contact-like pages until the address is found.
-  const home = await readPage(startUrl, "home");
-  if (home?.emailFound) emailPage = true;
+  // 1 — the homepage (and, only when the recorded form of the address did not answer at all, the SAME site's other scheme / www form), then contact-like pages until the address is found.
+  let variant = "start";
+  let home = await readPage(startUrl, "home");
+  if (!home && !robotsBlocked && !budgetHit) {
+    const swapWww = (h: string) => (h.startsWith("www.") ? h.slice(4) : `www.${h}`);
+    const alternates: { url: URL; label: string }[] = [];
+    const flipped = new URL(startUrl.toString()); flipped.protocol = startUrl.protocol === "https:" ? "http:" : "https:";
+    const other = new URL(startUrl.toString()); other.hostname = swapWww(startUrl.hostname);
+    const both = new URL(flipped.toString()); both.hostname = swapWww(startUrl.hostname);
+    alternates.push({ url: other, label: "www" }, { url: flipped, label: "scheme" }, { url: both, label: "scheme+www" });
+    let tried = 0;
+    for (const alt of alternates) {
+      if (tried >= 2 || overBudget() || robotsBlocked) break;
+      tried++;
+      home = await readPage(alt.url, "home");
+      if (home) { variant = alt.label; break; }
+    }
+  }
+  let found = "";
+  if (home?.emailFound) { emailPage = true; found = "home"; }
   while (!emailPage && contactQueue.length && pages.length < limits.maxPages) {
     const u = contactQueue.shift()!;
     const obs = await readPage(u, "contact");
-    if (obs?.emailFound) emailPage = true;
+    if (obs?.emailFound) { emailPage = true; found = "linked"; }
+  }
+  // Conventional contact URLs when the site's links did not lead anywhere useful (only if the homepage itself was readable).
+  let probed = 0;
+  if (!emailPage && home) {
+    const base = new URL(home.url);
+    for (const path of CONTACT_PROBES) {
+      if (emailPage || probed >= MAX_PROBES || pages.length >= limits.maxPages || usage.requests >= limits.maxRequests - 3 || overBudget()) break;
+      const u = new URL(path, base.origin);
+      if (seen.has(u.protocol + u.hostname + u.pathname)) continue;
+      probed++;
+      const obs = await readPage(u, "contact");
+      if (obs?.emailFound) { emailPage = true; found = "probe"; }
+    }
   }
   // 2 — the restriction check: every terms/legal page linked from what we read (required), then same-site privacy pages while the budget allows. Only worth the requests when the
   // address was found: without it the result is INSUFFICIENT whatever these pages say.
@@ -232,7 +278,7 @@ export async function acquireSiteEvidence(
     }
   }
   const robots: RobotsRecord[] = [...robotsLog.entries()].map(([host, status]) => ({ host, status }));
-  const out = (outcome: Acquisition["outcome"]) => ({ ...finish(outcome, pages), policyLinksUnread, robots });
+  const out = (outcome: Acquisition["outcome"]) => { const a = finish(outcome, pages); a.usage.variant = variant; a.usage.probed = probed; if (found) a.usage.found = found; return { ...a, policyLinksUnread, robots }; };
   if (pages.length) return out(budgetHit && !pages.some((p) => p.emailFound) ? "BUDGET_EXHAUSTED" : "OK");
   if (robotsBlocked) return out("ROBOTS_DISALLOWED");
   if (budgetHit) return out("BUDGET_EXHAUSTED");

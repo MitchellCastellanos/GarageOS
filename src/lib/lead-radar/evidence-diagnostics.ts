@@ -73,3 +73,46 @@ export async function evidenceDiagnostics() {
   };
 }
 export type EvidenceDiagnostics = Awaited<ReturnType<typeof evidenceDiagnostics>>;
+
+// ── Recovery measurement ────────────────────────────────────────────────────────────────────────────────────────────────────
+// Stable cohort = every address whose NEWEST assessment before `since` was INSUFFICIENT (assessment history is append-only, so this set is fixed no matter what happens afterwards). Addresses first assessed after `since`
+// belong to the ongoing national rollout and are never counted here. Category = the first of these precedence-ordered reasons found on the PRE-recovery assessment.
+const CATEGORY_ORDER = ["FETCH_FAILED", "BUDGET_EXHAUSTED", "RESTRICTION_CHECK_INCOMPLETE", "EMAIL_NOT_FOUND_ON_OWN_SITE", "GENERAL_CHANNEL_NOT_SHOWN", "NOT_CONSPICUOUS", "IDENTITY_NOT_CORROBORATED"];
+
+export async function recoveryReport(since: Date) {
+  const order = CATEGORY_ORDER;
+  const rows = await db.$queryRaw<{ cat: string; cohort: bigint; reassessed: bigint; supported: bigint; blocked: bigint; insufficient: bigint; pending: bigint; contacts: bigint; dupes: bigint; viaFallback: bigint; viaProbe: bigint; viaLinked: bigint }[]>(Prisma.sql`
+    WITH prior AS (
+      SELECT d."id", d."emailNormalized", d."promotedContactId", d."status", d."reviewNote", pa."reasons" AS "priorReasons"
+      FROM "garageos"."CrmDiscoveredContact" d
+      JOIN LATERAL (SELECT * FROM "garageos"."CrmCaslAssessment" x WHERE x."discoveredContactId" = d."id" AND x."createdAt" < ${since} ORDER BY x."createdAt" DESC, x."id" DESC LIMIT 1) pa ON true
+      WHERE d."syntaxValid" = true AND pa."outcome" = 'INSUFFICIENT'
+    ), cur AS (
+      SELECT p.*, COALESCE((SELECT c FROM unnest(${order}::text[]) c WHERE c = ANY(p."priorReasons") LIMIT 1), 'OTHER (policy-level / no website)') AS cat,
+        la."outcome" AS "nowOutcome", la."createdAt" AS "nowAt", la."usage" AS "nowUsage"
+      FROM prior p JOIN LATERAL (SELECT * FROM "garageos"."CrmCaslAssessment" y WHERE y."discoveredContactId" = p."id" ORDER BY y."createdAt" DESC, y."id" DESC LIMIT 1) la ON true
+    )
+    SELECT cat, count(*)::bigint AS cohort,
+      count(*) FILTER (WHERE "nowAt" >= ${since})::bigint AS reassessed,
+      count(*) FILTER (WHERE "nowAt" >= ${since} AND "nowOutcome" = 'SUPPORTED')::bigint AS supported,
+      count(*) FILTER (WHERE "nowAt" >= ${since} AND "nowOutcome" = 'BLOCKED')::bigint AS blocked,
+      count(*) FILTER (WHERE "nowAt" >= ${since} AND "nowOutcome" = 'INSUFFICIENT')::bigint AS insufficient,
+      count(*) FILTER (WHERE "nowAt" < ${since})::bigint AS pending,
+      count(*) FILTER (WHERE "nowAt" >= ${since} AND "nowOutcome" = 'SUPPORTED' AND "promotedContactId" IS NOT NULL)::bigint AS contacts,
+      count(*) FILTER (WHERE "reviewNote" LIKE 'DUPLICATE_EMAIL:%')::bigint AS dupes,
+      count(*) FILTER (WHERE "nowAt" >= ${since} AND "nowOutcome" = 'SUPPORTED' AND ("nowUsage"->>'variant') IN ('www','scheme','scheme+www'))::bigint AS "viaFallback",
+      count(*) FILTER (WHERE "nowAt" >= ${since} AND "nowOutcome" = 'SUPPORTED' AND ("nowUsage"->>'found') = 'probe')::bigint AS "viaProbe",
+      count(*) FILTER (WHERE "nowAt" >= ${since} AND "nowOutcome" = 'SUPPORTED' AND ("nowUsage"->>'found') = 'linked')::bigint AS "viaLinked"
+    FROM cur GROUP BY cat ORDER BY cohort DESC`);
+  const sum = (f: (r: (typeof rows)[number]) => bigint) => rows.reduce((x, r) => x + Number(f(r)), 0);
+  const rate = (a: number, b: number) => (b ? Math.round((a / b) * 1000) / 10 : 0);
+  return {
+    since: since.toISOString(),
+    cohort: sum((r) => r.cohort), reassessed: sum((r) => r.reassessed), toSupported: sum((r) => r.supported), toBlocked: sum((r) => r.blocked), stillInsufficient: sum((r) => r.insufficient), notYetReassessed: sum((r) => r.pending),
+    newUniqueContactsAdmitted: sum((r) => r.contacts), duplicateAddressesNotAdmitted: sum((r) => r.dupes),
+    byCategory: rows.map((r) => ({
+      category: r.cat, cohort: Number(r.cohort), reassessed: Number(r.reassessed), toSupported: Number(r.supported), toBlocked: Number(r.blocked), stillInsufficient: Number(r.insufficient), notYetReassessed: Number(r.pending),
+      conversionRatePctOfReassessed: rate(Number(r.supported), Number(r.reassessed)), supportedViaHostFallback: Number(r.viaFallback), supportedViaConventionalPath: Number(r.viaProbe), supportedViaLinkedPage: Number(r.viaLinked),
+    })),
+  };
+}

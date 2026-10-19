@@ -327,3 +327,13 @@ test("v3 restriction patterns: vendor / representative / withheld-consent wordin
   ]) assert.ok(detectRestriction(t), t);
   for (const t of ["Call or email us for a quote on brakes and tires.", "Our service representatives are happy to help — email info@garage.ca.", "Contactez-nous pour un rendez-vous ou une soumission.", "We are a family-owned shop. Vendors accepted for our own suppliers: see parts page."]) assert.equal(detectRestriction(t), null, t);
 });
+
+// ── Recovery: robust mailto decoding (a malformed %-sequence used to abort the whole assessment) ─────────────────────
+test("RECOVERY — a malformed %-sequence in a mailto link does not throw, and a page URL alone never makes an address 'presented as the contact channel' (the relevance rule is unchanged)", async () => {
+  const { analyzePage, extractEmails } = await import("../src/domain/lead-radar/casl-evidence-engine");
+  assert.deepEqual(extractEmails('<a href="mailto:info%ZZ@garage-tremblay.example">x</a>').map((e) => e.via), ["mailto"]);
+  const prospect = { name: "Garage Tremblay", phoneDigits: "5145550100", postalKey: "H2X3K4" };
+  const html = "<html><head><title>Garage Tremblay</title></head><body><p>Tremblay 514-555-0100 H2X 3K4 info@garage-tremblay.example</p></body></html>";
+  const obs = analyzePage({ html, url: "https://garage-tremblay.example/contact-us", host: "garage-tremblay.example", email: "info@garage-tremblay.example", observedAt: new Date(), prospect, siteRegistrable: "garage-tremblay.example" });
+  assert.equal(obs.contactContext, false);
+});

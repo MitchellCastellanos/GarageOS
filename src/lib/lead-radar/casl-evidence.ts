@@ -1,6 +1,6 @@
 import "server-only";
 import { Prisma } from "@prisma/client";
-import { CASL_RULE_VERSION, assessEvidence, classifyMailbox, evidenceKeyOf, isDirectoryHost, nextAssessAt, registrableHost, type AssessResult } from "@/domain/lead-radar/casl-evidence-engine";
+import { ACQUISITION_VERSION, CASL_RULE_VERSION, assessEvidence, classifyMailbox, evidenceKeyOf, isDirectoryHost, nextAssessAt, registrableHost, type AssessResult } from "@/domain/lead-radar/casl-evidence-engine";
 import type { ProvenanceScope } from "@/domain/lead-radar/provenance";
 import { websiteDomain } from "@/domain/sales-crm/normalize";
 import { db } from "@/lib/db";
@@ -13,6 +13,8 @@ import { writeCrmAudit } from "@/lib/sales-crm/audit";
 // only for SUPPORTED — creates the CRM contact and an AUTO_SUPPORTED sending basis. It never approves anything on a person's behalf, never enrols and never sends: an
 // AUTO_SUPPORTED basis authorises nothing until the owner activates the automated policy (loadAutoCaslPolicy), and every send switch is separate.
 
+/** INSUFFICIENT reasons a better crawler can change. Not here, by design: no website, directory-only, robots-disallowed, obfuscated, and the policy-level relevance reasons. */
+export const RECOVERABLE_REASONS = ["FETCH_FAILED", "BUDGET_EXHAUSTED", "RESTRICTION_CHECK_INCOMPLETE", "EMAIL_NOT_FOUND_ON_OWN_SITE", "GENERAL_CHANNEL_NOT_SHOWN", "NOT_CONSPICUOUS", "IDENTITY_NOT_CORROBORATED"];
 export const EVIDENCE_LEASE_MS = 5 * 60_000;
 // Throughput (cost-bounded by construction): every candidate is capped at 9 requests / 400 KB / 15 s (evidence-fetch FETCH_LIMITS), distinct shops are distinct hosts, and at most ONE candidate per
 // website domain is in flight (shared/chain domains are never hit in parallel). The tick deadline — not the batch size — is the real ceiling, so a larger batch costs nothing extra: it only lets a
@@ -50,8 +52,12 @@ export async function claimEvidenceWork(limit: number, now: Date): Promise<strin
         AND p."status" = 'ACTIVE' AND p."doNotContact" = false AND p."mergedIntoId" IS NULL AND p."repairFit" = 'VERIFIED_REPAIR' AND p."territoryState" = 'NATIONAL'
         AND (d2."assessLeaseUntil" IS NULL OR d2."assessLeaseUntil" < ${now})
         AND ((d2."assessedAt" IS NULL AND d2."assessAttempts" < ${MAX_FIRST_PASS_ERRORS})
-          OR (d2."assessedAt" IS NOT NULL AND (d2."nextAssessAt" <= ${now} OR d2."assessRuleVersion" IS DISTINCT FROM ${CASL_RULE_VERSION} OR d2."assessWebsiteDomain" IS DISTINCT FROM p."websiteDomain")))
-      ORDER BY d2."nextAssessAt" ASC NULLS FIRST, d2."id" ASC LIMIT ${limit} FOR UPDATE OF d2 SKIP LOCKED)
+          OR (d2."assessedAt" IS NOT NULL AND (d2."nextAssessAt" <= ${now} OR d2."assessRuleVersion" IS DISTINCT FROM ${CASL_RULE_VERSION} OR d2."assessWebsiteDomain" IS DISTINCT FROM p."websiteDomain"))
+          -- Recovery lane: an INSUFFICIENT result made by an OLDER crawler for a reason a better crawler can change (unreachable site, request budget, missed contact page, unread policy page) is looked at once more.
+          OR (d2."assessedAt" IS NOT NULL AND d2."assessOutcome" = 'INSUFFICIENT' AND EXISTS (
+                SELECT 1 FROM "garageos"."CrmCaslAssessment" x WHERE x."id" = (SELECT y."id" FROM "garageos"."CrmCaslAssessment" y WHERE y."discoveredContactId" = d2."id" ORDER BY y."createdAt" DESC, y."id" DESC LIMIT 1)
+                  AND COALESCE((x."usage"->>'acq')::int, 0) < ${ACQUISITION_VERSION} AND x."reasons" && ${RECOVERABLE_REASONS}::text[])))
+      ORDER BY (CASE WHEN d2."assessedAt" IS NULL THEN 0 WHEN d2."nextAssessAt" <= ${now} THEN 1 ELSE 2 END) ASC, d2."nextAssessAt" ASC NULLS FIRST, d2."id" ASC LIMIT ${limit} FOR UPDATE OF d2 SKIP LOCKED)
     RETURNING d."id"`);
   return rows.map((r) => r.id).sort();
 }
@@ -101,7 +107,7 @@ export async function assessOne(id: string, now: Date, deps: FetchDeps, t: Evide
 async function persist(d: NonNullable<Row>, result: AssessResult, acq: Acquisition | null, attempts: number, next: Date, now: Date, t: EvidenceTally) {
   const email = d.emailNormalized;
   const key = evidenceKeyOf(email, result);
-  const usage = acq?.usage ?? { requests: 0, bytes: 0, ms: 0, pages: 0 };
+  const usage = { ...(acq?.usage ?? { requests: 0, bytes: 0, ms: 0, pages: 0 }), acq: ACQUISITION_VERSION };
   await db.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM "garageos"."CrmDiscoveredContact" WHERE id = ${d.id} FOR UPDATE`;
     const cur = await tx.crmDiscoveredContact.findUniqueOrThrow({ where: { id: d.id }, select: { status: true, promotedContactId: true, assessOutcome: true } });

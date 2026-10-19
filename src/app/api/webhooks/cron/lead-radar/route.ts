@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { isAuthorizedCronRequest } from "@/lib/cron-auth";
 import { runAutomationTick } from "@/lib/lead-radar/automation";
 import { readAutomation } from "@/lib/lead-radar/automation";
-import { evidenceDiagnostics } from "@/lib/lead-radar/evidence-diagnostics";
+import { evidenceDiagnostics, recoveryReport } from "@/lib/lead-radar/evidence-diagnostics";
 import { getCommsSettings } from "@/lib/sales-comms/settings";
 import { runDiscoveryMaintenance } from "@/lib/lead-radar/worker";
 import { seedDiscoveredContactsIfEnabled } from "@/lib/sales-comms/contact-readiness";
@@ -38,7 +38,13 @@ function summarize(counters: Record<string, unknown> | undefined) {
 export async function GET(request: Request) {
   if (!authorized(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   // Read-only aggregate diagnostic (counts only), same cron authentication; runs no tick and changes nothing.
-  if (new URL(request.url).searchParams.get("diag") === "evidence") {
+  const diag = new URL(request.url).searchParams;
+  if (diag.get("diag") === "recovery") {
+    const since = new Date(diag.get("since") ?? "");
+    if (Number.isNaN(since.getTime())) return NextResponse.json({ error: "SINCE_REQUIRED" }, { status: 400 });
+    try { return NextResponse.json(await recoveryReport(since)); } catch (e) { console.error("[lead-radar] recovery report failed", e instanceof Error ? e.message : "unknown"); return NextResponse.json({ error: "DIAGNOSTIC_FAILED" }, { status: 500 }); }
+  }
+  if (diag.get("diag") === "evidence") {
     try { return NextResponse.json(await evidenceDiagnostics()); } catch (e) { console.error("[lead-radar] diagnostic failed", e instanceof Error ? e.message : "unknown"); return NextResponse.json({ error: "DIAGNOSTIC_FAILED" }, { status: 500 }); }
   }
   // Discovery housekeeping first (recover stalled worker runs, detect a new Overture release, queue an opted-in province). Independent of the automation master switch

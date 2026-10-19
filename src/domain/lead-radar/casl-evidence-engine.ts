@@ -34,6 +34,12 @@ import { AUTO_EVIDENCE_MAX_AGE_DAYS } from "@/domain/sales-comms/casl";
 
 /** Version of the whole automated policy (engine rules + decision mapping). A change here deactivates the owner's activation until it is renewed. */
 export const CASL_RULE_VERSION = "casl-auto-v3";
+/**
+ * Version of the evidence ACQUISITION (how pages are found and read), not of the legal conditions: raising it never changes what an address must prove to be SUPPORTED, so it does not void any decision or the
+ * owner's activation. It only lets INSUFFICIENT results made by an older crawler be looked at again by the improved one (they are re-opened once; history is appended, never rewritten).
+ * 1 = original crawler; 2 = scheme / www fallback, link-text and conventional-path contact discovery, larger page/request ceiling.
+ */
+export const ACQUISITION_VERSION = 2;
 /** GarageOS policy (not a statutory period): evidence is relied on for at most 30 days from the observation. */
 export const EVIDENCE_TTL_DAYS = AUTO_EVIDENCE_MAX_AGE_DAYS;
 /** The stage looks again well before the 30-day limit, so a SUPPORTED basis is normally refreshed (or demoted) before any send could meet an expired one. */
@@ -83,7 +89,7 @@ export type EmailVia = "mailto" | "text" | "cfemail" | "obfuscated";
 export function extractEmails(html: string): { email: string; via: EmailVia }[] {
   const found = new Map<string, EmailVia>();
   const add = (e: string, via: EmailVia) => { const n = e.trim().toLowerCase().replace(/[.,;:)>\]]+$/, ""); if (/^[a-z0-9._%+'-]+@[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(n) && n.length <= 254 && !found.has(n)) found.set(n, via); };
-  for (const m of html.matchAll(/href\s*=\s*["']mailto:([^"'?#]+)/gi)) add(decodeURIComponent(decodeEntities(m[1])), "mailto");
+  for (const m of html.matchAll(/href\s*=\s*["']mailto:([^"'?#]+)/gi)) { let raw = decodeEntities(m[1]); try { raw = decodeURIComponent(raw); } catch { /* malformed %-sequence: use the text as written */ } add(raw, "mailto"); }
   const text = htmlToText(html);
   for (const m of text.matchAll(EMAIL_IN_TEXT)) add(m[0], "text");
   // Obfuscated forms (Cloudflare e-mail protection, "info [at] shop [dot] ca") are listed so the engine can SEE them, but they are not conspicuous publication (see assessEvidence).
@@ -407,5 +413,5 @@ export function nextAssessAt(outcome: Outcome, attempts: number, now: Date, reva
 
 /** Idempotency key of a decision: the same evidence under the same rules is one history row, however often the stage runs. A SUPPORTED re-validation on a later day is a NEW row (it carries a fresh observation and artifact; the 30-day clock restarts from it). */
 export function evidenceKeyOf(email: string, r: Pick<AssessResult, "outcome" | "conditions" | "reasons" | "evidence" | "mailboxClass" | "snapshot">): string {
-  return createHash("sha256").update(JSON.stringify([email, CASL_RULE_VERSION, r.outcome, r.conditions, [...r.reasons].sort(), r.mailboxClass, r.evidence?.url ?? null, r.evidence?.contentHash ?? null, r.outcome === "SUPPORTED" ? r.evidence?.observedAt.toISOString().slice(0, 10) ?? null : null, r.snapshot?.restrictionScan.restriction?.url ?? null])).digest("hex").slice(0, 40);
+  return createHash("sha256").update(JSON.stringify([email, CASL_RULE_VERSION, r.outcome === "INSUFFICIENT" ? ACQUISITION_VERSION : 0, r.outcome, r.conditions, [...r.reasons].sort(), r.mailboxClass, r.evidence?.url ?? null, r.evidence?.contentHash ?? null, r.outcome === "SUPPORTED" ? r.evidence?.observedAt.toISOString().slice(0, 10) ?? null : null, r.snapshot?.restrictionScan.restriction?.url ?? null])).digest("hex").slice(0, 40);
 }

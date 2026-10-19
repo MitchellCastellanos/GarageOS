@@ -75,7 +75,8 @@ test("hard budgets: page cap, request cap, byte cap and wall-clock cap — and n
   const b = net({ "shop.example": { "/robots.txt": { status: 404 }, "/": { status: 500 } } });
   const rb = await run("https://shop.example", b.deps);
   assert.deepEqual([rb.outcome, rb.pages.length], ["FAILED", 0]);
-  assert.equal(b.log.filter((l) => l === "shop.example/").length, 1);
+  // the failing form is not retried; at most the SAME site's other form (www / other scheme) is tried once each
+  assert.ok(b.log.filter((l) => l === "shop.example/").length <= 2 && b.log.length <= FETCH_LIMITS.maxRequests);
   // byte cap: a huge page is truncated, never fully read
   const huge = "x".repeat(2_000_000);
   const c = net({ "shop.example": { "/robots.txt": { status: 404 }, "/": { body: `<p>${huge}</p>` } } });
@@ -103,7 +104,8 @@ test("robots.txt is honoured: a disallowed site is never read; a 5xx robots.txt 
 test("SSRF safety: private/loopback hosts, IP literals, ports, directories and cross-site redirects are never fetched", async () => {
   const priv = net({ "shop.example": { "/": { body: CONTACT } } }, { dns: { "shop.example": ["10.1.2.3"] } });
   const rp = await run("https://shop.example", priv.deps);
-  assert.deepEqual([rp.pages.length, priv.log.length], [0, 0]);
+  assert.equal(rp.pages.length, 0);
+  assert.equal(priv.log.some((l) => l.startsWith("shop.example")), false, "the host that resolves to a private address is never requested (only the same site's www form, which resolves publicly, may be tried)");
   const mixed = net({ "shop.example": { "/": { body: CONTACT } } }, { dns: { "shop.example": ["93.184.216.34", "127.0.0.1"] } });
   assert.equal((await run("https://shop.example", mixed.deps)).pages.length, 0, "ANY non-public answer refuses the host");
   for (const w of ["http://127.0.0.1/", "https://169.254.169.254/latest", "https://shop.example:8443/", "https://www.yellowpages.ca/biz/1", "https://m.facebook.com/shop", "ftp://shop.example/", "javascript:alert(1)", ""]) {
@@ -217,4 +219,58 @@ test("PRIVACY — the crawler only ever looks for the ONE address it was given; 
   const withoutDecoder = src.split("\n").filter((l) => !/matchAll\(\/\(\[a-z0-9\._%\+'-\]\{1,64\}\)\\s\*\[\\\[\(\]/.test(l)).join("\n");
   assert.ok(!/@\$\{|`\$\{[^`]*\}@|"info@"|'info@'|`info@|`contact@|`ventes@|\+\s*"@"/i.test(withoutDecoder), "no code concatenates a local part with a domain");
   assert.ok(/e\.email === args\.email/.test(src), "extraction is matched against the one address under assessment");
+});
+
+// ── Recovery of INSUFFICIENT results: crawler improvements (same legal conditions; only HOW pages are found changes) ──────────────────────────────────────
+test("RECOVERY — the recorded bare host does not resolve but the SAME site's www host does: the www form is tried (no new site is ever crawled)", async () => {
+  const { deps, log } = net({ "www.garagetremblay.example": { "/robots.txt": { status: 404 }, "/": { body: CONTACT } } }, { dns: { "garagetremblay.example": [] } });
+  // dns [] ⇒ not safe/unresolvable for the bare host, exactly like a missing A record
+  const r = await run("http://garagetremblay.example", deps);
+  assert.equal(r.outcome, "OK");
+  assert.equal(r.usage.variant, "www");
+  assert.equal(r.pages[0].emailFound, true);
+  assert.ok(log.every((l) => l.startsWith("www.garagetremblay.example")), "only the same registrable site was requested");
+});
+
+test("RECOVERY — an http:// website that no longer answers is retried on https:// of the same host", async () => {
+  let httpTried = 0;
+  const base = net({ "garagetremblay.example": { "/robots.txt": { status: 404 }, "/": { body: CONTACT } } });
+  const deps: Deps = { ...base.deps, fetch: async (url, init) => { if (url.startsWith("http://")) { httpTried++; throw new Error("connection refused"); } return base.deps.fetch(url, init); } };
+  const r = await run("http://garagetremblay.example", deps);
+  assert.ok(httpTried >= 1);
+  assert.equal(r.outcome, "OK"); assert.equal(r.usage.variant, "scheme");
+});
+
+test("RECOVERY — a site that is down on every form stays FAILED, with a bounded number of attempts and nothing outside the site", async () => {
+  const { deps, log } = net({}); // every request 404s
+  const r = await run("https://garagetremblay.example", deps);
+  assert.notEqual(r.outcome, "OK");
+  assert.ok(r.usage.requests <= FETCH_LIMITS.maxRequests);
+  assert.ok(log.every((l) => /garagetremblay\.example/.test(l)));
+});
+
+test("RECOVERY — contact pages are discovered by the LINK TEXT even when the URL says nothing", async () => {
+  const home = `<nav><a href="/p/4821">Nous joindre</a> <a href="/p/9">Blog</a></nav>`;
+  const { deps } = net({ "garagetremblay.example": { "/robots.txt": { status: 404 }, "/": { body: home }, "/p/4821": { body: CONTACT }, "/p/9": { body: "never read" } } });
+  const r = await run("https://garagetremblay.example", deps);
+  assert.equal(r.pages.find((p) => p.emailFound)?.url.endsWith("/p/4821"), true);
+  assert.equal(r.usage.found, "linked");
+});
+
+test("RECOVERY — when the site's links lead nowhere, conventional contact URLs are probed (bounded) on the same site and robots.txt still applies", async () => {
+  const { deps, log } = net({ "garagetremblay.example": { "/robots.txt": { status: 404 }, "/": { body: "<p>Bienvenue</p>" }, "/nous-joindre": { body: CONTACT } } });
+  const r = await run("https://garagetremblay.example", deps);
+  assert.equal(r.pages.find((p) => p.emailFound)?.url.endsWith("/nous-joindre"), true);
+  assert.equal(r.usage.found, "probe");
+  assert.ok((r.usage.probed ?? 0) <= 4, "at most four probes");
+  assert.ok(log.length <= FETCH_LIMITS.maxRequests);
+  const blocked = net({ "garagetremblay.example": { "/robots.txt": { body: "User-agent: *\nDisallow: /nous-joindre\nDisallow: /contact\n", type: "text/plain" }, "/": { body: "<p>x</p>" }, "/nous-joindre": { body: CONTACT }, "/contact": { body: CONTACT } } });
+  const rb = await run("https://garagetremblay.example", blocked.deps);
+  assert.equal(rb.pages.some((p) => p.emailFound), false, "a robots-disallowed contact URL is never read");
+});
+
+test("RECOVERY — a site that publishes the address nowhere stays EMAIL_NOT_FOUND after the probes (no address is ever invented)", async () => {
+  const { deps } = net({ "garagetremblay.example": { "/robots.txt": { status: 404 }, "/": { body: "<p>Hello</p>" }, "/contact": { body: "<p>Phone only 514-555-0100</p>" } } });
+  const r = await run("https://garagetremblay.example", deps);
+  assert.equal(r.pages.some((p) => p.emailFound), false);
 });
