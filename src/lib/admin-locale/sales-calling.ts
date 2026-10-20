@@ -152,6 +152,7 @@ const en = {
     NUMBER_ALREADY_IN_CALL: "This number is already in a call.", TEST_NUMBER_NOT_ALLOWED: "This number is not on the approved test list.", SESSION_NOT_FOUND: "This call could not be found.", SESSION_EXPIRED: "This call expired. Please start a new one.",
     SESSION_NOT_ENDED: "The call has not finished yet. Wait a few seconds and try again.", ALREADY_RECORDED: "The outcome of this call was already saved.", INVALID_INPUT: "Some information is missing or invalid. Check the form and try again.",
     DISPOSITION_PENDING: "Save the outcome of your last call before starting another call or loading the next prospect.",
+    HOLD_DISABLED: "Hold is not enabled yet. A Super Admin turns it on after a live test call.", HOLD_NOT_AVAILABLE: "Hold is not available on this call.", HOLD_BUSY: "Another hold request is still being processed. Try again in a moment.", HOLD_FAILED: "The hold request failed. The call was not changed; try again.", SESSION_NOT_ACTIVE: "This call is no longer active.",
   } satisfies Record<CallErrorCode, string>,
   voice: {
     title: "Voice settings", subtitle: "Launch gates, test numbers and limits for browser calling. Super Admin only.",
@@ -326,6 +327,7 @@ const fr: Dict = {
     NUMBER_ALREADY_IN_CALL: "Ce numéro est déjà en appel.", TEST_NUMBER_NOT_ALLOWED: "Ce numéro ne figure pas dans la liste de test approuvée.", SESSION_NOT_FOUND: "Cet appel est introuvable.", SESSION_EXPIRED: "Cet appel a expiré. Veuillez en démarrer un nouveau.",
     SESSION_NOT_ENDED: "L’appel n’est pas encore terminé. Patientez quelques secondes et réessayez.", ALREADY_RECORDED: "Le résultat de cet appel a déjà été enregistré.", INVALID_INPUT: "Des renseignements sont manquants ou invalides. Vérifiez le formulaire et réessayez.",
     DISPOSITION_PENDING: "Enregistrez le résultat de votre dernier appel avant d’en lancer un autre ou de charger le prochain prospect.",
+    HOLD_DISABLED: "La mise en attente n’est pas encore activée. Un Super Admin l’active après un appel d’essai en direct.", HOLD_NOT_AVAILABLE: "La mise en attente n’est pas disponible pour cet appel.", HOLD_BUSY: "Une autre demande de mise en attente est en cours de traitement. Réessayez dans un instant.", HOLD_FAILED: "La demande de mise en attente a échoué. L’appel n’a pas été modifié; réessayez.", SESSION_NOT_ACTIVE: "Cet appel n’est plus actif.",
   },
   voice: {
     title: "Paramètres vocaux", subtitle: "Conditions de lancement, numéros de test et limites des appels dans le navigateur. Réservé au Super Admin.",

@@ -40,6 +40,8 @@ export async function voiceAuthorizeLiveCalling(authorized: boolean, confirmatio
 }
 /** Lets sellers place a call outside the recipient's local calling hours after an explicit on-screen confirmation (audited gate; CRTC telemarketing hours still apply to the business — see docs). */
 export async function voiceSetAllowOutOfHours(allowed: boolean) { return run({ allowOutOfHoursCalls: !!allowed }, allowed ? "out-of-hours calls allowed with confirmation" : "out-of-hours calls disallowed"); }
+/** Routes NEW calls through the internal conference so a connected call can be put on real Hold. Enable only after a live test call to a number you control; off = original direct dialing. */
+export async function voiceSetHoldEnabled(enabled: boolean) { return run({ holdEnabled: !!enabled }, enabled ? "hold topology enabled" : "hold topology disabled"); }
 export async function voiceSetHeldProvinces(provinces: string[]) { return run({ heldProvinces: provinces.map(String) }, undefined, true); }
 export async function voiceSetTestNumbers(numbers: string[]) { return run({ testDestinations: numbers.map(String) }); }
 export async function voiceSetLimits(l: { dailyCallCapPerSeller: number; cooldownMinutes: number; maxCallSeconds: number }) {

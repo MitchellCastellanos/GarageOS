@@ -3,17 +3,20 @@ import { db } from "@/lib/db";
 import { isTerminal, nextState, stateFromTwilio, type CallState } from "@/domain/voice/state";
 import { writeCrmAudit } from "@/lib/sales-crm/audit";
 import { resolvePlatformSalesActor } from "@/lib/sales-crm/access";
-import { dialNumberTwiml, twilioWebhookUrl } from "@/lib/communications/twilio";
+import { conferenceHostTwiml, conferenceGuestTwiml, dialNumberTwiml, holdTwiml, twilioWebhookUrl, voiceProvider } from "@/lib/communications/twilio";
 import { normalizeCanadianPhone } from "@/domain/sales-crm/phone";
 import { checkBaseGates, checkCommercialGates, checkProspect, hashAuth, voiceIdentity } from "@/lib/voice/session";
 import { readVoiceSettings } from "@/lib/voice/settings";
 
 export const VOICE_OUTBOUND_PATH = "/api/voice/outbound";
 export const VOICE_STATUS_PATH = "/api/voice/status";
+export const VOICE_HOLD_MUSIC_PATH = "/api/voice/hold-music";
+export const conferenceName = (sessionId: string) => `garageos-call-${sessionId}`;
+export const conferencePath = (sessionId: string, leaf: "join" | "status" | "events") => `/api/voice/conference/${sessionId}/${leaf}`;
 
 const NO = '<?xml version="1.0" encoding="UTF-8"?><Response><Say language="en-CA">This call cannot be placed.</Say><Hangup/></Response>';
 
-const CLOSE = { openProspectKey: null, openNumberKey: null, openStaffKey: null } as const;
+const CLOSE = { openProspectKey: null, openNumberKey: null, openStaffKey: null, holdState: "NONE", heldAt: null } as const;
 
 const dialTwiml = (destination: string, callerId: string, maxSeconds: number) => dialNumberTwiml({ destination, callerId, maxSeconds, statusCallbackUrl: twilioWebhookUrl(VOICE_STATUS_PATH) });
 
@@ -32,7 +35,7 @@ export async function handleOutbound(body: Record<string, string>, now = new Dat
   if (!s) return NO;
   const settings = await readVoiceSettings();
   // Retry of the very same Twilio request (same CallSid): answer the same instruction without re-consuming anything.
-  if (s.parentCallSid && s.parentCallSid === callSid) return s.state === "PENDING" || s.state === "RINGING" || s.state === "IN_PROGRESS" ? dialTwiml(s.destinationE164, s.callerIdE164, settings.maxCallSeconds) : NO;
+  if (s.parentCallSid && s.parentCallSid === callSid) return s.state === "PENDING" || s.state === "RINGING" || s.state === "IN_PROGRESS" ? (s.topology === "CONFERENCE" ? conferenceHostTwiml({ name: conferenceName(s.id), eventsUrl: twilioWebhookUrl(conferencePath(s.id, "events")), maxSeconds: settings.maxCallSeconds }) : dialTwiml(s.destinationE164, s.callerIdE164, settings.maxCallSeconds)) : NO;
   if (s.state !== "PENDING" || s.endedAt || s.authConsumedAt || !s.authTokenHash || s.authTokenHash !== hashAuth(token) || s.authExpiresAt < now || body.From !== `client:${voiceIdentity(s.staffId)}`) {
     await audit(s.userId, s.id, "REJECTED", "AUTH_INVALID");
     if (!s.endedAt && s.state === "PENDING" && s.authTokenHash === hashAuth(token)) await closeWithFailure(s.id, "AUTH_EXPIRED_OR_REPLAYED");
@@ -52,8 +55,49 @@ export async function handleOutbound(body: Record<string, string>, now = new Dat
   }
   const claimed = await db.crmCallSession.updateMany({ where: { id: s.id, state: "PENDING", authConsumedAt: null, endedAt: null }, data: { authConsumedAt: now, parentCallSid: callSid, authTokenHash: null } });
   if (claimed.count !== 1) return NO; // lost a race with a concurrent request carrying the same authorization
-  return dialTwiml(s.destinationE164, s.callerIdE164, settings.maxCallSeconds);
+  if (!settings.holdEnabled) return dialTwiml(s.destinationE164, s.callerIdE164, settings.maxCallSeconds);
+
+  // Hold-capable topology (Super Admin switch): the browser leg waits in a private conference and the prospect's call is placed through the REST API into the same conference.
+  // The destination is still the server-resolved one; nothing from the request is used.
+  try {
+    const childSid = await voiceProvider.createConferenceProspectCall({
+      accountSid: settings.twilioAccountSid, to: s.destinationE164, from: s.callerIdE164, maxSeconds: settings.maxCallSeconds,
+      joinUrl: twilioWebhookUrl(conferencePath(s.id, "join")), statusCallbackUrl: twilioWebhookUrl(conferencePath(s.id, "status")),
+    });
+    try { await db.crmCallSession.update({ where: { id: s.id }, data: { topology: "CONFERENCE", childCallSid: childSid } }); }
+    catch (e) { await voiceProvider.endProviderCall({ accountSid: settings.twilioAccountSid, callSid: childSid }).catch(() => undefined); throw e; }
+  } catch (e) {
+    await closeWithFailure(s.id, "PROVIDER_ERROR"); await audit(s.userId, s.id, "REJECTED", "PROVIDER_ERROR");
+    console.error("[voice] conference dial failed", e instanceof Error ? e.message.slice(0, 120) : "unknown");
+    return NO;
+  }
+  return conferenceHostTwiml({ name: conferenceName(s.id), eventsUrl: twilioWebhookUrl(conferencePath(s.id, "events")), maxSeconds: settings.maxCallSeconds });
 }
+
+/** TwiML fetched by Twilio when the prospect answers (conference topology). Only the exact call this server created for this session may join, and only while the session is live. */
+export async function handleConferenceJoin(sessionId: string, body: Record<string, string>): Promise<string> {
+  const s = await db.crmCallSession.findUnique({ where: { id: sessionId } });
+  const callSid = body.CallSid;
+  if (!s || !callSid || s.topology !== "CONFERENCE" || s.endedAt || isTerminal(s.state as CallState)) return '<?xml version="1.0" encoding="UTF-8"?><Response><Hangup/></Response>';
+  if (s.childCallSid && s.childCallSid !== callSid) return '<?xml version="1.0" encoding="UTF-8"?><Response><Hangup/></Response>';
+  if (!s.childCallSid) await db.crmCallSession.updateMany({ where: { id: s.id, childCallSid: null }, data: { childCallSid: callSid } });
+  return conferenceGuestTwiml({ name: conferenceName(s.id) });
+}
+
+/** Conference callbacks: remember the live conference SID (idempotent by provider event). */
+export async function handleConferenceEvent(sessionId: string, body: Record<string, string>): Promise<{ applied: boolean }> {
+  const s = await db.crmCallSession.findUnique({ where: { id: sessionId }, select: { id: true, conferenceSid: true } });
+  const confSid = body.ConferenceSid, event = body.StatusCallbackEvent;
+  if (!s || !confSid || !event) return { applied: false };
+  const sequence = Number.parseInt(body.SequenceNumber ?? "0", 10) || 0;
+  const ins = await db.crmCallEvent.createMany({ data: [{ sessionId: s.id, callSid: confSid, status: event, sequence, payload: { leg: "conference" } }], skipDuplicates: true });
+  if (ins.count === 0) return { applied: false };
+  if (!s.conferenceSid) await db.crmCallSession.updateMany({ where: { id: s.id, conferenceSid: null }, data: { conferenceSid: confSid } });
+  return { applied: true };
+}
+
+/** What the held prospect hears (fetched by Twilio as the participant's holdUrl). */
+export function holdMusicTwiml(language: "en-CA" | "fr-CA" = "en-CA"): string { return holdTwiml({ selfUrl: twilioWebhookUrl(VOICE_HOLD_MUSIC_PATH), language }); }
 
 async function audit(userId: string, sessionId: string, what: string, code: string) {
   await writeCrmAudit({ actorUserId: userId, action: what === "ENDED" ? "CALL_SESSION_ENDED" : "CALL_SESSION_REJECTED", entityType: "CrmCallSession", entityId: sessionId, metadata: { code } }).catch(() => undefined);
@@ -63,13 +107,15 @@ async function audit(userId: string, sessionId: string, what: string, code: stri
  * Status callbacks (parent and child legs). Idempotent: the provider event is stored under a unique (CallSid, status, sequence) key, so a replay changes nothing; the state only moves forward
  * and a terminal state is final. Terminal states free the open-call locks.
  */
-export async function handleStatus(body: Record<string, string>, now = new Date()): Promise<{ applied: boolean; reason?: string }> {
+export async function handleStatus(body: Record<string, string>, now = new Date(), sessionHint: string | null = null): Promise<{ applied: boolean; reason?: string }> {
   const callSid = body.CallSid, parentSid = body.ParentCallSid || null, status = (body.CallStatus ?? "").toLowerCase();
   if (!callSid || !status) return { applied: false, reason: "BAD_REQUEST" };
-  const s = await db.crmCallSession.findFirst({ where: { OR: [{ parentCallSid: parentSid ?? callSid }, { parentCallSid: callSid }, { childCallSid: callSid }] } });
+  const s = sessionHint
+    ? await db.crmCallSession.findFirst({ where: { id: sessionHint, topology: "CONFERENCE", OR: [{ childCallSid: callSid }, { childCallSid: null }] } })
+    : await db.crmCallSession.findFirst({ where: { OR: [{ parentCallSid: parentSid ?? callSid }, { parentCallSid: callSid }, { childCallSid: callSid }] } });
   if (!s) return { applied: false, reason: "UNKNOWN_CALL" };
   const sequence = Number.parseInt(body.SequenceNumber ?? "0", 10) || 0;
-  const isChild = !!parentSid && parentSid === s.parentCallSid;
+  const isChild = (!!parentSid && parentSid === s.parentCallSid) || (!!sessionHint && callSid !== s.parentCallSid);
   const duration = body.CallDuration ? Number.parseInt(body.CallDuration, 10) : null;
 
   return db.$transaction(async (tx) => {

@@ -4636,6 +4636,16 @@ enum CrmCallState {
   @@schema("garageos")
 }
 
+/// Real telephony hold state of a call in the CONFERENCE topology (see docs/voice-hold.md). HOLDING/RESUMING are transient locks around a provider request.
+enum CrmHoldState {
+  NONE
+  HOLDING
+  HELD
+  RESUMING
+
+  @@schema("garageos")
+}
+
 enum CrmCallKind {
   /// A call to a CRM prospect (needs every compliance gate).
   PROSPECT
@@ -4683,6 +4693,13 @@ model CrmCallSession {
   openStaffKey        String?         @unique
   updatedAt           DateTime        @updatedAt
 
+  /// DIRECT = <Dial><Number> (no hold). CONFERENCE = the browser and the prospect each join a private conference named after the session (hold supported). Never exposed as a feature.
+  topology            String          @default("DIRECT")
+  conferenceSid       String?
+  holdState           CrmHoldState    @default(NONE)
+  heldAt              DateTime?
+  holdUpdatedAt       DateTime?
+  holdCount           Int             @default(0)
   events CrmCallEvent[]
 
   @@index([staffId, requestedAt])
@@ -4721,6 +4738,8 @@ model CrmVoiceSettings {
   heldProvinces            String[]  @default(["BC", "MB"])
   /// Super Admin switch: a seller may place a call outside the recipient's local calling hours after an explicit on-screen confirmation (audited). Off by default.
   allowOutOfHoursCalls     Boolean   @default(false)
+  /// Super Admin switch (default off): route new calls through the internal single-participant-pair conference so a connected call can be put on real Hold. Off = the original direct <Dial><Number> topology, unchanged.
+  holdEnabled              Boolean   @default(false)
   /// E.164 numbers GarageOS controls; test calls may only go to these.
   testDestinations         String[]  @default([])
   dailyCallCapPerSeller    Int       @default(150)

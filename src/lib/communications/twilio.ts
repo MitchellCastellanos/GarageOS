@@ -163,3 +163,69 @@ export function dialNumberTwiml(p: { destination: string; callerId: string; maxS
   d.number({ statusCallback: p.statusCallbackUrl, statusCallbackEvent: ["initiated", "ringing", "answered", "completed"], statusCallbackMethod: "POST" }, p.destination);
   return r.toString();
 }
+
+// ── Voice hold (conference topology). Each call gets a private conference named after the session: the browser leg and the prospect leg are its only two participants. ──
+
+/** Parent (browser) leg: joins the session's conference; ending the conference ends the browser leg. No wait music while the prospect's phone rings. */
+export function conferenceHostTwiml(p: { name: string; eventsUrl: string; maxSeconds: number }): string {
+  const r = new twilio.twiml.VoiceResponse();
+  const d = r.dial({ timeLimit: p.maxSeconds });
+  d.conference({ startConferenceOnEnter: true, endConferenceOnExit: true, beep: "false", waitUrl: "", statusCallback: p.eventsUrl, statusCallbackEvent: ["start", "end", "join", "leave"], statusCallbackMethod: "POST", record: "do-not-record" }, p.name);
+  return r.toString();
+}
+
+/** Prospect leg (fetched when the callee answers): joins the same conference; if the prospect hangs up the conference ends, which also ends the browser leg. */
+export function conferenceGuestTwiml(p: { name: string }): string {
+  const r = new twilio.twiml.VoiceResponse();
+  const d = r.dial();
+  d.conference({ startConferenceOnEnter: true, endConferenceOnExit: true, beep: "false", waitUrl: "", record: "do-not-record" }, p.name);
+  return r.toString();
+}
+
+/** What the held participant hears: a short spoken notice, a pause, then the same document again (a loop that needs no stored audio asset). */
+export function holdTwiml(p: { selfUrl: string; language: "en-CA" | "fr-CA" }): string {
+  const r = new twilio.twiml.VoiceResponse();
+  r.say({ language: p.language }, p.language === "fr-CA" ? "Veuillez patienter, nous revenons dans un instant." : "Please hold, we will be right back.");
+  r.pause({ length: 20 });
+  r.redirect({ method: "POST" }, p.selfUrl);
+  return r.toString();
+}
+
+/** Places the prospect's call through the REST API (the only way to put it in the conference). Returns the new Call SID. */
+export async function createConferenceProspectCall(p: { accountSid: string | null; to: string; from: string; joinUrl: string; statusCallbackUrl: string; maxSeconds: number }): Promise<string> {
+  const c = getTwilioClientForWrite(p.accountSid, "voice:conference-call");
+  const call = await c.calls.create({
+    to: p.to, from: p.from, url: p.joinUrl, method: "POST", timeout: 45, timeLimit: p.maxSeconds,
+    statusCallback: p.statusCallbackUrl, statusCallbackMethod: "POST", statusCallbackEvent: ["initiated", "ringing", "answered", "completed"],
+  });
+  return call.sid;
+}
+
+/** Hard-stops a provider call that must not continue (e.g. the browser leg never joined). Best effort. */
+export async function endProviderCall(p: { accountSid: string | null; callSid: string }): Promise<void> {
+  const c = getTwilioClientForWrite(p.accountSid, "voice:end-call");
+  await c.calls(p.callSid).update({ status: "completed" });
+}
+
+/** Resolves the live conference SID by its friendly name (the session id based name). */
+export async function findConferenceSid(p: { accountSid: string | null; name: string }): Promise<string | null> {
+  const c = getTwilioClientFor(p.accountSid);
+  const list = await c.conferences.list({ friendlyName: p.name, status: "in-progress", limit: 1 });
+  return list[0]?.sid ?? null;
+}
+
+/** Real hold: the participant stops hearing/speaking in the conference and hears `holdUrl` until resumed. */
+export async function setParticipantHold(p: { accountSid: string | null; conferenceSid: string; callSid: string; hold: boolean; holdUrl?: string }): Promise<void> {
+  const c = getTwilioClientForWrite(p.accountSid, "voice:participant-hold");
+  await c.conferences(p.conferenceSid).participants(p.callSid).update({ hold: p.hold, ...(p.hold && p.holdUrl ? { holdUrl: p.holdUrl, holdMethod: "POST" } : {}) });
+}
+
+/** Reads the participant's current hold flag (used to heal an interrupted hold/resume request). null = participant not found (call over). */
+export async function readParticipantHold(p: { accountSid: string | null; conferenceSid: string; callSid: string }): Promise<boolean | null> {
+  const c = getTwilioClientFor(p.accountSid);
+  try { return (await c.conferences(p.conferenceSid).participants(p.callSid).fetch()).hold; }
+  catch (e) { if ((e as { status?: number }).status === 404) return null; throw e; }
+}
+
+/** The provider calls the hold-capable topology makes, behind one swappable object so tests can script provider behaviour (production always uses these defaults). */
+export const voiceProvider = { createConferenceProspectCall, endProviderCall, findConferenceSid, setParticipantHold, readParticipantHold };
