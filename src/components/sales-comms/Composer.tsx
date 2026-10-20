@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } from "react";
 import Link from "next/link";
 import { PLATFORM } from "@/lib/routes";
 import { attachFile, discardDraft, insertBookingLink, insertVideoLink, loadTemplate, previewEmail, removeAttachment, saveEmailDraft, sendEmail } from "@/actions/sales-inbox";
@@ -16,12 +16,26 @@ export interface ComposerInitial {
   messageId: string | null; threadId: string | null; prospectId: string | null; contactId: string | null; to: string; cc: string; bcc: string;
   subject: string; body: string; templateKey: string; languageOverride: "" | "EN" | "FR";
 }
+/** What an embedding page (the calling workspace) can ask the composer to insert at the end of the editable body. */
+export type ComposerInsert = "booking" | "teaser" | "commercial" | "demo" | "demoBooking" | "sendDemo";
+export interface ComposerHandle { insert: (kind: ComposerInsert) => void; selectContact: (contactId: string) => void }
+export interface ComposerSent { messageId: string; threadId: string; status: string; errorCode: string | null; bodyText: string }
+/** Optional embedding mode: never navigates away (the page around it may hold a live phone call). Absent ⇒ the standalone behaviour is unchanged. */
+export interface ComposerEmbedded {
+  onSent?: (r: ComposerSent) => void; onClose?: () => void; onDirtyChange?: (dirty: boolean) => void;
+  demoLinks?: { key: "demo" | "demoBooking"; url: string }[];
+  labels: { shortVideo: string; fullVideo: string; demo: string; demoBooking: string; newEmail: string; result: Record<string, string>; errorCode: string };
+  handleRef?: Ref<ComposerHandle>;
+}
 interface Props {
   locale: "en" | "fr"; prospects: ComposerProspect[]; templates: { key: string; label: string }[]; initial: ComposerInitial; isReply: boolean;
   sender: { name: string; email: string } | null; bookingEnabled: boolean; sendReady: boolean; timezone: string; attachments: { id: string; filename: string; sizeBytes: number }[];
+  embedded?: ComposerEmbedded;
 }
 
-export function Composer({ locale, prospects, templates, initial, isReply, sender, bookingEnabled, sendReady, timezone, attachments: initialAttachments }: Props) {
+const snap = (x: ComposerInitial) => JSON.stringify([x.to, x.cc, x.subject, x.body]);
+
+export function Composer({ locale, prospects, templates, initial, isReply, sender, bookingEnabled, sendReady, timezone, attachments: initialAttachments, embedded }: Props) {
   const { t, router, pending, error, notice, run, setError, setNotice } = useComms(locale);
   const c = t.composer;
   const [f, setF] = useState(initial);
@@ -31,6 +45,8 @@ export function Composer({ locale, prospects, templates, initial, isReply, sende
   const [schedule, setSchedule] = useState(false);
   const [when, setWhen] = useState({ date: "", time: "09:00" });
   const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const [baseline, setBaseline] = useState(() => snap(initial));
+  const [sendResult, setSendResult] = useState<{ status: string; errorCode: string | null } | null>(null);
   const set = <K extends keyof ComposerInitial>(k: K, v: ComposerInitial[K]) => setF((s) => ({ ...s, [k]: v }));
   const prospect = useMemo(() => prospects.find((p) => p.id === f.prospectId) ?? null, [prospects, f.prospectId]);
   const contact = prospect?.contacts.find((x) => x.id === f.contactId) ?? null;
@@ -56,6 +72,43 @@ export function Composer({ locale, prospects, templates, initial, isReply, sende
     return r.messageId;
   }
   const effectiveLang = f.languageOverride || contact?.language || prospect?.language || "UNKNOWN";
+  const append = (url: string) => setF((s) => ({ ...s, body: `${s.body}${s.body && !s.body.endsWith("\n") ? "\n" : ""}${url}` }));
+  const dirty = !!embedded && snap(f) !== baseline && (f.subject.trim() !== "" || f.body.trim() !== "");
+  const onDirtyChange = embedded?.onDirtyChange;
+  useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
+  function resetBlank() {
+    const blank: ComposerInitial = { ...initial, messageId: null, threadId: null, subject: "", body: "", templateKey: "", cc: "", bcc: "", contactId: f.contactId, to: f.to };
+    setF(blank); setBaseline(snap(blank)); setAttachments([]); setSchedule(false);
+  }
+  function insertKind(kind: ComposerInsert) {
+    setSendResult(null);
+    const demoUrl = (k: "demo" | "demoBooking") => embedded?.demoLinks?.find((l) => l.key === k)?.url ?? null;
+    if (kind === "demo" || kind === "demoBooking") { const u = demoUrl(kind); if (u) append(u); return; }
+    if (kind === "booking") {
+      if (!bookingEnabled) { setError(c.bookingDisabled); return; }
+      run(() => insertBookingLink(form({ language: f.languageOverride })), (r) => append((r as unknown as { url: string }).url), undefined, false);
+      return;
+    }
+    if (kind === "teaser" || kind === "commercial") {
+      if (!f.prospectId) { setError(c.videoNeedsProspect); return; }
+      if (effectiveLang === "UNKNOWN") { setError(c.languageNeeded); return; }
+      run(() => insertVideoLink(form({ kind, language: effectiveLang })), (r) => append((r as unknown as { url: string }).url), undefined, false);
+      return;
+    }
+    // sendDemo: the approved DEMO_INVITATION template (only into an empty draft, never over the seller's text) + the real public demo link.
+    const u = demoUrl("demo");
+    const tpl = templates.some((x) => x.key === "DEMO_INVITATION") ? "DEMO_INVITATION" : "";
+    if (tpl && f.prospectId && !f.body.trim() && !f.subject.trim()) {
+      setF((s) => ({ ...s, templateKey: tpl }));
+      run(() => loadTemplate(form({ templateKey: tpl })), (r) => {
+        const x = r as unknown as { subject: string; body: string };
+        setF((s) => ({ ...s, subject: x.subject, body: u ? `${x.body}${x.body.endsWith("\n") ? "" : "\n"}${u}` : x.body }));
+      }, undefined, false);
+      return;
+    }
+    if (u) append(u);
+  }
+  useImperativeHandle(embedded?.handleRef, () => ({ insert: insertKind, selectContact: (id: string) => pickContact(id) }));
 
   return (
     <div className="space-y-4">
@@ -64,12 +117,12 @@ export function Composer({ locale, prospects, templates, initial, isReply, sende
       <form className="grid gap-4" onSubmit={(e) => e.preventDefault()} aria-label={isReply ? c.replyTitle : c.title}>
         {!isReply && (
           <div className="grid gap-3 sm:grid-cols-2">
-            <label className={labelCls}>{c.prospect}
+            {!embedded && <label className={labelCls}>{c.prospect}
               <select className={inputCls} value={f.prospectId ?? ""} onChange={(e) => pickProspect(e.target.value)} disabled={!!f.messageId && !!f.threadId && !!initial.messageId}>
                 <option value="">{c.chooseContact}</option>
                 {prospects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
-            </label>
+            </label>}
             <label className={labelCls}>{c.contact}
               <select className={inputCls} value={f.contactId ?? ""} onChange={(e) => pickContact(e.target.value)} disabled={!prospect}>
                 <option value="">{c.chooseContact}</option>
@@ -81,7 +134,7 @@ export function Composer({ locale, prospects, templates, initial, isReply, sende
         {contact && contact.basis === "none" && !isReply && (
           <div role="alert" className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
             <b>{c.noBasisTitle}.</b> {c.noBasisBody}{" "}
-            {prospect && <Link className="font-medium text-blue-700 underline" href={PLATFORM.salesProspect(prospect.id)}>{t.basis.record}</Link>}
+            {prospect && <Link className="font-medium text-blue-700 underline" href={PLATFORM.salesProspect(prospect.id)} target={embedded ? "_blank" : undefined} rel={embedded ? "noopener noreferrer" : undefined}>{t.basis.record}</Link>}
           </div>
         )}
         <div className="grid gap-3 sm:grid-cols-3">
@@ -127,7 +180,13 @@ export function Composer({ locale, prospects, templates, initial, isReply, sende
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" className={btnSecondary} disabled={pending || !bookingEnabled} title={bookingEnabled ? undefined : c.bookingDisabled}
             onClick={() => run(() => insertBookingLink(form({ language: f.languageOverride })), (r) => { const url = (r as unknown as { url: string }).url; setF((s) => ({ ...s, body: `${s.body}${s.body && !s.body.endsWith("\n") ? "\n" : ""}${url}` })); }, undefined, false)}>{c.insertBooking}</button>
-          {!isReply && (
+          {!isReply && embedded && (<>
+            <button type="button" className={btnSecondary} disabled={pending || !f.prospectId || effectiveLang === "UNKNOWN"} title={effectiveLang === "UNKNOWN" ? c.languageNeeded : c.videoHint} onClick={() => insertKind("teaser")}>{embedded.labels.shortVideo}</button>
+            <button type="button" className={btnSecondary} disabled={pending || !f.prospectId || effectiveLang === "UNKNOWN"} title={effectiveLang === "UNKNOWN" ? c.languageNeeded : c.videoHint} onClick={() => insertKind("commercial")}>{embedded.labels.fullVideo}</button>
+            {embedded.demoLinks?.some((l) => l.key === "demo") && <button type="button" className={btnSecondary} disabled={pending} onClick={() => insertKind("demo")}>{embedded.labels.demo}</button>}
+            {embedded.demoLinks?.some((l) => l.key === "demoBooking") && <button type="button" className={btnSecondary} disabled={pending} onClick={() => insertKind("demoBooking")}>{embedded.labels.demoBooking}</button>}
+          </>)}
+          {!isReply && !embedded && (
             <span className="flex items-center gap-1" title={c.videoHint}>
               <select aria-label={c.insertVideo} className={`${inputCls} w-auto`} value={videoKind} onChange={(e) => setVideoKind(e.target.value as "commercial" | "teaser")} disabled={pending}>
                 <option value="commercial">{c.videoCommercial}</option><option value="teaser">{c.videoTeaser}</option>
@@ -169,10 +228,23 @@ export function Composer({ locale, prospects, templates, initial, isReply, sende
         )}
 
         <Msg error={error} notice={notice} />
+        {embedded && sendResult && (
+          <p role="status" className={`rounded-lg px-3 py-2 text-sm ${sendResult.status === "FAILED" ? "bg-red-50 text-red-800" : "bg-emerald-50 text-emerald-800"}`}>
+            {embedded.labels.result[sendResult.status] ?? sendResult.status}{sendResult.errorCode ? ` ${embedded.labels.errorCode.replace("{code}", sendResult.errorCode)}` : ""}
+          </p>
+        )}
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" className={btnPrimary} disabled={pending || !sender || (schedule && !when.date)} onClick={() => run(
             () => sendEmail(form(schedule ? { scheduleDate: when.date, scheduleTime: when.time } : {})),
-            (r) => { const x = r as unknown as { threadId: string; status: string }; setNotice(x.status === "SCHEDULED" ? c.scheduled : x.status === "SENT" ? c.sent : c.queued); router.push(PLATFORM.salesThread(x.threadId)); }, undefined, false)}>
+            (r) => {
+              const x = r as unknown as { messageId: string; threadId: string; status: string; errorCode: string | null };
+              setNotice(x.status === "SCHEDULED" ? c.scheduled : x.status === "SENT" ? c.sent : c.queued);
+              if (!embedded) { router.push(PLATFORM.salesThread(x.threadId)); return; }
+              const bodyText = f.body;
+              setSendResult({ status: x.status, errorCode: x.errorCode ?? null });
+              resetBlank();
+              embedded.onSent?.({ messageId: x.messageId, threadId: x.threadId, status: x.status, errorCode: x.errorCode ?? null, bodyText });
+            }, undefined, false)}>
             {pending ? c.sending : schedule ? c.schedule : c.send}
           </button>
           <button type="button" className={btnSecondary} disabled={pending || !sender} onClick={() => setSchedule((s) => !s)} aria-pressed={schedule}>{c.schedule}</button>
@@ -182,8 +254,9 @@ export function Composer({ locale, prospects, templates, initial, isReply, sende
               setF((s) => ({ ...s, messageId: x.messageId, threadId: x.threadId }));
               setPreview({ html: x.html ?? "", text: x.text ?? "", subject: x.subject ?? "", blocked: x.blocked, blockedDetail: x.blockedDetail, warnings: x.warnings, language: x.language });
             }, undefined, false)}>{c.preview}</button>
-          <button type="button" className={btnSecondary} disabled={pending || !sender} onClick={() => run(() => saveEmailDraft(form()), (r) => { const x = r as unknown as { messageId: string; threadId: string }; setF((s) => ({ ...s, messageId: x.messageId, threadId: x.threadId })); setNotice(c.draftSaved); }, c.draftSaved, false)}>{c.saveDraft}</button>
-          {f.messageId && <button type="button" className={btnDanger} disabled={pending} onClick={() => run(() => discardDraft(f.messageId!), () => router.push(PLATFORM.salesInbox), undefined, false)}>{c.discard}</button>}
+          <button type="button" className={btnSecondary} disabled={pending || !sender} onClick={() => run(() => saveEmailDraft(form()), (r) => { const x = r as unknown as { messageId: string; threadId: string }; setF((s) => ({ ...s, messageId: x.messageId, threadId: x.threadId })); setBaseline(snap(f)); setNotice(c.draftSaved); }, c.draftSaved, false)}>{c.saveDraft}</button>
+          {embedded?.onClose && <button type="button" className={btnSecondary} onClick={embedded.onClose}>{t.common.close}</button>}
+          {f.messageId && <button type="button" className={btnDanger} disabled={pending} onClick={() => run(() => discardDraft(f.messageId!), () => { if (embedded) resetBlank(); else router.push(PLATFORM.salesInbox); }, undefined, false)}>{c.discard}</button>}
         </div>
       </form>
 

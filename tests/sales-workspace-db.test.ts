@@ -64,7 +64,7 @@ if (!enabled) {
     const actor = await actorOf(who);
     return queue.pickNextProspect(actor, {
       cooldownMinutes: 240, heldProvinces: await readiness.loadHeldProvinces(),
-      validate: async (id, now) => { const c = await session.checkProspect(actor, id, now); return c.ok ? { ok: true, localTime: c.dial.localTime } : { ok: false }; }, ...o,
+      validate: async (id: string, now: Date) => { const c = await session.checkProspect(actor, id, now); return c.ok ? { ok: true, localTime: c.dial.localTime } : { ok: false }; }, ...o,
     } as any);
   };
   async function endConnectedCall(who: string, prospectId: string, state = "COMPLETED") {
