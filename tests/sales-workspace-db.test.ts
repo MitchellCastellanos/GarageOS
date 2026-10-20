@@ -153,14 +153,67 @@ if (!enabled) {
     eligibleIds.add(due.id);
   });
 
-  test("outside every calling window: nothing is offered and the NEXT opening comes from the calling-hours rule (not invented)", async () => {
+  test("outside every calling window: the workspace still lets the seller browse (flagged as outside hours); the strict mode reports the NEXT opening from the calling-hours rule (not invented)", async () => {
+    const resume = Date.now();
     mock.timers.setTime(CLOSED_NOW.getTime());
     as(u.Founder);
-    const r: any = await workspace.getNextProspect({});
-    assert.deepEqual([r.ok, r.found, r.reason], [true, false, "ALL_CLOSED"]);
-    assert.equal(r.nextWindow.opensAt, "2026-10-21T13:00:00.000Z");
-    assert.ok(["ON", "QC"].includes(r.nextWindow.province));
-    mock.timers.setTime(OPEN_NOW.getTime());
+    const strict: any = await workspace.getNextProspect({ includeClosed: false });
+    assert.deepEqual([strict.ok, strict.found, strict.reason], [true, false, "ALL_CLOSED"]);
+    assert.equal(strict.nextWindow.opensAt, "2026-10-21T13:00:00.000Z");
+    assert.ok(["ON", "QC"].includes(strict.nextWindow.province));
+    const browse: any = await workspace.getNextProspect({});
+    assert.equal(browse.found, true, JSON.stringify(browse));
+    assert.equal(browse.outsideHours, true);
+    assert.equal(browse.profile.window.open, false);
+    assert.ok(browse.profile.contacts && browse.profile.activities && browse.profile.calls, "the whole profile and history are visible");
+    const back: any = await workspace.getProspectProfile(browse.profile.id);
+    assert.equal(back.ok, true);
+    mock.timers.setTime(resume);
+    // inside a window the open provinces are preferred
+    const open: any = await workspace.getNextProspect({});
+    assert.equal(open.outsideHours, false);
+  });
+
+  test("dialing outside hours: refused by default; allowed only when a Super Admin turned the audited switch on AND the seller confirmed; re-checked when Twilio connects; every other gate still applies", async () => {
+    const p = await prospect("Founder", "QC");
+    const hooks = await import("../src/lib/voice/webhooks");
+    const closed = new Date(CLOSED_NOW.getTime());
+    const actor = await actorOf("Founder");
+    const startAt = (confirm: boolean, now = closed) => session.startCallSession(actor, { kind: "PROSPECT", prospectId: p.id, idempotencyKey: k(), confirmOutOfHours: confirm }, now) as Promise<any>;
+    const resume = Date.now();
+    mock.timers.setTime(CLOSED_NOW.getTime());
+    assert.equal((await startAt(true)).code, "OUTSIDE_CALLING_HOURS", "switch off: even a confirmed call is refused");
+    const root = await actorOf("Root");
+    const settingsLib = await import("../src/lib/voice/settings");
+    await settingsLib.updateVoiceSettings(root, { allowOutOfHoursCalls: true });
+    assert.ok(await db.crmAuditEvent.findFirst({ where: { action: "VOICE_GATE_CHANGED", entityType: "CrmVoiceSettings", actorUserId: u.Root }, orderBy: { createdAt: "desc" } }));
+    mock.timers.tick(70_000);
+    assert.equal((await startAt(false, new Date())).code, "OUTSIDE_CALLING_HOURS", "switch on but no confirmation: refused");
+    mock.timers.tick(70_000);
+    const ok = await startAt(true, new Date());
+    assert.equal(ok.ok, true, JSON.stringify(ok));
+    const row = await db.crmCallSession.findUniqueOrThrow({ where: { id: ok.sessionId } });
+    assert.equal((row.eligibilitySnapshot as any).outOfHoursConfirmed, true);
+    const created = await db.crmAuditEvent.findFirst({ where: { action: "CALL_SESSION_CREATED", entityId: row.id } });
+    assert.equal((created!.metadata as any).outOfHours, true);
+    // at connect time the same confirmation is required and the switch is re-read
+    const body = { CallSid: `CA${"1".repeat(32)}`, sessionId: row.id, authToken: ok.authToken, From: `client:${ok.identity}` };
+    await settingsLib.updateVoiceSettings(root, { allowOutOfHoursCalls: false });
+    assert.doesNotMatch(await hooks.handleOutbound(body, new Date()), /<Number/, "switch turned off before the browser connected: not dialled");
+    await db.crmCallSession.updateMany({ where: { id: row.id }, data: { openProspectKey: null, openNumberKey: null, openStaffKey: null, endedAt: new Date(), state: "CANCELED", dispositionAt: new Date() } });
+    await settingsLib.updateVoiceSettings(root, { allowOutOfHoursCalls: true });
+    mock.timers.tick(70_000);
+    const again = await startAt(true, new Date());
+    assert.equal(again.ok, true);
+    const body2 = { CallSid: `CA${"2".repeat(32)}`, sessionId: again.sessionId, authToken: again.authToken, From: `client:${again.identity}` };
+    assert.match(await hooks.handleOutbound(body2, new Date()), /<Number/, "confirmed + switch on: dialled");
+    await db.crmCallSession.updateMany({ where: { id: again.sessionId }, data: { openProspectKey: null, openNumberKey: null, openStaffKey: null, endedAt: new Date(), state: "CANCELED", dispositionAt: new Date() } });
+    // DNC / held province are NOT relaxed by the confirmation
+    await prospectActions.markDoNotContact(p.id, "stop").catch(() => undefined);
+    const dnc = await session.checkProspect(actor, p.id, closed, { allowOutOfHours: true }) as any;
+    assert.equal(dnc.ok, false);
+    await settingsLib.updateVoiceSettings(root, { allowOutOfHoursCalls: false });
+    mock.timers.setTime(resume + 70_000);
   });
 
   test("local time boundaries: the dial is refused one minute before opening and at closing time, accepted inside, in the PROSPECT's zone", async () => {

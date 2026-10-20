@@ -4719,6 +4719,8 @@ model CrmVoiceSettings {
   liveCallingAuthorized    Boolean   @default(false)
   /// Provinces on legal hold (default BC, MB). A held province is never dialled.
   heldProvinces            String[]  @default(["BC", "MB"])
+  /// Super Admin switch: a seller may place a call outside the recipient's local calling hours after an explicit on-screen confirmation (audited). Off by default.
+  allowOutOfHoursCalls     Boolean   @default(false)
   /// E.164 numbers GarageOS controls; test calls may only go to these.
   testDestinations         String[]  @default([])
   dailyCallCapPerSeller    Int       @default(150)

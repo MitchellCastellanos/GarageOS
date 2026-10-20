@@ -44,7 +44,7 @@ export async function handleOutbound(body: Record<string, string>, now = new Dat
     if (!settings.testDestinations.includes(s.destinationE164)) { await closeWithFailure(s.id, "TEST_NUMBER_NOT_ALLOWED"); return NO; }
   } else {
     const actor = await resolvePlatformSalesActor(s.userId);
-    const chk = actor && s.prospectId ? await checkProspect(actor, s.prospectId, now) : null;
+    const chk = actor && s.prospectId ? await checkProspect(actor, s.prospectId, now, { allowOutOfHours: settings.allowOutOfHoursCalls && (s.eligibilitySnapshot as { outOfHoursConfirmed?: boolean } | null)?.outOfHoursConfirmed === true }) : null;
     if (!chk || !chk.ok || chk.dial.destinationE164 !== s.destinationE164 || !normalizeCanadianPhone(s.destinationE164)) {
       const code = chk && !chk.ok ? chk.code : "NOT_CALLABLE";
       await closeWithFailure(s.id, code); await audit(s.userId, s.id, "REJECTED", code); return NO;

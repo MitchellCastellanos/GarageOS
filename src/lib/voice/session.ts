@@ -40,10 +40,10 @@ export function checkCommercialGates(s: VoiceSettings): Reject | null {
 
 const REASON_TO_CODE: Record<string, CallErrorCode> = { DO_NOT_CONTACT: "DO_NOT_CONTACT", BUSINESS_SUPPRESSED: "DO_NOT_CONTACT", PHONE_SUPPRESSED: "PHONE_SUPPRESSED", PROVINCE_LEGAL_HOLD: "PROVINCE_ON_HOLD", PROVINCE_UNKNOWN: "PROVINCE_ON_HOLD", TERRITORY_FIELD: "PROSPECT_NOT_REMOTE", TERRITORY_UNRESOLVED: "PROSPECT_NOT_REMOTE" };
 
-export interface ProspectDial { prospectId: string; destinationE164: string; province: string | null; snapshot: Record<string, unknown>; localTime: string }
+export interface ProspectDial { prospectId: string; destinationE164: string; province: string | null; snapshot: Record<string, unknown>; localTime: string; outOfHours: boolean }
 
 /** Live (not cached) checks of one prospect for one seller: ownership, REMOTE territory, coverage, DNC/suppression, legal holds, derived eligibility, local calling hours. */
-export async function checkProspect(actor: PlatformSalesActor, prospectId: string, now: Date): Promise<Reject | { ok: true; dial: ProspectDial }> {
+export async function checkProspect(actor: PlatformSalesActor, prospectId: string, now: Date, opts: { allowOutOfHours?: boolean } = {}): Promise<Reject | { ok: true; dial: ProspectDial }> {
   const p = await db.crmProspect.findUnique({ where: { id: prospectId }, select: { id: true, assignedStaffId: true, status: true, mergedIntoId: true, territoryState: true, territoryKey: true, province: true } });
   if (!p || p.status !== "ACTIVE" || p.mergedIntoId) return reject("PROSPECT_NOT_FOUND");
   if (!actor.staffId || p.assignedStaffId !== actor.staffId) return reject("NOT_YOUR_PROSPECT");
@@ -59,8 +59,9 @@ export async function checkProspect(actor: PlatformSalesActor, prospectId: strin
   const dest = normalizeCanadianPhone(f.phoneE164);
   if (!dest) return reject("NOT_CALLABLE", "INVALID_PHONE");
   const w = callingWindow(p.province, now);
-  if (!w.open) return reject("OUTSIDE_CALLING_HOURS", `${w.reason}:${w.localTime}`);
-  return { ok: true, dial: { prospectId: p.id, destinationE164: dest.e164, province: p.province, snapshot: { eligibility: f.phoneEligibility, province: p.province, zone: w.zone }, localTime: w.localTime } };
+  // Calling hours: refused unless a Super Admin enabled out-of-hours calls AND the seller confirmed on screen for this call (every other gate above still applies).
+  if (!w.open && !opts.allowOutOfHours) return reject("OUTSIDE_CALLING_HOURS", `${w.reason}:${w.localTime}`);
+  return { ok: true, dial: { prospectId: p.id, destinationE164: dest.e164, province: p.province, snapshot: { eligibility: f.phoneEligibility, province: p.province, zone: w.zone, ...(w.open ? {} : { outOfHoursConfirmed: true, localTimeAtDial: w.localTime }) }, localTime: w.localTime, outOfHours: !w.open } };
 }
 
 function mintAccessToken(s: VoiceSettings, identity: string): string {
@@ -79,7 +80,7 @@ function lockViolation(e: unknown): CallErrorCode | null {
   return null;
 }
 
-export async function startCallSession(actor: PlatformSalesActor, input: { kind: "PROSPECT" | "TEST"; prospectId?: string; testNumber?: string; idempotencyKey: string }, now = new Date()): Promise<StartCallResult> {
+export async function startCallSession(actor: PlatformSalesActor, input: { kind: "PROSPECT" | "TEST"; prospectId?: string; testNumber?: string; idempotencyKey: string; confirmOutOfHours?: boolean }, now = new Date()): Promise<StartCallResult> {
   const out = await startInner(actor, input, now);
   if (!out.ok && out.code !== "RATE_LIMITED") {
     await writeCrmAudit({ actorUserId: actor.userId, action: "CALL_SESSION_REJECTED", entityType: "CrmCallSession", prospectId: input.prospectId, metadata: { kind: input.kind, code: out.code } }).catch(() => undefined);
@@ -87,7 +88,7 @@ export async function startCallSession(actor: PlatformSalesActor, input: { kind:
   return out;
 }
 
-async function startInner(actor: PlatformSalesActor, input: { kind: "PROSPECT" | "TEST"; prospectId?: string; testNumber?: string; idempotencyKey: string }, now: Date): Promise<StartCallResult> {
+async function startInner(actor: PlatformSalesActor, input: { kind: "PROSPECT" | "TEST"; prospectId?: string; testNumber?: string; idempotencyKey: string; confirmOutOfHours?: boolean }, now: Date): Promise<StartCallResult> {
   if (!/^[A-Za-z0-9_-]{8,80}$/.test(input.idempotencyKey)) return reject("INVALID_INPUT");
   if (!actor.capabilities.has("place_sales_calls")) return reject("NOT_ALLOWED");
   const staffKey = staffKeyOf(actor);
@@ -122,7 +123,7 @@ async function startInner(actor: PlatformSalesActor, input: { kind: "PROSPECT" |
     // A finished prospect call must have its outcome saved before this seller places another one (the workspace lets them complete it at any time, so this never strands anyone).
     const unsaved = await db.crmCallSession.findFirst({ where: { userId: actor.userId, kind: "PROSPECT", endedAt: { not: null }, dispositionAt: null, parentCallSid: { not: null } }, select: { id: true } });
     if (unsaved) return reject("DISPOSITION_PENDING", unsaved.id);
-    const chk = await checkProspect(actor, input.prospectId, now);
+    const chk = await checkProspect(actor, input.prospectId, now, { allowOutOfHours: s.allowOutOfHoursCalls && input.confirmOutOfHours === true });
     if (!chk.ok) return chk;
     const day = await db.crmCallSession.count({ where: { staffId: staffKey, kind: "PROSPECT", requestedAt: { gt: new Date(now.getTime() - 24 * 3600_000) }, state: { notIn: ["FAILED", "CANCELED", "ABANDONED"] } } });
     if (day >= s.dailyCallCapPerSeller) return reject("DAILY_CAP_REACHED");
@@ -141,7 +142,7 @@ async function startInner(actor: PlatformSalesActor, input: { kind: "PROSPECT" |
       },
       select: { id: true },
     });
-    await writeCrmAudit({ actorUserId: actor.userId, action: "CALL_SESSION_CREATED", entityType: "CrmCallSession", entityId: row.id, prospectId: prospectId ?? undefined, metadata: { kind: input.kind, province: (snapshot as { province?: string }).province ?? null } });
+    await writeCrmAudit({ actorUserId: actor.userId, action: "CALL_SESSION_CREATED", entityType: "CrmCallSession", entityId: row.id, prospectId: prospectId ?? undefined, metadata: { kind: input.kind, province: (snapshot as { province?: string }).province ?? null, outOfHours: (snapshot as { outOfHoursConfirmed?: boolean }).outOfHoursConfirmed === true, localTime } });
     return ok(s, row.id, authToken, staffKey, destinationE164, input.kind);
   } catch (e) {
     const code = lockViolation(e);

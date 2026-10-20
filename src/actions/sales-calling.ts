@@ -24,9 +24,9 @@ import { DISPOSITIONS, NEXT_ACTIONS, NOT_INTERESTED_REASONS, maskNumber, type Di
 
 const OPEN = ["PENDING", "RINGING", "IN_PROGRESS"] as const;
 
-export async function startProspectCall(prospectId: string, idempotencyKey: string): Promise<StartCallResult> {
+export async function startProspectCall(prospectId: string, idempotencyKey: string, confirmOutOfHours = false): Promise<StartCallResult> {
   const actor = await requireCrmActor("place_sales_calls");
-  return startCallSession(actor, { kind: "PROSPECT", prospectId: String(prospectId), idempotencyKey: String(idempotencyKey) });
+  return startCallSession(actor, { kind: "PROSPECT", prospectId: String(prospectId), idempotencyKey: String(idempotencyKey), confirmOutOfHours: confirmOutOfHours === true });
 }
 
 export async function startTestCall(testNumber: string, idempotencyKey: string): Promise<StartCallResult> {

@@ -34,7 +34,7 @@ export interface WorkspaceProfile {
 }
 
 export type NextProspectResponse =
-  | { ok: true; found: true; profile: WorkspaceProfile; source: "CALLBACK" | "RANDOM"; province: string | null; provincePool: number }
+  | { ok: true; found: true; profile: WorkspaceProfile; source: "CALLBACK" | "RANDOM"; province: string | null; provincePool: number; outsideHours: boolean }
   | { ok: true; found: false; reason: "NO_ELIGIBLE" | "ALL_CLOSED" | "NO_SELLER_PROFILE"; nextWindow: { province: string; opensAt: string } | null }
   | { ok: false; code: string };
 
