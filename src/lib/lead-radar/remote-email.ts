@@ -33,8 +33,20 @@ export async function loadRemoteNoEmailWhere(): Promise<Prisma.CrmProspectWhereI
     SELECT p."id" FROM "garageos"."CrmProspect" p WHERE p."territoryState" = 'NATIONAL' AND p."status" = 'ACTIVE'
       AND (p."email" LIKE '%@%' OR EXISTS (SELECT 1 FROM "garageos"."CrmContact" ct WHERE ct."prospectId" = p."id" AND ct."archivedAt" IS NULL AND ct."doNotContact" = false AND ct."emailNormalized" LIKE '%@%'))
       AND NOT ${prospectUsableEmailSql}`);
-  return { territoryState: "NATIONAL", OR: [{ NOT: hasEmailWhere }, { id: { in: rows.map((r) => r.id) } }] };
+  // Phone-first: a national prospect whose business phone is CALLABLE (derived column, src/lib/sales-crm/phone-readiness.ts) is workable without an email, so it is not "no email" here.
+  // NULL (not yet evaluated) keeps the email-only reading, so nothing changes until readiness has been computed. This does not make an address usable: `prospectUsableEmailSql` is untouched.
+  return { territoryState: "NATIONAL", AND: [{ OR: [{ phoneEligibility: null }, { phoneEligibility: { not: "CALLABLE" } }] }, { OR: [{ NOT: hasEmailWhere }, { id: { in: rows.map((r) => r.id) } }] }] };
 }
+
+/** Ids (of `ids`) whose business phone is CALLABLE (derived readiness). Phone-first assignment only; never evidence about email. */
+export async function prospectIdsWithCallablePhone(ids: readonly string[]): Promise<Set<string>> {
+  if (!ids.length) return new Set();
+  const rows = await db.crmProspect.findMany({ where: { id: { in: [...ids] }, phoneEligibility: "CALLABLE" }, select: { id: true } });
+  return new Set(rows.map((r) => r.id));
+}
+
+/** Opt-in (env PHONE_FIRST_AUTO_ASSIGN=enabled): the automatic assignment stage may also take REMOTE prospects with a CALLABLE phone and no email. Default off: the email rollout is unchanged. */
+export const phoneFirstAutoAssignEnabled = (env: Record<string, string | undefined> = process.env) => env.PHONE_FIRST_AUTO_ASSIGN?.trim().toLowerCase() === "enabled";
 
 /** Ids (of `ids`) that have a usable email. Used by the assignment gate. */
 export async function prospectIdsWithUsableEmail(ids: readonly string[]): Promise<Set<string>> {

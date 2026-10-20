@@ -53,7 +53,7 @@ export async function importApprovedCandidates(actor: PlatformSalesActor, opts: 
     if (opts.phoneFirst && !auto) {
       // Candidate pool is narrowed in JS by the strict Canadian number rule and de-duplicated by number (against the CRM and within the chunk); a shared number stays staged for classification.
       const pool = await tx.$queryRaw<{ id: string; phone: string | null }[]>(Prisma.sql`SELECT "id", "phone" FROM "garageos"."CrmDiscoveryCandidate"
-        WHERE "reviewState" IN ('APPROVED','PENDING') AND "importState" = 'NOT_IMPORTED' AND "licenseOk" = true AND "tier" <> 'EXCLUDED' AND "duplicateOfCandidateId" IS NULL
+        WHERE "reviewState" IN ('APPROVED','PENDING') AND ("importState" = 'NOT_IMPORTED' OR ("importState" = 'SKIPPED' AND "importErrorCode" = 'SCREEN_REMOTE_NO_USABLE_EMAIL')) AND "licenseOk" = true AND "tier" <> 'EXCLUDED' AND "duplicateOfCandidateId" IS NULL
           AND "repairFit" = 'VERIFIED_REPAIR' AND "matchState" = 'NEW' AND "territoryKey" = 'national' AND "phone" IS NOT NULL AND "importAttempts" < 3 ${idGuard} ORDER BY "id" LIMIT ${limit * 4}`);
       const valid = pool.map((r) => ({ id: r.id, phone: normalizeCanadianPhone(r.phone) })).filter((r): r is { id: string; phone: NonNullable<ReturnType<typeof normalizeCanadianPhone>> } => !!r.phone);
       const inCrm = valid.length ? await tx.crmProspect.findMany({ where: { phoneDigits: { in: valid.map((v) => v.phone.national) } }, select: { phoneDigits: true } }) : [];
@@ -63,10 +63,18 @@ export async function importApprovedCandidates(actor: PlatformSalesActor, opts: 
       for (const v of valid) { if (taken.has(v.phone.national) || seen.has(v.phone.national)) continue; seen.add(v.phone.national); phoneFirstIds.push(v.id); if (phoneFirstIds.length >= limit) break; }
     }
     const locked = phoneFirstIds
-      ? (phoneFirstIds.length ? await tx.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT "id" FROM "garageos"."CrmDiscoveryCandidate" WHERE "id" IN (${Prisma.join(phoneFirstIds)}) AND "importState" = 'NOT_IMPORTED' ORDER BY "id" FOR UPDATE SKIP LOCKED`) : [])
+      ? (phoneFirstIds.length ? await tx.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT "id" FROM "garageos"."CrmDiscoveryCandidate" WHERE "id" IN (${Prisma.join(phoneFirstIds)}) AND ("importState" = 'NOT_IMPORTED' OR "importState" = 'SKIPPED') ORDER BY "id" FOR UPDATE SKIP LOCKED`) : [])
       : await tx.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT "id" FROM "garageos"."CrmDiscoveryCandidate" WHERE "reviewState" = 'APPROVED' AND "importState" IN ${states} AND "licenseOk" = true AND "tier" <> 'EXCLUDED' AND "duplicateOfCandidateId" IS NULL ${idGuard} ${policyGuard} ORDER BY "id" LIMIT ${limit} FOR UPDATE SKIP LOCKED`);
     if (!locked.length) return { batchId: null as string | null, claimed: 0, created: 0, linked: 0, sentToReview: 0, skipped: 0, failed: 0, createdProspectIds: [] as string[], linkedProspectIds: [] as string[], reviewProspectIds: [] as string[], unassignedCreated: 0 };
 
+    // The database requires APPROVED before any import state. A phone-first import is run by a Super Admin / manager with the review capability (resolveAssignee above), so it IS the human approval
+    // of the still-PENDING rows (email qualification never applied to a phone): stamped with who/when/why, never done by a policy.
+    if (opts.phoneFirst && !auto && locked.length) {
+      await tx.crmDiscoveryCandidate.updateMany({
+        where: { id: { in: locked.map((l) => l.id) }, reviewState: "PENDING" },
+        data: { reviewState: "APPROVED", reviewedByUserId: actor.userId, reviewedAt: new Date(), reviewNote: "PHONE_FIRST_CALLING: approved with the phone-first import" },
+      });
+    }
     const claimed = await tx.crmDiscoveryCandidate.findMany({ where: { id: { in: locked.map((l) => l.id) } }, orderBy: { id: "asc" } });
     // Fit gate: a candidate that is clearly not a repair business (EV charging, car wash, recycling, bicycle, manufacturer…) is never imported, even if someone approved it.
     // The rejection is durable (a human/system rejection is never reopened by a refresh). A person who really wants it approves it WITH a fit override, which is stamped as a human decision.

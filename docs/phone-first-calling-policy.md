@@ -130,3 +130,36 @@ PR roadmap: **PR 1 (this)** phone-first data + eligibility + screen/purge fix. *
 5. Approve (or decline) a **bounded re-read** for the 281 purged phone-only shops (QC 201, PE 65, YT 15): Overture is CDLA-Permissive-2.0 (already licensed in `licenseOk`), cost is the existing bounded single-province run mechanism (no email pipeline restart, no national re-extract). Not needed for the 7,760 already staged.
 6. Twilio: confirm in the Console whether the 438 number is Voice-capable; create the Sales Voice subaccount, buy/port a dedicated Canadian Voice number, API key, TwiML App, CA-only geo permissions, spend alerts (details in the earlier audit §12). **Not done.**
 7. Decide the Supabase future (keep for now).
+
+## 9. Follow-up (2026-10-20): data protection, validation, dry run
+
+### 9.1 Is phone-only data still at risk?
+Read from `CrmLeadAutomationRun.counters` (production): the `screen` stage (purge) ran 62 times on 2026-10-18 and **purged 3,095** staged rows; on 2026-10-19 (51 runs) and 2026-10-20 it examined 500 rows per tick (25,500+) and **purged 0** — it is looping over the same first 500 unreviewed rows (ordered by id), all of which the screen keeps. No tombstone was written in the last 24 h and the candidate count (43,951) did not change. **Not deleting right now, but latent**: the window only advances if rows in that first 500 stop matching (reviewed, imported, deleted), after which the next 500 — including phone-only shops (8,828 unreviewed national no-email rows with a phone; 1,078 verified) — enter the window. Automation is enabled (`qualifyEnabled = true`). Reversible mitigation options (none applied — needs approval): (a) do nothing and deploy PR #171 quickly (the purge then keeps them); (b) set `CrmLeadAutomation.qualifyEnabled = false` — this also pauses the CASL *qualify* stage (it gates both), so not recommended; (c) none narrower exists without code. **Recommendation: (a)** — avoid reviewing/importing candidates in the first-500 window until PR #171 is deployed.
+
+### 9.2 Territory, FIELD and language checks (production)
+- Greater Montréal rule (`CrmTerritory`, active): 36 cities + postal prefixes H, J4, J3V, J3Y, J5R, J5C. **QC NATIONAL prospects: 1,508 (1,491 callable); 0 have a postal code in a FIELD prefix**; 20 whose city text resembles a FIELD name are all outside it (St-Lambert-de-Lauzon, St-Bruno (G0W), Lavaltrie, Notre-Dame-des-Prairies, St-Lin–Laurentides, …); 32 have no postal code but a city that is not on the FIELD list. Staged QC pool (2,148): same result. FIELD exclusion holds.
+- 386 verified Greater-Montréal candidates (371 with phone) stay staged for FIELD; the phone-first import claims only `territoryKey = 'national'`.
+
+### 9.3 Import dry run (production, read-only; reproduces `importApprovedCandidates({ phoneFirst })` selection)
+| Step | Count |
+|---|---|
+| Staged, NOT_IMPORTED, APPROVED/PENDING, licence OK, not EXCLUDED tier, no duplicate-of, VERIFIED_REPAIR, match NEW, national, phone present, attempts < 3 | 8,320 |
+| Invalid / non-Canadian phone (stay staged, not discarded) | 18 |
+| Phone already on a CRM prospect (skipped) | 326 |
+| Duplicate number inside the staged pool (one per number kept) | 216 |
+| **New unique prospects that would be created** | **7,760** (APPROVED 5,060 + PENDING 2,700) |
+| …of which BC/MB (created but `HELD_PROVINCE`, not callable) | 1,396 |
+| …callable immediately (other provinces) | 6,364 |
+| …that also share name+city with an active CRM prospect (the existing duplicate classifier may link or send these to review instead of creating) | ≤ 55 |
+| …with a chain signal (the repair-fit/ICP gate at import may still exclude) | ≤ 28 |
+| Existing prospects updated by this import | 0 expected (phone not in CRM by construction; up to the 55 above may be linked/enriched) |
+| Candidates blocked by territory: Greater Montréal (FIELD) / unresolved | 650 / 1 (not claimed) |
+| Staged HUMAN_REVIEW / EXCLUDED / no-phone | 6,225 / 12,664 / 137 (not claimed) |
+
+Expected final CRM inventory by province (unique numbers; CRM today + import): ON 4,158 + 3,616 = 7,774 · AB 2,291 + 430 = 2,721 · QC 1,491 + 1,298 = 2,789 · SK 331 + 384 = 715 · NS 256 + 245 = 501 · NB 233 + 261 = 494 · NL 88 + 115 = 203 · PE 55 + 13 = 68 · YT 8 + 2 = 10 → **15,275 callable**; held: BC 1,313 + 1,076 = 2,389, MB 340 + 320 = 660 → 3,049. **Total 18,324.**
+
+The dry run could not execute the TypeScript against production (no production connection string in this environment); the selection logic was reproduced in SQL and matches the 7,760 exactly. The real transaction additionally applies the repair-fit/ICP gate, the territory re-classification and the duplicate classifier, and **skips rather than loses** anything they reject (rows stay staged).
+
+### 9.4 Corrections found by the scratch-database tests
+- The database forbids any import state on a non-APPROVED candidate (`CrmDiscoveryCandidate_import_requires_approval_check`). The phone-first import therefore records an explicit approval for the PENDING rows it claims (`reviewState = APPROVED`, `reviewedByUserId` = the importing admin, note `PHONE_FIRST_CALLING`), inside the same transaction. That also protects the rows from the purge.
+- `loadRemoteNoEmailWhere` (pre-existing) uses `NOT (email contains '@' …)`, which in SQL three-valued logic never matches a NULL email. It is therefore not a reliable "no email" test for NULL emails; this PR does not change it (it would change email-side workload counts). The assignment fix is the env-gated `PHONE_FIRST_AUTO_ASSIGN` path (exact SQL on `phoneEligibility`) plus manual assignment, which never depended on email.

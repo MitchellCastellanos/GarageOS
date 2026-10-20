@@ -17,7 +17,7 @@ import { assessProspects, refreshEligibility, saveAssessments } from "@/lib/lead
 import { runEvidenceStage } from "@/lib/lead-radar/casl-evidence";
 import { purgeUnusableCandidates } from "@/lib/lead-radar/screening";
 import { importApprovedCandidates } from "@/lib/lead-radar/import-service";
-import { nextImportIds, prospectIdsWithUsableEmail, scanNoEmailQueue } from "@/lib/lead-radar/remote-email";
+import { nextImportIds, phoneFirstAutoAssignEnabled, prospectIdsWithCallablePhone, prospectIdsWithUsableEmail, scanNoEmailQueue } from "@/lib/lead-radar/remote-email";
 import { autoGeocodeStep } from "@/lib/sales-crm/geocoding-admin-service";
 import { getActivePolicy } from "@/lib/lead-radar/policy";
 import { qualifyPending } from "@/lib/lead-radar/qualify";
@@ -194,6 +194,8 @@ export async function assignStage(actor: PlatformSalesActor, staffIds: readonly 
     const remote = todo.filter((p) => p.requiredMode === "REMOTE");
     if (remote.length) {
       const usable = await prospectIdsWithUsableEmail(remote.map((p) => p.prospectId));
+      // Phone-first (opt-in via env): a REMOTE prospect with a CALLABLE business phone is workable without an email. Email eligibility itself is not touched.
+      if (phoneFirstAutoAssignEnabled()) for (const id of await prospectIdsWithCallablePhone(remote.map((p) => p.prospectId))) usable.add(id);
       const noEmail = new Set(remote.filter((p) => !usable.has(p.prospectId)).map((p) => p.prospectId));
       if (noEmail.size) { t.skips.REMOTE_NO_USABLE_EMAIL = (t.skips.REMOTE_NO_USABLE_EMAIL ?? 0) + noEmail.size; todo = todo.filter((p) => !noEmail.has(p.prospectId)); }
     }

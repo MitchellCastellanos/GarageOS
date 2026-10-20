@@ -65,14 +65,13 @@ if (!enabled) {
     assert.equal(((await radar.attachDiscoveryManifest(created.runId, JSON.stringify({ extractor: "t", extractorVersion: "1.3.0", planHash: r.planHash, release: "2026-09-23.1", recordCount: all.length, fileSha256: "d".repeat(64), generatedAt: new Date().toISOString(), stats: { rowGroupsScanned: 1, rowsExamined: 30, rowsEmitted: all.length } }))) as any).ok, true);
     assert.equal(((await radar.ingestDiscoveryChunk(created.runId, 0, all.map((x) => JSON.stringify(x)).join("\n"))) as any).ok, true);
     assert.equal(((await radar.completeDiscoveryRun(created.runId)) as any).ok, true);
-    // The early commercial screen no longer stages a REMOTE business without a usable email (it leaves a tombstone). The import queue must still defer such rows that were staged
-    // BEFORE the screen existed, so those are simulated directly here.
+    // Phone-first: the early commercial screen now STAGES a REMOTE business with a valid Canadian phone but no usable email (it used to leave a tombstone and lose the phone). The email import
+    // queue must still defer such rows exactly as before, so the assertions below about deferral are unchanged.
     for (const r of noEmail) {
-      assert.equal(await db.crmDiscoveryCandidate.findFirst({ where: { sourceRecordId: r.id } }), null, "new records without an email are not stored");
-      assert.ok(await db.crmDiscoveryRejection.findFirst({ where: { sourceRecordId: r.id, reasonCodes: { has: "REMOTE_NO_USABLE_EMAIL" } } }));
-      await db.crmDiscoveryCandidate.create({ data: { source: "OVERTURE", sourceRecordId: r.id, firstRunId: created.runId, lastRunId: created.runId, firstSeenRelease: "2026-09-23.1", lastSeenRelease: "2026-09-23.1", name: r.name, nameNormalized: r.name.toLowerCase(),
-        address: r.address.freeform, city: "Ottawa", province: "ON", postalCode: "K1P 5G3", phone: r.phones[0], website: null, email: null, territoryKey: "national", taxonomyPrimary: "automotive_repair", tier: "PRIMARY", classReasons: [], chainSignal: "NO_CHAIN_SIGNAL",
-        completeness: 60, qualityFlags: ["NO_EMAIL"], licenses: ["CDLA-Permissive-2.0"], datasets: ["meta"], licenseOk: true, contentFingerprint: `legacy-${r.id}`, repairFit: "VERIFIED_REPAIR", repairFitReasons: ["REPAIR_CATEGORY"], repairFitAt: new Date() } });
+      const c = await db.crmDiscoveryCandidate.findFirst({ where: { sourceRecordId: r.id } });
+      assert.ok(c, "a phone-only REMOTE business is now staged, not discarded");
+      assert.deepEqual([c!.importState, c!.email, c!.phone !== null], ["NOT_IMPORTED", null, true]);
+      assert.equal(await db.crmDiscoveryRejection.findFirst({ where: { sourceRecordId: r.id } }), null, "and no tombstone is left for it");
     }
     const ids = (await db.crmDiscoveryCandidate.findMany({ where: { lastRunId: created.runId, repairFit: { not: "EXCLUDED" } }, select: { id: true } })).map((c) => c.id);
     assert.equal(ids.length, all.length);

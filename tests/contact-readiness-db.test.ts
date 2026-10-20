@@ -62,11 +62,14 @@ if (!enabled) {
     assert.equal(((await radar.reviewDiscoveryCandidates({ ids, decision: "APPROVED" })) as any).ok, true);
     const imp: any = await radar.importApprovedDiscoveryCandidates({ ids });
     assert.equal(imp.result.created, 3, "the business without an email and the EV station never passed the early screen");
-    // The EV station (excluded) and the REMOTE business with no usable email are not kept at staging: a tombstone, no row, nothing in the CRM.
-    for (const [r, reason] of [[recs[4], "FIT_EXCLUDED"], [recs[3], "REMOTE_NO_USABLE_EMAIL"]] as const) {
-      assert.equal(await db.crmDiscoveryCandidate.findFirst({ where: { sourceRecordId: r.id } }), null);
-      assert.ok((await db.crmDiscoveryRejection.findFirstOrThrow({ where: { sourceRecordId: r.id } })).reasonCodes.includes(reason));
-    }
+    // The EV station (excluded) is not kept at staging: a tombstone, no row. Phone-first: the REMOTE business with a valid phone but no email IS now staged (it used to be tombstoned and lost),
+    // and the default email-only import skipped it at the door — nothing in the CRM.
+    assert.equal(await db.crmDiscoveryCandidate.findFirst({ where: { sourceRecordId: recs[4].id } }), null);
+    assert.ok((await db.crmDiscoveryRejection.findFirstOrThrow({ where: { sourceRecordId: recs[4].id } })).reasonCodes.includes("FIT_EXCLUDED"));
+    const kept = await db.crmDiscoveryCandidate.findFirstOrThrow({ where: { sourceRecordId: recs[3].id } });
+    assert.equal(kept.importedProspectId, null);
+    assert.equal(kept.email, null);
+    assert.equal(await db.crmDiscoveryRejection.findFirst({ where: { sourceRecordId: recs[3].id } }), null);
   });
 
   test("import itself creates no contact, no basis, no enrollment, no message (the published email stays on the prospect)", async () => {
