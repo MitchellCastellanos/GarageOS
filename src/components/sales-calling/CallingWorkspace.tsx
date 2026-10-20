@@ -271,6 +271,7 @@ export function CallingWorkspace({ data, locale }: { data: CallingPageData; loca
         error={sp.error} notice={sp.notice} today={data.today}
         mics={sp.mics.map((m) => ({ deviceId: m.deviceId, label: m.label }))} micId={sp.micId} onPickMic={sp.pickMic}
         onCall={() => { if (!profile || locks.callLocked) return; if (!profile.window.open) setConfirmOut(true); else placeCall(false); }}
+        hold={{ held: sp.hold === "HELD", busy: sp.holdBusy || sp.hold === "HOLDING" || sp.hold === "RESUMING", enabled: sp.holdAvail, reason: sp.holdAvail ? null : gates.holdEnabled ? c.ws.phoneUi.holdDirect : c.ws.phoneUi.holdOff, onToggle: () => void sp.toggleHold() }}
         onHangUp={sp.hangUp} onToggleMute={sp.toggleMute} onDismiss={(sp.phase === "failed" || sp.phase === "ended") && !sp.dispo ? sp.reset : null}
         outcome={sp.dispo ? <DispositionPanel key={sp.dispo.sessionId} c={c} dispo={sp.dispo} liveNotes={sp.dispo.prospectId === profile?.id ? notes : ""} flags={flags} preset={preset} onSaved={onDispoSaved} /> : null}
         saved={saved && !sp.dispo ? (

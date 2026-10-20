@@ -14,3 +14,4 @@ export const MinimizeIcon = (p: { className?: string }) => <Svg {...p}><path d="
 export const CopyIcon = (p: { className?: string }) => <Svg {...p}><rect x="9" y="9" width="12" height="12" rx="2" /><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" /></Svg>;
 export const AlertIcon = (p: { className?: string }) => <Svg {...p}><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /></Svg>;
 export const DotIcon = ({ className = "size-2.5" }: { className?: string }) => <svg aria-hidden="true" focusable="false" viewBox="0 0 10 10" className={`shrink-0 ${className}`}><circle cx="5" cy="5" r="5" fill="currentColor" /></svg>;
+export const PauseIcon = (p: { className?: string }) => <Svg {...p}><rect x="6" y="4" width="4" height="16" rx="1" /><rect x="14" y="4" width="4" height="16" rx="1" /></Svg>;

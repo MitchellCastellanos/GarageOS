@@ -253,6 +253,12 @@ if (!enabled) {
     await db.crmCallSession.update({ where: { id }, data: { holdState: "HOLDING", holdUpdatedAt: new Date() } });
     holdFlag = false; mock.timers.tick(20_000);
     assert.equal(((await calling.getCallLiveState(id)) as any).hold, "NONE", "read path heals too");
+    participantGone = true;
+    await db.crmCallSession.update({ where: { id }, data: { holdState: "RESUMING", holdUpdatedAt: new Date() } });
+    mock.timers.tick(20_000);
+    await holdLib.healHold(id);
+    assert.equal((await rowOf(id)).holdState, "NONE", "participant gone ⇒ nothing is held");
+    participantGone = false;
     await db.crmCallSession.update({ where: { id }, data: { holdState: "HELD", heldAt: new Date() } });
   });
 

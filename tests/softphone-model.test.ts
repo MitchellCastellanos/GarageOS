@@ -75,3 +75,9 @@ test("controls per mode: the outcome form only in the expanded phone, the warnin
   assert.equal(controlsFor("expanded", live).call, false);
   assert.equal(controlsFor("expanded", { live: false, callActive: false, outcomeDue: false }).call, true);
 });
+
+test("hold control follows the live call: shown while live in expanded/compact, never minimized or idle", () => {
+  const live = { live: true, callActive: true, outcomeDue: false }, idle = { live: false, callActive: false, outcomeDue: false };
+  assert.equal(controlsFor("expanded", live).hold, true); assert.equal(controlsFor("compact", live).hold, true);
+  assert.equal(controlsFor("minimized", live).hold, false); assert.equal(controlsFor("expanded", idle).hold, false);
+});
