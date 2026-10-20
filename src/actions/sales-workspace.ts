@@ -31,18 +31,19 @@ const refresh = (prospectId: string) => revalidatePath(PLATFORM.salesProspect(pr
 const SENT_STATES = ["SENT", "DELIVERED", "DELAYED", "QUEUED", "SCHEDULED"] as const;
 
 /** Loads ONE province-balanced random eligible prospect (due callbacks first). Never dials; the seller still presses Call. */
-export async function getNextProspect(input: { lastProvince?: string | null; excludeIds?: string[] } = {}): Promise<NextProspectResponse> {
+export async function getNextProspect(input: { lastProvince?: string | null; excludeIds?: string[]; includeClosed?: boolean } = {}): Promise<NextProspectResponse> {
   const actor = await requireCrmActor("place_sales_calls");
   const unsaved = await db.crmCallSession.findFirst({ where: { userId: actor.userId, kind: "PROSPECT", endedAt: { not: null }, dispositionAt: null, parentCallSid: { not: null } }, select: { id: true } });
   if (unsaved) return { ok: false, code: "DISPOSITION_PENDING" };
   const [settings, held] = await Promise.all([readVoiceSettings(), loadHeldProvinces()]);
   const r = await pickNextProspect(actor, {
+    includeClosed: input.includeClosed !== false,
     lastProvince: input.lastProvince ?? null, excludeIds: (input.excludeIds ?? []).slice(0, 50).map(String), cooldownMinutes: settings.cooldownMinutes, heldProvinces: held,
-    validate: async (id, now) => { const c = await checkProspect(actor, id, now); return c.ok ? { ok: true, localTime: c.dial.localTime } : { ok: false }; },
+    validate: async (id, now) => { const c = await checkProspect(actor, id, now, { allowOutOfHours: true }); return c.ok ? { ok: true, localTime: c.dial.localTime } : { ok: false }; },
   });
   if (!r.found) return { ok: true, found: false, reason: r.reason, nextWindow: r.nextWindow };
   const profile = await loadWorkspaceProfile(actor, r.prospectId);
-  return { ok: true, found: true, profile, source: r.source, province: r.province, provincePool: r.provincePool };
+  return { ok: true, found: true, profile, source: r.source, province: r.province, provincePool: r.provincePool, outsideHours: r.outsideHours };
 }
 
 /** Reloads one prospect's profile (e.g. after a reload with a pending disposition, or after an inline edit). Scope-checked. */

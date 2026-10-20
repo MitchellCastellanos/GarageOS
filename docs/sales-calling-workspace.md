@@ -26,3 +26,9 @@
 
 ## Tests
 `tests/calling-selection-domain.test.ts`, `tests/sales-workspace-db.test.ts`, `tests/sales-workspace-email-db.test.ts` (fresh DB per file).
+
+## Browsing and calling outside calling hours
+* The workspace no longer hides prospects whose recipient-local window is closed. **Next prospect** prefers provinces that are open now, and falls back to any other eligible province (flagged "Outside calling hours"); **Previous / Next viewed** browse the prospects already opened. The full profile and history are always visible; loading never dials.
+* Clicking **Call** outside the window opens a confirmation: "Are you sure you want to call outside calling hours? It is HH:MM at the call's destination (city, province)."
+* The call is only placed if a Super Admin turned on **Calls outside calling hours** in Voice settings (audited gate, **off by default**) and the seller confirmed. The server re-checks the switch and the confirmation when Twilio connects, and records `outOfHours` in the session snapshot and audit. DNC, number suppression, held provinces, ownership, cooldown, caps and the one-live-call lock are unchanged.
+* Reminder: CRTC Telemarketing Rules hours also apply to exempt B2B calls; enabling the switch is the owner's decision.

@@ -38,6 +38,8 @@ export async function voiceAuthorizeLiveCalling(authorized: boolean, confirmatio
   if (authorized && String(confirmation).trim().toUpperCase() !== "AUTHORIZE") return { ok: false as const, code: "CONFIRMATION_REQUIRED" };
   return run({ liveCallingAuthorized: !!authorized }, authorized ? "live calling authorized" : "live calling revoked");
 }
+/** Lets sellers place a call outside the recipient's local calling hours after an explicit on-screen confirmation (audited gate; CRTC telemarketing hours still apply to the business — see docs). */
+export async function voiceSetAllowOutOfHours(allowed: boolean) { return run({ allowOutOfHoursCalls: !!allowed }, allowed ? "out-of-hours calls allowed with confirmation" : "out-of-hours calls disallowed"); }
 export async function voiceSetHeldProvinces(provinces: string[]) { return run({ heldProvinces: provinces.map(String) }, undefined, true); }
 export async function voiceSetTestNumbers(numbers: string[]) { return run({ testDestinations: numbers.map(String) }); }
 export async function voiceSetLimits(l: { dailyCallCapPerSeller: number; cooldownMinutes: number; maxCallSeconds: number }) {

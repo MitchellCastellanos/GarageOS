@@ -54,7 +54,7 @@ export function suggestedLanguage(province: string | null): "FR" | "EN" | "UNKNO
 // province. Every candidate is re-validated live by `checkProspect` (the same gate the dial uses) before it is offered.
 
 export type NextProspectResult =
-  | { found: true; prospectId: string; province: string | null; source: "CALLBACK" | "RANDOM"; localTime: string; provincePool: number }
+  | { found: true; prospectId: string; province: string | null; source: "CALLBACK" | "RANDOM"; localTime: string; provincePool: number; outsideHours: boolean }
   | { found: false; reason: "NO_ELIGIBLE" | "ALL_CLOSED" | "NO_SELLER_PROFILE"; nextWindow: { province: string; opensAt: string } | null };
 
 const OPEN_CALL_STATES = ["PENDING", "RINGING", "IN_PROGRESS"] as const;
@@ -62,7 +62,7 @@ const RECENT_ATTEMPT_STATES = ["IN_PROGRESS", "COMPLETED", "NO_ANSWER", "BUSY"] 
 
 export async function pickNextProspect(
   actor: PlatformSalesActor,
-  opts: { now?: Date; rng?: Rng; lastProvince?: string | null; excludeIds?: readonly string[]; cooldownMinutes: number; heldProvinces: ReadonlySet<string>; validate: (id: string, now: Date) => Promise<{ ok: boolean; localTime?: string }> },
+  opts: { includeClosed?: boolean; now?: Date; rng?: Rng; lastProvince?: string | null; excludeIds?: readonly string[]; cooldownMinutes: number; heldProvinces: ReadonlySet<string>; validate: (id: string, now: Date) => Promise<{ ok: boolean; localTime?: string }> },
 ): Promise<NextProspectResult> {
   if (!actor.capabilities.has("place_sales_calls")) throw new Error("SALES_FORBIDDEN");
   if (!actor.staffId) return { found: false, reason: "NO_SELLER_PROFILE", nextWindow: null };
@@ -84,35 +84,40 @@ export async function pickNextProspect(
     where: { assignedStaffId: actor.staffId, type: "CALL", status: "OPEN", dueAt: { lte: now }, prospect: base },
     orderBy: { dueAt: "asc" }, take: 10, select: { prospectId: true, prospect: { select: { province: true } } },
   });
-  for (const t of due) {
-    const province = t.prospect.province;
-    if (!province || opts.heldProvinces.has(province.toUpperCase()) || !callingWindow(province, now).open) continue;
-    const v = await opts.validate(t.prospectId, now);
-    if (v.ok) return { found: true, prospectId: t.prospectId, province, source: "CALLBACK", localTime: v.localTime ?? callingWindow(province, now).localTime, provincePool: 0 };
+  for (const pass of opts.includeClosed ? [true, false] : [true]) {
+    for (const t of due) {
+      const province = t.prospect.province;
+      if (!province || opts.heldProvinces.has(province.toUpperCase()) || callingWindow(province, now).open !== pass) continue;
+      const v = await opts.validate(t.prospectId, now);
+      if (v.ok) return { found: true, prospectId: t.prospectId, province, source: "CALLBACK", localTime: v.localTime ?? callingWindow(province, now).localTime, provincePool: 0, outsideHours: !pass };
+    }
   }
 
   // 2) Random, province-balanced.
   const pool: Prisma.CrmProspectWhereInput = { ...base, tasks: { none: { status: "OPEN" } } };
   const grouped = await db.crmProspect.groupBy({ by: ["province"], where: pool, _count: { _all: true } });
-  const counts: Record<string, number> = {};
+  const counts: Record<string, number> = {}, closedCounts: Record<string, number> = {};
   const closed: { province: string; n: number }[] = [];
   for (const g of grouped) {
     const p = g.province?.toUpperCase();
     if (!p || opts.heldProvinces.has(p)) continue;
-    if (callingWindow(p, now).open) counts[p] = (counts[p] ?? 0) + g._count._all; else closed.push({ province: p, n: g._count._all });
+    if (callingWindow(p, now).open) counts[p] = (counts[p] ?? 0) + g._count._all; else { closedCounts[p] = (closedCounts[p] ?? 0) + g._count._all; closed.push({ province: p, n: g._count._all }); }
   }
-  const tried = new Set<string>();
-  for (let attempt = 0; attempt < 8; attempt++) {
-    const choice = pickWeighted(provinceWeights(counts, opts.lastProvince ?? null).filter((w) => !tried.has(w.province)), rng);
-    if (!choice) break;
-    const n = counts[choice.province];
-    const offset = randomOffset(n, rng);
-    const row = await db.crmProspect.findFirst({ where: { ...pool, province: { equals: choice.province, mode: "insensitive" } }, orderBy: { id: "asc" }, skip: offset, select: { id: true } });
-    if (!row) { tried.add(choice.province); continue; }
-    const v = await opts.validate(row.id, now);
-    if (v.ok) return { found: true, prospectId: row.id, province: choice.province, source: "RANDOM", localTime: v.localTime ?? callingWindow(choice.province, now).localTime, provincePool: n };
-    exclude.push(row.id);
-    pool.id = { notIn: exclude };
+  // Provinces inside their calling window are preferred; when there are none (or they are exhausted) every other eligible province is still browsable — the dial itself asks for confirmation.
+  for (const [pool_, outsideHours] of (opts.includeClosed ? [[counts, false], [closedCounts, true]] : [[counts, false]]) as [Record<string, number>, boolean][]) {
+    const tried = new Set<string>();
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const choice = pickWeighted(provinceWeights(pool_, opts.lastProvince ?? null).filter((w) => !tried.has(w.province)), rng);
+      if (!choice) break;
+      const n = pool_[choice.province];
+      const offset = randomOffset(n, rng);
+      const row = await db.crmProspect.findFirst({ where: { ...pool, province: { equals: choice.province, mode: "insensitive" } }, orderBy: { id: "asc" }, skip: offset, select: { id: true } });
+      if (!row) { tried.add(choice.province); continue; }
+      const v = await opts.validate(row.id, now);
+      if (v.ok) return { found: true, prospectId: row.id, province: choice.province, source: "RANDOM", localTime: v.localTime ?? callingWindow(choice.province, now).localTime, provincePool: n, outsideHours };
+      exclude.push(row.id);
+      pool.id = { notIn: exclude };
+    }
   }
 
   // 3) Nothing callable right now: say when the earliest eligible province opens (computed from the calling-hours rule, not guessed).

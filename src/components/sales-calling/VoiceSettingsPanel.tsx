@@ -3,7 +3,7 @@
 import { useState, useTransition, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
-  voiceAuthorizeLiveCalling, voiceClearDnclRegistration, voiceRecordDnclRegistration, voiceSetEnabled, voiceSetHeldProvinces, voiceSetLimits, voiceSetTestNumbers,
+  voiceAuthorizeLiveCalling, voiceClearDnclRegistration, voiceRecordDnclRegistration, voiceSetAllowOutOfHours, voiceSetEnabled, voiceSetHeldProvinces, voiceSetLimits, voiceSetTestNumbers,
   type getVoiceSettingsView,
 } from "@/actions/sales-voice-settings";
 import { callingCopy } from "@/lib/admin-locale/sales-calling";
@@ -107,6 +107,14 @@ export function VoiceSettingsPanel({ view, locale }: { view: View; locale: "en" 
           </div>
           {note("auth")}
         </form>
+      ))}
+
+      {section(c.outOfHours.title, c.outOfHours.body, (
+        <div className="space-y-3">
+          <p className="text-sm font-medium text-slate-800">{g.allowOutOfHours ? c.outOfHours.on : c.outOfHours.off}</p>
+          <button type="button" disabled={pending} className={g.allowOutOfHours ? btnDanger : btnPrimary} onClick={() => run("ooh", () => voiceSetAllowOutOfHours(!g.allowOutOfHours))}>{g.allowOutOfHours ? c.outOfHours.disable : c.outOfHours.enable}</button>
+          {note("ooh")}
+        </div>
       ))}
 
       {section(c.held.title, c.held.body, (

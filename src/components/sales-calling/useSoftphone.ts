@@ -10,7 +10,7 @@ import type { StartCallResult } from "@/lib/voice/types";
 // moves between panels, tabs or the email drawer, so an active call survives every UI change. Only { sessionId, authToken } are ever sent to Twilio.
 
 export type Phase = "idle" | "authorizing" | "dialing" | "ringing" | "connected" | "ended" | "failed";
-export type Target = { kind: "PROSPECT"; id: string; name: string } | { kind: "TEST"; number: string };
+export type Target = { kind: "PROSPECT"; id: string; name: string; confirmOutOfHours?: boolean } | { kind: "TEST"; number: string };
 export type Dispo = { sessionId: string; prospectId: string | null; name: string | null; settling: boolean };
 interface Live { device: Device | null; call: Call | null; sessionId: string | null; prospectId: string | null; label: string | null; accepted: boolean; hungUp: boolean; done: boolean; startedAt: number }
 
@@ -123,7 +123,7 @@ export function useSoftphone(c: CallingCopy, initialDispo: Dispo | null) {
     if (micError) { setPhase("idle"); setError(micError); return; }
     let r: StartCallResult;
     try {
-      r = target.kind === "PROSPECT" ? await startProspectCall(target.id, key) : await startTestCall(target.number, key);
+      r = target.kind === "PROSPECT" ? await startProspectCall(target.id, key, target.confirmOutOfHours === true) : await startTestCall(target.number, key);
     } catch {
       setPhase("idle"); setError(c.unexpected); return;
     }

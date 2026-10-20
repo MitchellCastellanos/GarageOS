@@ -18,7 +18,7 @@ import { DiscoveryPanel } from "./DiscoveryPanel";
 import { EmailCapture } from "./EmailCapture";
 import { ActionsPanel } from "./ActionsPanel";
 import { EmailDrawer, type EmailDrawerHandle, type InsertKind } from "./EmailDrawer";
-import { clearNotes, ToastView, useLiveNotes, wsError, type Toast } from "./shared";
+import { clearNotes, fill, ToastView, useLiveNotes, wsError, type Toast } from "./shared";
 
 type Tab = "call" | "prospect" | "actions";
 const NO_FLAGS: CallFlags = { demoSent: false, meetingScheduled: false };
@@ -38,6 +38,9 @@ export function CallingWorkspace({ data, locale }: { data: CallingPageData; loca
   const [empty, setEmpty] = useState<NextEmpty>(null);
   const [loadingNext, setLoadingNext] = useState(false);
   const [shown, setShown] = useState<string[]>(data.resumeProfile ? [data.resumeProfile.id] : []);
+  const [trail, setTrail] = useState<string[]>(data.resumeProfile ? [data.resumeProfile.id] : []);
+  const [pos, setPos] = useState(data.resumeProfile ? 0 : -1);
+  const [confirmOut, setConfirmOut] = useState(false);
   const [emailDirty, setEmailDirty] = useState(false);
   const [flags, setFlags] = useState<CallFlags>(NO_FLAGS);
   const [preset, setPreset] = useState<DispoPreset>(null);
@@ -100,11 +103,13 @@ export function CallingWorkspace({ data, locale }: { data: CallingPageData; loca
     if ((notesDirty || emailDirty) && !window.confirm(c.ws.next.confirmReplace)) return;
     setLoadingNext(true); setToast(null);
     try {
-      const r = await getNextProspect({ lastProvince: profile?.province ?? null, excludeIds: shown.slice(-50) });
+      const r = await getNextProspect({ lastProvince: profile?.province ?? null, excludeIds: shown.slice(-50), includeClosed: true });
       if (!r.ok) { setToast({ kind: "error", text: wsError(c, locale, r.code) }); if (r.code === "DISPOSITION_PENDING") router.refresh(); return; }
       if (!r.found) { setEmpty({ reason: r.reason, nextWindow: r.nextWindow }); setMeta(null); return; }
       setProfile(r.profile);
-      setMeta({ source: r.source, province: r.province, provincePool: r.provincePool });
+      setMeta({ source: r.source, province: r.province, provincePool: r.provincePool, outsideHours: r.outsideHours });
+      const t = [...trail.slice(0, pos + 1).filter((x) => x !== r.profile.id), r.profile.id];
+      setTrail(t); setPos(t.length - 1);
       setEmpty(null);
       setShown((s) => [...s.filter((x) => x !== r.profile.id), r.profile.id]);
       setFlags(NO_FLAGS); setPreset(null); setEmailDirty(false); setSaved(false);
@@ -114,6 +119,31 @@ export function CallingWorkspace({ data, locale }: { data: CallingPageData; loca
     } finally {
       setLoadingNext(false);
     }
+  }
+
+  /** Browse the prospects already opened (any hour): reads the profile only, never dials. */
+  async function go(delta: -1 | 1) {
+    const id = trail[pos + delta];
+    if (!id || sp.callActive || sp.dispo || loadingNext) return;
+    if ((notesDirty || emailDirty) && !window.confirm(c.ws.next.confirmReplace)) return;
+    setLoadingNext(true); setToast(null);
+    try {
+      const r = await getProspectProfile(id);
+      if (!r.ok) { setToast({ kind: "error", text: wsError(c, locale, r.code) }); return; }
+      setProfile(r.profile); setMeta(null); setEmpty(null); setPos(pos + delta);
+      setFlags(NO_FLAGS); setPreset(null); setEmailDirty(false); setSaved(false);
+      if (!sp.callActive && !sp.dispo && (sp.phase === "ended" || sp.phase === "failed" || sp.error)) sp.reset();
+    } catch {
+      setToast({ kind: "error", text: c.unexpected });
+    } finally {
+      setLoadingNext(false);
+    }
+  }
+
+  function placeCall(confirmOutOfHours: boolean) {
+    if (!profile) return;
+    setConfirmOut(false); setSaved(false);
+    void sp.start({ kind: "PROSPECT", id: profile.id, name: profile.name, confirmOutOfHours });
   }
 
   function onDispoSaved() {
@@ -136,7 +166,7 @@ export function CallingWorkspace({ data, locale }: { data: CallingPageData; loca
 
   const held = !!profile?.province && gates.heldProvinces.includes(profile.province.toUpperCase());
   const w = c.ws.phone;
-  const callBlockedReason = !profile ? w.noProspect : sp.dispo ? w.pending : !gates.commercialCallingOpen ? w.gate : profile.doNotContact ? w.dnc : held ? w.held : !profile.phone ? w.noPhone : !profile.window.open ? w.window : null;
+  const callBlockedReason = !profile ? w.noProspect : sp.dispo ? w.pending : !gates.commercialCallingOpen ? w.gate : profile.doNotContact ? w.dnc : held ? w.held : !profile.phone ? w.noPhone : null;
   const nextBlocked = sp.callActive ? c.ws.next.blockedLive : sp.dispo ? c.ws.next.blockedDispo : null;
   const gateLines = [!gates.enabled && c.gates.disabled, gates.enabled && !gates.provisioned && c.gates.notProvisioned, !gates.dnclRegistered && c.gates.dncl, !gates.liveCallingAuthorized && c.gates.notAuthorized].filter((x): x is string => !!x);
   const testGateOpen = gates.enabled && gates.provisioned;
@@ -184,7 +214,7 @@ export function CallingWorkspace({ data, locale }: { data: CallingPageData; loca
 
         <div id="ws-call" className={`min-w-0 space-y-4 ${show("call")}`}>
           <CallPanel c={c} sp={sp} profile={profile} callBlockedReason={callBlockedReason} today={data.today}
-            onCall={() => { if (profile && !callBlockedReason) { setSaved(false); void sp.start({ kind: "PROSPECT", id: profile.id, name: profile.name }); } }} />
+            onCall={() => { if (!profile || callBlockedReason) return; if (!profile.window.open) setConfirmOut(true); else placeCall(false); }} />
           {sp.dispo && <DispositionPanel key={sp.dispo.sessionId} c={c} dispo={sp.dispo} liveNotes={sp.dispo.prospectId === profile?.id ? notes : ""} flags={flags} preset={preset} onSaved={onDispoSaved} />}
           {saved && !sp.dispo && (
             <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-900">
@@ -192,7 +222,7 @@ export function CallingWorkspace({ data, locale }: { data: CallingPageData; loca
               <button type="button" className={btnPrimary} disabled={loadingNext} onClick={() => void loadNext()}>{c.disposition.nextProspect} →</button>
             </div>
           )}
-          <NextProspect c={c} locale={locale} profile={profile} meta={meta} empty={empty} loading={loadingNext} disabledReason={nextBlocked} onNext={() => void loadNext()} shownCount={shown.length} />
+          <NextProspect c={c} locale={locale} profile={profile} meta={meta} empty={empty} loading={loadingNext} disabledReason={nextBlocked} onNext={() => void loadNext()} shownCount={shown.length} onBack={pos > 0 ? () => void go(-1) : null} onForward={pos >= 0 && pos < trail.length - 1 ? () => void go(1) : null} />
           <LiveNotes c={c} prospectId={profile?.id ?? null} notes={notes} />
           <CallScript c={c} />
           {profile && <DiscoveryPanel key={`d-${profile.id}`} c={c} locale={locale} profile={profile} sessionId={sp.sessionId} canEdit={data.can.editProspects} notify={setToast} onSaved={() => reloadProfile()} />}
@@ -229,6 +259,21 @@ export function CallingWorkspace({ data, locale }: { data: CallingPageData; loca
       {profile && data.can.email && (
         <EmailDrawer key={profile.id} ref={drawer} c={c} locale={locale} prospectId={profile.id} prospectName={profile.name} sp={sp}
           onDirtyChange={setEmailDirty} onDemoSent={() => setFlags((f) => ({ ...f, demoSent: true }))} notify={setToast} />
+      )}
+
+      {confirmOut && profile && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 p-4" onKeyDown={(e) => { if (e.key === "Escape") setConfirmOut(false); }}>
+          <div role="alertdialog" aria-modal="true" aria-labelledby="ooh-title" aria-describedby="ooh-body" className="w-full max-w-md space-y-4 rounded-2xl bg-white p-5 shadow-xl">
+            <h2 id="ooh-title" className="text-lg font-semibold text-slate-900">{c.ws.phone.outOfHours.title}</h2>
+            <p id="ooh-body" className="text-sm text-slate-700">
+              {fill(gates.allowOutOfHours ? c.ws.phone.outOfHours.body : c.ws.phone.outOfHours.disabled, { time: profile.window.localTime || "—", place: [profile.city, profile.province].filter(Boolean).join(", ") || profile.province || "—" })}
+            </p>
+            <div className="flex flex-wrap justify-end gap-2">
+              <button type="button" autoFocus className={btnSecondary} onClick={() => setConfirmOut(false)}>{gates.allowOutOfHours ? c.ws.phone.outOfHours.cancel : c.ws.phone.outOfHours.close}</button>
+              {gates.allowOutOfHours && <button type="button" className={`${btnPrimary} bg-amber-600 hover:bg-amber-700`} onClick={() => placeCall(true)}>{c.ws.phone.outOfHours.confirm}</button>}
+            </div>
+          </div>
+        </div>
       )}
 
       <div aria-live="polite" className="pointer-events-none fixed inset-x-4 bottom-4 z-50 sm:left-auto sm:w-96">

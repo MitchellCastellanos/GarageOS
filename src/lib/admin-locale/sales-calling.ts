@@ -53,6 +53,7 @@ const en = {
       province: "Province", pool: "Callable now in this province: {n}", none: "No prospects can be called right now.", nextWindow: "Next window: {province} opens at {time}.",
       reasons: { NO_ELIGIBLE: "No eligible prospect is left in your scope.", ALL_CLOSED: "Every eligible prospect is outside its calling window.", NO_SELLER_PROFILE: "Your account has no seller profile, so no prospect can be loaded." } as Record<string, string>,
       blockedLive: "Finish the call first.", blockedDispo: "Save the call outcome first.",
+      previous: "← Previous", forward: "Next viewed →", historyHint: "Browse the prospects you already opened.", outsideHours: "Outside calling hours — you can review it; calling asks for confirmation.",
       confirmReplace: "You have unsaved notes or an unsent email for this prospect. Load another prospect anyway? Your notes stay on this device.",
       shown: "Prospects shown this session: {n}",
     },
@@ -75,6 +76,7 @@ const en = {
       callStates: { PENDING: "Pending", RINGING: "Ringing", IN_PROGRESS: "In progress", COMPLETED: "Completed", BUSY: "Busy", NO_ANSWER: "No answer", FAILED: "Failed", CANCELED: "Canceled", ABANDONED: "Abandoned" } as Record<string, string>,
     },
     phone: {
+      outOfHours: { title: "Call outside calling hours?", body: "Are you sure you want to call outside calling hours? It is {time} at the call’s destination ({place}).", disabled: "It is {time} at the call’s destination ({place}). Calling outside calling hours is turned off by an administrator, so this call cannot be placed now.", confirm: "Yes, call anyway", cancel: "Cancel", close: "Close", badge: "Outside calling hours" },
       callName: "Call {name}", noProspect: "Load a prospect to call.", gate: "Calling is locked by the compliance gates.", window: "Outside this prospect’s calling window.", held: "Calls to this province are on hold.", dnc: "This prospect is marked Do Not Contact.",
       pending: "Save the outcome of the last call first.", noPhone: "This prospect has no telephone number on file.", inCall: "Call in progress", hangUpShort: "Hang up",
     },
@@ -160,6 +162,7 @@ const en = {
     authorize: {
       title: "Authorize live calling", body: "Authorizing lets sellers call real prospects. It requires a recorded DNCL registration.", confirmLabel: "Type AUTHORIZE to confirm", confirmWord: "AUTHORIZE", authorize: "Authorize live calling", revoke: "Revoke authorization", needsDncl: "Record the DNCL registration first.", authorizedNow: "Live calling is currently authorized.",
     },
+    outOfHours: { title: "Calls outside calling hours", body: "When ON, a seller who clicks Call outside the recipient’s local calling hours gets a confirmation (“Are you sure? It is HH:MM at the destination”) and may place the call anyway. Every other gate still applies. The CRTC Telemarketing Rules set calling hours (weekdays 9:00–21:30, weekends 10:00–18:00 local) and they also apply to exempt B2B calls: turning this on is your decision and is audited. OFF by default.", on: "Allowed with confirmation", off: "Not allowed", enable: "Allow with confirmation", disable: "Turn off" },
     held: { title: "Provinces on hold", body: "Two-letter province codes separated by commas. BC and MB stay on hold pending legal review. Prospects in a held province cannot be called.", label: "Held provinces", save: "Save held provinces", none: "None" },
     tests: { title: "Test numbers", body: "Canadian numbers a Super Admin may call to test the softphone, one per line (maximum 10). They are stored in international format.", label: "Test numbers", save: "Save test numbers" },
     limits: { title: "Limits", body: "Limits apply to every seller.", daily: "Daily calls per seller", cooldown: "Minutes before calling the same prospect again", maxSeconds: "Maximum call length (seconds)", save: "Save limits" },
@@ -224,6 +227,7 @@ const fr: Dict = {
       province: "Province", pool: "Appelables maintenant dans cette province : {n}", none: "Aucun prospect ne peut être appelé pour le moment.", nextWindow: "Prochaine plage : {province} ouvre à {time}.",
       reasons: { NO_ELIGIBLE: "Il ne reste aucun prospect admissible dans votre portée.", ALL_CLOSED: "Tous les prospects admissibles sont hors de leur plage d’appel.", NO_SELLER_PROFILE: "Votre compte n’a pas de profil de vendeur : aucun prospect ne peut être chargé." },
       blockedLive: "Terminez d’abord l’appel.", blockedDispo: "Enregistrez d’abord le résultat de l’appel.",
+      previous: "← Précédent", forward: "Suivant consulté →", historyHint: "Parcourez les prospects déjà ouverts.", outsideHours: "Hors des heures d’appel — vous pouvez le consulter; l’appel demandera une confirmation.",
       confirmReplace: "Vous avez des notes non enregistrées ou un courriel non envoyé pour ce prospect. Charger quand même un autre prospect? Vos notes restent sur cet appareil.",
       shown: "Prospects affichés pendant cette session : {n}",
     },
@@ -246,6 +250,7 @@ const fr: Dict = {
       callStates: { PENDING: "En attente", RINGING: "Ça sonne", IN_PROGRESS: "En cours", COMPLETED: "Terminé", BUSY: "Occupé", NO_ANSWER: "Pas de réponse", FAILED: "Échec", CANCELED: "Annulé", ABANDONED: "Abandonné" },
     },
     phone: {
+      outOfHours: { title: "Appeler hors des heures d’appel?", body: "Voulez-vous vraiment appeler hors des heures d’appel? Il est {time} à la destination de l’appel ({place}).", disabled: "Il est {time} à la destination de l’appel ({place}). Les appels hors des heures d’appel sont désactivés par un administrateur : cet appel ne peut pas être placé maintenant.", confirm: "Oui, appeler quand même", cancel: "Annuler", close: "Fermer", badge: "Hors des heures d’appel" },
       callName: "Appeler {name}", noProspect: "Chargez un prospect pour appeler.", gate: "Les appels sont verrouillés par les conditions de conformité.", window: "Hors de la plage d’appel de ce prospect.", held: "Les appels vers cette province sont suspendus.", dnc: "Ce prospect est marqué Ne pas contacter.",
       pending: "Enregistrez d’abord le résultat du dernier appel.", noPhone: "Ce prospect n’a aucun numéro de téléphone au dossier.", inCall: "Appel en cours", hangUpShort: "Raccrocher",
     },
@@ -331,6 +336,7 @@ const fr: Dict = {
     authorize: {
       title: "Autoriser les appels réels", body: "L’autorisation permet aux vendeurs d’appeler de vrais prospects. Elle exige une inscription à la LNNTE consignée.", confirmLabel: "Tapez AUTHORIZE pour confirmer", confirmWord: "AUTHORIZE", authorize: "Autoriser les appels réels", revoke: "Révoquer l’autorisation", needsDncl: "Consignez d’abord l’inscription à la LNNTE.", authorizedNow: "Les appels réels sont actuellement autorisés.",
     },
+    outOfHours: { title: "Appels hors des heures d’appel", body: "Lorsque cette option est ACTIVÉE, un vendeur qui clique sur Appeler hors des heures locales d’appel du destinataire reçoit une confirmation (« Êtes-vous sûr? Il est HH:MM à la destination ») et peut appeler quand même. Toutes les autres conditions s’appliquent toujours. Les Règles sur les télécommunications non sollicitées du CRTC fixent les heures d’appel (semaine 9 h–21 h 30, fin de semaine 10 h–18 h, heure locale) et s’appliquent aussi aux appels B2B exemptés : l’activer relève de votre décision et est consigné. DÉSACTIVÉ par défaut.", on: "Permis avec confirmation", off: "Non permis", enable: "Permettre avec confirmation", disable: "Désactiver" },
     held: { title: "Provinces suspendues", body: "Codes de province à deux lettres, séparés par des virgules. La C.-B. (BC) et le Manitoba (MB) restent suspendus en attendant l’examen juridique. Les prospects d’une province suspendue ne peuvent pas être appelés.", label: "Provinces suspendues", save: "Enregistrer les provinces suspendues", none: "Aucune" },
     tests: { title: "Numéros de test", body: "Numéros canadiens qu’un Super Admin peut appeler pour tester le téléphone, un par ligne (maximum 10). Ils sont enregistrés en format international.", label: "Numéros de test", save: "Enregistrer les numéros de test" },
     limits: { title: "Limites", body: "Les limites s’appliquent à chaque vendeur.", daily: "Appels par jour et par vendeur", cooldown: "Minutes avant de rappeler le même prospect", maxSeconds: "Durée maximale d’un appel (secondes)", save: "Enregistrer les limites" },
