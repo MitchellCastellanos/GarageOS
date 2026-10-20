@@ -4,10 +4,10 @@ import { useState, useTransition, type FormEvent, type ReactNode } from "react";
 import { saveDecisionMaker } from "@/actions/sales-workspace";
 import type { CallingCopy } from "@/lib/admin-locale/sales-calling";
 import { crmCopy } from "@/lib/admin-locale/sales-crm";
-import { commsCopy } from "@/lib/admin-locale/sales-comms";
 import type { WorkspaceContact, WorkspaceProfile } from "@/lib/voice/workspace-types";
 import { Badge, btnPrimary, btnSecondary, inputCls, labelCls, StageBadge } from "@/components/sales-crm/ui";
 import { fill, fmtDateTime, wsError, type Locale, type Toast } from "./shared";
+import { HistoryList } from "./HistoryList";
 
 const OBJ = (c: CallingCopy) => c.ws.discovery.objectionCodes as Record<string, string>;
 
@@ -20,12 +20,11 @@ function Block({ title, children, empty, emptyText }: { title: string; children?
   );
 }
 
-export function ProspectPanel({ profile, c, locale, timezone, canEdit, onChanged, notify }: {
-  profile: WorkspaceProfile | null; c: CallingCopy; locale: Locale; timezone: string; canEdit: boolean; onChanged: () => void; notify: (t: Toast) => void;
+export function ProspectPanel({ profile, c, locale, timezone, canEdit, onChanged, notify, onShowHistory }: {
+  profile: WorkspaceProfile | null; c: CallingCopy; locale: Locale; timezone: string; canEdit: boolean; onChanged: () => void; notify: (t: Toast) => void; onShowHistory: () => void;
 }) {
   const p = c.ws.profile;
   const crm = crmCopy(locale);
-  const comms = commsCopy(locale);
   const [editing, setEditing] = useState<string | "new" | null>(null);
 
   if (!profile) {
@@ -43,23 +42,20 @@ export function ProspectPanel({ profile, c, locale, timezone, canEdit, onChanged
   const none = p.none;
 
   return (
-    <section aria-labelledby="profile-title" className="min-w-0 space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+    <section aria-labelledby="profile-title" className="min-w-0 space-y-3 rounded-xl border border-slate-200 bg-white p-3">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{p.title}</p>
-          <h2 id="profile-title" className="break-words text-lg font-semibold text-slate-900">{profile.name}</h2>
+          <h2 id="profile-title" className="break-words text-base font-semibold text-slate-900">{profile.name}</h2>
         </div>
         <button type="button" className={`${btnSecondary} shrink-0 px-3`} onClick={onChanged} title={p.refresh} aria-label={p.refresh}>↻</button>
       </div>
 
       {profile.doNotContact && <p role="alert" className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm font-medium text-red-900">⛔ {p.dnc}</p>}
 
-      <div className={`rounded-lg border px-3 py-2 text-sm ${w.open ? "border-emerald-300 bg-emerald-50 text-emerald-900" : "border-amber-300 bg-amber-50 text-amber-900"}`}>
-        <p className="font-semibold"><span aria-hidden="true">{w.open ? "● " : "○ "}</span>{w.open ? p.window.open : p.window.closed}</p>
-        <p>{p.window.reasons[w.reason] ?? w.reason}</p>
-        {w.localTime && <p>{fill(p.window.localTime, { time: w.localTime })}{w.zone ? ` · ${fill(p.window.zone, { zone: w.zone })}` : ""}</p>}
-        <p className="mt-1 text-xs opacity-80">{p.window.hoursNotRecorded}</p>
-      </div>
+      <p className="text-xs text-slate-600">
+        <span className="font-medium">{p.window.reasons[w.reason] ?? w.reason}</span>{w.zone ? ` · ${fill(p.window.zone, { zone: w.zone })}` : ""}<br />{p.window.hoursNotRecorded}
+      </p>
 
       <dl className="grid gap-x-3 gap-y-1.5 text-sm [grid-template-columns:minmax(0,auto)_minmax(0,1fr)]">
         <dt className="text-slate-500">{p.phone}</dt><dd className="break-words font-medium text-slate-900">{profile.phone ?? p.notRecorded}</dd>
@@ -68,6 +64,7 @@ export function ProspectPanel({ profile, c, locale, timezone, canEdit, onChanged
         <dd className="min-w-0 break-all">{profile.website ? <a href={profile.website} target="_blank" rel="noopener noreferrer" className="text-blue-700 underline">{profile.website.replace(/^https?:\/\//, "").replace(/\/$/, "")}</a> : <span className="text-slate-500">{p.notRecorded}</span>}</dd>
         {profile.mapsUrl && (<><dt className="text-slate-500">{p.maps}</dt><dd><a href={profile.mapsUrl} target="_blank" rel="noopener noreferrer" className="text-blue-700 underline">{p.maps} ↗</a></dd></>)}
         <dt className="text-slate-500">{p.category}</dt><dd className="text-slate-900">{profile.industry ? crm.industries[profile.industry] ?? profile.industry : p.notRecorded}</dd>
+        <dt className="text-slate-500">{p.software}</dt><dd className="break-words text-slate-900">{profile.currentSoftware ?? p.notRecorded}</dd>
         <dt className="text-slate-500">{p.repairFit}</dt><dd className="text-slate-900">{profile.repairFit ? p.repairFits[profile.repairFit] : p.notRecorded}</dd>
         {profile.shopSize && (<><dt className="text-slate-500">{p.shopSize}</dt><dd className="text-slate-900">{crm.shopSizes[profile.shopSize] ?? profile.shopSize}</dd></>)}
         {profile.locationCount > 1 && (<><dt className="text-slate-500">{p.locations}</dt><dd className="text-slate-900">{profile.locationCount}</dd></>)}
@@ -121,47 +118,14 @@ export function ProspectPanel({ profile, c, locale, timezone, canEdit, onChanged
         </Block>
       )}
 
-      <Block title={p.sections.calls} empty={profile.calls.length === 0} emptyText={none}>
-        <ul className="space-y-1 text-sm">
-          {profile.calls.map((x) => (
-            <li key={x.id} className="flex flex-wrap justify-between gap-x-2">
-              <span className="text-slate-700">{fmtDateTime(x.requestedAt, locale, timezone)}</span>
-              <span className="text-slate-900">{x.disposition ? (c.disposition.outcomes as Record<string, string>)[x.disposition] ?? x.disposition : `${p.callStates[x.state] ?? x.state} · ${p.noOutcome}`}{x.durationSec ? ` · ${fill(p.seconds, { n: x.durationSec })}` : ""}</span>
-            </li>
-          ))}
-        </ul>
-      </Block>
-
-      <Block title={p.sections.tasks} empty={profile.tasks.length === 0} emptyText={none}>
-        <ul className="space-y-1 text-sm">
-          {profile.tasks.map((x) => <li key={x.id} className="break-words"><span className="font-medium text-slate-900">{x.title}</span> <span className="text-slate-600">· {crm.taskTypes[x.type] ?? x.type} · {p.due} {fmtDateTime(x.dueAt, locale, timezone)}</span></li>)}
-        </ul>
-      </Block>
-
-      <Block title={p.sections.meetings} empty={profile.meetings.length === 0} emptyText={none}>
-        <ul className="space-y-1 text-sm">
-          {profile.meetings.map((m) => <li key={m.id} className="break-words text-slate-800">{fmtDateTime(m.startsAt, locale, timezone)} · {comms.calendar.types[m.type] ?? m.type} · {comms.calendar.statuses[m.status] ?? m.status}{m.outcome ? ` · ${comms.calendar.outcomes[m.outcome] ?? m.outcome}` : ""}</li>)}
-        </ul>
-      </Block>
-
-      <Block title={p.sections.emails} empty={profile.emails.length === 0} emptyText={none}>
-        <ul className="space-y-1 text-sm">
-          {profile.emails.map((e) => <li key={e.id} className="break-words text-slate-800"><span className="text-slate-500">{fmtDateTime(e.at, locale, timezone)} · {p.emailKinds[e.kind] ?? e.kind}{e.status ? ` · ${comms.status[e.status] ?? e.status}` : ""}</span><br />{e.subject ?? comms.inbox.noSubject}</li>)}
-        </ul>
-      </Block>
-
-      <Block title={p.sections.activities} empty={profile.activities.length === 0} emptyText={none}>
-        <ul className="space-y-1.5 text-sm">
-          {profile.activities.map((a) => (
-            <li key={a.id} className="break-words">
-              <span className="text-slate-500">{fmtDateTime(a.occurredAt, locale, timezone)} · </span>
-              <span className="font-medium text-slate-900">{crm.activityTypes[a.type] ?? a.type}</span>{a.outcome ? <span className="text-slate-700"> · {crm.outcomes[a.outcome] ?? a.outcome}</span> : null}
-              {a.subject && <span className="text-slate-700"> · {a.subject}</span>}
-              {a.body && <span className="mt-0.5 block whitespace-pre-line text-slate-600">{a.body}</span>}
-            </li>
-          ))}
-        </ul>
-      </Block>
+      <div className="min-w-0 border-t border-slate-100 pt-3">
+        <div className="mb-1 flex items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold text-slate-800">{c.ws.history.recent}</h3>
+          <button type="button" className="inline-flex min-h-11 items-center rounded-lg px-2 text-sm font-medium text-blue-700 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-300" onClick={onShowHistory}>{c.ws.history.seeAll}</button>
+        </div>
+        <HistoryList c={c} locale={locale} timezone={timezone} profile={profile} limit={4} />
+        {profile.tasks.length > 0 && <p className="mt-1 text-xs text-slate-600">{p.sections.tasks}: {profile.tasks.length}</p>}
+      </div>
 
       <Block title={p.sections.needs} empty={profile.needs.length === 0} emptyText={none}>
         <ul className="flex flex-wrap gap-1">

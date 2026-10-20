@@ -68,15 +68,15 @@ export function DispositionPanel({ c, dispo, liveNotes, flags, preset, onSaved }
 
   const quick = outcome === "NO_ANSWER" || outcome === "VOICEMAIL";
   return (
-    <form onSubmit={submit} className="min-w-0 space-y-4 rounded-xl border-2 border-amber-400 bg-white p-4" aria-labelledby="dispo-title">
+    <form onSubmit={submit} className="min-w-0 space-y-3 rounded-xl border-2 border-amber-400 bg-white p-3" aria-labelledby="dispo-title">
       <div>
-        <h2 id="dispo-title" className="text-base font-semibold text-slate-900">{d.title}{dispo.name ? ` · ${dispo.name}` : ""}</h2>
-        <p className="mt-1 text-sm text-slate-600">{d.subtitle}</p>
+        <h2 id="dispo-title" className="text-sm font-semibold text-slate-900">{d.title}{dispo.name ? ` · ${dispo.name}` : ""}</h2>
+        <p className="mt-0.5 text-xs text-slate-600">{d.subtitle}</p>
       </div>
-      <fieldset className="grid gap-1 sm:grid-cols-2">
+      <fieldset className="grid gap-1">
         <legend className="mb-1 text-sm font-medium text-slate-700">{d.outcome} <span className="font-normal text-slate-500">({d.required})</span></legend>
         {DISPOSITIONS.map((o) => (
-          <label key={o} className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border px-3 text-sm ${outcome === o ? "border-blue-500 bg-blue-50 font-medium" : "border-slate-200"}`}>
+          <label key={o} className={`flex min-h-11 cursor-pointer items-center gap-2.5 rounded-lg border px-2.5 text-sm ${outcome === o ? "border-blue-500 bg-blue-50 font-medium" : "border-slate-200"}`}>
             <input type="radio" name="outcome" value={o} checked={outcome === o} onChange={() => { setOutcome(o); setDnc(false); setError(null); }} className="size-4" />
             {d.outcomes[o]}
           </label>
@@ -122,12 +122,12 @@ export function DispositionPanel({ c, dispo, liveNotes, flags, preset, onSaved }
       )}
 
       {WITH_FOLLOW_UP.includes(outcome as Disposition) && (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-2">
           <label className={labelCls}>{d.followUpDate}{outcome === "CALL_BACK" && <span className="text-xs font-normal text-slate-500">({d.required})</span>}
             <input className={inputCls} type="date" value={date} onChange={(e) => setDate(e.target.value)} required={outcome === "CALL_BACK"} />
           </label>
           <label className={labelCls}>{d.followUpTime}<input className={inputCls} type="time" value={time} onChange={(e) => setTime(e.target.value)} disabled={!date} /></label>
-          <p className="text-xs text-slate-500 sm:col-span-2">{outcome === "CALL_BACK" ? d.followUpHint : d.followUpOptional}</p>
+          <p className="col-span-2 text-xs text-slate-500">{outcome === "CALL_BACK" ? d.followUpHint : d.followUpOptional}</p>
         </div>
       )}
 
@@ -138,7 +138,7 @@ export function DispositionPanel({ c, dispo, liveNotes, flags, preset, onSaved }
 
       {dispo.settling && <p role="status" className="text-sm text-slate-600">{d.settling}</p>}
       {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p>}
-      <button className={`${btnPrimary} w-full sm:w-auto`} disabled={pending || dispo.settling}>{pending ? d.saving : d.save}</button>
+      <button className={`${btnPrimary} w-full`} disabled={pending || dispo.settling}>{pending ? d.saving : d.save}</button>
     </form>
   );
 }
