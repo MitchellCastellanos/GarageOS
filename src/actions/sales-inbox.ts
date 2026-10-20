@@ -13,9 +13,8 @@ import { applyTemplate, bookingLinkFor, deleteDraft, prepareSend, queueDraft, sa
 import { requireScopedThread } from "@/lib/sales-comms/threads";
 import { videoLinkFor } from "@/lib/sales-video";
 import { suppressEmail } from "@/lib/sales-comms/suppression";
-import { suggestedBasisExpiry } from "@/domain/sales-comms/casl";
-import { evidenceGaps, evidenceInputSchema } from "@/domain/sales-crm/casl-evidence";
-import { CASL_RULE_VERSION } from "@/domain/lead-radar/casl-evidence-engine";
+import { evidenceInputSchema } from "@/domain/sales-crm/casl-evidence";
+import { recordBasisForContact } from "@/lib/sales-comms/basis";
 import { validateAttachment, MAX_ATTACHMENTS, MAX_TOTAL_ATTACHMENT_BYTES } from "@/domain/sales-comms/attachments";
 import { isStorageConfigured, uploadSalesEmailAttachment, signedUrlForSalesEmailAttachment } from "@/lib/storage";
 import { publishInboxSignal } from "@/lib/sales-comms/realtime";
@@ -270,25 +269,9 @@ export async function recordSendingBasis(form: FormData) {
   const actor = await requireCrmActor("send_sales_email");
   return crmAction(async () => {
     const v = evidenceInputSchema.parse(Object.fromEntries(form));
-    const c = await db.crmContact.findUnique({ where: { id: v.contactId }, select: { id: true, prospectId: true } });
-    if (!c) throw new CrmError("NOT_FOUND");
-    await requireScopedProspect(actor, c.prospectId);
-    const now = new Date();
-    const expiresAt = v.expiresAt ?? suggestedBasisExpiry(v.kind, now);
-    if (expiresAt && Number.isNaN(expiresAt.getTime())) throw new CrmError("INVALID");
-    // INSUFFICIENT evidence is never recorded as a basis: an incomplete record is refused, not queued for anyone's decision.
-    if (evidenceGaps({ ...v, evidenceType: v.evidenceType, publishedConditionsConfirmed: v.publishedConditionsConfirmed }).length) throw new CrmError("EVIDENCE_INCOMPLETE");
-    const basis = await db.crmSendingBasis.create({
-      data: {
-        contactId: c.id, kind: v.kind, evidence: v.evidence, expiresAt, recordedByUserId: actor.userId,
-        reviewStatus: "AUTO_SUPPORTED", ruleVersion: CASL_RULE_VERSION, evidenceType: v.evidenceType, sourceUrl: v.sourceUrl, capturedAt: v.capturedAt,
-        supportingFacts: v.supportingFacts, roleRelevance: v.roleRelevance, publishedConditionsConfirmed: v.publishedConditionsConfirmed,
-      },
-      select: { id: true },
-    });
-    await writeCrmAudit({ actorUserId: actor.userId, action: "SENDING_BASIS_RECORDED", entityType: "CrmSendingBasis", entityId: basis.id, prospectId: c.prospectId, metadata: { contactId: c.id, kind: v.kind, expiresAt: expiresAt?.toISOString() ?? null, reviewStatus: "AUTO_SUPPORTED", ruleVersion: CASL_RULE_VERSION, evidenceType: v.evidenceType } });
-    revalidatePath(PLATFORM.salesProspect(c.prospectId));
-    return { basisId: basis.id, evidenceSupported: true };
+    const { basisId, prospectId } = await recordBasisForContact(actor, v);
+    revalidatePath(PLATFORM.salesProspect(prospectId));
+    return { basisId, evidenceSupported: true };
   });
 }
 

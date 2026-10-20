@@ -8,14 +8,17 @@ import { requireCrmActor } from "@/lib/sales-crm/access";
 import { writeCrmAudit } from "@/lib/sales-crm/audit";
 import { CrmError, applyDoNotContact, touchProspect } from "@/lib/sales-crm/prospects";
 import { insertCrmTask } from "@/lib/sales-crm/task-service";
+import { moveOpportunityStage } from "@/lib/sales-crm/pipeline-service";
 import { suppressPhoneNumber } from "@/lib/sales-crm/phone-readiness";
-import { loadCallingQueue, type CallingQueueItem } from "@/lib/sales-crm/calling-queue";
+import { loadCallingQueue } from "@/lib/sales-crm/calling-queue";
+import { loadWorkspaceProfile } from "@/lib/sales-crm/calling-workspace";
+import type { WorkspaceProfile } from "@/lib/voice/workspace-types";
 import { parseShopDateTime } from "@/lib/shop-timezone";
 import { getSharedNumberAccountSid, getTwilioClientFor } from "@/lib/communications/twilio";
 import { publicGateView, readVoiceSettings } from "@/lib/voice/settings";
 import { reapStale, staffKeyOf, startCallSession } from "@/lib/voice/session";
 import { handleStatus } from "@/lib/voice/webhooks";
-import { DISPOSITIONS, maskNumber, type DispositionInput, type DispositionResult, type StartCallResult } from "@/lib/voice/types";
+import { DISPOSITIONS, NEXT_ACTIONS, NOT_INTERESTED_REASONS, maskNumber, type DispositionInput, type DispositionResult, type StartCallResult } from "@/lib/voice/types";
 
 // Browser calling actions. Every one re-derives the seller from the session; the browser can only name a CRM prospect (or a Super Admin test-list entry) and its own idempotency key.
 
@@ -82,6 +85,12 @@ export async function saveCallDisposition(sessionId: string, input: DispositionI
   const wantsFollowUp = !!input.followUpDate;
   if (input.outcome === "CALL_BACK" && !wantsFollowUp) return { ok: false, code: "INVALID_INPUT", detail: "FOLLOW_UP_REQUIRED" };
   if (input.outcome === "DO_NOT_CALL" && !note) return { ok: false, code: "INVALID_INPUT", detail: "NOTE_REQUIRED" };
+  if (input.outcome === "NOT_INTERESTED" && !(NOT_INTERESTED_REASONS as readonly string[]).includes(String(input.reason))) return { ok: false, code: "INVALID_INPUT", detail: "REASON_REQUIRED" };
+  const nextAction = (NEXT_ACTIONS as readonly string[]).includes(String(input.nextAction)) ? input.nextAction! : "NONE";
+  const extras = {
+    reason: input.outcome === "NOT_INTERESTED" ? input.reason : undefined, nextAction: nextAction === "NONE" ? undefined : nextAction,
+    demoRequested: input.demoRequested === true || undefined, demoSent: input.demoSent === true || undefined, meetingScheduled: input.meetingScheduled === true || undefined,
+  };
   try {
     const result = await db.$transaction(async (tx) => {
       const claim = await tx.crmCallSession.updateMany({ where: { id: s.id, dispositionAt: null }, data: { dispositionAt: new Date(), dispositionCode: input.outcome } });
@@ -94,7 +103,7 @@ export async function saveCallDisposition(sessionId: string, input: DispositionI
           data: {
             prospectId: s.prospectId, opportunityId: opp?.id ?? null, type: "CALL", outcome: OUTCOME_OF[input.outcome], subject: actor.uiLocale === "fr" ? "Appel (navigateur)" : "Call (browser)", body: note,
             occurredAt: s.answeredAt ?? s.requestedAt, authorUserId: actor.userId, idempotencyKey: s.id,
-            metadata: { via: "softphone", callSessionId: s.id, callSid: s.parentCallSid, durationSec: s.durationSec, finalState: s.state, disposition: input.outcome },
+            metadata: { via: "softphone", callSessionId: s.id, callSid: s.parentCallSid, durationSec: s.durationSec, finalState: s.state, disposition: input.outcome, ...extras },
           },
           select: { id: true },
         });
@@ -104,8 +113,21 @@ export async function saveCallDisposition(sessionId: string, input: DispositionI
         if (wantsFollowUp) {
           const staff = await tx.platformSalesStaff.findUnique({ where: { id: actor.staffId ?? "" }, select: { timezone: true } });
           const dueAt = parseShopDateTime(String(input.followUpDate), String(input.followUpTime || "09:00"), staff?.timezone ?? "America/Toronto");
-          const t = await insertCrmTask(tx, { actor, prospectId: s.prospectId, opportunityId: opp?.id ?? null, assignedStaffId: p.assignedStaffId ?? actor.staffId, type: "CALL", title: actor.uiLocale === "fr" ? `Rappeler ${p.name}` : `Call back ${p.name}`, notes: note, priority: "MEDIUM", dueAt });
+          const fr = actor.uiLocale === "fr";
+          const typed = input.outcome !== "CALL_BACK" && nextAction !== "NONE" && nextAction !== "CALL_BACK";
+          const type = typed ? (nextAction === "SCHEDULE_MEETING" ? "FOLLOW_UP" : "EMAIL") : "CALL";
+          const title = !typed ? (fr ? `Rappeler ${p.name}` : `Call back ${p.name}`)
+            : nextAction === "SEND_DEMO" ? (fr ? `Envoyer la démo à ${p.name}` : `Send demo to ${p.name}`)
+            : nextAction === "SEND_INFO" ? (fr ? `Envoyer l'information à ${p.name}` : `Send information to ${p.name}`)
+            : (fr ? `Planifier une rencontre avec ${p.name}` : `Schedule a meeting with ${p.name}`);
+          const t = await insertCrmTask(tx, { actor, prospectId: s.prospectId, opportunityId: opp?.id ?? null, assignedStaffId: p.assignedStaffId ?? actor.staffId, type, title, notes: note, priority: "MEDIUM", dueAt });
           taskId = t.id;
+        }
+        if (input.demoRequested) await tx.crmActivity.create({ data: { prospectId: s.prospectId, opportunityId: opp?.id ?? null, type: "DEMO", authorUserId: actor.userId, metadata: { event: "DEMO_REQUESTED", callSessionId: s.id } } });
+        if (input.outcome === "INTERESTED") {
+          // Interest moves a NEW/CONTACTED opportunity to ENGAGED through the same transactional stage change the pipeline uses; later stages are a human decision and are left alone.
+          const cur = await tx.crmOpportunity.findFirst({ where: { prospectId: s.prospectId, stage: { in: ["NEW", "CONTACTED"] } }, select: { id: true, stage: true } });
+          if (cur) await moveOpportunityStage(tx, { actor, opportunityId: cur.id, prospectId: s.prospectId, from: cur.stage, to: "ENGAGED", note: note ?? "Interested (call)" });
         }
         if (input.outcome === "WRONG_NUMBER") await suppressPhoneNumber(tx, { e164: s.destinationE164, prospectId: s.prospectId, userId: actor.userId, reason: "WRONG_NUMBER", source: "SOFTPHONE", note });
         if (input.outcome === "DO_NOT_CALL") await applyDoNotContact(tx, actor, s.prospectId, note);
@@ -126,31 +148,42 @@ export interface CallingPageData {
   gates: ReturnType<typeof publicGateView>;
   isSuperAdmin: boolean;
   locale: "en" | "fr";
-  queue: (Omit<CallingQueueItem, "phoneE164" | "lastActivityAt" | "window" | "phone"> & { phoneMasked: string; lastActivityAt: string | null; windowOpen: boolean; localTime: string })[];
+  /** What this seller may do from the workspace (each gates a panel; the server actions enforce the same capabilities). */
+  can: { email: boolean; editProspects: boolean; schedule: boolean };
+  timezone: string;
   testNumbers: { value: string; masked: string }[];
-  /** A call of this seller that has ended but has no recorded outcome yet. */
+  /** A call of this seller that has ended but has no recorded outcome yet (recovered after a reload). */
   pendingDisposition: { sessionId: string; prospectId: string | null; prospectName: string | null; state: string; durationSec: number | null } | null;
+  /** The profile of the prospect behind the pending disposition or the still-open call, so a reload resumes exactly where the seller was. */
+  resumeProfile: WorkspaceProfile | null;
   /** A call of this seller that is still open (e.g. after a page reload). */
   openCall: { sessionId: string; state: string; prospectId: string | null } | null;
+  /** Calls placed by this seller in the last 24 h versus the daily cap (display only; the server enforces the cap). */
+  today: { placed: number; cap: number };
 }
 
 export async function getCallingPage(): Promise<CallingPageData> {
   const actor = await requireCrmActor("place_sales_calls");
   const key = staffKeyOf(actor);
   await reapStale(key, null);
-  const [settings, openRows, pending] = await Promise.all([
+  const [settings, openRow, pending, staff, placed] = await Promise.all([
     readVoiceSettings(),
-    db.crmCallSession.findMany({ where: { state: { in: [...OPEN] }, endedAt: null }, select: { id: true, prospectId: true, staffId: true, state: true } }),
+    db.crmCallSession.findFirst({ where: { staffId: key, state: { in: [...OPEN] }, endedAt: null }, select: { id: true, prospectId: true, state: true } }),
     db.crmCallSession.findFirst({ where: { userId: actor.userId, endedAt: { not: null }, dispositionAt: null, kind: "PROSPECT", parentCallSid: { not: null } }, orderBy: { requestedAt: "desc" }, include: { prospect: { select: { name: true } } } }),
+    actor.staffId ? db.platformSalesStaff.findUnique({ where: { id: actor.staffId }, select: { timezone: true } }) : null,
+    db.crmCallSession.count({ where: { staffId: key, kind: "PROSPECT", requestedAt: { gt: new Date(Date.now() - 24 * 3600_000) }, state: { notIn: ["FAILED", "CANCELED", "ABANDONED"] } } }),
   ]);
-  const queue = await loadCallingQueue(actor, { limit: 50, openCallProspectIds: new Set(openRows.filter((r) => r.staffId !== key && r.prospectId).map((r) => r.prospectId!)) });
-  const mine = openRows.find((r) => r.staffId === key);
+  const resumeId = pending?.prospectId ?? openRow?.prospectId ?? null;
+  const resumeProfile = resumeId ? await loadWorkspaceProfile(actor, resumeId).catch(() => null) : null;
   return {
     gates: publicGateView(settings), isSuperAdmin: actor.kind === "SUPER_ADMIN", locale: actor.uiLocale,
-    queue: queue.map((q) => ({ id: q.id, name: q.name, city: q.city, province: q.province, language: q.language, phoneMasked: q.phoneE164 ? maskNumber(q.phoneE164) : "", lastActivityAt: q.lastActivityAt?.toISOString() ?? null, windowOpen: q.window.open, localTime: q.window.localTime })),
+    can: { email: actor.capabilities.has("send_sales_email"), editProspects: actor.capabilities.has("manage_prospects"), schedule: actor.capabilities.has("manage_calendar") },
+    timezone: staff?.timezone ?? "America/Toronto",
     testNumbers: actor.kind === "SUPER_ADMIN" ? settings.testDestinations.map((value) => ({ value, masked: maskNumber(value) })) : [],
     pendingDisposition: pending ? { sessionId: pending.id, prospectId: pending.prospectId, prospectName: pending.prospect?.name ?? null, state: pending.state, durationSec: pending.durationSec } : null,
-    openCall: mine ? { sessionId: mine.id, state: mine.state, prospectId: mine.prospectId } : null,
+    resumeProfile,
+    openCall: openRow ? { sessionId: openRow.id, state: openRow.state, prospectId: openRow.prospectId } : null,
+    today: { placed, cap: settings.dailyCallCapPerSeller },
   };
 }
 
