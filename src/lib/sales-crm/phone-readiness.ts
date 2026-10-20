@@ -12,7 +12,7 @@ type Tx = Prisma.TransactionClient | typeof db;
 
 export const PHONE_EVAL_PAGE = 500;
 
-export interface PhoneRefreshTally { examined: number; changed: number; byStatus: Record<string, number>; next: string | null }
+export interface PhoneRefreshTally { examined: number; changed: number; byStatus: Record<string, number>; byReason: Record<string, number>; next: string | null }
 
 /** Business-contact evidence for a number, from what is actually on record. Never infers "business" without a source that says so. */
 export function businessBasisOf(p: { phoneBusinessBasis: PhoneBusinessBasis | null; importBatch: { sourceKey: string | null } | null }): PhoneBusinessBasis {
@@ -31,7 +31,7 @@ export async function loadHeldProvinces(): Promise<ReadonlySet<string>> {
 export async function refreshPhoneEligibility(opts: { after?: string | null; limit?: number; deadline?: number; prospectIds?: readonly string[]; dryRun?: boolean } = {}, client: Tx = db): Promise<PhoneRefreshTally> {
   const limit = Math.min(Math.max(1, opts.limit ?? PHONE_EVAL_PAGE), 2000);
   const held = await loadHeldProvinces();
-  const t: PhoneRefreshTally = { examined: 0, changed: 0, byStatus: {}, next: null };
+  const t: PhoneRefreshTally = { examined: 0, changed: 0, byStatus: {}, byReason: {}, next: null };
   const rows = await client.crmProspect.findMany({
     where: opts.prospectIds ? { id: { in: [...opts.prospectIds] } } : opts.after ? { id: { gt: opts.after } } : {},
     orderBy: { id: "asc" }, take: limit,
@@ -67,6 +67,7 @@ export async function refreshPhoneEligibility(opts: { after?: string | null; lim
       numberSuppressed: !!e164 && suppNumbers.has(e164), businessSuppressed: suppBusiness.has(r.id), sharedWithOlderRecord: sharedWithOlder, heldProvinces: held,
     });
     t.byStatus[ev.status] = (t.byStatus[ev.status] ?? 0) + 1;
+    for (const reason of ev.reasons) t.byReason[reason] = (t.byReason[reason] ?? 0) + 1;
     const reasons = ev.reasons as string[];
     const source = r.phone ? (r.importBatch?.sourceKey === LEAD_RADAR_SOURCE_KEY ? "OVERTURE" : "MANUAL_OR_CSV") : null;
     const same_ =
