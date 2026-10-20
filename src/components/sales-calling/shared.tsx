@@ -3,6 +3,7 @@
 import { useId, useSyncExternalStore, type ReactNode } from "react";
 import type { CallingCopy } from "@/lib/admin-locale/sales-calling";
 import { crmCopy, crmError } from "@/lib/admin-locale/sales-crm";
+import { DEFAULT_MODE, readMode, writeMode, type DisplayMode } from "./softphone-model";
 import { commsCopy } from "@/lib/admin-locale/sales-comms";
 
 export type Locale = "en" | "fr";
@@ -57,6 +58,18 @@ const subscribe = (l: () => void) => {
 /** The live-notes draft of one prospect ("" on the server and while no prospect is loaded). */
 export function useLiveNotes(pid: string | null): string {
   return useSyncExternalStore(subscribe, () => (pid ? readNotes(pid) : ""), () => "");
+}
+
+// ---- Softphone display-mode preference (the ONLY softphone setting persisted). Guarded storage, in-memory fallback. ----
+let memMode: DisplayMode | null = null;
+const modeListeners = new Set<() => void>();
+const safeStorage = (): Storage | null => { try { return window.localStorage; } catch { return null; } };
+const modeSnapshot = (): DisplayMode => memMode ?? (memMode = readMode(safeStorage()));
+const modeSubscribe = (l: () => void) => { modeListeners.add(l); return () => { modeListeners.delete(l); }; };
+export function setPreferredMode(m: DisplayMode) { memMode = m; writeMode(safeStorage(), m); modeListeners.forEach((l) => l()); }
+/** Preferred softphone display mode; the server render (and the first hydration pass) uses the default. */
+export function usePreferredMode(): DisplayMode {
+  return useSyncExternalStore(modeSubscribe, modeSnapshot, () => DEFAULT_MODE);
 }
 
 export function ToastView({ toast, onClose, closeLabel }: { toast: Toast; onClose: () => void; closeLabel: string }) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, type FormEvent } from "react";
+import { useState, useTransition, type FormEvent, type ReactNode } from "react";
 import { markInterested } from "@/actions/sales-workspace";
 import { markDoNotContact } from "@/actions/sales-prospects";
 import type { CallingCopy } from "@/lib/admin-locale/sales-calling";
@@ -49,34 +49,46 @@ export function ActionsPanel({ c, locale, profile, can, demoLinks, timezone, onE
     });
   }
 
+  const sec = `${btnSecondary} justify-start px-3 text-left`;
+  const group = (label: string, children: ReactNode) => (
+    <div className="space-y-1.5" role="group" aria-label={label}>
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</h3>
+      {children}
+    </div>
+  );
+
   return (
-    <section aria-labelledby="actions-title" className="min-w-0 space-y-4 rounded-xl border border-slate-200 bg-white p-4">
+    <section aria-labelledby="actions-title" className="min-w-0 space-y-3 rounded-xl border border-slate-200 bg-white p-3">
       <h2 id="actions-title" className="text-base font-semibold text-slate-900">{a.title}</h2>
+      <ActionButton className={`${btnPrimary} w-full`} label={a.sendDemo} disabledReason={emailOff} onClick={() => onEmail("sendDemo")} />
 
-      <div className="space-y-2" role="group" aria-label={a.emailGroup}>
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">{a.emailGroup}</h3>
-        <ActionButton className={btnPrimary} label={a.sendDemo} disabledReason={emailOff} onClick={() => onEmail("sendDemo")} />
-        <ActionButton className={btnSecondary} label={a.compose} disabledReason={emailOff} onClick={() => onEmail(null)} />
-        <ActionButton className={btnSecondary} label={a.insertTeaser} disabledReason={emailOff} onClick={() => onEmail("teaser")} />
-        <ActionButton className={btnSecondary} label={a.insertFull} disabledReason={emailOff} onClick={() => onEmail("commercial")} />
-        <ActionButton className={btnSecondary} label={a.insertBooking} disabledReason={emailOff} onClick={() => onEmail("booking")} />
-        <ActionButton className={btnSecondary} label={`${a.openDemo} ↗`} disabledReason={!can.email ? a.needEmail : !demoUrl ? a.noDemoLink : null}
+      {group(a.emailGroup, <>
+        <ActionButton className={sec} label={a.compose} disabledReason={emailOff} onClick={() => onEmail(null)} />
+        <ActionButton className={sec} label={a.insertBooking} disabledReason={emailOff} onClick={() => onEmail("booking")} />
+      </>)}
+
+      {group(a.mediaGroup, <>
+        <ActionButton className={sec} label={a.insertTeaser} disabledReason={emailOff} onClick={() => onEmail("teaser")} />
+        <ActionButton className={sec} label={a.insertFull} disabledReason={emailOff} onClick={() => onEmail("commercial")} />
+        <ActionButton className={sec} label={`${a.openDemo} ↗`} disabledReason={!can.email ? a.needEmail : !demoUrl ? a.noDemoLink : null}
           onClick={() => { if (demoUrl) window.open(demoUrl, "_blank", "noopener,noreferrer"); }} />
-      </div>
+      </>)}
 
-      <div className="space-y-2" role="group" aria-label={a.crmGroup}>
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">{a.crmGroup}</h3>
+      {group(a.scheduleGroup, <>
         {open === "meeting" ? (
           <MeetingPanel c={c} locale={locale} profile={profile} timezone={timezone} notify={notify} onDone={(ok) => { setOpen(null); if (ok) { onMeeting(); onChanged(); } }} />
-        ) : <ActionButton className={btnSecondary} label={a.schedule} disabledReason={scheduleOff} onClick={() => setOpen("meeting")} />}
+        ) : <ActionButton className={sec} label={a.schedule} disabledReason={scheduleOff} onClick={() => setOpen("meeting")} />}
         {open === "task" ? (
           <TaskPanel c={c} locale={locale} prospectId={profile.id} defaultTitle={`${c.disposition.outcomes.CALL_BACK} · ${profile.name}`.slice(0, 150)} notify={notify} onDone={(ok) => { setOpen(null); if (ok) onChanged(); }} />
-        ) : <ActionButton className={btnSecondary} label={a.task} disabledReason={editOff} onClick={() => setOpen("task")} />}
-        <ActionButton className={btnSecondary} label={a.interested} disabledReason={editOff} busy={pending} onClick={interested} />
+        ) : <ActionButton className={sec} label={a.task} disabledReason={editOff} onClick={() => setOpen("task")} />}
+      </>)}
+
+      {group(a.statusGroup, <>
+        <ActionButton className={sec} label={a.interested} disabledReason={editOff} busy={pending} onClick={interested} />
         {open === "dnc" ? (
           <DncForm c={c} locale={locale} prospectId={profile.id} notify={notify} onDone={(note) => { setOpen(null); if (note !== null) { onDnc(note); onChanged(); } }} />
-        ) : <ActionButton className={btnDanger} label={a.dnc} disabledReason={!can.editProspects ? a.needEdit : profile.doNotContact ? a.isDnc : null} onClick={() => setOpen("dnc")} />}
-      </div>
+        ) : <ActionButton className={`${btnDanger} justify-start px-3 text-left`} label={a.dnc} disabledReason={!can.editProspects ? a.needEdit : profile.doNotContact ? a.isDnc : null} onClick={() => setOpen("dnc")} />}
+      </>)}
     </section>
   );
 }

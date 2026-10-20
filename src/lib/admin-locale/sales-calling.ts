@@ -43,7 +43,85 @@ const en = {
     title: "Test call", hint: "Super Admin only. Calls one of the numbers on the approved test list, never a prospect.", number: "Test number", none: "No test numbers are configured.", call: "Place test call", needsGates: "Test calls need voice calling to be switched on and set up.",
   },
   ws: {
-    tabs: { label: "Workspace sections", call: "Call", prospect: "Prospect", actions: "Actions", outcomeDue: "Outcome required" },
+    tabs: { label: "Workspace sections", prospect: "Prospect", conversation: "Conversation", actions: "Actions", outcomeDue: "Outcome required" },
+    convo: { label: "Conversation workspace", guide: "Call guide", notes: "Notes", discovery: "Discovery", history: "History" },
+    header: {
+      region: "Prospect summary", none: "No prospect loaded — use Next prospect in the phone.", dmKnown: "Decision maker known", dmUnknown: "No decision maker yet", emailKnown: "Email on file", emailUnknown: "No email yet",
+      basisValid: "Sending basis valid", basisNone: "No sending basis", locked: "Calling locked:", settings: "Voice settings",
+    },
+    phoneUi: {
+      region: "Softphone", expand: "Expand phone", compact: "Compact phone", minimize: "Minimize phone", outcomeRequired: "Outcome required",
+      outcomeBanner: "Choose the call outcome below and save it. Calling and Next prospect stay locked until it is saved.", number: "Number", nav: "Prospects", testLabel: "Test call",
+    },
+    history: {
+      title: "CRM history", recent: "Recent interactions", seeAll: "Open full history", empty: "No history recorded yet.", due: "Due",
+      kinds: { CALL: "Call", EMAIL: "Email", MEETING: "Meeting", TASK: "Follow-up", DEMO: "Demo", ACTIVITY: "Activity" } as Record<string, string>,
+    },
+    guide: {
+      title: "Call guide", stagesLabel: "Call stages", language: "Guide language", copy: "Copy", copyPhrase: "Copy this phrase", copied: "Copied to the clipboard.", copyFailed: "Copy failed: select the text and copy it manually.",
+      note: "Suggested wording only. Speak naturally, never promise prices or features you are not sure of, and respect a request not to be called.", mentioned: "Mentioned in discovery",
+      softwareHint: "They already use software ({software}): ask what they would improve instead of asking them to switch.",
+      stages: { opening: "Opening", discovery: "Discovery", value: "Value", objections: "Objections", closing: "Closing" },
+      content: {
+        opening: {
+          tip: "Be brief and polite. Confirm you reached the right business before pitching.",
+          items: {
+            intro: { label: "Introduce yourself", text: "Hi, this is [your name] from GarageOS. We make management software for independent auto repair shops." },
+            confirm: { label: "Confirm the business", text: "Just to confirm, I’ve reached [business name], the repair shop?" },
+            owner: { label: "Ask for the owner or manager", text: "Would the owner or the person who runs the shop be available for two minutes?" },
+            busy: { label: "If it is a bad time", text: "No problem. When would be a better time for me to call back?" },
+          },
+        },
+        discovery: {
+          tip: "Ask, then listen. Record what they say in the Discovery tab.",
+          items: {
+            booking: { label: "Appointment scheduling", text: "How do customers book appointments with you today: phone, walk-in or online?" },
+            workOrders: { label: "Work orders", text: "How do you write up jobs and keep track of work orders?" },
+            dvi: { label: "Vehicle inspections", text: "When you inspect a vehicle, how do you show the customer what you found?" },
+            software: { label: "Current shop software", text: "Are you using a shop management system right now, or mostly paper and spreadsheets?" },
+            comms: { label: "Customer communications", text: "How do you let customers know their vehicle is ready or that you need their approval?" },
+            manual: { label: "Manual processes", text: "Which tasks still take the most manual work in your week?" },
+            noShows: { label: "Missed appointments", text: "Do missed appointments or no-shows cost you time?" },
+            reminders: { label: "Maintenance reminders", text: "Do you remind customers when their next maintenance is due?" },
+            bottleneck: { label: "Bottlenecks", text: "If you could fix one bottleneck in the shop, what would it be?" },
+          },
+        },
+        value: {
+          tip: "Connect one or two features to what they told you. Mention only what GarageOS does today.",
+          items: {
+            booking: { label: "Online booking", text: "Customers can book online on a booking page with your shop’s branding." },
+            workOrders: { label: "Work orders", text: "The approved work becomes a work order with a status the front desk can see." },
+            dvi: { label: "Digital inspections", text: "Record the vehicle’s condition on a digital inspection and share it with the customer." },
+            inventory: { label: "Inventory", text: "On the Pro plan, parts used on work orders come off inventory automatically." },
+            invoicing: { label: "Quotes and invoices", text: "Create the estimate and the invoice from the same job, and record the payment you collected." },
+            reminders: { label: "Maintenance reminders", text: "Set the next maintenance reminder so customers come back." },
+            portal: { label: "Customer portal", text: "Customers can follow their job and invoices in a customer portal." },
+            comms: { label: "Email and text updates", text: "Customers get a branded email or text when their vehicle is ready." },
+          },
+        },
+        objections: {
+          tip: "Stay calm and respectful. Never pressure; accept a no. If they ask not to be called again: apologize, confirm, end the call and choose “Do not call” as the outcome.",
+          items: {
+            haveSoftware: { label: "We already have software", text: "That makes sense. What would you improve in your current system, if anything?" },
+            busy: { label: "Too busy", text: "I understand. Would a quick call at a quieter time work, or should I send a short video instead?" },
+            notInterested: { label: "Not interested", text: "Thanks for telling me. May I ask what you use today, so I don’t bother you with the wrong thing?" },
+            price: { label: "Too expensive", text: "I don’t want to quote a number without knowing your shop. Would you like to see the product first and decide?" },
+            sendInfo: { label: "Send me information", text: "Sure. What would be most useful: the demo, a short video or a booking link? I’ll send only that." },
+            callBack: { label: "Call back later", text: "Of course. What day and time would suit you best?" },
+            dnc: { label: "Please do not call again", text: "I’m sorry for the interruption. I’ll make sure you aren’t called again. Have a good day." },
+          },
+        },
+        closing: {
+          tip: "Agree on one clear next step and confirm it before hanging up.",
+          items: {
+            demo: { label: "Permission to send the demo", text: "Would it be okay if I emailed you the demo so you can look at it when it suits you?" },
+            email: { label: "Capture the email", text: "What is the best email address to send it to?" },
+            meeting: { label: "Offer a meeting", text: "Would you like a short video meeting so I can walk you through it? Which day works?" },
+            confirm: { label: "Confirm the next action", text: "So, to confirm: I’ll [next step] on [day]. Does that work for you?" },
+          },
+        },
+      },
+    },
     today: "Calls in the last 24 h: {placed} / {cap}",
     unloadDirty: "You have unsaved work on this page.",
     toastClose: "Dismiss message",
@@ -58,7 +136,7 @@ const en = {
       shown: "Prospects shown this session: {n}",
     },
     profile: {
-      title: "Prospect profile", empty: "No prospect loaded", emptyHint: "Click “Next prospect” to load one. Nothing is dialed until you click Call.",
+      title: "Prospect intelligence", empty: "No prospect loaded", emptyHint: "Click “Next prospect” to load one. Nothing is dialed until you click Call.",
       phone: "Telephone", address: "Address", website: "Website", maps: "Google Maps", category: "Category", repairFit: "Independent repair", language: "Language", suggested: "suggested from province: {lang}", stage: "CRM stage", noStage: "No open opportunity",
       seller: "Assigned seller", unassigned: "Unassigned", shopSize: "Shop size", locations: "Locations", none: "None recorded", notRecorded: "Not recorded", refresh: "Refresh profile", refreshed: "Profile refreshed.",
       repairFits: { VERIFIED_REPAIR: "Verified independent repair", HUMAN_REVIEW: "Needs human review", EXCLUDED: "Excluded (not an independent repair shop)" } as Record<string, string>,
@@ -79,18 +157,6 @@ const en = {
       outOfHours: { title: "Call outside calling hours?", body: "Are you sure you want to call outside calling hours? It is {time} at the call’s destination ({place}).", disabled: "It is {time} at the call’s destination ({place}). Calling outside calling hours is turned off by an administrator, so this call cannot be placed now.", confirm: "Yes, call anyway", cancel: "Cancel", close: "Close", badge: "Outside calling hours" },
       callName: "Call {name}", noProspect: "Load a prospect to call.", gate: "Calling is locked by the compliance gates.", window: "Outside this prospect’s calling window.", held: "Calls to this province are on hold.", dnc: "This prospect is marked Do Not Contact.",
       pending: "Save the outcome of the last call first.", noPhone: "This prospect has no telephone number on file.", inCall: "Call in progress", hangUpShort: "Hang up",
-    },
-    script: {
-      title: "Call guide", show: "Show the call guide", hide: "Hide the call guide", note: "A short outline. Use your own words and never promise prices or features you are not sure of.",
-      steps: {
-        intro: { title: "1. Introduce yourself", body: "“Hi, this is [your name] from GarageOS. GarageOS is management software for independent auto repair shops.”" },
-        owner: { title: "2. Ask for the owner or manager", body: "“Could I speak with the owner or the person who manages the shop?” If they are busy, ask when to call back and record a Call back outcome." },
-        value: { title: "3. One-sentence value", body: "“We help shops handle booking, work orders, quotes and invoices, inspections and customer reminders in one place.”" },
-        qualify: { title: "4. Qualifying questions", body: "What do you use today for work orders and invoices? How do customers book? How many people work in the shop? What takes the most time in your week?" },
-        objections: { title: "5. Common objections", body: "Happy with their system: ask what they would improve. No time: offer a better time to call back. “Send me something”: ask what they want to receive and record it in Email capture. Price: do not quote a number you cannot confirm; offer to show the product first." },
-        close: { title: "6. Close", body: "Offer a demo now (Schedule meeting), send the booking link by email if they asked for it, or agree on a follow-up call." },
-        dnc: { title: "If asked not to be called again", body: "Apologize, confirm that they will not be called again, end the call politely and select “Do not call” as the outcome." },
-      },
     },
     notes: {
       title: "Live notes", label: "Notes for this call", placeholder: "Who you spoke to, what they said, next steps…", unsaved: "Not in the CRM yet: they are saved with the call outcome.", local: "A draft is kept on this device only.", empty: "No notes yet.",
@@ -122,7 +188,7 @@ const en = {
       title: "Sales actions", noProspect: "Load a prospect to use these actions.", sendDemo: "Send demo", compose: "Compose email", insertTeaser: "Insert short demo video", insertFull: "Insert full demo video", insertBooking: "Insert booking link",
       openDemo: "Open interactive demo", schedule: "Schedule meeting", task: "Create follow-up task", interested: "Mark interested", dnc: "Do not call",
       needEmail: "Your account cannot send sales email.", needEdit: "Your account cannot edit prospects.", needSchedule: "Your account cannot manage the sales calendar.", isDnc: "This prospect is marked Do Not Contact.", noDemoLink: "The demo link is not available yet.", needBooking: "Turn on online booking in your calendar settings first.",
-      interestedMoved: "Marked interested: the opportunity moved to Engaged.", interestedSame: "Noted for the call outcome. The CRM stage was not changed (no New or Contacted opportunity).", emailGroup: "Email", crmGroup: "CRM",
+      interestedMoved: "Marked interested: the opportunity moved to Engaged.", interestedSame: "Noted for the call outcome. The CRM stage was not changed (no New or Contacted opportunity).", emailGroup: "Email", crmGroup: "CRM", mediaGroup: "Demo & media", scheduleGroup: "Scheduling", statusGroup: "Status",
     },
     meeting: {
       title: "Schedule meeting", contact: "Contact", noContact: "No contact", date: "Date", time: "Time", duration: "Duration", minutes: "{n} min", type: "Type", attendeeName: "Attendee name", attendeeEmail: "Attendee email", language: "Language",
@@ -218,7 +284,85 @@ const fr: Dict = {
     title: "Appel de test", hint: "Réservé au Super Admin. Appelle l’un des numéros de la liste de test approuvée, jamais un prospect.", number: "Numéro de test", none: "Aucun numéro de test n’est configuré.", call: "Lancer l’appel de test", needsGates: "Les appels de test exigent que les appels vocaux soient activés et configurés.",
   },
   ws: {
-    tabs: { label: "Sections de l’espace d’appel", call: "Appel", prospect: "Prospect", actions: "Actions", outcomeDue: "Résultat requis" },
+    tabs: { label: "Sections de l’espace d’appel", prospect: "Prospect", conversation: "Conversation", actions: "Actions", outcomeDue: "Résultat requis" },
+    convo: { label: "Espace de conversation", guide: "Guide d’appel", notes: "Notes", discovery: "Découverte", history: "Historique" },
+    header: {
+      region: "Résumé du prospect", none: "Aucun prospect chargé — utilisez Prochain prospect dans le téléphone.", dmKnown: "Décideur connu", dmUnknown: "Aucun décideur pour l’instant", emailKnown: "Courriel au dossier", emailUnknown: "Aucun courriel pour l’instant",
+      basisValid: "Base d’envoi valide", basisNone: "Aucune base d’envoi", locked: "Appels verrouillés :", settings: "Paramètres vocaux",
+    },
+    phoneUi: {
+      region: "Téléphone", expand: "Agrandir le téléphone", compact: "Téléphone compact", minimize: "Réduire le téléphone", outcomeRequired: "Résultat requis",
+      outcomeBanner: "Choisissez le résultat de l’appel ci-dessous et sauvegardez-le. Les appels et le prochain prospect restent bloqués d’ici là.", number: "Numéro", nav: "Prospects", testLabel: "Appel de test",
+    },
+    history: {
+      title: "Historique CRM", recent: "Interactions récentes", seeAll: "Ouvrir l’historique complet", empty: "Aucun historique consigné pour l’instant.", due: "Échéance",
+      kinds: { CALL: "Appel", EMAIL: "Courriel", MEETING: "Rencontre", TASK: "Suivi", DEMO: "Démo", ACTIVITY: "Activité" },
+    },
+    guide: {
+      title: "Guide d’appel", stagesLabel: "Étapes de l’appel", language: "Langue du guide", copy: "Copier", copyPhrase: "Copier cette phrase", copied: "Copié dans le presse-papiers.", copyFailed: "La copie a échoué : sélectionnez le texte et copiez-le vous-même.",
+      note: "Formulations suggérées seulement. Parlez naturellement, ne promettez jamais un prix ou une fonction dont vous n’êtes pas certain et respectez une demande de ne plus appeler.", mentioned: "Mentionné à la découverte",
+      softwareHint: "Il utilise déjà un logiciel ({software}) : demandez ce qu’il aimerait améliorer plutôt que de lui demander de changer.",
+      stages: { opening: "Ouverture", discovery: "Découverte", value: "Valeur", objections: "Objections", closing: "Conclusion" },
+      content: {
+        opening: {
+          tip: "Soyez bref et poli. Confirmez que vous avez joint la bonne entreprise avant de présenter quoi que ce soit.",
+          items: {
+            intro: { label: "Présentez-vous", text: "Bonjour, ici [votre nom] de GarageOS. Nous faisons un logiciel de gestion pour les ateliers de réparation automobile indépendants." },
+            confirm: { label: "Confirmez l’entreprise", text: "Juste pour confirmer, je suis bien chez [nom de l’entreprise], l’atelier de réparation?" },
+            owner: { label: "Demandez le propriétaire ou le gérant", text: "Est-ce que le propriétaire ou la personne qui gère l’atelier aurait deux minutes?" },
+            busy: { label: "Si le moment est mal choisi", text: "Pas de problème. Quel serait un meilleur moment pour vous rappeler?" },
+          },
+        },
+        discovery: {
+          tip: "Posez la question, puis écoutez. Notez les réponses dans l’onglet Découverte.",
+          items: {
+            booking: { label: "Prise de rendez-vous", text: "Comment vos clients prennent-ils rendez-vous aujourd’hui : par téléphone, sans rendez-vous ou en ligne?" },
+            workOrders: { label: "Bons de travail", text: "Comment rédigez-vous les travaux et faites-vous le suivi des bons de travail?" },
+            dvi: { label: "Inspections de véhicules", text: "Quand vous inspectez un véhicule, comment montrez-vous au client ce que vous avez trouvé?" },
+            software: { label: "Logiciel actuel", text: "Utilisez-vous un logiciel de gestion d’atelier en ce moment, ou surtout du papier et des chiffriers?" },
+            comms: { label: "Communications avec les clients", text: "Comment avisez-vous vos clients que leur véhicule est prêt ou que vous avez besoin de leur approbation?" },
+            manual: { label: "Tâches manuelles", text: "Quelles tâches demandent encore le plus de travail manuel dans votre semaine?" },
+            noShows: { label: "Rendez-vous manqués", text: "Les rendez-vous manqués vous font-ils perdre du temps?" },
+            reminders: { label: "Rappels d’entretien", text: "Rappelez-vous à vos clients quand leur prochain entretien est dû?" },
+            bottleneck: { label: "Goulots d’étranglement", text: "Si vous pouviez régler un seul goulot d’étranglement à l’atelier, lequel serait-ce?" },
+          },
+        },
+        value: {
+          tip: "Reliez une ou deux fonctions à ce qu’il vous a dit. Mentionnez seulement ce que GarageOS fait aujourd’hui.",
+          items: {
+            booking: { label: "Réservation en ligne", text: "Vos clients peuvent réserver en ligne sur une page de réservation à l’image de votre atelier." },
+            workOrders: { label: "Ordres de travail", text: "Le travail approuvé devient un ordre de travail avec un statut visible à la réception." },
+            dvi: { label: "Inspections numériques", text: "Notez l’état du véhicule dans une inspection numérique et partagez-la avec le client." },
+            inventory: { label: "Inventaire", text: "Avec le forfait Pro, les pièces utilisées sur les ordres de travail sortent automatiquement de l’inventaire." },
+            invoicing: { label: "Devis et factures", text: "Créez le devis et la facture à partir du même travail, et consignez le paiement encaissé." },
+            reminders: { label: "Rappels d’entretien", text: "Créez le prochain rappel d’entretien pour que vos clients reviennent." },
+            portal: { label: "Portail client", text: "Vos clients peuvent suivre leurs travaux et leurs factures dans un portail client." },
+            comms: { label: "Courriels et textos", text: "Vos clients reçoivent un courriel ou un texto à votre image quand leur véhicule est prêt." },
+          },
+        },
+        objections: {
+          tip: "Restez calme et respectueux. Ne mettez jamais de pression; acceptez un non. Si on vous demande de ne plus appeler : excusez-vous, confirmez, terminez l’appel et choisissez le résultat « Ne pas appeler ».",
+          items: {
+            haveSoftware: { label: "On a déjà un logiciel", text: "Ça se comprend. Y a-t-il quelque chose que vous aimeriez améliorer dans votre système actuel?" },
+            busy: { label: "Trop occupé", text: "Je comprends. Est-ce qu’un court appel à un moment plus tranquille vous irait, ou préférez-vous que je vous envoie une courte vidéo?" },
+            notInterested: { label: "Pas intéressé", text: "Merci de me le dire. Puis-je vous demander ce que vous utilisez aujourd’hui, pour ne pas vous déranger avec la mauvaise chose?" },
+            price: { label: "Trop cher", text: "Je ne veux pas avancer un chiffre sans connaître votre atelier. Aimeriez-vous d’abord voir le produit, puis décider?" },
+            sendInfo: { label: "Envoyez-moi de l’information", text: "Bien sûr. Qu’est-ce qui vous serait le plus utile : la démo, une courte vidéo ou un lien de réservation? Je n’enverrai que ça." },
+            callBack: { label: "Rappelez plus tard", text: "Bien sûr. Quel jour et quelle heure vous conviendraient le mieux?" },
+            dnc: { label: "Ne m’appelez plus", text: "Je suis désolé de vous avoir dérangé. Je m’assure qu’on ne vous rappelle plus. Bonne journée." },
+          },
+        },
+        closing: {
+          tip: "Entendez-vous sur une prochaine étape claire et confirmez-la avant de raccrocher.",
+          items: {
+            demo: { label: "Permission d’envoyer la démo", text: "Est-ce que je peux vous envoyer la démo par courriel pour que vous la regardiez quand ça vous convient?" },
+            email: { label: "Obtenir le courriel", text: "Quelle est la meilleure adresse courriel pour vous l’envoyer?" },
+            meeting: { label: "Proposer une rencontre", text: "Aimeriez-vous une courte rencontre vidéo pour que je vous la présente? Quelle journée vous convient?" },
+            confirm: { label: "Confirmer la prochaine étape", text: "Donc, pour confirmer : je vais [prochaine étape] le [jour]. Est-ce que ça vous convient?" },
+          },
+        },
+      },
+    },
     today: "Appels des dernières 24 h : {placed} / {cap}",
     unloadDirty: "Vous avez du travail non enregistré sur cette page.",
     toastClose: "Fermer le message",
@@ -233,7 +377,7 @@ const fr: Dict = {
       shown: "Prospects affichés pendant cette session : {n}",
     },
     profile: {
-      title: "Fiche du prospect", empty: "Aucun prospect chargé", emptyHint: "Cliquez sur « Prochain prospect » pour en charger un. Rien n’est composé tant que vous ne cliquez pas sur Appeler.",
+      title: "Renseignements sur le prospect", empty: "Aucun prospect chargé", emptyHint: "Cliquez sur « Prochain prospect » pour en charger un. Rien n’est composé tant que vous ne cliquez pas sur Appeler.",
       phone: "Téléphone", address: "Adresse", website: "Site Web", maps: "Google Maps", category: "Catégorie", repairFit: "Atelier indépendant", language: "Langue", suggested: "suggérée selon la province : {lang}", stage: "Étape CRM", noStage: "Aucune occasion ouverte",
       seller: "Vendeur assigné", unassigned: "Non assigné", shopSize: "Taille de l’atelier", locations: "Établissements", none: "Rien de consigné", notRecorded: "Non consigné", refresh: "Actualiser la fiche", refreshed: "Fiche actualisée.",
       repairFits: { VERIFIED_REPAIR: "Atelier indépendant vérifié", HUMAN_REVIEW: "À valider par une personne", EXCLUDED: "Exclu (pas un atelier indépendant)" },
@@ -254,18 +398,6 @@ const fr: Dict = {
       outOfHours: { title: "Appeler hors des heures d’appel?", body: "Voulez-vous vraiment appeler hors des heures d’appel? Il est {time} à la destination de l’appel ({place}).", disabled: "Il est {time} à la destination de l’appel ({place}). Les appels hors des heures d’appel sont désactivés par un administrateur : cet appel ne peut pas être placé maintenant.", confirm: "Oui, appeler quand même", cancel: "Annuler", close: "Fermer", badge: "Hors des heures d’appel" },
       callName: "Appeler {name}", noProspect: "Chargez un prospect pour appeler.", gate: "Les appels sont verrouillés par les conditions de conformité.", window: "Hors de la plage d’appel de ce prospect.", held: "Les appels vers cette province sont suspendus.", dnc: "Ce prospect est marqué Ne pas contacter.",
       pending: "Enregistrez d’abord le résultat du dernier appel.", noPhone: "Ce prospect n’a aucun numéro de téléphone au dossier.", inCall: "Appel en cours", hangUpShort: "Raccrocher",
-    },
-    script: {
-      title: "Guide d’appel", show: "Afficher le guide d’appel", hide: "Masquer le guide d’appel", note: "Un court aide-mémoire. Utilisez vos propres mots et ne promettez jamais un prix ou une fonction dont vous n’êtes pas certain.",
-      steps: {
-        intro: { title: "1. Présentez-vous", body: "« Bonjour, ici [votre nom] de GarageOS. GarageOS est un logiciel de gestion pour les ateliers de réparation automobile indépendants. »" },
-        owner: { title: "2. Demandez le propriétaire ou le gérant", body: "« Est-ce que je pourrais parler au propriétaire ou à la personne qui gère l’atelier? » S’il est occupé, demandez quand rappeler et consignez le résultat Rappeler plus tard." },
-        value: { title: "3. La valeur en une phrase", body: "« Nous aidons les ateliers à gérer les rendez-vous, les bons de travail, les soumissions et factures, les inspections et les rappels aux clients au même endroit. »" },
-        qualify: { title: "4. Questions de qualification", body: "Qu’utilisez-vous aujourd’hui pour les bons de travail et la facturation? Comment vos clients prennent-ils rendez-vous? Combien de personnes travaillent à l’atelier? Qu’est-ce qui vous prend le plus de temps dans la semaine?" },
-        objections: { title: "5. Objections fréquentes", body: "Satisfait de son système : demandez ce qu’il aimerait améliorer. Pas le temps : proposez un meilleur moment pour rappeler. « Envoyez-moi quelque chose » : demandez ce qu’il veut recevoir et consignez-le dans Courriel obtenu. Prix : ne donnez pas de chiffre que vous ne pouvez pas confirmer; proposez d’abord de montrer le produit." },
-        close: { title: "6. Conclure", body: "Proposez une démo tout de suite (Planifier une rencontre), envoyez le lien de réservation par courriel s’il l’a demandé, ou convenez d’un appel de suivi." },
-        dnc: { title: "Si on vous demande de ne plus appeler", body: "Excusez-vous, confirmez qu’on ne le rappellera plus, terminez l’appel poliment et choisissez le résultat « Ne pas appeler »." },
-      },
     },
     notes: {
       title: "Notes en direct", label: "Notes pour cet appel", placeholder: "À qui vous avez parlé, ce qui a été dit, prochaines étapes…", unsaved: "Pas encore dans le CRM : elles sont enregistrées avec le résultat de l’appel.", local: "Un brouillon est conservé sur cet appareil seulement.", empty: "Aucune note pour l’instant.",
@@ -297,7 +429,7 @@ const fr: Dict = {
       title: "Actions de vente", noProspect: "Chargez un prospect pour utiliser ces actions.", sendDemo: "Envoyer la démo", compose: "Rédiger un courriel", insertTeaser: "Insérer la courte vidéo de démo", insertFull: "Insérer la vidéo de démo complète", insertBooking: "Insérer le lien de réservation",
       openDemo: "Ouvrir la démo interactive", schedule: "Planifier une rencontre", task: "Créer une tâche de suivi", interested: "Marquer intéressé", dnc: "Ne pas appeler",
       needEmail: "Votre compte ne peut pas envoyer de courriels de vente.", needEdit: "Votre compte ne peut pas modifier les prospects.", needSchedule: "Votre compte ne peut pas gérer le calendrier des ventes.", isDnc: "Ce prospect est marqué Ne pas contacter.", noDemoLink: "Le lien de la démo n’est pas encore disponible.", needBooking: "Activez d’abord la réservation en ligne dans les paramètres de votre calendrier.",
-      interestedMoved: "Marqué intéressé : l’occasion est passée à l’étape Engagé.", interestedSame: "Noté pour le résultat de l’appel. L’étape CRM n’a pas changé (aucune occasion Nouveau ou Contacté).", emailGroup: "Courriel", crmGroup: "CRM",
+      interestedMoved: "Marqué intéressé : l’occasion est passée à l’étape Engagé.", interestedSame: "Noté pour le résultat de l’appel. L’étape CRM n’a pas changé (aucune occasion Nouveau ou Contacté).", emailGroup: "Courriel", crmGroup: "CRM", mediaGroup: "Démo et médias", scheduleGroup: "Planification", statusGroup: "Statut",
     },
     meeting: {
       title: "Planifier une rencontre", contact: "Contact", noContact: "Aucun contact", date: "Date", time: "Heure", duration: "Durée", minutes: "{n} min", type: "Type", attendeeName: "Nom du participant", attendeeEmail: "Courriel du participant", language: "Langue",
