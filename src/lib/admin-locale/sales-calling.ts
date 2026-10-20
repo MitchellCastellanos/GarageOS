@@ -1,4 +1,5 @@
-import type { CallErrorCode, Disposition } from "@/lib/voice/types";
+import type { CallErrorCode, Disposition, NextAction, NotInterestedReason } from "@/lib/voice/types";
+import type { EmailScope, ObjectionCode } from "@/lib/voice/workspace-types";
 
 // Copy for the browser softphone and the Voice settings page (EN/FR). The French dictionary is typed against the English one, so a missing key fails the build.
 const en = {
@@ -22,8 +23,14 @@ const en = {
   },
   disposition: {
     title: "Call outcome", subtitle: "Record the result before moving on. This is required for every call.", forName: "Call with {name}", outcome: "Outcome", notes: "Notes", notesHint: "Optional. Required for Do not call.", followUpDate: "Follow-up date", followUpTime: "Follow-up time", followUpHint: "Required for Call back. Creates a follow-up task.",
-    dncLabel: "Mark as do not call", dncConfirm: "This prospect will be marked Do Not Contact and will never be called or emailed again. Add a note explaining why.", save: "Save & next", saving: "Saving…", saved: "Outcome saved.", settling: "Confirming the call has ended…", nextProspect: "Next prospect", noNext: "No other prospect in the queue.",
+    dncLabel: "Mark as do not call", dncConfirm: "This prospect will be marked Do Not Contact and will never be called or emailed again. Add a note explaining why.", save: "Save outcome", saving: "Saving…", saved: "Outcome saved.", settling: "Confirming the call has ended…", nextProspect: "Next prospect", noNext: "No other prospect in the queue.",
     noteRequired: "Add a note before marking this prospect as do not call.", followUpRequired: "Choose a follow-up date for a call back.", pickOutcome: "Choose an outcome.",
+    reason: "Reason", reasonPick: "Choose a reason", reasonRequired: "Choose why the prospect is not interested.", nextAction: "Next step", followUpOptional: "Optional. Creates a follow-up task.",
+    extras: "What happened during this call", extrasHint: "Pre-checked from what you did in this workspace during the call. Adjust if needed.", demoRequested: "The prospect asked for a demo", demoSent: "A demo email was sent", meetingScheduled: "A meeting was scheduled",
+    wrongNumberInfo: "This number will be blocked so nobody calls it again.", notRepairInfo: "The prospect will be flagged for review as not being a repair shop.", quickSave: "No notes needed for this outcome.", notesPrefilled: "Prefilled from your live notes.",
+    savedNext: "Outcome saved. Load the next prospect when you are ready.", required: "required",
+    reasons: { HAPPY_WITH_CURRENT: "Happy with their current system", NO_BUDGET: "No budget", NO_TIME: "No time", NOT_THE_RIGHT_TIME: "Not the right time", TOO_SMALL: "Shop too small", OTHER: "Other" } satisfies Record<NotInterestedReason, string>,
+    nextActions: { SEND_DEMO: "Send the demo", SEND_INFO: "Send information", SCHEDULE_MEETING: "Schedule a meeting", CALL_BACK: "Call back", NONE: "No next step" } satisfies Record<NextAction, string>,
     outcomes: {
       NO_ANSWER: "No answer", VOICEMAIL: "Left voicemail", GATEKEEPER: "Spoke to a gatekeeper", CALL_BACK: "Call back later", INTERESTED: "Interested", NOT_INTERESTED: "Not interested", WRONG_NUMBER: "Wrong number", NOT_A_REPAIR_SHOP: "Not a repair shop", DO_NOT_CALL: "Do not call",
     } satisfies Record<Disposition, string>,
@@ -35,6 +42,105 @@ const en = {
   test: {
     title: "Test call", hint: "Super Admin only. Calls one of the numbers on the approved test list, never a prospect.", number: "Test number", none: "No test numbers are configured.", call: "Place test call", needsGates: "Test calls need voice calling to be switched on and set up.",
   },
+  ws: {
+    tabs: { label: "Workspace sections", call: "Call", prospect: "Prospect", actions: "Actions", outcomeDue: "Outcome required" },
+    today: "Calls in the last 24 h: {placed} / {cap}",
+    unloadDirty: "You have unsaved work on this page.",
+    toastClose: "Dismiss message",
+    next: {
+      title: "Next prospect", button: "Next prospect", loading: "Loading…", hint: "Loads one prospect to review. It never dials: you still click Call.",
+      source: { CALLBACK: "Scheduled callback", RANDOM: "Random pick" } as Record<string, string>,
+      province: "Province", pool: "Callable now in this province: {n}", none: "No prospects can be called right now.", nextWindow: "Next window: {province} opens at {time}.",
+      reasons: { NO_ELIGIBLE: "No eligible prospect is left in your scope.", ALL_CLOSED: "Every eligible prospect is outside its calling window.", NO_SELLER_PROFILE: "Your account has no seller profile, so no prospect can be loaded." } as Record<string, string>,
+      blockedLive: "Finish the call first.", blockedDispo: "Save the call outcome first.",
+      confirmReplace: "You have unsaved notes or an unsent email for this prospect. Load another prospect anyway? Your notes stay on this device.",
+      shown: "Prospects shown this session: {n}",
+    },
+    profile: {
+      title: "Prospect profile", empty: "No prospect loaded", emptyHint: "Click “Next prospect” to load one. Nothing is dialed until you click Call.",
+      phone: "Telephone", address: "Address", website: "Website", maps: "Google Maps", category: "Category", repairFit: "Independent repair", language: "Language", suggested: "suggested from province: {lang}", stage: "CRM stage", noStage: "No open opportunity",
+      seller: "Assigned seller", unassigned: "Unassigned", shopSize: "Shop size", locations: "Locations", none: "None recorded", notRecorded: "Not recorded", refresh: "Refresh profile", refreshed: "Profile refreshed.",
+      repairFits: { VERIFIED_REPAIR: "Verified independent repair", HUMAN_REVIEW: "Needs human review", EXCLUDED: "Excluded (not an independent repair shop)" } as Record<string, string>,
+      window: {
+        open: "Calling window open", closed: "Calling window closed", localTime: "Local time: {time}", zone: "Time zone: {zone}", hoursNotRecorded: "The shop’s business hours are not recorded; only the legal calling window is checked.",
+        reasons: { OPEN: "Inside the permitted calling window", BEFORE_OPEN: "The calling window has not opened yet there", AFTER_CLOSE: "The calling window has closed there", UNKNOWN_ZONE: "Time zone unknown: calling hours cannot be checked" } as Record<string, string>,
+      },
+      dnc: "Do not contact: this business must not be called or emailed.",
+      contacts: "Contacts", decisionMaker: "Decision maker", primary: "Primary", emailValid: "Email: sending basis on file", emailNone: "Email: no sending basis", noEmail: "No email", contactDnc: "Do not contact",
+      edit: "Edit", editContact: "Edit {name}", addContact: "Add contact", cancel: "Cancel", save: "Save contact", saving: "Saving…", saved: "Contact saved.",
+      form: { name: "Name", title: "Title / role", email: "Email", phone: "Phone", dm: "Decision maker", language: "Preferred language", languageNone: "Not set", emailChange: "Changing the email revokes the sending basis recorded for the previous address." },
+      sections: { calls: "Previous calls", activities: "Recent activity", tasks: "Open tasks", emails: "Emails", meetings: "Meetings", needs: "Recorded needs", notes: "Notes", tags: "Tags", discovery: "Last discovery" },
+      software: "Current software", painPoints: "Pain points", objections: "Objections", due: "Due", noOutcome: "No outcome recorded", seconds: "{n} s",
+      emailKinds: { EMAIL_OUT: "Sent", EMAIL_IN: "Received" } as Record<string, string>,
+      callStates: { PENDING: "Pending", RINGING: "Ringing", IN_PROGRESS: "In progress", COMPLETED: "Completed", BUSY: "Busy", NO_ANSWER: "No answer", FAILED: "Failed", CANCELED: "Canceled", ABANDONED: "Abandoned" } as Record<string, string>,
+    },
+    phone: {
+      callName: "Call {name}", noProspect: "Load a prospect to call.", gate: "Calling is locked by the compliance gates.", window: "Outside this prospect’s calling window.", held: "Calls to this province are on hold.", dnc: "This prospect is marked Do Not Contact.",
+      pending: "Save the outcome of the last call first.", noPhone: "This prospect has no telephone number on file.", inCall: "Call in progress", hangUpShort: "Hang up",
+    },
+    script: {
+      title: "Call guide", show: "Show the call guide", hide: "Hide the call guide", note: "A short outline. Use your own words and never promise prices or features you are not sure of.",
+      steps: {
+        intro: { title: "1. Introduce yourself", body: "“Hi, this is [your name] from GarageOS. GarageOS is management software for independent auto repair shops.”" },
+        owner: { title: "2. Ask for the owner or manager", body: "“Could I speak with the owner or the person who manages the shop?” If they are busy, ask when to call back and record a Call back outcome." },
+        value: { title: "3. One-sentence value", body: "“We help shops handle booking, work orders, quotes and invoices, inspections and customer reminders in one place.”" },
+        qualify: { title: "4. Qualifying questions", body: "What do you use today for work orders and invoices? How do customers book? How many people work in the shop? What takes the most time in your week?" },
+        objections: { title: "5. Common objections", body: "Happy with their system: ask what they would improve. No time: offer a better time to call back. “Send me something”: ask what they want to receive and record it in Email capture. Price: do not quote a number you cannot confirm; offer to show the product first." },
+        close: { title: "6. Close", body: "Offer a demo now (Schedule meeting), send the booking link by email if they asked for it, or agree on a follow-up call." },
+        dnc: { title: "If asked not to be called again", body: "Apologize, confirm that they will not be called again, end the call politely and select “Do not call” as the outcome." },
+      },
+    },
+    notes: {
+      title: "Live notes", label: "Notes for this call", placeholder: "Who you spoke to, what they said, next steps…", unsaved: "Not in the CRM yet: they are saved with the call outcome.", local: "A draft is kept on this device only.", empty: "No notes yet.",
+    },
+    discovery: {
+      title: "Discovery", software: "Current software", softwareHint: "e.g. paper, spreadsheet, another shop system", painPoints: "Pain points mentioned", recorded: "already recorded", objections: "Objections heard", note: "Discovery note (optional)",
+      save: "Save discovery", saving: "Saving…", saved: "Discovery saved to the prospect.", nothing: "Fill in at least one field before saving.", noDefinitions: "No need definitions are configured.",
+      objectionCodes: { HAPPY_WITH_CURRENT: "Happy with current system", NO_TIME: "No time", TOO_EXPENSIVE: "Too expensive", SEND_INFO_ONLY: "Just send information", NOT_DECISION_MAKER: "Not the decision maker", SEASONAL_BUSY: "Busy season", OTHER: "Other" } satisfies Record<ObjectionCode, string>,
+      readOnly: "You cannot edit prospects, so discovery cannot be saved from your account.",
+    },
+    features: { title: "GarageOS features to mention", hint: "Based on the pain points selected and the needs already recorded.", none: "Select pain points to see which features to mention." },
+    capture: {
+      title: "Email capture", email: "Email address given on the call", contact: "Attach to contact", newContact: "New or matching contact", name: "Contact name (optional)", contactTitle: "Title (optional)", dm: "Decision maker",
+      scope: "What did they ask for?", scopes: { REQUESTED_DEMO: "They asked for the demo", REQUESTED_BOOKING: "They asked for a link to book a demo", REQUESTED_INFO: "They asked for information about GarageOS", NONE: "No request or permission established" } satisfies Record<EmailScope, string>,
+      scopeRequired: "Choose what the contact asked for.", consentNote: "An email address alone is not consent to commercial email. Only a specific request is recorded, limited to answering it. This does not add anyone to campaigns or bulk sending.",
+      save: "Save email", saving: "Saving…", invalid: "Enter a valid email address.", ready: "Ready to send: you can answer their request now.", openEmail: "Open email", saved: "Email saved on the contact.", basisRecorded: "Their request was recorded as the reason to email them.",
+      next: {
+        SEND: "Ready to send.", ACTIVATE_POLICY: "Sending is not allowed yet: ask a Super Admin to activate the automated CASL policy, then send.", RECORD_REQUEST: "Sending is not allowed yet: record what they asked for (choose a request above) and save again.",
+        CALL_BACK: "No request recorded: schedule a follow-up call instead of emailing.", SUPPRESSED: "This address is suppressed or unsubscribed. Do not email it.",
+      } as Record<string, string>,
+      reasons: {
+        NONE: "No sending basis on file.", EXPIRED: "The sending basis has expired.", REVOKED: "The sending basis was revoked.", WEAK_EVIDENCE: "The recorded evidence is too short.", PENDING_REVIEW: "The evidence is waiting for review.", REJECTED_EVIDENCE: "The evidence was rejected.",
+        UNREVIEWED: "The evidence has not been reviewed.", KIND_NOT_ALLOWED: "This kind of basis does not allow this message.", POLICY_NOT_ACTIVATED: "The automated CASL policy is not activated.", EVIDENCE_STALE: "The evidence is too old.",
+        MESSAGE_NOT_COVERED: "The basis does not cover this message.", RECIPIENT_CHANGED: "The address differs from the one assessed.", SUPPRESSED: "The address is suppressed or unsubscribed.",
+      } as Record<string, string>,
+      readOnly: "You cannot edit prospects, so email addresses cannot be saved from your account.",
+    },
+    actions: {
+      title: "Sales actions", noProspect: "Load a prospect to use these actions.", sendDemo: "Send demo", compose: "Compose email", insertTeaser: "Insert short demo video", insertFull: "Insert full demo video", insertBooking: "Insert booking link",
+      openDemo: "Open interactive demo", schedule: "Schedule meeting", task: "Create follow-up task", interested: "Mark interested", dnc: "Do not call",
+      needEmail: "Your account cannot send sales email.", needEdit: "Your account cannot edit prospects.", needSchedule: "Your account cannot manage the sales calendar.", isDnc: "This prospect is marked Do Not Contact.", noDemoLink: "The demo link is not available yet.", needBooking: "Turn on online booking in your calendar settings first.",
+      interestedMoved: "Marked interested: the opportunity moved to Engaged.", interestedSame: "Noted for the call outcome. The CRM stage was not changed (no New or Contacted opportunity).", emailGroup: "Email", crmGroup: "CRM",
+    },
+    meeting: {
+      title: "Schedule meeting", contact: "Contact", noContact: "No contact", date: "Date", time: "Time", duration: "Duration", minutes: "{n} min", type: "Type", attendeeName: "Attendee name", attendeeEmail: "Attendee email", language: "Language",
+      location: "Meeting link or location (paste your own Zoom link)", locationHint: "GarageOS does not create Zoom meetings; paste a link you already have, or a phone number or address.", agenda: "Agenda (optional)", save: "Create meeting", saving: "Saving…",
+      created: "Meeting created in the CRM.", emailQueued: "A confirmation email was queued.", noEmail: "No confirmation email was sent.", timezone: "Times are in your time zone ({zone}).", required: "Choose a date and time.",
+    },
+    task: { title: "Create follow-up task", what: "What needs to happen?", type: "Type", priority: "Priority", date: "Due date", time: "Time (optional)", notes: "Notes (optional)", save: "Create task", saving: "Saving…", created: "Follow-up task created.", required: "Enter a title and a due date." },
+    dncDialog: {
+      title: "Do not call this business", body: "The prospect will be marked Do Not Contact: no more calls or emails, open tasks are cancelled, and its number is blocked. Only a Super Admin can reverse this.", note: "Why? (required)", confirm: "Mark do not contact", saving: "Saving…", done: "Marked Do Not Contact. Select Do not call as the call outcome.", required: "A note is required.",
+    },
+    drawer: {
+      title: "Email to {name}", close: "Close email", loading: "Loading the composer…", failed: "The email composer could not be loaded.", retry: "Try again", callStrip: "Call in progress {time}", hangUp: "Hang up", confirmClose: "Hide the email? Your unsent draft is kept until you load another prospect.",
+      shortVideo: "Short video", fullVideo: "Full video", demo: "Interactive demo", demoBooking: "Demo booking page", newEmail: "New email", demoRecorded: "Demo sent was recorded on the prospect.",
+      result: { SENT: "Sent.", QUEUED: "Queued: it will be sent shortly.", SCHEDULED: "Scheduled.", FAILED: "Sending failed.", SENDING: "Sending…" } as Record<string, string>, errorCode: "Error code: {code}",
+    },
+    errors: {
+      DISPOSITION_PENDING: "Save the outcome of your last call before loading the next prospect.", INVALID_EMAIL: "Enter a valid email address.", ALREADY_DO_NOT_CONTACT: "This prospect is already marked Do Not Contact.", NOT_FOUND: "This record was not found or is not in your scope.",
+      PROSPECT_ARCHIVED: "This prospect is archived.", INVALID: "Some fields are missing or invalid.", NO_STAFF_PROFILE: "Your account has no seller profile.", NO_DEMO_LINK: "The email did not contain a demo or video link, so no demo was recorded.", UNEXPECTED: "Something went wrong. Please try again.",
+    } as Record<string, string>,
+  },
   errors: {
     VOICE_DISABLED: "Voice calling is switched off.", VOICE_NOT_PROVISIONED: "Voice calling is not set up yet. Ask a Super Admin to finish the telephony setup.", COMPLIANCE_DNCL_NOT_CONFIRMED: "Calling is locked: the National DNCL registration has not been confirmed.",
     COMPLIANCE_LIVE_CALLING_NOT_AUTHORIZED: "Calling is locked until the Super Admin confirms the compliance gates.", NOT_ALLOWED: "You are not allowed to place calls.", PROSPECT_NOT_FOUND: "This prospect could not be found.", NOT_YOUR_PROSPECT: "This prospect is not assigned to you.",
@@ -43,6 +149,7 @@ const en = {
     DAILY_CAP_REACHED: "You have reached your daily call limit.", RATE_LIMITED: "Too many attempts. Wait a moment and try again.", SELLER_ALREADY_ON_CALL: "You already have a call in progress.", PROSPECT_ALREADY_IN_CALL: "Someone is already on a call with this prospect.",
     NUMBER_ALREADY_IN_CALL: "This number is already in a call.", TEST_NUMBER_NOT_ALLOWED: "This number is not on the approved test list.", SESSION_NOT_FOUND: "This call could not be found.", SESSION_EXPIRED: "This call expired. Please start a new one.",
     SESSION_NOT_ENDED: "The call has not finished yet. Wait a few seconds and try again.", ALREADY_RECORDED: "The outcome of this call was already saved.", INVALID_INPUT: "Some information is missing or invalid. Check the form and try again.",
+    DISPOSITION_PENDING: "Save the outcome of your last call before starting another call or loading the next prospect.",
   } satisfies Record<CallErrorCode, string>,
   voice: {
     title: "Voice settings", subtitle: "Launch gates, test numbers and limits for browser calling. Super Admin only.",
@@ -87,8 +194,14 @@ const fr: Dict = {
   },
   disposition: {
     title: "Résultat de l’appel", subtitle: "Consignez le résultat avant de continuer. C’est obligatoire pour chaque appel.", forName: "Appel avec {name}", outcome: "Résultat", notes: "Notes", notesHint: "Facultatif. Obligatoire pour Ne pas appeler.", followUpDate: "Date de suivi", followUpTime: "Heure de suivi", followUpHint: "Obligatoire pour Rappeler. Crée une tâche de suivi.",
-    dncLabel: "Marquer comme à ne pas appeler", dncConfirm: "Ce prospect sera marqué Ne pas contacter et ne sera plus jamais appelé ni joint par courriel. Ajoutez une note expliquant pourquoi.", save: "Enregistrer et suivant", saving: "Enregistrement…", saved: "Résultat enregistré.", settling: "Confirmation de la fin de l’appel…", nextProspect: "Prospect suivant", noNext: "Aucun autre prospect dans la file.",
+    dncLabel: "Marquer comme à ne pas appeler", dncConfirm: "Ce prospect sera marqué Ne pas contacter et ne sera plus jamais appelé ni joint par courriel. Ajoutez une note expliquant pourquoi.", save: "Enregistrer le résultat", saving: "Enregistrement…", saved: "Résultat enregistré.", settling: "Confirmation de la fin de l’appel…", nextProspect: "Prospect suivant", noNext: "Aucun autre prospect dans la file.",
     noteRequired: "Ajoutez une note avant de marquer ce prospect comme à ne pas appeler.", followUpRequired: "Choisissez une date de suivi pour un rappel.", pickOutcome: "Choisissez un résultat.",
+    reason: "Motif", reasonPick: "Choisir un motif", reasonRequired: "Indiquez pourquoi le prospect n’est pas intéressé.", nextAction: "Prochaine étape", followUpOptional: "Facultatif. Crée une tâche de suivi.",
+    extras: "Ce qui s’est passé pendant l’appel", extrasHint: "Cochées d’après ce que vous avez fait dans cet espace pendant l’appel. Ajustez au besoin.", demoRequested: "Le prospect a demandé une démo", demoSent: "Un courriel de démo a été envoyé", meetingScheduled: "Une rencontre a été planifiée",
+    wrongNumberInfo: "Ce numéro sera bloqué pour que personne ne le rappelle.", notRepairInfo: "Le prospect sera signalé pour vérification : ce n’est pas un atelier de réparation.", quickSave: "Aucune note requise pour ce résultat.", notesPrefilled: "Prérempli à partir de vos notes en direct.",
+    savedNext: "Résultat enregistré. Chargez le prochain prospect quand vous êtes prêt.", required: "obligatoire",
+    reasons: { HAPPY_WITH_CURRENT: "Satisfait de son système actuel", NO_BUDGET: "Pas de budget", NO_TIME: "Pas le temps", NOT_THE_RIGHT_TIME: "Pas le bon moment", TOO_SMALL: "Atelier trop petit", OTHER: "Autre" },
+    nextActions: { SEND_DEMO: "Envoyer la démo", SEND_INFO: "Envoyer de l’information", SCHEDULE_MEETING: "Planifier une rencontre", CALL_BACK: "Rappeler", NONE: "Aucune prochaine étape" },
     outcomes: {
       NO_ANSWER: "Pas de réponse", VOICEMAIL: "Message laissé sur la boîte vocale", GATEKEEPER: "Parlé à un filtre (réceptionniste)", CALL_BACK: "Rappeler plus tard", INTERESTED: "Intéressé", NOT_INTERESTED: "Pas intéressé", WRONG_NUMBER: "Mauvais numéro", NOT_A_REPAIR_SHOP: "Pas un atelier de réparation", DO_NOT_CALL: "Ne pas appeler",
     },
@@ -100,6 +213,105 @@ const fr: Dict = {
   test: {
     title: "Appel de test", hint: "Réservé au Super Admin. Appelle l’un des numéros de la liste de test approuvée, jamais un prospect.", number: "Numéro de test", none: "Aucun numéro de test n’est configuré.", call: "Lancer l’appel de test", needsGates: "Les appels de test exigent que les appels vocaux soient activés et configurés.",
   },
+  ws: {
+    tabs: { label: "Sections de l’espace d’appel", call: "Appel", prospect: "Prospect", actions: "Actions", outcomeDue: "Résultat requis" },
+    today: "Appels des dernières 24 h : {placed} / {cap}",
+    unloadDirty: "Vous avez du travail non enregistré sur cette page.",
+    toastClose: "Fermer le message",
+    next: {
+      title: "Prochain prospect", button: "Prochain prospect", loading: "Chargement…", hint: "Charge un prospect à consulter. Aucun appel n’est lancé : vous devez toujours cliquer sur Appeler.",
+      source: { CALLBACK: "Rappel planifié", RANDOM: "Choix aléatoire" },
+      province: "Province", pool: "Appelables maintenant dans cette province : {n}", none: "Aucun prospect ne peut être appelé pour le moment.", nextWindow: "Prochaine plage : {province} ouvre à {time}.",
+      reasons: { NO_ELIGIBLE: "Il ne reste aucun prospect admissible dans votre portée.", ALL_CLOSED: "Tous les prospects admissibles sont hors de leur plage d’appel.", NO_SELLER_PROFILE: "Votre compte n’a pas de profil de vendeur : aucun prospect ne peut être chargé." },
+      blockedLive: "Terminez d’abord l’appel.", blockedDispo: "Enregistrez d’abord le résultat de l’appel.",
+      confirmReplace: "Vous avez des notes non enregistrées ou un courriel non envoyé pour ce prospect. Charger quand même un autre prospect? Vos notes restent sur cet appareil.",
+      shown: "Prospects affichés pendant cette session : {n}",
+    },
+    profile: {
+      title: "Fiche du prospect", empty: "Aucun prospect chargé", emptyHint: "Cliquez sur « Prochain prospect » pour en charger un. Rien n’est composé tant que vous ne cliquez pas sur Appeler.",
+      phone: "Téléphone", address: "Adresse", website: "Site Web", maps: "Google Maps", category: "Catégorie", repairFit: "Atelier indépendant", language: "Langue", suggested: "suggérée selon la province : {lang}", stage: "Étape CRM", noStage: "Aucune occasion ouverte",
+      seller: "Vendeur assigné", unassigned: "Non assigné", shopSize: "Taille de l’atelier", locations: "Établissements", none: "Rien de consigné", notRecorded: "Non consigné", refresh: "Actualiser la fiche", refreshed: "Fiche actualisée.",
+      repairFits: { VERIFIED_REPAIR: "Atelier indépendant vérifié", HUMAN_REVIEW: "À valider par une personne", EXCLUDED: "Exclu (pas un atelier indépendant)" },
+      window: {
+        open: "Plage d’appel ouverte", closed: "Plage d’appel fermée", localTime: "Heure locale : {time}", zone: "Fuseau horaire : {zone}", hoursNotRecorded: "Les heures d’ouverture de l’atelier ne sont pas consignées; seule la plage d’appel légale est vérifiée.",
+        reasons: { OPEN: "Dans la plage d’appel permise", BEFORE_OPEN: "La plage d’appel n’est pas encore ouverte là-bas", AFTER_CLOSE: "La plage d’appel est fermée là-bas", UNKNOWN_ZONE: "Fuseau horaire inconnu : impossible de vérifier les heures d’appel" },
+      },
+      dnc: "Ne pas contacter : cette entreprise ne doit être ni appelée ni jointe par courriel.",
+      contacts: "Contacts", decisionMaker: "Décideur", primary: "Principal", emailValid: "Courriel : base d’envoi au dossier", emailNone: "Courriel : aucune base d’envoi", noEmail: "Aucun courriel", contactDnc: "Ne pas contacter",
+      edit: "Modifier", editContact: "Modifier {name}", addContact: "Ajouter un contact", cancel: "Annuler", save: "Enregistrer le contact", saving: "Enregistrement…", saved: "Contact enregistré.",
+      form: { name: "Nom", title: "Titre / rôle", email: "Courriel", phone: "Téléphone", dm: "Décideur", language: "Langue préférée", languageNone: "Non définie", emailChange: "Changer le courriel révoque la base d’envoi consignée pour l’ancienne adresse." },
+      sections: { calls: "Appels précédents", activities: "Activité récente", tasks: "Tâches ouvertes", emails: "Courriels", meetings: "Rencontres", needs: "Besoins consignés", notes: "Notes", tags: "Étiquettes", discovery: "Dernière découverte" },
+      software: "Logiciel actuel", painPoints: "Irritants", objections: "Objections", due: "Échéance", noOutcome: "Aucun résultat consigné", seconds: "{n} s",
+      emailKinds: { EMAIL_OUT: "Envoyé", EMAIL_IN: "Reçu" },
+      callStates: { PENDING: "En attente", RINGING: "Ça sonne", IN_PROGRESS: "En cours", COMPLETED: "Terminé", BUSY: "Occupé", NO_ANSWER: "Pas de réponse", FAILED: "Échec", CANCELED: "Annulé", ABANDONED: "Abandonné" },
+    },
+    phone: {
+      callName: "Appeler {name}", noProspect: "Chargez un prospect pour appeler.", gate: "Les appels sont verrouillés par les conditions de conformité.", window: "Hors de la plage d’appel de ce prospect.", held: "Les appels vers cette province sont suspendus.", dnc: "Ce prospect est marqué Ne pas contacter.",
+      pending: "Enregistrez d’abord le résultat du dernier appel.", noPhone: "Ce prospect n’a aucun numéro de téléphone au dossier.", inCall: "Appel en cours", hangUpShort: "Raccrocher",
+    },
+    script: {
+      title: "Guide d’appel", show: "Afficher le guide d’appel", hide: "Masquer le guide d’appel", note: "Un court aide-mémoire. Utilisez vos propres mots et ne promettez jamais un prix ou une fonction dont vous n’êtes pas certain.",
+      steps: {
+        intro: { title: "1. Présentez-vous", body: "« Bonjour, ici [votre nom] de GarageOS. GarageOS est un logiciel de gestion pour les ateliers de réparation automobile indépendants. »" },
+        owner: { title: "2. Demandez le propriétaire ou le gérant", body: "« Est-ce que je pourrais parler au propriétaire ou à la personne qui gère l’atelier? » S’il est occupé, demandez quand rappeler et consignez le résultat Rappeler plus tard." },
+        value: { title: "3. La valeur en une phrase", body: "« Nous aidons les ateliers à gérer les rendez-vous, les bons de travail, les soumissions et factures, les inspections et les rappels aux clients au même endroit. »" },
+        qualify: { title: "4. Questions de qualification", body: "Qu’utilisez-vous aujourd’hui pour les bons de travail et la facturation? Comment vos clients prennent-ils rendez-vous? Combien de personnes travaillent à l’atelier? Qu’est-ce qui vous prend le plus de temps dans la semaine?" },
+        objections: { title: "5. Objections fréquentes", body: "Satisfait de son système : demandez ce qu’il aimerait améliorer. Pas le temps : proposez un meilleur moment pour rappeler. « Envoyez-moi quelque chose » : demandez ce qu’il veut recevoir et consignez-le dans Courriel obtenu. Prix : ne donnez pas de chiffre que vous ne pouvez pas confirmer; proposez d’abord de montrer le produit." },
+        close: { title: "6. Conclure", body: "Proposez une démo tout de suite (Planifier une rencontre), envoyez le lien de réservation par courriel s’il l’a demandé, ou convenez d’un appel de suivi." },
+        dnc: { title: "Si on vous demande de ne plus appeler", body: "Excusez-vous, confirmez qu’on ne le rappellera plus, terminez l’appel poliment et choisissez le résultat « Ne pas appeler »." },
+      },
+    },
+    notes: {
+      title: "Notes en direct", label: "Notes pour cet appel", placeholder: "À qui vous avez parlé, ce qui a été dit, prochaines étapes…", unsaved: "Pas encore dans le CRM : elles sont enregistrées avec le résultat de l’appel.", local: "Un brouillon est conservé sur cet appareil seulement.", empty: "Aucune note pour l’instant.",
+    },
+    discovery: {
+      title: "Découverte", software: "Logiciel actuel", softwareHint: "p. ex. papier, chiffrier, un autre logiciel de garage", painPoints: "Irritants mentionnés", recorded: "déjà consigné", objections: "Objections entendues", note: "Note de découverte (facultatif)",
+      save: "Enregistrer la découverte", saving: "Enregistrement…", saved: "Découverte enregistrée sur le prospect.", nothing: "Remplissez au moins un champ avant d’enregistrer.", noDefinitions: "Aucune définition de besoin n’est configurée.",
+      objectionCodes: { HAPPY_WITH_CURRENT: "Satisfait de son système actuel", NO_TIME: "Pas le temps", TOO_EXPENSIVE: "Trop cher", SEND_INFO_ONLY: "Envoyez-moi seulement de l’information", NOT_DECISION_MAKER: "Pas le décideur", SEASONAL_BUSY: "Période achalandée", OTHER: "Autre" },
+      readOnly: "Vous ne pouvez pas modifier les prospects : la découverte ne peut pas être enregistrée depuis votre compte.",
+    },
+    features: { title: "Fonctions GarageOS à mentionner", hint: "Selon les irritants cochés et les besoins déjà consignés.", none: "Cochez des irritants pour voir les fonctions à mentionner." },
+    capture: {
+      title: "Courriel obtenu", email: "Adresse courriel donnée pendant l’appel", contact: "Associer au contact", newContact: "Contact nouveau ou correspondant", name: "Nom du contact (facultatif)", contactTitle: "Titre (facultatif)", dm: "Décideur",
+      scope: "Qu’a-t-il demandé?", scopes: { REQUESTED_DEMO: "Il a demandé la démo", REQUESTED_BOOKING: "Il a demandé un lien pour réserver une démo", REQUESTED_INFO: "Il a demandé de l’information sur GarageOS", NONE: "Aucune demande ni permission établie" },
+      scopeRequired: "Indiquez ce que le contact a demandé.", consentNote: "Une adresse courriel seule n’est pas un consentement à recevoir des courriels commerciaux. Seule une demande précise est consignée, limitée à y répondre. Cela n’inscrit personne à des campagnes ni à des envois de masse.",
+      save: "Enregistrer le courriel", saving: "Enregistrement…", invalid: "Saisissez une adresse courriel valide.", ready: "Prêt à envoyer : vous pouvez répondre à sa demande maintenant.", openEmail: "Ouvrir le courriel", saved: "Courriel enregistré sur le contact.", basisRecorded: "Sa demande a été consignée comme motif pour lui écrire.",
+      next: {
+        SEND: "Prêt à envoyer.", ACTIVATE_POLICY: "L’envoi n’est pas encore permis : demandez à un Super Admin d’activer la politique LCAP automatisée, puis envoyez.", RECORD_REQUEST: "L’envoi n’est pas encore permis : consignez ce qu’il a demandé (choisissez une demande ci-dessus) et enregistrez de nouveau.",
+        CALL_BACK: "Aucune demande consignée : planifiez un appel de suivi plutôt que d’écrire.", SUPPRESSED: "Cette adresse est supprimée ou désabonnée. N’y écrivez pas.",
+      },
+      reasons: {
+        NONE: "Aucune base d’envoi au dossier.", EXPIRED: "La base d’envoi est expirée.", REVOKED: "La base d’envoi a été révoquée.", WEAK_EVIDENCE: "La preuve consignée est trop courte.", PENDING_REVIEW: "La preuve attend une vérification.", REJECTED_EVIDENCE: "La preuve a été refusée.",
+        UNREVIEWED: "La preuve n’a pas été vérifiée.", KIND_NOT_ALLOWED: "Ce type de base ne permet pas ce message.", POLICY_NOT_ACTIVATED: "La politique LCAP automatisée n’est pas activée.", EVIDENCE_STALE: "La preuve est trop ancienne.",
+        MESSAGE_NOT_COVERED: "La base ne couvre pas ce message.", RECIPIENT_CHANGED: "L’adresse diffère de celle qui a été évaluée.", SUPPRESSED: "L’adresse est supprimée ou désabonnée.",
+      },
+      readOnly: "Vous ne pouvez pas modifier les prospects : les adresses courriel ne peuvent pas être enregistrées depuis votre compte.",
+    },
+    actions: {
+      title: "Actions de vente", noProspect: "Chargez un prospect pour utiliser ces actions.", sendDemo: "Envoyer la démo", compose: "Rédiger un courriel", insertTeaser: "Insérer la courte vidéo de démo", insertFull: "Insérer la vidéo de démo complète", insertBooking: "Insérer le lien de réservation",
+      openDemo: "Ouvrir la démo interactive", schedule: "Planifier une rencontre", task: "Créer une tâche de suivi", interested: "Marquer intéressé", dnc: "Ne pas appeler",
+      needEmail: "Votre compte ne peut pas envoyer de courriels de vente.", needEdit: "Votre compte ne peut pas modifier les prospects.", needSchedule: "Votre compte ne peut pas gérer le calendrier des ventes.", isDnc: "Ce prospect est marqué Ne pas contacter.", noDemoLink: "Le lien de la démo n’est pas encore disponible.", needBooking: "Activez d’abord la réservation en ligne dans les paramètres de votre calendrier.",
+      interestedMoved: "Marqué intéressé : l’occasion est passée à l’étape Engagé.", interestedSame: "Noté pour le résultat de l’appel. L’étape CRM n’a pas changé (aucune occasion Nouveau ou Contacté).", emailGroup: "Courriel", crmGroup: "CRM",
+    },
+    meeting: {
+      title: "Planifier une rencontre", contact: "Contact", noContact: "Aucun contact", date: "Date", time: "Heure", duration: "Durée", minutes: "{n} min", type: "Type", attendeeName: "Nom du participant", attendeeEmail: "Courriel du participant", language: "Langue",
+      location: "Lien ou lieu de la rencontre (collez votre propre lien Zoom)", locationHint: "GarageOS ne crée pas de rencontres Zoom; collez un lien que vous avez déjà, ou un numéro de téléphone ou une adresse.", agenda: "Ordre du jour (facultatif)", save: "Créer la rencontre", saving: "Enregistrement…",
+      created: "Rencontre créée dans le CRM.", emailQueued: "Un courriel de confirmation a été mis en file.", noEmail: "Aucun courriel de confirmation n’a été envoyé.", timezone: "Les heures sont dans votre fuseau horaire ({zone}).", required: "Choisissez une date et une heure.",
+    },
+    task: { title: "Créer une tâche de suivi", what: "Qu’est-ce qui doit être fait?", type: "Type", priority: "Priorité", date: "Échéance", time: "Heure (facultatif)", notes: "Notes (facultatif)", save: "Créer la tâche", saving: "Enregistrement…", created: "Tâche de suivi créée.", required: "Saisissez un titre et une échéance." },
+    dncDialog: {
+      title: "Ne pas appeler cette entreprise", body: "Le prospect sera marqué Ne pas contacter : plus d’appels ni de courriels, les tâches ouvertes sont annulées et son numéro est bloqué. Seul un Super Admin peut annuler cette décision.", note: "Pourquoi? (obligatoire)", confirm: "Marquer Ne pas contacter", saving: "Enregistrement…", done: "Marqué Ne pas contacter. Choisissez Ne pas appeler comme résultat de l’appel.", required: "Une note est obligatoire.",
+    },
+    drawer: {
+      title: "Courriel à {name}", close: "Fermer le courriel", loading: "Chargement de l’outil de rédaction…", failed: "Impossible de charger l’outil de rédaction.", retry: "Réessayer", callStrip: "Appel en cours {time}", hangUp: "Raccrocher", confirmClose: "Masquer le courriel? Votre brouillon non envoyé est conservé jusqu’à ce que vous chargiez un autre prospect.",
+      shortVideo: "Courte vidéo", fullVideo: "Vidéo complète", demo: "Démo interactive", demoBooking: "Page de réservation de démo", newEmail: "Nouveau courriel", demoRecorded: "L’envoi de la démo a été consigné sur le prospect.",
+      result: { SENT: "Envoyé.", QUEUED: "En file : il sera envoyé sous peu.", SCHEDULED: "Planifié.", FAILED: "L’envoi a échoué.", SENDING: "Envoi en cours…" }, errorCode: "Code d’erreur : {code}",
+    },
+    errors: {
+      DISPOSITION_PENDING: "Enregistrez le résultat de votre dernier appel avant de charger le prochain prospect.", INVALID_EMAIL: "Saisissez une adresse courriel valide.", ALREADY_DO_NOT_CONTACT: "Ce prospect est déjà marqué Ne pas contacter.", NOT_FOUND: "Cet élément est introuvable ou hors de votre portée.",
+      PROSPECT_ARCHIVED: "Ce prospect est archivé.", INVALID: "Des champs sont manquants ou invalides.", NO_STAFF_PROFILE: "Votre compte n’a pas de profil de vendeur.", NO_DEMO_LINK: "Le courriel ne contenait aucun lien de démo ou de vidéo : aucune démo n’a été consignée.", UNEXPECTED: "Une erreur est survenue. Veuillez réessayer.",
+    },
+  },
   errors: {
     VOICE_DISABLED: "Les appels vocaux sont désactivés.", VOICE_NOT_PROVISIONED: "Les appels vocaux ne sont pas encore configurés. Demandez à un Super Admin de terminer la configuration de la téléphonie.", COMPLIANCE_DNCL_NOT_CONFIRMED: "Appels verrouillés : l’inscription à la LNNTE n’est pas confirmée.",
     COMPLIANCE_LIVE_CALLING_NOT_AUTHORIZED: "Les appels sont verrouillés tant que le Super Admin n’a pas confirmé les conditions de conformité.", NOT_ALLOWED: "Vous n’avez pas le droit de passer des appels.", PROSPECT_NOT_FOUND: "Ce prospect est introuvable.", NOT_YOUR_PROSPECT: "Ce prospect ne vous est pas assigné.",
@@ -108,6 +320,7 @@ const fr: Dict = {
     DAILY_CAP_REACHED: "Vous avez atteint votre limite quotidienne d’appels.", RATE_LIMITED: "Trop de tentatives. Patientez un moment et réessayez.", SELLER_ALREADY_ON_CALL: "Vous avez déjà un appel en cours.", PROSPECT_ALREADY_IN_CALL: "Quelqu’un est déjà en appel avec ce prospect.",
     NUMBER_ALREADY_IN_CALL: "Ce numéro est déjà en appel.", TEST_NUMBER_NOT_ALLOWED: "Ce numéro ne figure pas dans la liste de test approuvée.", SESSION_NOT_FOUND: "Cet appel est introuvable.", SESSION_EXPIRED: "Cet appel a expiré. Veuillez en démarrer un nouveau.",
     SESSION_NOT_ENDED: "L’appel n’est pas encore terminé. Patientez quelques secondes et réessayez.", ALREADY_RECORDED: "Le résultat de cet appel a déjà été enregistré.", INVALID_INPUT: "Des renseignements sont manquants ou invalides. Vérifiez le formulaire et réessayez.",
+    DISPOSITION_PENDING: "Enregistrez le résultat de votre dernier appel avant d’en lancer un autre ou de charger le prochain prospect.",
   },
   voice: {
     title: "Paramètres vocaux", subtitle: "Conditions de lancement, numéros de test et limites des appels dans le navigateur. Réservé au Super Admin.",

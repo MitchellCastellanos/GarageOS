@@ -227,6 +227,7 @@ if (!enabled) {
   });
 
   test("a call that is no longer authorized at connect time is not dialled: DNC set after the click, expired or wrong-identity authorization; locks are freed", async () => {
+    await db.crmCallSession.updateMany({ where: { endedAt: { not: null }, dispositionAt: null }, data: { dispositionAt: new Date(), dispositionCode: "NO_ANSWER" } }); // earlier tests left ended calls without an outcome; a new call is refused until one is saved
     const p = await prospect("Founder");
     const r: any = await start("Founder", p.id);
     const { applyDoNotContact } = await import("../src/lib/sales-crm/prospects");
@@ -255,6 +256,7 @@ if (!enabled) {
   });
 
   test("stale sessions are recovered: an unconnected session older than the window is abandoned and frees the seller; recent ones are untouched", async () => {
+    await db.crmCallSession.updateMany({ where: { endedAt: { not: null }, dispositionAt: null }, data: { dispositionAt: new Date(), dispositionCode: "NO_ANSWER" } }); // earlier tests left ended calls without an outcome; a new call is refused until one is saved
     await db.crmCallSession.updateMany({ where: { openStaffKey: st.Founder }, data: { state: "ABANDONED", endedAt: new Date(), openProspectKey: null, openNumberKey: null, openStaffKey: null } });
     const p = await prospect("Founder"), p2 = await prospect("Founder");
     const r: any = await start("Founder", p.id);
@@ -267,6 +269,7 @@ if (!enabled) {
   });
 
   test("outcomes: ended calls only; one activity per session (idempotent), follow-up task, wrong number suppresses the number, DO_NOT_CALL suppresses the business — never places a call", async () => {
+    await db.crmCallSession.updateMany({ where: { endedAt: { not: null }, dispositionAt: null }, data: { dispositionAt: new Date(), dispositionCode: "NO_ANSWER" } }); // earlier tests left ended calls without an outcome; a new call is refused until one is saved
     await db.crmCallSession.updateMany({ where: { openStaffKey: st.Founder }, data: { state: "ABANDONED", endedAt: new Date(), openProspectKey: null, openNumberKey: null, openStaffKey: null } });
     const p = await prospect("Founder");
     const { r, res } = await connect("Founder", p.id); void res;
@@ -326,6 +329,7 @@ if (!enabled) {
   });
 
   test("abuse limits: cooldown after a completed call, daily cap, per-minute creation limit", async () => {
+    await db.crmCallSession.updateMany({ where: { endedAt: { not: null }, dispositionAt: null }, data: { dispositionAt: new Date(), dispositionCode: "NO_ANSWER" } }); // earlier tests left ended calls without an outcome; a new call is refused until one is saved
     const root = await actorOf("Root");
     await settingsLib.updateVoiceSettings(root, { dnclRegisteredAt: new Date("2026-10-19T12:00:00Z"), dnclRegistrationRef: "REG-TEST-1" });
     await settingsLib.updateVoiceSettings(root, { liveCallingAuthorized: true });

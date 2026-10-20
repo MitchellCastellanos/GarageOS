@@ -12,7 +12,7 @@ export default async function CallingPage() {
   const c = callingCopy(locale);
   const data = await getCallingPage();
   return (
-    <div className="mx-auto max-w-6xl space-y-5">
+    <div className="mx-auto w-full max-w-[120rem] space-y-3">
       <PageHeader title={c.title} subtitle={c.subtitle} />
       <CallingWorkspace data={data} locale={locale} />
     </div>

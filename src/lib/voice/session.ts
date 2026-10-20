@@ -119,6 +119,9 @@ async function startInner(actor: PlatformSalesActor, input: { kind: "PROSPECT" |
     const gate = checkCommercialGates(s);
     if (gate) return gate;
     if (!input.prospectId) return reject("INVALID_INPUT");
+    // A finished prospect call must have its outcome saved before this seller places another one (the workspace lets them complete it at any time, so this never strands anyone).
+    const unsaved = await db.crmCallSession.findFirst({ where: { userId: actor.userId, kind: "PROSPECT", endedAt: { not: null }, dispositionAt: null, parentCallSid: { not: null } }, select: { id: true } });
+    if (unsaved) return reject("DISPOSITION_PENDING", unsaved.id);
     const chk = await checkProspect(actor, input.prospectId, now);
     if (!chk.ok) return chk;
     const day = await db.crmCallSession.count({ where: { staffId: staffKey, kind: "PROSPECT", requestedAt: { gt: new Date(now.getTime() - 24 * 3600_000) }, state: { notIn: ["FAILED", "CANCELED", "ABANDONED"] } } });

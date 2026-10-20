@@ -2709,6 +2709,8 @@ model CrmProspect {
   @@index([repairFit, assignedStaffId])
   @@index([phoneEligibility, province])
   @@index([phoneE164])
+  /// Calling workspace queue: one seller's callable national shops per province, without scanning the national table.
+  @@index([assignedStaffId, phoneEligibility, province])
   @@schema("garageos")
   discoveredContacts CrmDiscoveredContact[]
 }
