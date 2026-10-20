@@ -6,9 +6,9 @@ on:
   workflow_dispatch:
     inputs:
       stage:
-        description: "inventory | twilio | refresh | import"
+        description: "inventory | twilio | refresh | import | voice-status | voice-provision | voice-reap"
         type: choice
-        options: [inventory, twilio, refresh, import]
+        options: [inventory, twilio, refresh, import, voice-status, voice-provision, voice-reap]
         default: inventory
       apply:
         description: "Write changes (refresh/import). Default false = dry run."

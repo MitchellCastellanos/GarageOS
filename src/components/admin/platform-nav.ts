@@ -1,10 +1,11 @@
-import { Radar, LayoutDashboard, BarChart3, MessagesSquare, Users, Kanban, ListChecks, MonitorPlay, Contact, SlidersHorizontal, Store, Mail, Send, CalendarDays, Settings2, MapPin, Video, UserCog, Route, LocateFixed, Briefcase, Building2, ShieldCheck, type LucideIcon } from "lucide-react";
+import { Radar, LayoutDashboard, BarChart3, MessagesSquare, Users, Kanban, ListChecks, MonitorPlay, Contact, SlidersHorizontal, Store, Mail, Send, CalendarDays, Settings2, MapPin, Video, UserCog, Route, LocateFixed, Briefcase, Building2, ShieldCheck, Phone, PhoneCall, type LucideIcon } from "lucide-react";
 import { PLATFORM } from "@/lib/routes";
 import { crmCopy } from "@/lib/admin-locale/sales-crm";
 import { commsCopy } from "@/lib/admin-locale/sales-comms";
 import { identityCopy } from "@/lib/admin-locale/sales-identity";
 import { fieldCopy } from "@/lib/admin-locale/sales-field";
 import { radarCopy } from "@/lib/admin-locale/lead-radar";
+import { callingCopy } from "@/lib/admin-locale/sales-calling";
 import type { PlatformSalesKind } from "@/domain/sales-crm/access";
 
 export interface PlatformNavContext { kind: PlatformSalesKind; locale: "en" | "fr"; /** National Lead Radar entry: Super Admin, and managers only while review is allowed. Convenience only. */ leadRadar?: boolean; /** Field planner link: FIELD sellers and managers/Super Admin (read-only for non-FIELD). Convenience only; pages re-check. */ fieldPlanner?: boolean }
@@ -27,6 +28,7 @@ export function navFor({ kind, locale, fieldPlanner, leadRadar }: PlatformNavCon
       { href: PLATFORM.salesPipeline, label: t.pipeline, icon: Kanban },
       { href: PLATFORM.salesTasks, label: t.tasks, icon: ListChecks },
       ...(fieldPlanner ? [{ href: PLATFORM.salesField, label: fieldCopy(locale).nav, icon: Route }] : []),
+      { href: PLATFORM.salesCalling, label: callingCopy(locale).nav, icon: PhoneCall },
       { href: PLATFORM.salesInbox, label: c.inbox, icon: Mail },
       { href: PLATFORM.salesOutreach, label: c.outreach, icon: Send },
       { href: PLATFORM.salesCalendar, label: c.calendar, icon: CalendarDays },
@@ -47,6 +49,7 @@ export function navFor({ kind, locale, fieldPlanner, leadRadar }: PlatformNavCon
     { href: PLATFORM.salesComms, label: c.comms, icon: Settings2 },
     { href: PLATFORM.salesTerritories, label: ic.territories.title, icon: MapPin },
     { href: PLATFORM.salesGeocoding, label: fieldCopy(locale).geocodingAdmin.nav, icon: LocateFixed },
+    { href: PLATFORM.salesVoiceSettings, label: callingCopy(locale).voiceNav, icon: Phone },
     { href: PLATFORM.salesVideos, label: ic.videos.title, icon: Video },
   );
   if (admin.length) groups.push({ id: "admin", label: t.admin, icon: ShieldCheck, items: admin });

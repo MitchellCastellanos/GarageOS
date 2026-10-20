@@ -9,7 +9,7 @@ const ctx = (kind: PlatformNavContext["kind"], locale: "en" | "fr" = "en", extra
 
 test("Super Admin reaches every existing destination, each exactly once", () => {
   const all = hrefs(navFor(ctx("SUPER_ADMIN")));
-  const expected = [PLATFORM.sales, PLATFORM.salesProspects, PLATFORM.salesPipeline, PLATFORM.salesTasks, PLATFORM.salesField, PLATFORM.salesInbox, PLATFORM.salesOutreach, PLATFORM.salesCalendar, PLATFORM.salesDemos, PLATFORM.salesLeadRadar, PLATFORM.home, PLATFORM.analytics, PLATFORM.messages, PLATFORM.salesTeam, PLATFORM.salesNeeds, PLATFORM.salesComms, PLATFORM.salesTerritories, PLATFORM.salesGeocoding, PLATFORM.salesVideos, PLATFORM.salesAccount];
+  const expected = [PLATFORM.sales, PLATFORM.salesProspects, PLATFORM.salesPipeline, PLATFORM.salesTasks, PLATFORM.salesField, PLATFORM.salesInbox, PLATFORM.salesOutreach, PLATFORM.salesCalendar, PLATFORM.salesCalling, PLATFORM.salesVoiceSettings, PLATFORM.salesDemos, PLATFORM.salesLeadRadar, PLATFORM.home, PLATFORM.analytics, PLATFORM.messages, PLATFORM.salesTeam, PLATFORM.salesNeeds, PLATFORM.salesComms, PLATFORM.salesTerritories, PLATFORM.salesGeocoding, PLATFORM.salesVideos, PLATFORM.salesAccount];
   assert.deepEqual([...all].sort(), [...expected].sort());
   assert.equal(new Set(all).size, all.length);
 });

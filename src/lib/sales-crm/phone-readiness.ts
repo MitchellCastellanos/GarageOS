@@ -21,16 +21,20 @@ export function businessBasisOf(p: { phoneBusinessBasis: PhoneBusinessBasis | nu
   return p.importBatch?.sourceKey === LEAD_RADAR_SOURCE_KEY ? "LISTED_BUSINESS_SOURCE" : "UNKNOWN";
 }
 
-export async function loadHeldProvinces(): Promise<ReadonlySet<string>> {
-  // Provinces held pending a legal determination. Default BC + MB (telemarketer licensing regimes); override with PHONE_HELD_PROVINCES="BC,MB" (empty string = none held).
+export async function loadHeldProvinces(client: Tx = db): Promise<ReadonlySet<string>> {
+  // Provinces held pending a legal determination: the audited Super Admin setting (CrmVoiceSettings.heldProvinces, default BC + MB); the PHONE_HELD_PROVINCES env only applies if the settings row cannot be read.
+  try {
+    const row = await client.crmVoiceSettings.findUnique({ where: { id: "default" }, select: { heldProvinces: true } });
+    if (row) return new Set(row.heldProvinces.map((x) => x.toUpperCase()));
+  } catch { /* settings table unavailable: fall through to the conservative default */ }
   const raw = process.env.PHONE_HELD_PROVINCES;
   if (raw === undefined) return DEFAULT_HELD_PROVINCES;
-  return new Set(raw.split(",").map((s) => s.trim().toUpperCase()).filter(Boolean));
+  return new Set(raw.split(",").map((x) => x.trim().toUpperCase()).filter(Boolean));
 }
 
 export async function refreshPhoneEligibility(opts: { after?: string | null; limit?: number; deadline?: number; prospectIds?: readonly string[]; dryRun?: boolean } = {}, client: Tx = db): Promise<PhoneRefreshTally> {
   const limit = Math.min(Math.max(1, opts.limit ?? PHONE_EVAL_PAGE), 2000);
-  const held = await loadHeldProvinces();
+  const held = await loadHeldProvinces(client);
   const t: PhoneRefreshTally = { examined: 0, changed: 0, byStatus: {}, byReason: {}, next: null };
   const rows = await client.crmProspect.findMany({
     where: opts.prospectIds ? { id: { in: [...opts.prospectIds] } } : opts.after ? { id: { gt: opts.after } } : {},
@@ -110,4 +114,13 @@ export async function liftPhoneSuppressionForProspect(tx: Tx, prospectId: string
   const p = await tx.crmProspect.findUnique({ where: { id: prospectId }, select: { phoneE164: true } });
   await tx.crmPhoneSuppression.updateMany({ where: { liftedAt: null, OR: [{ scope: "BUSINESS", prospectId }, ...(p?.phoneE164 ? [{ scope: "NUMBER" as const, phoneE164: p.phoneE164, prospectId }] : [])] }, data: { liftedAt: new Date(), liftedByUserId: actorUserId, liftNote: note } });
   await refreshPhoneEligibility({ prospectIds: [prospectId] }, tx);
+}
+
+/** A number that is wrong or must not be dialled again (wrong number, invalid, disconnected): suppresses that exact number everywhere it appears. Idempotent. */
+export async function suppressPhoneNumber(tx: Tx, p: { e164: string; prospectId: string | null; userId: string | null; reason: string; source: string; note: string | null }): Promise<void> {
+  if (!(await tx.crmPhoneSuppression.findFirst({ where: { scope: "NUMBER", phoneE164: p.e164, liftedAt: null }, select: { id: true } }))) {
+    await tx.crmPhoneSuppression.create({ data: { scope: "NUMBER", phoneE164: p.e164, prospectId: p.prospectId, reason: p.reason, source: p.source, note: p.note, createdByUserId: p.userId } });
+  }
+  const holders = await tx.crmProspect.findMany({ where: { phoneE164: p.e164 }, select: { id: true } });
+  if (holders.length) await refreshPhoneEligibility({ prospectIds: holders.map((h) => h.id) }, tx);
 }
