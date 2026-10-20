@@ -86,7 +86,7 @@ test("every kind a person can record requires structured evidence, decided by ru
 test("tripwire: no application code writes an APPROVED evidence status any more; AUTO_SUPPORTED is written only by the evidence engine and by rule-checked manual recording", () => {
   const writers = (re: RegExp) => { const hits: string[] = []; const walk = (dir: string) => { for (const f of readdirSync(dir)) { const p = join(dir, f); if (statSync(p).isDirectory()) walk(p); else if (/\.(ts|tsx)$/.test(f) && re.test(readFileSync(p, "utf8"))) hits.push(p.replace(/\\/g, "/")); } }; walk("src"); return hits.sort(); };
   assert.deepEqual(writers(/reviewStatus:\s*"APPROVED"/), ["src/lib/sales-crm/queues.ts"], "the queue pre-check only READS it: nothing writes APPROVED");
-  assert.deepEqual(writers(/reviewStatus:\s*"AUTO_SUPPORTED"/), ["src/actions/sales-inbox.ts", "src/lib/lead-radar/casl-evidence.ts"]);
+  assert.deepEqual(writers(/reviewStatus:\s*"AUTO_SUPPORTED"/), ["src/lib/lead-radar/casl-evidence.ts", "src/lib/sales-comms/basis.ts"]);
   assert.equal(existsSync("src/actions/sales-casl.ts"), false);
   assert.equal(existsSync("src/actions/sales-person.ts"), false);
   assert.equal(existsSync("src/lib/sales-crm/person.ts"), false);
