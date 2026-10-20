@@ -20,8 +20,8 @@ const DEMO_LINK_RE = /\/demo(?:\/booking)?(?:[\s?#]|$)|\/watch\//;
  */
 export const EmailDrawer = forwardRef<EmailDrawerHandle, {
   c: CallingCopy; locale: Locale; prospectId: string; prospectName: string; sp: Softphone;
-  onDirtyChange: (d: boolean) => void; onDemoSent: () => void; notify: (t: Toast) => void;
-}>(function EmailDrawer({ c, locale, prospectId, prospectName, sp, onDirtyChange, onDemoSent, notify }, ref) {
+  onDirtyChange: (d: boolean) => void; onDemoSent: () => void; notify: (t: Toast) => void; onOpenChange?: (open: boolean) => void;
+}>(function EmailDrawer({ c, locale, prospectId, prospectName, sp, onDirtyChange, onDemoSent, notify, onOpenChange }, ref) {
   const t = c.ws.drawer;
   const [open, setOpen] = useState(false);
   const [ctx, setCtx] = useState<EmailComposeContext | null>(null);
@@ -48,6 +48,7 @@ export const EmailDrawer = forwardRef<EmailDrawerHandle, {
       if (!open) returnTo.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       if (req) queue.current.push(req);
       setOpen(true);
+      onOpenChange?.(true);
       setTick((x) => x + 1);
       if (!ctx) load();
     },
@@ -74,6 +75,7 @@ export const EmailDrawer = forwardRef<EmailDrawerHandle, {
   function close(ask: boolean) {
     if (ask && dirty && !window.confirm(t.confirmClose)) return;
     setOpen(false);
+    onOpenChange?.(false);
     const back = returnTo.current;
     if (back && document.contains(back)) back.focus();
   }
@@ -94,7 +96,7 @@ export const EmailDrawer = forwardRef<EmailDrawerHandle, {
   return (
     <div ref={panel} role="dialog" aria-modal="false" aria-labelledby="email-drawer-title" tabIndex={-1} aria-hidden={!open || undefined}
       onKeyDown={(e) => { if (e.key === "Escape" && !(e.target as HTMLElement).closest("[aria-modal='true']")) { e.stopPropagation(); close(true); } }}
-      className={`${open ? "flex" : "hidden"} fixed inset-y-0 right-0 z-40 w-full max-w-full flex-col border-l border-slate-200 bg-white shadow-2xl focus:outline-none sm:w-[36rem]`}>
+      className={`${open ? "flex" : "hidden"} fixed inset-y-0 right-0 z-40 w-full max-w-full flex-col border-l border-slate-200 bg-white shadow-2xl focus:outline-none sm:w-[40rem] lg:w-[62vw] lg:max-w-[60rem]`}>
       {sp.isLive && (
         <div className="flex items-center justify-between gap-2 bg-emerald-700 px-4 py-2 text-sm text-white" role="status">
           <span className="font-medium">● {fill(t.callStrip, { time: clock(sp.seconds) })}{sp.muted ? ` · ${c.softphone.muted}` : ""}</span>
@@ -108,7 +110,8 @@ export const EmailDrawer = forwardRef<EmailDrawerHandle, {
         <h2 id="email-drawer-title" className="min-w-0 truncate text-base font-semibold text-slate-900">{fill(t.title, { name: prospectName })}</h2>
         <button type="button" className={`${btnSecondary} shrink-0`} onClick={() => close(false)}>{t.close}</button>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto p-4">
+      {/* Bottom padding below lg keeps Send / Preview / Save clear of the softphone bar; on lg the phone docks left of the drawer instead. */}
+      <div className="min-h-0 flex-1 overflow-y-auto p-4 pb-32 lg:pb-4">
         {!ctx && !failed && <p role="status" className="text-sm text-slate-600">{t.loading}</p>}
         {failed && !ctx && (
           <div role="alert" className="space-y-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">
