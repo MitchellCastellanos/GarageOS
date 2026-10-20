@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Call, Device } from "@twilio/voice-sdk";
-import { cancelCall, reconcileCall, startProspectCall, startTestCall } from "@/actions/sales-calling";
+import { cancelCall, getCallLiveState, holdCall, reconcileCall, resumeCall, startProspectCall, startTestCall } from "@/actions/sales-calling";
 import type { CallingCopy } from "@/lib/admin-locale/sales-calling";
 import type { StartCallResult } from "@/lib/voice/types";
 
@@ -12,7 +12,7 @@ import type { StartCallResult } from "@/lib/voice/types";
 export type Phase = "idle" | "authorizing" | "dialing" | "ringing" | "connected" | "ended" | "failed";
 export type Target = { kind: "PROSPECT"; id: string; name: string; confirmOutOfHours?: boolean } | { kind: "TEST"; number: string };
 export type Dispo = { sessionId: string; prospectId: string | null; name: string | null; settling: boolean };
-interface Live { device: Device | null; call: Call | null; sessionId: string | null; prospectId: string | null; label: string | null; accepted: boolean; hungUp: boolean; done: boolean; startedAt: number }
+interface Live { device: Device | null; call: Call | null; sessionId: string | null; prospectId: string | null; label: string | null; accepted: boolean; hungUp: boolean; done: boolean; startedAt: number; answered: boolean }
 
 const DEVICE_KEY = "garageos.softphone.inputDevice";
 export const LIVE_PHASES: Phase[] = ["dialing", "ringing", "connected"];
@@ -44,9 +44,13 @@ export function useSoftphone(c: CallingCopy, initialDispo: Dispo | null) {
   const [session, setSession] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [dispo, setDispo] = useState<Dispo | null>(initialDispo);
+  // Hold-capable topology: the browser leg joins before the prospect answers, so "connected" follows the SERVER state; hold is the real telephony hold, never a mute.
+  const [holdAvail, setHoldAvail] = useState(false);
+  const [hold, setHold] = useState<"NONE" | "HOLDING" | "HELD" | "RESUMING">("NONE");
+  const [holdBusy, setHoldBusy] = useState(false);
   const [mics, setMics] = useState<MediaDeviceInfo[]>([]);
   const [micId, setMicId] = useState("");
-  const live = useRef<Live>({ device: null, call: null, sessionId: null, prospectId: null, label: null, accepted: false, hungUp: false, done: true, startedAt: 0 });
+  const live = useRef<Live>({ device: null, call: null, sessionId: null, prospectId: null, label: null, accepted: false, hungUp: false, done: true, startedAt: 0, answered: false });
 
   const callActive = phase === "authorizing" || LIVE_PHASES.includes(phase);
   const isLive = LIVE_PHASES.includes(phase);
@@ -82,6 +86,21 @@ export function useSoftphone(c: CallingCopy, initialDispo: Dispo | null) {
     };
   }, []);
 
+  useEffect(() => {
+    if (!holdAvail || !sessionId || (phase !== "ringing" && phase !== "connected")) return;
+    let alive = true;
+    const id = window.setInterval(() => {
+      void getCallLiveState(sessionId).then((r) => {
+        if (!alive || !r.ok) return;
+        const l = live.current;
+        setHold(r.hold);
+        if (r.state === "IN_PROGRESS" && !l.answered) { l.answered = true; l.startedAt = Date.now(); setPhase("connected"); }
+        if (r.ended && l.call) l.call.disconnect(); // the prospect hung up (or the call failed): the server already closed it, end the browser leg too
+      }).catch(() => undefined);
+    }, 1500);
+    return () => { alive = false; window.clearInterval(id); };
+  }, [holdAvail, sessionId, phase]);
+
   function teardown() {
     const l = live.current;
     l.call = null;
@@ -96,6 +115,7 @@ export function useSoftphone(c: CallingCopy, initialDispo: Dispo | null) {
     teardown();
     setPhase(next);
     setMuted(false);
+    setHold("NONE"); setHoldBusy(false);
     if (next === "failed") setError(c.softphone.callFailed);
     const track = l.prospectId !== null && (next === "ended" || l.accepted);
     if (track) setDispo({ sessionId: sid, prospectId: l.prospectId, name: l.label, settling: true });
@@ -117,7 +137,7 @@ export function useSoftphone(c: CallingCopy, initialDispo: Dispo | null) {
   async function start(target: Target) {
     if (locked) return;
     const l = live.current;
-    setError(null); setNotice(null); setPhase("authorizing"); setMuted(false); setSeconds(0);
+    setError(null); setNotice(null); setPhase("authorizing"); setMuted(false); setSeconds(0); setHold("NONE"); setHoldAvail(false);
     const key = idempotencyKey();
     const micError = await requestMic(c);
     if (micError) { setPhase("idle"); setError(micError); return; }
@@ -129,9 +149,10 @@ export function useSoftphone(c: CallingCopy, initialDispo: Dispo | null) {
     }
     if (!r.ok) { setPhase("idle"); setError(c.errors[r.code] ?? c.unexpected); return; }
     const sid = r.sessionId;
-    Object.assign(l, { call: null, sessionId: sid, prospectId: target.kind === "PROSPECT" ? target.id : null, label: target.kind === "PROSPECT" ? target.name : r.destinationMasked, accepted: false, hungUp: false, done: false, startedAt: 0 });
+    Object.assign(l, { call: null, sessionId: sid, prospectId: target.kind === "PROSPECT" ? target.id : null, label: target.kind === "PROSPECT" ? target.name : r.destinationMasked, accepted: false, hungUp: false, done: false, startedAt: 0, answered: false });
     setSession(l.label);
     setSessionId(sid);
+    setHoldAvail(r.holdAvailable === true);
     setPhase("dialing");
     try {
       const { Device: TwilioDevice, Call: TwilioCall } = await import("@twilio/voice-sdk");
@@ -142,8 +163,12 @@ export function useSoftphone(c: CallingCopy, initialDispo: Dispo | null) {
       const call = await device.connect({ params: { sessionId: sid, authToken: r.authToken } });
       if (l.done) { call.disconnect(); return; }
       l.call = call;
-      call.on("ringing", () => setPhase("ringing"));
-      call.on("accept", () => { l.accepted = true; l.startedAt = Date.now(); setPhase("connected"); });
+      call.on("ringing", () => { if (!l.answered) setPhase("ringing"); });
+      call.on("accept", () => {
+        l.accepted = true;
+        if (r.holdAvailable) { setPhase("ringing"); return; } // joined the private conference: the prospect has not answered yet; the server state flips this to Connected
+        l.answered = true; l.startedAt = Date.now(); setPhase("connected");
+      });
       call.on("disconnect", () => finish("ended", sid));
       call.on("cancel", () => finish(l.hungUp ? "ended" : "failed", sid));
       call.on("reject", () => finish("failed", sid));
@@ -171,6 +196,17 @@ export function useSoftphone(c: CallingCopy, initialDispo: Dispo | null) {
     setMuted(call.isMuted());
   }
 
+  /** Real hold / resume of the prospect leg (server-authorized, idempotent). Not a mute. */
+  async function toggleHold() {
+    const sid = live.current.sessionId;
+    if (!sid || holdBusy || phase !== "connected" || !holdAvail) return;
+    setHoldBusy(true); setError(null);
+    try {
+      const r = hold === "HELD" ? await resumeCall(sid) : await holdCall(sid);
+      if (r.ok) setHold(r.held ? "HELD" : "NONE"); else setError(c.errors[r.code] ?? c.unexpected);
+    } catch { setError(c.unexpected); } finally { setHoldBusy(false); }
+  }
+
   function pickMic(id: string) {
     setMicId(id);
     writeStored(id);
@@ -184,9 +220,10 @@ export function useSoftphone(c: CallingCopy, initialDispo: Dispo | null) {
     setSession(null);
     setSessionId(null);
     setError(null);
+    setHold("NONE"); setHoldAvail(false);
   }
 
-  return { phase, error, setError, notice, setNotice, muted, seconds, session, sessionId, dispo, setDispo, mics, micId, pickMic, start, hangUp, toggleMute, reset, callActive, isLive, locked };
+  return { phase, error, setError, notice, setNotice, muted, seconds, session, sessionId, dispo, setDispo, mics, micId, pickMic, start, hangUp, toggleMute, reset, holdAvail, hold, holdBusy, toggleHold, callActive, isLive, locked };
 }
 
 export type Softphone = ReturnType<typeof useSoftphone>;

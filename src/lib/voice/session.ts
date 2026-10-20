@@ -153,7 +153,7 @@ async function startInner(actor: PlatformSalesActor, input: { kind: "PROSPECT" |
 
 function ok(s: VoiceSettings, sessionId: string, authToken: string, staffKey: string, destination: string, kind: "PROSPECT" | "TEST"): StartCallResult {
   const identity = voiceIdentity(staffKey);
-  return { ok: true, sessionId, authToken, accessToken: mintAccessToken(s, identity), identity, expiresInSec: ACCESS_TOKEN_TTL_SEC, destinationMasked: maskNumber(destination), callerIdMasked: maskNumber(s.callerIdE164!), kind };
+  return { ok: true, sessionId, authToken, accessToken: mintAccessToken(s, identity), identity, expiresInSec: ACCESS_TOKEN_TTL_SEC, destinationMasked: maskNumber(destination), callerIdMasked: maskNumber(s.callerIdE164!), kind, holdAvailable: s.holdEnabled };
 }
 
 /** Closes sessions that can no longer be live (never connected within the authorization window, or open far longer than any call may last) and frees their locks. */

@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import type { CallingCopy } from "@/lib/admin-locale/sales-calling";
 import { inputCls, labelCls } from "@/components/sales-crm/ui";
 import { controlsFor, phaseTone, type DisplayMode, type Locks, type PhonePhase } from "./softphone-model";
-import { AlertIcon, CompactIcon, DotIcon, ExpandIcon, HangUpIcon, MicIcon, MicOffIcon, MinimizeIcon, PhoneIcon } from "./icons";
+import { AlertIcon, PauseIcon, CompactIcon, DotIcon, ExpandIcon, HangUpIcon, MicIcon, MicOffIcon, MinimizeIcon, PhoneIcon } from "./icons";
 import { fill } from "./shared";
 
 const clock = (s: number) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
@@ -16,6 +16,8 @@ export interface FloatingSoftphoneProps {
   phase: PhonePhase; muted: boolean; seconds: number; label: string | null; number: string | null; locks: Locks; callBlockedText: string | null;
   error: string | null; notice: string | null; today: { placed: number; cap: number };
   mics: { deviceId: string; label: string }[]; micId: string; onPickMic: (id: string) => void;
+  /** Real telephony hold. `reason` explains a disabled control; hold is never a microphone mute. */
+  hold: { held: boolean; busy: boolean; enabled: boolean; reason: string | null; onToggle: () => void };
   onCall: () => void; onHangUp: () => void; onToggleMute: () => void; onDismiss: (() => void) | null;
   /** The mandatory outcome form. Always rendered at the same tree position (hidden unless expanded) so its fields survive every mode change. */
   outcome: ReactNode; saved: ReactNode; nav: ReactNode;
@@ -27,7 +29,7 @@ export function FloatingSoftphone(p: FloatingSoftphoneProps) {
   const u = c.ws.phoneUi;
   const show = controlsFor(mode, locks);
   const tone = phaseTone(p.phase);
-  const stateText = `${c.softphone.states[p.phase]}${p.muted && p.phase === "connected" ? ` · ${c.softphone.muted}` : ""}`;
+  const stateText = `${p.hold.held ? u.onHold : c.softphone.states[p.phase]}${p.muted && p.phase === "connected" ? ` · ${c.softphone.muted}` : ""}`;
   const timer = p.phase === "connected" || p.phase === "ended" ? clock(p.seconds) : null;
   const pos = p.dockedLeftOfDrawer ? "lg:right-[calc(min(62vw,60rem)_+_1rem)]" : "lg:right-4";
   const modes: [DisplayMode, string, ReactNode][] = [["expanded", u.expand, <ExpandIcon key="e" />], ["compact", u.compact, <CompactIcon key="c" />], ["minimized", u.minimize, <MinimizeIcon key="m" />]];
@@ -36,6 +38,13 @@ export function FloatingSoftphone(p: FloatingSoftphoneProps) {
     <button type="button" className={`${iconBtn} border border-slate-300 bg-white text-slate-700 hover:bg-slate-50`} disabled={p.phase !== "connected"} aria-pressed={p.muted} onClick={p.onToggleMute}>
       {p.muted ? <MicOffIcon /> : <MicIcon />}<span>{p.muted ? c.softphone.unmute : c.softphone.mute}</span>
     </button>
+  );
+  const holdBtn = (
+    <span title={p.hold.reason ?? undefined}>
+      <button type="button" className={`${iconBtn} border border-slate-300 bg-white text-slate-700 hover:bg-slate-50`} disabled={p.phase !== "connected" || !p.hold.enabled || p.hold.busy} aria-pressed={p.hold.held} onClick={p.hold.onToggle}>
+        <PauseIcon /><span>{p.hold.busy ? u.holdWorking : p.hold.held ? u.resume : u.hold}</span>
+      </button>
+    </span>
   );
   const hangBtn = (
     <button type="button" className={`${iconBtn} bg-red-600 px-3 text-white hover:bg-red-700`} onClick={p.onHangUp}>
@@ -56,6 +65,7 @@ export function FloatingSoftphone(p: FloatingSoftphoneProps) {
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900"><AlertIcon className="size-3.5" />{u.outcomeRequired}</span>
         )}
         {mode !== "expanded" && show.mute && muteBtn}
+        {mode !== "expanded" && show.hold && holdBtn}
         {mode !== "expanded" && show.hangUp && hangBtn}
         <div className="flex shrink-0">
           {modes.filter(([m]) => m !== mode).map(([m, label, icon]) => (
@@ -81,8 +91,11 @@ export function FloatingSoftphone(p: FloatingSoftphoneProps) {
             </span>
           )}
           {show.mute && muteBtn}
+          {show.hold && holdBtn}
           {show.hangUp && hangBtn}
         </div>
+        {p.hold.held && <p role="status" className="flex items-start gap-2 rounded-lg border border-sky-300 bg-sky-50 px-3 py-2 text-sm text-sky-900"><PauseIcon className="mt-0.5" />{u.holdingHint}</p>}
+        {show.hold && !p.hold.enabled && p.hold.reason && p.phase === "connected" && <p className="text-xs text-slate-500">{p.hold.reason}</p>}
         {show.call && p.callBlockedText && <p id="phone-call-blocked" className="text-xs text-amber-800">{p.callBlockedText}</p>}
         {p.error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">{p.error}</p>}
         {p.notice && <p role="status" className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{p.notice}</p>}

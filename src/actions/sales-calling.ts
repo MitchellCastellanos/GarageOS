@@ -18,6 +18,8 @@ import { getSharedNumberAccountSid, getTwilioClientFor } from "@/lib/communicati
 import { publicGateView, readVoiceSettings } from "@/lib/voice/settings";
 import { reapStale, staffKeyOf, startCallSession } from "@/lib/voice/session";
 import { handleStatus } from "@/lib/voice/webhooks";
+import { healHold, holdCallSession, resumeCallSession } from "@/lib/voice/hold";
+import type { HoldResult } from "@/lib/voice/types";
 import { DISPOSITIONS, NEXT_ACTIONS, NOT_INTERESTED_REASONS, maskNumber, type DispositionInput, type DispositionResult, type StartCallResult } from "@/lib/voice/types";
 
 // Browser calling actions. Every one re-derives the seller from the session; the browser can only name a CRM prospect (or a Super Admin test-list entry) and its own idempotency key.
@@ -59,13 +61,35 @@ export async function reconcileCall(sessionId: string): Promise<{ ok: boolean; s
   try {
     const c = getTwilioClientFor((await readVoiceSettings()).twilioAccountSid ?? getSharedNumberAccountSid());
     const parent = await c.calls(s.parentCallSid).fetch();
-    const kid = (await c.calls.list({ parentCallSid: s.parentCallSid, limit: 1 }))[0];
+    const conf = s.topology === "CONFERENCE";
+    const kid = conf ? (s.childCallSid ? await c.calls(s.childCallSid).fetch() : undefined) : (await c.calls.list({ parentCallSid: s.parentCallSid, limit: 1 }))[0];
     const src = kid ?? parent;
-    await handleStatus({ CallSid: src.sid, ...(kid ? { ParentCallSid: s.parentCallSid } : {}), CallStatus: src.status, CallDuration: src.duration ?? "", SequenceNumber: "999" });
+    if (conf && kid) await handleStatus({ CallSid: kid.sid, CallStatus: kid.status, CallDuration: kid.duration ?? "", SequenceNumber: "999" }, new Date(), s.id);
+    else await handleStatus({ CallSid: src.sid, ...(kid ? { ParentCallSid: s.parentCallSid } : {}), CallStatus: src.status, CallDuration: src.duration ?? "", SequenceNumber: "999" });
     if (parent.status === "completed" && !kid) await handleStatus({ CallSid: s.parentCallSid, CallStatus: "completed", SequenceNumber: "998" });
   } catch { /* leave it open; the stale-call reaper closes it */ }
   const after = await db.crmCallSession.findUnique({ where: { id: s.id }, select: { state: true } });
   return { ok: true, state: after?.state ?? null };
+}
+
+/** Real Hold: the prospect leg is held (hears a waiting message) until Resume. Needs the hold-capable topology; never a microphone mute. */
+export async function holdCall(sessionId: string): Promise<HoldResult> {
+  const actor = await requireCrmActor("place_sales_calls");
+  return holdCallSession(actor, String(sessionId));
+}
+export async function resumeCall(sessionId: string): Promise<HoldResult> {
+  const actor = await requireCrmActor("place_sales_calls");
+  return resumeCallSession(actor, String(sessionId));
+}
+
+/** Server truth about one of the seller's own calls (used by the softphone in the hold-capable topology, where the browser leg joins before the prospect answers). */
+export async function getCallLiveState(sessionId: string): Promise<{ ok: true; state: string; hold: "NONE" | "HOLDING" | "HELD" | "RESUMING"; ended: boolean; topology: string } | { ok: false }> {
+  const actor = await requireCrmActor("place_sales_calls");
+  const s = await ownSession(actor, sessionId);
+  if (!s) return { ok: false };
+  if (s.holdState === "HOLDING" || s.holdState === "RESUMING") await healHold(s.id);
+  const f = (await db.crmCallSession.findUnique({ where: { id: s.id }, select: { state: true, holdState: true, endedAt: true, topology: true } }))!;
+  return { ok: true, state: f.state, hold: f.holdState, ended: !!f.endedAt, topology: f.topology };
 }
 
 const OUTCOME_OF: Record<(typeof DISPOSITIONS)[number], "CONNECTED" | "VOICEMAIL" | "NO_ANSWER" | "WRONG_NUMBER" | "INTERESTED" | "NOT_INTERESTED" | "FOLLOW_UP_NEEDED"> = {
@@ -157,7 +181,7 @@ export interface CallingPageData {
   /** The profile of the prospect behind the pending disposition or the still-open call, so a reload resumes exactly where the seller was. */
   resumeProfile: WorkspaceProfile | null;
   /** A call of this seller that is still open (e.g. after a page reload). */
-  openCall: { sessionId: string; state: string; prospectId: string | null } | null;
+  openCall: { sessionId: string; state: string; prospectId: string | null; hold: "NONE" | "HOLDING" | "HELD" | "RESUMING" } | null;
   /** Calls placed by this seller in the last 24 h versus the daily cap (display only; the server enforces the cap). */
   today: { placed: number; cap: number };
 }
@@ -168,11 +192,12 @@ export async function getCallingPage(): Promise<CallingPageData> {
   await reapStale(key, null);
   const [settings, openRow, pending, staff, placed] = await Promise.all([
     readVoiceSettings(),
-    db.crmCallSession.findFirst({ where: { staffId: key, state: { in: [...OPEN] }, endedAt: null }, select: { id: true, prospectId: true, state: true } }),
+    db.crmCallSession.findFirst({ where: { staffId: key, state: { in: [...OPEN] }, endedAt: null }, select: { id: true, prospectId: true, state: true, holdState: true } }),
     db.crmCallSession.findFirst({ where: { userId: actor.userId, endedAt: { not: null }, dispositionAt: null, kind: "PROSPECT", parentCallSid: { not: null } }, orderBy: { requestedAt: "desc" }, include: { prospect: { select: { name: true } } } }),
     actor.staffId ? db.platformSalesStaff.findUnique({ where: { id: actor.staffId }, select: { timezone: true } }) : null,
     db.crmCallSession.count({ where: { staffId: key, kind: "PROSPECT", requestedAt: { gt: new Date(Date.now() - 24 * 3600_000) }, state: { notIn: ["FAILED", "CANCELED", "ABANDONED"] } } }),
   ]);
+  if (openRow && (openRow.holdState === "HOLDING" || openRow.holdState === "RESUMING")) await healHold(openRow.id);
   const resumeId = pending?.prospectId ?? openRow?.prospectId ?? null;
   const resumeProfile = resumeId ? await loadWorkspaceProfile(actor, resumeId).catch(() => null) : null;
   return {
@@ -182,7 +207,7 @@ export async function getCallingPage(): Promise<CallingPageData> {
     testNumbers: actor.kind === "SUPER_ADMIN" ? settings.testDestinations.map((value) => ({ value, masked: maskNumber(value) })) : [],
     pendingDisposition: pending ? { sessionId: pending.id, prospectId: pending.prospectId, prospectName: pending.prospect?.name ?? null, state: pending.state, durationSec: pending.durationSec } : null,
     resumeProfile,
-    openCall: openRow ? { sessionId: openRow.id, state: openRow.state, prospectId: openRow.prospectId } : null,
+    openCall: openRow ? { sessionId: openRow.id, state: openRow.state, prospectId: openRow.prospectId, hold: openRow.holdState } : null,
     today: { placed, cap: settings.dailyCallCapPerSeller },
   };
 }

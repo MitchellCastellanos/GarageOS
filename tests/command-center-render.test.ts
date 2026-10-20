@@ -33,7 +33,7 @@ const profile: Profile = {
 };
 
 const lockInput = { hasProspect: true, gateOpen: true, doNotContact: false, heldProvince: false, hasPhone: true };
-function phone(locale: "en" | "fr", mode: Mode, phase: Phase, opts: { pending?: boolean; outcome?: ReactNode; nav?: ReactNode } = {}) {
+function phone(locale: "en" | "fr", mode: Mode, phase: Phase, opts: { pending?: boolean; outcome?: ReactNode; nav?: ReactNode; hold?: { held?: boolean; busy?: boolean; enabled?: boolean } } = {}) {
   const c = callingCopy(locale);
   const locks = deriveLocks({ ...lockInput, phase, dispoPending: !!opts.pending });
   return renderToStaticMarkup(createElement(FloatingSoftphone, {
@@ -41,6 +41,7 @@ function phone(locale: "en" | "fr", mode: Mode, phase: Phase, opts: { pending?: 
     callBlockedText: locks.callReason ? c.ws.phone[locks.callReason] : null, error: null, notice: null, today: { placed: 3, cap: 80 },
     mics: [{ deviceId: "m1", label: "Headset" }], micId: "", onPickMic: () => undefined, onCall: () => undefined, onHangUp: () => undefined, onToggleMute: () => undefined, onDismiss: null,
     outcome: opts.outcome ?? null, saved: null, nav: opts.nav ?? null,
+    hold: { held: opts.hold?.held ?? false, busy: opts.hold?.busy ?? false, enabled: opts.hold?.enabled ?? true, reason: opts.hold?.enabled === false ? c.ws.phoneUi.holdOff : null, onToggle: () => undefined },
   }));
 }
 const visible = (html: string) => html.replace(/<div class="hidden">[\s\S]*$/, ""); // the expanded body is the last block; "hidden" in other modes
@@ -80,13 +81,27 @@ test("minimized phone shows the pending-outcome warning", () => {
   }
 });
 
-test("no Hold / Transfer / Conference / Recording control or copy in the softphone (EN and FR)", () => {
+test("no Transfer / Conference / Recording control or copy in the softphone (EN and FR) — Hold is the only extra control", () => {
   for (const mode of ["expanded", "compact", "minimized"] as const) {
     for (const phase of ["idle", "connected", "ended"] as const) {
-      assert.doesNotMatch(phone("en", mode, phase, { pending: phase === "ended" }), /\b(hold|transfer|conference|record(ing)?)\b/i, `${mode}/${phase}`);
-      assert.doesNotMatch(phone("fr", mode, phase, { pending: phase === "ended" }), /\b(mise en attente|en attente|transf[ée]r|conf[ée]rence|enregistrement d)/i, `fr ${mode}/${phase}`);
+      assert.doesNotMatch(phone("en", mode, phase, { pending: phase === "ended" }), /\b(transfer|conference|record(ing)?)\b/i, `${mode}/${phase}`);
+      assert.doesNotMatch(phone("fr", mode, phase, { pending: phase === "ended" }), /\b(transf[ée]r|conf[ée]rence|enregistrement d)/i, `fr ${mode}/${phase}`);
     }
   }
+});
+
+test("hold: a real Hold/Resume control only while connected and not minimized; held state is announced; disabled with its reason when unavailable; never confused with Mute", () => {
+  for (const mode of ["expanded", "compact"] as const) {
+    const live = phone("en", mode, "connected");
+    assert.match(live, />Hold</); assert.match(live, />Mute</);
+    assert.match(phone("en", mode, "connected", { hold: { held: true } }), />Resume</);
+    assert.match(phone("en", mode, "connected", { hold: { held: true } }), /On hold/);
+    assert.match(phone("fr", mode, "connected", { hold: { held: true } }), /Reprendre/);
+    assert.match(phone("en", mode, "connected", { hold: { enabled: false } }), /disabled=""[^>]*aria-pressed="false"[^>]*>(?:(?!<\/button>)[\s\S])*Hold/);
+    assert.doesNotMatch(phone("en", mode, "idle"), />Hold</, "no hold control without a live call");
+  }
+  assert.doesNotMatch(phone("en", "minimized", "connected"), />Hold</);
+  assert.match(phone("en", "expanded", "connected", { hold: { enabled: false } }), /Hold is not enabled yet/);
 });
 
 test("pending outcome: the disposition form renders INSIDE the phone, Call and Next prospect are disabled", () => {

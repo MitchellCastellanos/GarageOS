@@ -65,6 +65,7 @@ export function controlsFor(mode: DisplayMode, l: Pick<Locks, "live" | "callActi
     call: mode === "expanded" && !l.callActive,
     hangUp: l.callActive,
     mute: l.live && mode !== "minimized",
+    hold: l.live && mode !== "minimized",
     mic: mode === "expanded",
     nav: mode === "expanded",
     outcomeForm: mode === "expanded" && l.outcomeDue,
