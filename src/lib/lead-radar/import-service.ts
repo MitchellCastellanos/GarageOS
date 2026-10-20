@@ -36,7 +36,13 @@ export interface ImportOptions {
   /** Phone-first calling import (manual, Super Admin): takes VERIFIED_REPAIR national candidates with a valid Canadian phone and no existing CRM record, APPROVED or still PENDING review
    *  (review state is an email-qualification outcome; it says nothing about a phone). Never used by the automatic orchestrator; email eligibility is not touched. */
   phoneFirst?: boolean;
+  /** Runs everything (claim, approve, screen, create) inside the transaction and rolls it back: the returned tallies are exactly what a real run would do. Writes nothing. */
+  dryRun?: boolean;
+  /** Phone-first scan cursor: only candidates with id greater than this are scanned (resumable batches; the returned `phoneFirstCursor` is the next value, null when the pool is exhausted). */
+  afterId?: string | null;
 }
+
+export class DryRunRollback<T> extends Error { constructor(readonly result: T) { super("DRY_RUN_ROLLBACK"); } }
 
 export async function importApprovedCandidates(actor: PlatformSalesActor, opts: ImportOptions = {}) {
   await resolveAssignee(actor, null); // the actor must be allowed to hold the unassigned pool (manager / Super Admin)
@@ -48,13 +54,16 @@ export async function importApprovedCandidates(actor: PlatformSalesActor, opts: 
   const policyGuard = auto ? Prisma.sql`AND ("approvedByPolicyVersion" IS NULL OR "approvedByPolicyVersion" = ${auto.policyVersion})` : Prisma.empty;
   const idGuard = ids ? Prisma.sql`AND "id" IN (${Prisma.join(ids)})` : Prisma.empty;
 
-  return db.$transaction(async (tx) => {
+  try {
+  return await db.$transaction(async (tx) => {
     let phoneFirstIds: string[] | null = null;
+    let phoneFirstCursor: string | null = null;
     if (opts.phoneFirst && !auto) {
       // Candidate pool is narrowed in JS by the strict Canadian number rule and de-duplicated by number (against the CRM and within the chunk); a shared number stays staged for classification.
       const pool = await tx.$queryRaw<{ id: string; phone: string | null }[]>(Prisma.sql`SELECT "id", "phone" FROM "garageos"."CrmDiscoveryCandidate"
         WHERE "reviewState" IN ('APPROVED','PENDING') AND ("importState" = 'NOT_IMPORTED' OR ("importState" = 'SKIPPED' AND "importErrorCode" = 'SCREEN_REMOTE_NO_USABLE_EMAIL')) AND "licenseOk" = true AND "tier" <> 'EXCLUDED' AND "duplicateOfCandidateId" IS NULL
-          AND "repairFit" = 'VERIFIED_REPAIR' AND "matchState" = 'NEW' AND "territoryKey" = 'national' AND "phone" IS NOT NULL AND "importAttempts" < 3 ${idGuard} ORDER BY "id" LIMIT ${limit * 4}`);
+          AND "repairFit" = 'VERIFIED_REPAIR' AND "matchState" = 'NEW' AND "territoryKey" = 'national' AND "phone" IS NOT NULL AND "importAttempts" < 3 ${idGuard} ${opts.afterId ? Prisma.sql`AND "id" > ${opts.afterId}` : Prisma.empty} ORDER BY "id" LIMIT ${limit * 4}`);
+      phoneFirstCursor = pool.length === limit * 4 ? pool[pool.length - 1].id : null;
       const valid = pool.map((r) => ({ id: r.id, phone: normalizeCanadianPhone(r.phone) })).filter((r): r is { id: string; phone: NonNullable<ReturnType<typeof normalizeCanadianPhone>> } => !!r.phone);
       const inCrm = valid.length ? await tx.crmProspect.findMany({ where: { phoneDigits: { in: valid.map((v) => v.phone.national) } }, select: { phoneDigits: true } }) : [];
       const taken = new Set(inCrm.map((r) => r.phoneDigits));
@@ -65,7 +74,7 @@ export async function importApprovedCandidates(actor: PlatformSalesActor, opts: 
     const locked = phoneFirstIds
       ? (phoneFirstIds.length ? await tx.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT "id" FROM "garageos"."CrmDiscoveryCandidate" WHERE "id" IN (${Prisma.join(phoneFirstIds)}) AND ("importState" = 'NOT_IMPORTED' OR "importState" = 'SKIPPED') ORDER BY "id" FOR UPDATE SKIP LOCKED`) : [])
       : await tx.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT "id" FROM "garageos"."CrmDiscoveryCandidate" WHERE "reviewState" = 'APPROVED' AND "importState" IN ${states} AND "licenseOk" = true AND "tier" <> 'EXCLUDED' AND "duplicateOfCandidateId" IS NULL ${idGuard} ${policyGuard} ORDER BY "id" LIMIT ${limit} FOR UPDATE SKIP LOCKED`);
-    if (!locked.length) return { batchId: null as string | null, claimed: 0, created: 0, linked: 0, sentToReview: 0, skipped: 0, failed: 0, createdProspectIds: [] as string[], linkedProspectIds: [] as string[], reviewProspectIds: [] as string[], unassignedCreated: 0 };
+    if (!locked.length) return { phoneFirstCursor, batchId: null as string | null, claimed: 0, created: 0, linked: 0, sentToReview: 0, skipped: 0, failed: 0, createdProspectIds: [] as string[], linkedProspectIds: [] as string[], reviewProspectIds: [] as string[], unassignedCreated: 0 };
 
     // The database requires APPROVED before any import state. A phone-first import is run by a Super Admin / manager with the review capability (resolveAssignee above), so it IS the human approval
     // of the still-PENDING rows (email qualification never applied to a phone): stamped with who/when/why, never done by a policy.
@@ -108,7 +117,7 @@ export async function importApprovedCandidates(actor: PlatformSalesActor, opts: 
     });
     for (const b of screenBlocked) await tx.crmDiscoveryCandidate.update({ where: { id: b.id }, data: { importState: "SKIPPED", importErrorCode: b.code, importAttempts: { increment: 1 }, importLastAttemptAt: new Date() } });
     if (screenBlocked.length) await writeCrmAudit({ actorUserId: actor.userId, action: "LEAD_RADAR_CANDIDATES_REVIEWED", entityType: "CrmDiscoveryCandidate", metadata: { decision: "SKIPPED", via: "commercial-screen-at-import", count: screenBlocked.length, codes: screenBlocked.reduce<Record<string, number>>((m, b) => ({ ...m, [b.code]: (m[b.code] ?? 0) + 1 }), {}) } }, tx);
-    if (!cands.length) return { batchId: null as string | null, claimed: claimed.length, created: 0, linked: 0, sentToReview: 0, skipped: screenBlocked.length, failed: 0, fitBlocked: fitBlocked.length, screenBlocked: screenBlocked.length, createdProspectIds: [] as string[], linkedProspectIds: [] as string[], reviewProspectIds: [] as string[], unassignedCreated: 0 };
+    if (!cands.length) return { phoneFirstCursor, batchId: null as string | null, claimed: claimed.length, created: 0, linked: 0, sentToReview: 0, skipped: screenBlocked.length, failed: 0, fitBlocked: fitBlocked.length, screenBlocked: screenBlocked.length, createdProspectIds: [] as string[], linkedProspectIds: [] as string[], reviewProspectIds: [] as string[], unassignedCreated: 0 };
     const { csv, rowToCandidate } = candidatesToImportCsv(cands.map((c) => ({ id: c.id, sourceRecordId: c.sourceRecordId, name: c.name, website: c.website, address: c.address, city: c.city, province: c.province, postalCode: c.postalCode, phone: c.phone, email: c.email, industry: c.industry, lastSeenRelease: c.lastSeenRelease })));
     const mapping = Object.fromEntries(IMPORT_HEADERS.map((h, i) => [String(i), h]));
     const parsed = parseProspectCsv(csv, { defaultSource: "DIRECTORY", mapping });
@@ -171,6 +180,12 @@ export async function importApprovedCandidates(actor: PlatformSalesActor, opts: 
       }
     }
     await writeCrmAudit({ actorUserId: actor.userId, action: "LEAD_RADAR_IMPORT_COMPLETED", entityType: "CrmImportBatch", entityId: batch.id, metadata: { ...tally, failed, fitBlocked: fitBlocked.length, screenBlocked: screenBlocked.length, fitStamped, positions: located, candidates: cands.length, sourceKey: LEAD_RADAR_SOURCE_KEY, ...(auto ? { policyVersion: auto.policyVersion, automatic: true } : {}) } }, tx);
-    return { batchId: batch.id as string | null, claimed: claimed.length, ...tally, skipped: tally.skipped + screenBlocked.length, failed, fitBlocked: fitBlocked.length, screenBlocked: screenBlocked.length, createdProspectIds: createdIds, linkedProspectIds: linkedIds, reviewProspectIds: reviewIds, unassignedCreated: createdIds.length };
+    const result = { phoneFirstCursor, batchId: batch.id as string | null, claimed: claimed.length, ...tally, skipped: tally.skipped + screenBlocked.length, failed, fitBlocked: fitBlocked.length, screenBlocked: screenBlocked.length, createdProspectIds: createdIds, linkedProspectIds: linkedIds, reviewProspectIds: reviewIds, unassignedCreated: createdIds.length };
+    if (opts.dryRun) throw new DryRunRollback(result);
+    return result;
   }, { timeout: auto?.timeoutMs ?? 120_000, maxWait: 10_000 });
+  } catch (e) {
+    if (e instanceof DryRunRollback) return e.result as never;
+    throw e;
+  }
 }

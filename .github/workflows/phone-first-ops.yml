@@ -1,0 +1,55 @@
+name: Phone-first operations (manual, bounded, resumable)
+
+# Runs one stage of the phone-first preparation against production through the cron-authenticated endpoint /api/webhooks/cron/phone-first.
+# READ-ONLY unless `apply` is true. Prints counts, codes and cursors only (never a name, number or address). Uses the same secrets as the other workers.
+on:
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: "inventory | twilio | refresh | import"
+        type: choice
+        options: [inventory, twilio, refresh, import]
+        default: inventory
+      apply:
+        description: "Write changes (refresh/import). Default false = dry run."
+        type: boolean
+        default: false
+      loop:
+        description: "Repeat with the returned cursor until the stage reports no next cursor (max 300 calls)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phone-first-ops
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Run the stage
+        env:
+          SECRET: ${{ secrets.LEAD_RADAR_CRON_SECRET }}
+          BASE_URL: ${{ secrets.SALES_CRON_BASE_URL }}
+          STAGE: ${{ inputs.stage }}
+          APPLY: ${{ inputs.apply }}
+          LOOP: ${{ inputs.loop }}
+        run: |
+          if [ -z "$SECRET" ] || [ -z "$BASE_URL" ]; then echo "::error::secrets not configured"; exit 1; fi
+          case "$BASE_URL" in https://*) ;; *) echo "::error::SALES_CRON_BASE_URL must be an https origin"; exit 1;; esac
+          apply=0; [ "$APPLY" = "true" ] && apply=1
+          after=""; calls=0
+          while :; do
+            calls=$((calls+1))
+            code="$(curl -sS -m 70 -o /tmp/out.json -w '%{http_code}' -H "Authorization: Bearer ${SECRET}" "${BASE_URL%/}/api/webhooks/cron/phone-first?stage=${STAGE}&apply=${apply}&after=${after}")" || { echo "::error::request failed"; exit 1; }
+            echo "call ${calls} HTTP ${code}"; head -c 20000 /tmp/out.json; echo
+            [ "$code" = "200" ] || exit 1
+            next="$(sed -n 's/.*"next":"\([^"]*\)".*/\1/p' /tmp/out.json)"
+            if [ "$LOOP" != "true" ] || [ -z "$next" ] || [ "$calls" -ge 300 ]; then break; fi
+            after="$next"
+          done
+          echo "done after ${calls} call(s)"

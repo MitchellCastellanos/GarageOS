@@ -170,6 +170,24 @@ if (!enabled) {
     assert.equal(await db.crmProspect.count({ where: { id: { in: imported.map((i) => i.importedProspectId!) } } }), prospects.length);
   });
 
+  test("dry run is a full transaction rolled back: the tallies match a real run, nothing is written; the scan cursor lets a restart resume", async () => {
+    const rows = [cand(40), cand(41), cand(42)];
+    await db.crmDiscoveryCandidate.createMany({ data: rows as any });
+    const ids = (await db.crmDiscoveryCandidate.findMany({ where: { sourceRecordId: { in: rows.map((r) => r.sourceRecordId) } }, orderBy: { id: "asc" }, select: { id: true } })).map((r) => r.id);
+    const prospectsBefore = await db.crmProspect.count(), batchesBefore = await db.crmImportBatch.count();
+    const dry: any = await importLib.importApprovedCandidates(actor() as any, { ids, phoneFirst: true, dryRun: true });
+    assert.equal(dry.created, 3);
+    assert.equal(await db.crmProspect.count(), prospectsBefore, "dry run wrote no prospect");
+    assert.equal(await db.crmImportBatch.count(), batchesBefore, "dry run wrote no batch");
+    assert.equal(await db.crmDiscoveryCandidate.count({ where: { id: { in: ids }, importState: "NOT_IMPORTED", reviewState: "PENDING" } }), 3, "candidates untouched (still PENDING, not approved)");
+    // cursor: scanning after the first id sees only the other two
+    const resumed: any = await importLib.importApprovedCandidates(actor() as any, { ids, phoneFirst: true, dryRun: true, afterId: ids[0] });
+    assert.equal(resumed.created, 2);
+    const real: any = await importLib.importApprovedCandidates(actor() as any, { ids, phoneFirst: true });
+    assert.equal(real.created, dry.created, "a real run does exactly what the dry run reported");
+    assert.equal(await db.crmProspect.count(), prospectsBefore + 3);
+  });
+
   test("the default (email-only) import path is unchanged: a phone-only candidate is still not imported by it", async () => {
     const [c] = [cand(20, { reviewState: "APPROVED" })];
     await db.crmDiscoveryCandidate.create({ data: c as any });
