@@ -74,9 +74,20 @@ export function StaffForm({ locale, staffId, values = {}, managers, signature, t
       </label>
       <label className={labelCls}>{m.titleField}<input className={inputCls} name="title" maxLength={100} defaultValue={values.title ?? ""} disabled={pending} /></label>
       <label className={labelCls}>{m.phone}<input className={inputCls} name="phone" type="tel" maxLength={30} defaultValue={values.phone ?? ""} disabled={pending} /></label>
-      <label className={`${labelCls} sm:col-span-2`}>{ic.mode}
-        <select className={inputCls} name="salesMode" defaultValue={values.salesMode ?? "REMOTE"} disabled={pending}><option value="REMOTE">{ic.modeRemote}</option><option value="FIELD">{ic.modeField}</option></select>
-      </label>
+      <fieldset className="grid gap-2 sm:col-span-2" disabled={pending}>
+        <legend className="text-sm font-medium text-slate-700">{ic.capabilities}</legend>
+        <input type="hidden" name="capabilitiesSubmitted" value="1" />
+        <label className="flex min-h-11 items-start gap-2 text-sm text-slate-700">
+          <input className="mt-0.5 size-5" type="checkbox" name="fieldSales" defaultChecked={values.salesMode === "FIELD"} />
+          <span><span className="font-medium">{ic.fieldSales}</span><span className="block text-xs text-slate-500">{ic.fieldSalesHelp}</span></span>
+        </label>
+        <label className="flex min-h-11 items-start gap-2 text-sm text-slate-700">
+          {/* Always on: a disabled checkbox is not submitted, so the value travels in a hidden input. */}
+          <input className="mt-0.5 size-5" type="checkbox" checked readOnly disabled aria-describedby="remote-sales-help" />
+          <input type="hidden" name="remoteSales" value="on" />
+          <span><span className="font-medium">{ic.remoteSales}</span><span id="remote-sales-help" className="block text-xs text-slate-500">{ic.remoteSalesHelp}</span></span>
+        </label>
+      </fieldset>
       {territories.length > 0 && (
         <fieldset className="grid gap-2 sm:col-span-2" disabled={pending}>
           <legend className="text-sm font-medium text-slate-700">{ic.coverage}</legend>
