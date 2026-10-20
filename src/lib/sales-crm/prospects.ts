@@ -9,6 +9,7 @@ import { classifyAgainstPool, type MatchKey } from "@/domain/sales-crm/dedupe";
 import { normalizeBusinessName, normalizeEmail, phoneDigits, websiteDomain } from "@/domain/sales-crm/normalize";
 import { cityKey, classifyTerritory, type Location, type TerritoryRule } from "@/domain/sales-crm/territory";
 import type { ProspectInput } from "@/domain/sales-crm/validation";
+import { suppressPhoneForProspect } from "@/lib/sales-crm/phone-readiness";
 import { writeCrmAudit } from "@/lib/sales-crm/audit";
 import { recomputeOpportunityScores } from "@/lib/sales-crm/scoring";
 import { loadMatchPool } from "@/lib/sales-crm/lead-pool";
@@ -178,6 +179,8 @@ export async function applyDoNotContact(tx: Tx, actor: PlatformSalesActor, prosp
   }
   await tx.crmTask.updateMany({ where: { prospectId, status: "OPEN" }, data: { status: "CANCELLED", updatedAt: now } });
   await writeCrmAudit({ actorUserId: actor.userId, action: "PROSPECT_DNC_SET", entityType: "CrmProspect", entityId: prospectId, prospectId }, tx);
+  // Telephone channel: effective immediately and recorded on the internal DNC list (business + number), so the number is also refused on any other record that holds it.
+  await suppressPhoneForProspect(tx, prospectId, actor.userId, "DO_NOT_CONTACT", note);
 }
 
 export async function touchProspect(tx: Tx, prospectId: string, at = new Date()) {

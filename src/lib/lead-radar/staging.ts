@@ -121,7 +121,7 @@ export async function stageChunk(tx: Tx, run: { id: string; scope: DiscoveryScop
       fit = { ...fit, reasons: (dec.kind === "EXCLUDE" && dec.rekeyed && !fit.reasons.includes("ICP_TOMBSTONE_REKEYED") ? [...withTombstoneMarker(fit.reasons), "ICP_TOMBSTONE_REKEYED"] : withTombstoneMarker(fit.reasons)) as typeof fit.reasons };
       if (!(prev && IMPORTED.has(prev.importState))) toRecord.push({ sourceRecordId: c.sourceRecordId, province: c.province, name: c.name, city: c.city, identityKey, reasons: fit.reasons, release: run.release });
     }
-    const screen = screenCandidate({ licenseOk: c.licenseOk, tier: c.tier, fit: fit.fit, humanFitDecision: icpOverride, operatingStatus: c.operatingStatus, territory: cls.state, address: c.address, city: c.city, postalCode: c.postalCode, phone: c.phone, email: c.email });
+    const screen = screenCandidate({ licenseOk: c.licenseOk, tier: c.tier, fit: fit.fit, humanFitDecision: icpOverride, operatingStatus: c.operatingStatus, territory: cls.state, address: c.address, city: c.city, postalCode: c.postalCode, phone: c.phone, email: c.email, phoneFirst: true });
     pre.set(c.sourceRecordId, { cls, fit, identityKey, icpOverride, dec, screenReasons: screen.reasons });
     if (!screen.lane && !prev) {
       rejected.push({ sourceRecordId: c.sourceRecordId, reasons: screen.reasons, fingerprint: c.contentFingerprint, province: c.province, release: run.release });

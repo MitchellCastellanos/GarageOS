@@ -1,5 +1,7 @@
 # Twilio Voice sales softphone + national B2B calling — audit and implementation plan
 
+> **Update 2026-10-20:** production Neon is now connected; real counts, the legal rules, the defects and the first fix are in `docs/phone-first-calling-policy.md`, which supersedes the "unknown" figures here.
+
 Status: **read-only audit, 2026-10-20.** Nothing was implemented, migrated, purchased, configured, called or deployed. Source: `main` at `4244054` (PR #170).
 
 ## 0. What could and could not be verified

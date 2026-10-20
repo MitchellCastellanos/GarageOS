@@ -3,7 +3,7 @@
 // minimum requirements cannot differ between a manual and an automated import.
 //
 //   FIELD  (LOCAL territory: Montréal / Laval / designated South Shore)  verified independent repair shop + a reliably visitable physical location. Email optional.
-//   REMOTE (NATIONAL territory: rest of Canada)                          verified independent repair shop + permitted licence + usable email.
+//   REMOTE (NATIONAL territory: rest of Canada)                          verified independent repair shop + permitted licence + usable email (or, with `phoneFirst`, a valid Canadian phone).
 //   UNRESOLVED territory (e.g. Québec with no city/postal code) is never kept: it could be a FIELD address and must never silently become REMOTE.
 //
 // No scoring, no size/specialty classification, no manual review lane: an ambiguous record (repair fit HUMAN_REVIEW) is simply not kept, and is re-screened whenever a later
@@ -11,6 +11,7 @@
 import { isValidEmail } from "@/domain/sales-comms/email";
 import type { RepairFit } from "@/domain/lead-radar/repair-fit";
 import type { TerritoryState } from "@/domain/sales-crm/territory";
+import { normalizeCanadianPhone } from "@/domain/sales-crm/phone";
 
 export const SCREEN_VERSION = "screen-v1";
 
@@ -29,6 +30,8 @@ export interface ScreenFacts {
   address: string | null; city: string | null; postalCode: string | null; phone: string | null;
   /** The staged email, already null when suppressed. Syntax only: it says nothing about consent. */
   email: string | null;
+  /** Phone-first calling: a REMOTE business with a valid Canadian business phone is keepable WITHOUT an email. Default false = the email-only behaviour, unchanged. Email stays a separate channel: this never makes an address usable or sendable. */
+  phoneFirst?: boolean;
 }
 
 export type ScreenResult = { lane: "FIELD" | "REMOTE"; reasons: [] } | { lane: null; reasons: ScreenReason[] };
@@ -46,7 +49,7 @@ export function screenCandidate(f: ScreenFacts): ScreenResult {
   if (f.territory === "UNRESOLVED") r.push("TERRITORY_UNRESOLVED");
   else if (f.territory === "LOCAL") {
     if (!(f.address && (f.postalCode || f.city))) r.push("FIELD_NOT_VISITABLE");
-  } else if (!f.email || !isValidEmail(f.email)) r.push("REMOTE_NO_USABLE_EMAIL");
+  } else if ((!f.email || !isValidEmail(f.email)) && !(f.phoneFirst && normalizeCanadianPhone(f.phone))) r.push("REMOTE_NO_USABLE_EMAIL");
   if (r.length) return { lane: null, reasons: [...new Set(r)] };
   return { lane: f.territory === "LOCAL" ? "FIELD" : "REMOTE", reasons: [] };
 }
