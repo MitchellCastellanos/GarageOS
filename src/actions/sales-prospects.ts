@@ -10,6 +10,7 @@ import {
   requireScopedProspect, resolveAssignee, stampFieldPriorityOnEntry, territoryColumns, touchProspect,
 } from "@/lib/sales-crm/prospects";
 import { crmAction, mapUniqueViolation } from "@/lib/sales-crm/result";
+import { liftPhoneSuppressionForProspect } from "@/lib/sales-crm/phone-readiness";
 import { contactInputSchema, prospectInputSchema } from "@/domain/sales-crm/validation";
 import { normalizeEmail } from "@/domain/sales-crm/normalize";
 import { assertAcquisition } from "@/lib/sales-crm/territory";
@@ -128,6 +129,7 @@ export async function reinstateProspect(prospectId: string) {
       await tx.crmStageEvent.create({ data: { opportunityId: opp.id, toStage: "NEW", actorUserId: actor.userId, note: "reinstated" } });
       await tx.crmActivity.create({ data: { prospectId, opportunityId: opp.id, type: "SYSTEM", authorUserId: actor.userId, metadata: { event: "DO_NOT_CONTACT_CLEARED" } } });
       await writeCrmAudit({ actorUserId: actor.userId, action: "PROSPECT_DNC_CLEARED", entityType: "CrmProspect", entityId: prospectId, prospectId }, tx);
+      await liftPhoneSuppressionForProspect(tx, prospectId, actor.userId, "reinstated");
     }).catch((e) => mapUniqueViolation(e, "OPEN_OPPORTUNITY_EXISTS"));
     refresh(prospectId);
     return {};

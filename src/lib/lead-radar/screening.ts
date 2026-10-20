@@ -59,7 +59,7 @@ export async function purgeUnusableCandidates(opts: { limit: number; deadline: n
     t.examined++;
     const fit = assessRepairFit({ name: c.name, taxonomyPrimary: c.taxonomyPrimary, classReasons: c.classReasons, website: c.website, city: c.city, icpOverride: false, storedReasons: c.repairFitReasons });
     const territory = classifyTerritory(rules, { province: c.province, city: c.city, postalCode: c.postalCode }).state;
-    const screen = screenCandidate({ licenseOk: c.licenseOk, tier: c.tier, fit: fit.fit, territory, address: c.address, city: c.city, postalCode: c.postalCode, phone: c.phone, email: c.email, operatingStatus: null });
+    const screen = screenCandidate({ licenseOk: c.licenseOk, tier: c.tier, fit: fit.fit, territory, address: c.address, city: c.city, postalCode: c.postalCode, phone: c.phone, email: c.email, operatingStatus: null, phoneFirst: true });
     if (screen.lane || referenced.has(c.id)) { t.kept++; continue; }
     toPurge.push(c);
     tombs.push({ sourceRecordId: c.sourceRecordId, reasons: screen.reasons, fingerprint: c.contentFingerprint, province: c.province, release: c.lastSeenRelease });

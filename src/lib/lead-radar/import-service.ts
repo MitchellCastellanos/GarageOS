@@ -18,6 +18,7 @@ import { screenCandidate } from "@/domain/lead-radar/commercial-screen";
 import { classifyTerritory } from "@/domain/sales-crm/territory";
 import { loadTerritoryRulesWith } from "@/lib/sales-crm/territory-rules";
 import { activeSuppressions } from "@/lib/sales-comms/suppression";
+import { normalizeCanadianPhone } from "@/domain/sales-crm/phone";
 
 /**
  * Imports APPROVED candidates through the one existing import path (`applyImportBatch`): same validation, same dedupe, same territory resolution,
@@ -32,6 +33,9 @@ export interface ImportOptions {
   /** Set by the automatic orchestrator: only candidates approved by THIS policy version (or by a human) are claimed, FAILED rows are never retried here,
    *  and the batch/audit trail records the policy. Manual imports leave it undefined and behave exactly as before. */
   automation?: { policyVersion: number; timeoutMs?: number };
+  /** Phone-first calling import (manual, Super Admin): takes VERIFIED_REPAIR national candidates with a valid Canadian phone and no existing CRM record, APPROVED or still PENDING review
+   *  (review state is an email-qualification outcome; it says nothing about a phone). Never used by the automatic orchestrator; email eligibility is not touched. */
+  phoneFirst?: boolean;
 }
 
 export async function importApprovedCandidates(actor: PlatformSalesActor, opts: ImportOptions = {}) {
@@ -45,9 +49,32 @@ export async function importApprovedCandidates(actor: PlatformSalesActor, opts: 
   const idGuard = ids ? Prisma.sql`AND "id" IN (${Prisma.join(ids)})` : Prisma.empty;
 
   return db.$transaction(async (tx) => {
-    const locked = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT "id" FROM "garageos"."CrmDiscoveryCandidate" WHERE "reviewState" = 'APPROVED' AND "importState" IN ${states} AND "licenseOk" = true AND "tier" <> 'EXCLUDED' AND "duplicateOfCandidateId" IS NULL ${idGuard} ${policyGuard} ORDER BY "id" LIMIT ${limit} FOR UPDATE SKIP LOCKED`);
+    let phoneFirstIds: string[] | null = null;
+    if (opts.phoneFirst && !auto) {
+      // Candidate pool is narrowed in JS by the strict Canadian number rule and de-duplicated by number (against the CRM and within the chunk); a shared number stays staged for classification.
+      const pool = await tx.$queryRaw<{ id: string; phone: string | null }[]>(Prisma.sql`SELECT "id", "phone" FROM "garageos"."CrmDiscoveryCandidate"
+        WHERE "reviewState" IN ('APPROVED','PENDING') AND ("importState" = 'NOT_IMPORTED' OR ("importState" = 'SKIPPED' AND "importErrorCode" = 'SCREEN_REMOTE_NO_USABLE_EMAIL')) AND "licenseOk" = true AND "tier" <> 'EXCLUDED' AND "duplicateOfCandidateId" IS NULL
+          AND "repairFit" = 'VERIFIED_REPAIR' AND "matchState" = 'NEW' AND "territoryKey" = 'national' AND "phone" IS NOT NULL AND "importAttempts" < 3 ${idGuard} ORDER BY "id" LIMIT ${limit * 4}`);
+      const valid = pool.map((r) => ({ id: r.id, phone: normalizeCanadianPhone(r.phone) })).filter((r): r is { id: string; phone: NonNullable<ReturnType<typeof normalizeCanadianPhone>> } => !!r.phone);
+      const inCrm = valid.length ? await tx.crmProspect.findMany({ where: { phoneDigits: { in: valid.map((v) => v.phone.national) } }, select: { phoneDigits: true } }) : [];
+      const taken = new Set(inCrm.map((r) => r.phoneDigits));
+      const seen = new Set<string>();
+      phoneFirstIds = [];
+      for (const v of valid) { if (taken.has(v.phone.national) || seen.has(v.phone.national)) continue; seen.add(v.phone.national); phoneFirstIds.push(v.id); if (phoneFirstIds.length >= limit) break; }
+    }
+    const locked = phoneFirstIds
+      ? (phoneFirstIds.length ? await tx.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT "id" FROM "garageos"."CrmDiscoveryCandidate" WHERE "id" IN (${Prisma.join(phoneFirstIds)}) AND ("importState" = 'NOT_IMPORTED' OR "importState" = 'SKIPPED') ORDER BY "id" FOR UPDATE SKIP LOCKED`) : [])
+      : await tx.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT "id" FROM "garageos"."CrmDiscoveryCandidate" WHERE "reviewState" = 'APPROVED' AND "importState" IN ${states} AND "licenseOk" = true AND "tier" <> 'EXCLUDED' AND "duplicateOfCandidateId" IS NULL ${idGuard} ${policyGuard} ORDER BY "id" LIMIT ${limit} FOR UPDATE SKIP LOCKED`);
     if (!locked.length) return { batchId: null as string | null, claimed: 0, created: 0, linked: 0, sentToReview: 0, skipped: 0, failed: 0, createdProspectIds: [] as string[], linkedProspectIds: [] as string[], reviewProspectIds: [] as string[], unassignedCreated: 0 };
 
+    // The database requires APPROVED before any import state. A phone-first import is run by a Super Admin / manager with the review capability (resolveAssignee above), so it IS the human approval
+    // of the still-PENDING rows (email qualification never applied to a phone): stamped with who/when/why, never done by a policy.
+    if (opts.phoneFirst && !auto && locked.length) {
+      await tx.crmDiscoveryCandidate.updateMany({
+        where: { id: { in: locked.map((l) => l.id) }, reviewState: "PENDING" },
+        data: { reviewState: "APPROVED", reviewedByUserId: actor.userId, reviewedAt: new Date(), reviewNote: "PHONE_FIRST_CALLING: approved with the phone-first import" },
+      });
+    }
     const claimed = await tx.crmDiscoveryCandidate.findMany({ where: { id: { in: locked.map((l) => l.id) } }, orderBy: { id: "asc" } });
     // Fit gate: a candidate that is clearly not a repair business (EV charging, car wash, recycling, bicycle, manufacturer…) is never imported, even if someone approved it.
     // The rejection is durable (a human/system rejection is never reopened by a refresh). A person who really wants it approves it WITH a fit override, which is stamped as a human decision.
@@ -74,7 +101,7 @@ export async function importApprovedCandidates(actor: PlatformSalesActor, opts: 
         licenseOk: c.licenseOk, tier: c.tier,
         // An EXCLUDED fit that got past the fit gate above carries an explicit, recorded human override (the gate already refused every confirmed ICP exclusion and every un-overridden one).
         fit: fit.fit === "EXCLUDED" ? "HUMAN_REVIEW" : fit.fit, humanFitDecision: c.icpOverride || overrideOf(c), territory: classifyTerritory(rules, { province: c.province, city: c.city, postalCode: c.postalCode }).state,
-        address: c.address, city: c.city, postalCode: c.postalCode, phone: c.phone, email: c.email && !supp.has(c.email.trim().toLowerCase()) ? c.email : null,
+        address: c.address, city: c.city, postalCode: c.postalCode, phone: c.phone, email: c.email && !supp.has(c.email.trim().toLowerCase()) ? c.email : null, phoneFirst: !!opts.phoneFirst,
       });
       if (!sc.lane) screenBlocked.push({ id: c.id, code: `SCREEN_${sc.reasons[0]}` });
       return !!sc.lane;

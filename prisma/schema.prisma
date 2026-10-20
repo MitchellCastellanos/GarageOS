@@ -2666,6 +2666,18 @@ model CrmProspect {
   repairFitAt        DateTime?
   repairFitByUserId  String?
   repairFitNote      String?
+  // ── Phone-first calling (docs/phone-first-calling-policy.md). Derived by src/lib/sales-crm/phone-readiness.ts; independent of every email/CASL column.
+  /// Strict E.164 of `phone` (Canadian geographic or toll-free only). NULL = no valid Canadian number.
+  phoneE164          String?
+  phoneKind          CrmPhoneKind?
+  /// Where the number came from (e.g. "OVERTURE:meta,Microsoft" or "CSV_IMPORT"), plus the source record/release for audit.
+  phoneSource        String?
+  phoneSourceRef     String?
+  /// Evidence that the number is the business's own contact line. NULL = not yet evaluated.
+  phoneBusinessBasis CrmPhoneBasis?
+  phoneEligibility   CrmPhoneEligibility?
+  phoneEligibilityReasons String[]       @default([])
+  phoneEvaluatedAt   DateTime?
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
 
@@ -2694,6 +2706,8 @@ model CrmProspect {
   @@index([territoryKey, fieldPriorityStartedAt])
   @@index([assignedStaffId, assignmentMode])
   @@index([repairFit, assignedStaffId])
+  @@index([phoneEligibility, province])
+  @@index([phoneE164])
   @@schema("garageos")
   discoveredContacts CrmDiscoveredContact[]
 }
@@ -4543,5 +4557,63 @@ model CrmDiscoveryRejection {
 
   @@unique([source, sourceRecordId])
   @@index([lastSeenRelease])
+  @@schema("garageos")
+}
+
+// ── Phone-first calling ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+enum CrmPhoneKind {
+  GEOGRAPHIC
+  TOLL_FREE
+
+  @@schema("garageos")
+}
+
+enum CrmPhoneBasis {
+  LISTED_BUSINESS_SOURCE
+  OPERATOR_VERIFIED
+  SOLE_PROPRIETOR_SUSPECTED
+  UNKNOWN
+
+  @@schema("garageos")
+}
+
+enum CrmPhoneEligibility {
+  CALLABLE
+  NEEDS_CLASSIFICATION
+  HELD_PROVINCE
+  EXCLUDED
+
+  @@schema("garageos")
+}
+
+enum CrmPhoneSuppressionScope {
+  /// This exact number, whichever business record holds it.
+  NUMBER
+  /// The whole business (prospect) and every number it has.
+  BUSINESS
+
+  @@schema("garageos")
+}
+
+/// Internal do-not-call list for telephone prospecting. Append-only (lift by stamping `liftedAt`); a request is effective immediately and is kept at least 3 years + 14 days after it was made.
+/// Independent of CrmEmailSuppression (a different channel), but a verbal or business-level DNC also sets CrmProspect.doNotContact, which every channel honours.
+model CrmPhoneSuppression {
+  id              String                   @id @default(cuid())
+  scope           CrmPhoneSuppressionScope
+  /// E.164 (scope NUMBER).
+  phoneE164       String?
+  /// scope BUSINESS (and informational for NUMBER).
+  prospectId      String?
+  reason          String
+  source          String
+  note            String?
+  createdByUserId String?
+  createdAt       DateTime                 @default(now())
+  liftedAt        DateTime?
+  liftedByUserId  String?
+  liftNote        String?
+
+  @@index([phoneE164, liftedAt])
+  @@index([prospectId, liftedAt])
   @@schema("garageos")
 }
