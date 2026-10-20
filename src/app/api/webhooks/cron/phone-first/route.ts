@@ -8,6 +8,9 @@ import { refreshPhoneEligibility } from "@/lib/sales-crm/phone-readiness";
 import { importApprovedCandidates } from "@/lib/lead-radar/import-service";
 import { readAutomation } from "@/lib/lead-radar/automation";
 import { inspectCorporateNumber } from "@/lib/voice/twilio-inspect";
+import { provisionVoice } from "@/lib/voice/provision";
+import { publicGateView, readVoiceSettings } from "@/lib/voice/settings";
+import { reapStale } from "@/lib/voice/session";
 
 // Phone-first operations, run from a manually dispatched GitHub workflow (.github/workflows/phone-first-ops.yml) with the same cron authentication as the other workers.
 // Everything is bounded, resumable and idempotent. READ-ONLY unless `apply=1` is passed explicitly; counts, codes and cursors only (never a name, number or address).
@@ -52,6 +55,18 @@ export async function GET(request: Request) {
   try {
     if (stage === "inventory") return NextResponse.json(await inventory());
     if (stage === "twilio") return NextResponse.json(await inspectCorporateNumber());
+    if (stage === "voice-status") {
+      const st = await readVoiceSettings();
+      return NextResponse.json({ gates: publicGateView(st), callerId: st.callerIdE164 ? "set" : null, twimlApp: st.twimlAppSid ? "set" : null, apiKey: st.apiKeySid ? "set" : null, limits: [st.dailyCallCapPerSeller, st.cooldownMinutes, st.maxCallSeconds] });
+    }
+    if (stage === "voice-reap") return NextResponse.json({ reaped: apply ? await reapStale(null, null) : 0, mode: apply ? "APPLY" : "DRY_RUN" });
+    if (stage === "voice-provision") {
+      // Creates the dedicated TwiML App + API key in the account that owns the corporate number (idempotent). Never edits the number, its SMS URLs or its Messaging Service.
+      if (!apply) return NextResponse.json({ stage, mode: "DRY_RUN", note: "pass apply=1 to provision" });
+      const actor = await operator();
+      const r = await provisionVoice(actor?.userId ?? null);
+      return NextResponse.json({ stage, mode: "APPLY", ...r }, { status: r.ok ? 200 : 409 });
+    }
     if (stage === "refresh") {
       const t = { examined: 0, changed: 0, byStatus: {} as Record<string, number>, byReason: {} as Record<string, number> };
       let cursor = after, next: string | null = null;

@@ -63,13 +63,18 @@ export async function importApprovedCandidates(actor: PlatformSalesActor, opts: 
       const pool = await tx.$queryRaw<{ id: string; phone: string | null }[]>(Prisma.sql`SELECT "id", "phone" FROM "garageos"."CrmDiscoveryCandidate"
         WHERE "reviewState" IN ('APPROVED','PENDING') AND ("importState" = 'NOT_IMPORTED' OR ("importState" = 'SKIPPED' AND "importErrorCode" = 'SCREEN_REMOTE_NO_USABLE_EMAIL')) AND "licenseOk" = true AND "tier" <> 'EXCLUDED' AND "duplicateOfCandidateId" IS NULL
           AND "repairFit" = 'VERIFIED_REPAIR' AND "matchState" = 'NEW' AND "territoryKey" = 'national' AND "phone" IS NOT NULL AND "importAttempts" < 3 ${idGuard} ${opts.afterId ? Prisma.sql`AND "id" > ${opts.afterId}` : Prisma.empty} ORDER BY "id" LIMIT ${limit * 4}`);
-      phoneFirstCursor = pool.length === limit * 4 ? pool[pool.length - 1].id : null;
-      const valid = pool.map((r) => ({ id: r.id, phone: normalizeCanadianPhone(r.phone) })).filter((r): r is { id: string; phone: NonNullable<ReturnType<typeof normalizeCanadianPhone>> } => !!r.phone);
-      const inCrm = valid.length ? await tx.crmProspect.findMany({ where: { phoneDigits: { in: valid.map((v) => v.phone.national) } }, select: { phoneDigits: true } }) : [];
+      const norm = pool.map((r) => ({ id: r.id, phone: normalizeCanadianPhone(r.phone) }));
+      const inCrm = await tx.crmProspect.findMany({ where: { phoneDigits: { in: norm.filter((v) => v.phone).map((v) => v.phone!.national) } }, select: { phoneDigits: true } });
       const taken = new Set(inCrm.map((r) => r.phoneDigits));
       const seen = new Set<string>();
       phoneFirstIds = [];
-      for (const v of valid) { if (taken.has(v.phone.national) || seen.has(v.phone.national)) continue; seen.add(v.phone.national); phoneFirstIds.push(v.id); if (phoneFirstIds.length >= limit) break; }
+      // The scan cursor is the last pool row actually examined: stopping early at the batch limit must not skip the rows after it.
+      phoneFirstCursor = pool.length === limit * 4 ? pool[pool.length - 1].id : null;
+      for (const v of norm) {
+        if (!v.phone || taken.has(v.phone.national) || seen.has(v.phone.national)) continue;
+        seen.add(v.phone.national); phoneFirstIds.push(v.id);
+        if (phoneFirstIds.length >= limit) { phoneFirstCursor = v.id; break; }
+      }
     }
     const locked = phoneFirstIds
       ? (phoneFirstIds.length ? await tx.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT "id" FROM "garageos"."CrmDiscoveryCandidate" WHERE "id" IN (${Prisma.join(phoneFirstIds)}) AND ("importState" = 'NOT_IMPORTED' OR "importState" = 'SKIPPED') ORDER BY "id" FOR UPDATE SKIP LOCKED`) : [])

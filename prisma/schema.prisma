@@ -2693,6 +2693,7 @@ model CrmProspect {
   enrollments   CrmSequenceEnrollment[]
   location      CrmProspectLocation?
   routeStops    CrmFieldRouteStop[]
+  callSessions  CrmCallSession[]
 
   @@index([assignedStaffId, status])
   @@index([status, createdAt])
@@ -4615,5 +4616,122 @@ model CrmPhoneSuppression {
 
   @@index([phoneE164, liftedAt])
   @@index([prospectId, liftedAt])
+  @@schema("garageos")
+}
+
+// ── Browser calling (Twilio Voice). Human-initiated, one call at a time per seller; the server resolves the destination from the CRM. See docs/voice-calling.md. ──
+enum CrmCallState {
+  PENDING
+  RINGING
+  IN_PROGRESS
+  COMPLETED
+  BUSY
+  NO_ANSWER
+  FAILED
+  CANCELED
+  ABANDONED
+
+  @@schema("garageos")
+}
+
+enum CrmCallKind {
+  /// A call to a CRM prospect (needs every compliance gate).
+  PROSPECT
+  /// A call to a number GarageOS controls (Super Admin test list), allowed before the commercial-calling gates are cleared.
+  TEST
+
+  @@schema("garageos")
+}
+
+model CrmCallSession {
+  id                  String          @id @default(cuid())
+  /// Client-generated per click: a retried request resolves to the same session.
+  idempotencyKey      String          @unique
+  kind                CrmCallKind     @default(PROSPECT)
+  prospectId          String?
+  prospect            CrmProspect?    @relation(fields: [prospectId], references: [id], onDelete: Restrict)
+  contactId           String?
+  staffId             String
+  userId              String
+  destinationE164     String
+  destinationSource   String
+  callerIdE164        String
+  state               CrmCallState    @default(PENDING)
+  /// Single-purpose authorization handed to the browser once: SHA-256 of a random token, short expiry, consumed atomically by the signed outbound webhook.
+  authTokenHash       String?         @unique
+  authExpiresAt       DateTime
+  authConsumedAt      DateTime?
+  parentCallSid       String?         @unique
+  childCallSid        String?         @unique
+  requestedAt         DateTime        @default(now())
+  ringingAt           DateTime?
+  answeredAt          DateTime?
+  endedAt             DateTime?
+  durationSec         Int?
+  finalStatus         String?
+  failureCode         String?
+  dispositionCode     String?
+  activityId          String?         @unique
+  dispositionAt       DateTime?
+  eligibilitySnapshot Json            @default("{}")
+  localTimeAtDial     String?
+  /// Open-call locks (NULL once the call is closed): one live call per prospect, per destination number and per seller, enforced by the database.
+  openProspectKey     String?         @unique
+  openNumberKey       String?         @unique
+  openStaffKey        String?         @unique
+  updatedAt           DateTime        @updatedAt
+
+  events CrmCallEvent[]
+
+  @@index([staffId, requestedAt])
+  @@index([prospectId, requestedAt])
+  @@index([state, requestedAt])
+  @@schema("garageos")
+}
+
+/// Append-only provider callbacks; the unique key makes replays and retries no-ops.
+model CrmCallEvent {
+  id         String         @id @default(cuid())
+  sessionId  String
+  session    CrmCallSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  callSid    String
+  status     String
+  sequence   Int            @default(0)
+  receivedAt DateTime       @default(now())
+  payload    Json           @default("{}")
+
+  @@unique([callSid, status, sequence])
+  @@index([sessionId, receivedAt])
+  @@schema("garageos")
+}
+
+/// Singleton. Every flag here is a launch gate changed only by an audited Super Admin action; defaults are closed.
+model CrmVoiceSettings {
+  id                       String    @id @default("default")
+  /// Kill switch. false = no call of any kind.
+  enabled                  Boolean   @default(false)
+  /// National DNCL telemarketer registration (required even for exempt B2B calls). Both must be set before any commercial prospect call.
+  dnclRegisteredAt         DateTime?
+  dnclRegistrationRef      String?
+  /// Explicit Super Admin authorization of live prospect calling, given only after the legal items are closed.
+  liveCallingAuthorized    Boolean   @default(false)
+  /// Provinces on legal hold (default BC, MB). A held province is never dialled.
+  heldProvinces            String[]  @default(["BC", "MB"])
+  /// E.164 numbers GarageOS controls; test calls may only go to these.
+  testDestinations         String[]  @default([])
+  dailyCallCapPerSeller    Int       @default(150)
+  cooldownMinutes          Int       @default(240)
+  maxCallSeconds           Int       @default(1800)
+  // Twilio provisioning (created in the account that owns the corporate number; the secret is stored encrypted, never returned).
+  twilioAccountSid         String?
+  callerIdE164             String?
+  apiKeySid                String?
+  apiKeySecretEnc          String?
+  twimlAppSid              String?
+  provisionedAt            DateTime?
+  updatedByUserId          String?
+  updatedAt                DateTime  @updatedAt
+  createdAt                DateTime  @default(now())
+
   @@schema("garageos")
 }

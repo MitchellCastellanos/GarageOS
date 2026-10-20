@@ -145,3 +145,21 @@ export async function readTwilioForm(req: Request): Promise<Record<string, strin
 }
 
 export const EMPTY_TWIML = '<?xml version="1.0" encoding="UTF-8"?><Response></Response>';
+
+// ── Voice (browser softphone) helpers. The SDK is only touched here, in the gated module. ─────────────────────────────────────────────────────────────────
+
+/** Short-lived Voice access token for the browser Device: outgoing calls only (no inbound), bound to one identity. */
+export function createVoiceAccessToken(p: { accountSid: string; apiKeySid: string; apiKeySecret: string; twimlAppSid: string; identity: string; ttlSeconds: number }): string {
+  const { AccessToken } = twilio.jwt;
+  const t = new AccessToken(p.accountSid, p.apiKeySid, p.apiKeySecret, { identity: p.identity, ttl: p.ttlSeconds });
+  t.addGrant(new AccessToken.VoiceGrant({ outgoingApplicationSid: p.twimlAppSid, incomingAllow: false }));
+  return t.toJwt();
+}
+
+/** TwiML that rings exactly one number with the given caller ID and reports the child leg's status to `statusCallbackUrl`. */
+export function dialNumberTwiml(p: { destination: string; callerId: string; maxSeconds: number; statusCallbackUrl: string }): string {
+  const r = new twilio.twiml.VoiceResponse();
+  const d = r.dial({ callerId: p.callerId, answerOnBridge: true, timeLimit: p.maxSeconds });
+  d.number({ statusCallback: p.statusCallbackUrl, statusCallbackEvent: ["initiated", "ringing", "answered", "completed"], statusCallbackMethod: "POST" }, p.destination);
+  return r.toString();
+}

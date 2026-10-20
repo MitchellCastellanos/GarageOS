@@ -188,6 +188,19 @@ if (!enabled) {
     assert.equal(await db.crmProspect.count(), prospectsBefore + 3);
   });
 
+  test("paging with a small batch limit visits every candidate: the cursor follows the last row examined, never skipping rows after the limit is reached", async () => {
+    const rows = Array.from({ length: 7 }, (_, i) => cand(60 + i, { phone: num("418", 7100 + i) }));
+    await db.crmDiscoveryCandidate.createMany({ data: rows as any });
+    const ids = (await db.crmDiscoveryCandidate.findMany({ where: { sourceRecordId: { in: rows.map((r) => r.sourceRecordId) } }, orderBy: { id: "asc" }, select: { id: true } })).map((r) => r.id);
+    let after: string | null = null, created = 0, calls = 0;
+    do {
+      const r: any = await importLib.importApprovedCandidates(actor() as any, { ids, phoneFirst: true, limit: 2, afterId: after });
+      created += r.created; after = r.phoneFirstCursor; calls++;
+    } while (after && calls < 10);
+    assert.equal(created, 7, "all seven candidates were imported across the pages");
+    assert.equal(await db.crmDiscoveryCandidate.count({ where: { id: { in: ids }, importedProspectId: { not: null } } }), 7);
+  });
+
   test("the default (email-only) import path is unchanged: a phone-only candidate is still not imported by it", async () => {
     const [c] = [cand(20, { reviewState: "APPROVED" })];
     await db.crmDiscoveryCandidate.create({ data: c as any });

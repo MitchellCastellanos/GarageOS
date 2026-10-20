@@ -56,6 +56,8 @@ export const PLATFORM = {
   salesAccount: "/platform/sales/account",
   salesTerritories: "/platform/sales/settings/territories",
   salesGeocoding: "/platform/sales/settings/geocoding",
+  salesCalling: "/platform/sales/calling",
+  salesVoiceSettings: "/platform/sales/settings/voice",
   salesVideos: "/platform/sales/settings/videos",
   salesLeadRadar: "/platform/sales/lead-radar",
   salesLeadRadarCandidates: "/platform/sales/lead-radar/candidates",
