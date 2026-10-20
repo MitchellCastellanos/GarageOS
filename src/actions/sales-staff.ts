@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { PLATFORM } from "@/lib/routes";
 import { staffInputSchema, passwordSchema } from "@/domain/sales-crm/validation";
+import { capabilityFlagsOf, resolveSalesMode } from "@/domain/sales-crm/capabilities";
 import { requireCrmActor } from "@/lib/sales-crm/access";
 import { writeCrmAudit } from "@/lib/sales-crm/audit";
 import { CrmError } from "@/lib/sales-crm/prospects";
@@ -41,6 +42,17 @@ async function validCoverage(form: FormData): Promise<string[]> {
 }
 
 /**
+ * Field sales / Remote sales checkboxes (or the legacy salesMode value) → the stored mode. Only a Super Admin may grant or remove Field sales (re-checked here on top of `manage_team`,
+ * which Sales Managers never hold), Remote sales can never be switched off, and a Super Admin cannot be handed Field sales through someone else's form.
+ */
+function resolveMode(actor: Awaited<ReturnType<typeof requireCrmActor>>, form: FormData, currentMode: "FIELD" | "REMOTE" | null) {
+  const r = resolveSalesMode({ salesMode: String(form.get("salesMode") ?? currentMode ?? "REMOTE"), capabilitiesSubmitted: form.get("capabilitiesSubmitted"), fieldSales: form.get("fieldSales"), remoteSales: form.get("remoteSales") });
+  if (!r.ok) throw new CrmError(r.code);
+  if (r.mode !== (currentMode ?? "REMOTE") && !actor.all) throw new CrmError("FIELD_GRANT_FORBIDDEN");
+  return r;
+}
+
+/**
  * Super Admin creates a platform sales user. The User row is a harmless tenant shell (role VIEWER, no shop,
  * no password); all sales authority is the PlatformSalesStaff row, and nothing works until the invitee sets a password.
  */
@@ -48,6 +60,8 @@ export async function createSalesStaff(form: FormData) {
   const actor = await requireCrmActor("manage_team");
   return crmAction(async () => {
     const input = staffInputSchema.parse(Object.fromEntries(form));
+    const resolved = resolveMode(actor, form, null);
+    input.salesMode = resolved.mode;
     // Corporate identity: login = corporate address assigned by the Super Admin; the personal recovery address is separate and private.
     const login = checkCorporateEmail(input.email);
     if (!login.ok) throw new CrmError(login.code);
@@ -76,7 +90,7 @@ export async function createSalesStaff(form: FormData) {
         },
         select: { id: true },
       });
-      await writeCrmAudit({ actorUserId: actor.userId, action: "STAFF_CREATED", entityType: "PlatformSalesStaff", entityId: s.id, staffId: s.id, metadata: { role: input.role, managerId, salesMode: input.salesMode } }, tx);
+      await writeCrmAudit({ actorUserId: actor.userId, action: "STAFF_CREATED", entityType: "PlatformSalesStaff", entityId: s.id, staffId: s.id, metadata: { role: input.role, managerId, salesMode: input.salesMode, ...resolved.flags } }, tx);
       // Existing-or-automatic sender identity from the corporate address (DRAFT until the provider confirms the domain).
       await ensureSenderIdentity(tx, { staffId: s.id, corporateEmail: login.email, actorUserId: actor.userId });
       return s;
@@ -99,6 +113,8 @@ export async function updateSalesStaff(staffId: string, form: FormData) {
     if (!current) throw new CrmError("NOT_FOUND");
     // Email is the verified identity: it never changes after activation.
     const input = staffInputSchema.parse({ ...Object.fromEntries(form), email: current.user.email });
+    const resolved = resolveMode(actor, form, current.salesMode);
+    input.salesMode = resolved.mode;
     const coverage = form.has("coverageSubmitted") ? await validCoverage(form) : current.coverageTerritoryKeys;
     if (staffId === actor.staffId && input.role !== current.role) throw new CrmError("CANNOT_CHANGE_OWN_ROLE");
     const managerId = await validManager(input.managerId, staffId);
@@ -120,7 +136,7 @@ export async function updateSalesStaff(staffId: string, form: FormData) {
         await writeCrmAudit({ actorUserId: actor.userId, action: "STAFF_ROLE_CHANGED", entityType: "PlatformSalesStaff", entityId: staffId, staffId, before: { role: current.role }, after: { role: input.role } }, tx);
       }
       if (current.salesMode !== input.salesMode) {
-        await writeCrmAudit({ actorUserId: actor.userId, action: "STAFF_MODE_CHANGED", entityType: "PlatformSalesStaff", entityId: staffId, staffId, before: { salesMode: current.salesMode }, after: { salesMode: input.salesMode } }, tx);
+        await writeCrmAudit({ actorUserId: actor.userId, action: "STAFF_MODE_CHANGED", entityType: "PlatformSalesStaff", entityId: staffId, staffId, before: { salesMode: current.salesMode, ...capabilityFlagsOf(current.salesMode) }, after: { salesMode: input.salesMode, ...resolved.flags } }, tx);
       }
       await writeCrmAudit({
         actorUserId: actor.userId, action: "STAFF_UPDATED", entityType: "PlatformSalesStaff", entityId: staffId, staffId,

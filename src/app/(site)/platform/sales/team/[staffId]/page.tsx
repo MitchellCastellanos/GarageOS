@@ -52,7 +52,7 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ st
         <div className="flex flex-wrap gap-2">{BOARD_STAGES.map((st) => <Badge key={st}>{t.stages[st]}: {s.stageCounts[st] ?? 0}</Badge>)}<Badge tone="bg-emerald-100 text-emerald-800">{t.stages.WON}: {s.stageCounts.WON ?? 0}</Badge><Badge tone="bg-rose-100 text-rose-800">{t.stages.LOST}: {s.stageCounts.LOST ?? 0}</Badge></div>
         <div className="mt-4 grid gap-1 text-sm text-slate-600 sm:grid-cols-2">
           <p>{m.manager}: {staff.manager?.user.name ?? m.noManager}</p>
-          <p>{ic.account.mode}: {ic.account.modes[staff.salesMode]}</p>
+          <p>{ic.team.fieldSales}: {staff.salesMode === "FIELD" ? ic.team.capOn : ic.team.capOff} · {ic.team.remoteSales}: {ic.team.capOn}</p>
           <p>{m.territoriesLabel}: {staff.territories.join(", ") || t.common.none}</p>
           {staff.role === "SALES_MANAGER" && <p>{m.reports}: {staff.reports.map((r) => r.user.name).join(", ") || m.noReports}</p>}
           {staff.deactivatedAt && <p>{t.staffStatus.INACTIVE}: {formatDate(staff.deactivatedAt, locale)}{staff.deactivationReason ? ` — ${staff.deactivationReason}` : ""}</p>}
