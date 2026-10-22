@@ -64,6 +64,13 @@ Storage for files; Stripe, Twilio, Resend, QuickBooks Online as providers; Verce
 ## Provider side effects are opt-in per environment
 Outbound effects (SMS, email, Pusher events, Telegram, Twilio/Resend management, Stripe mutations, QuickBooks) only happen when `PROVIDER_SIDE_EFFECTS=enabled` is set — Production explicitly, **Preview never** (except a provider-specific controlled test; for Stripe TEST use `STRIPE_TEST_MUTATIONS=enabled` with a test key). If SMS/email/realtime silently stop in Production, check that variable first. Crons report `providerSideEffects: "disabled"` and skip outbound steps. `NEXTAUTH_SECRET` must be different per environment. Details: `docs/provider-isolation.md`.
 
+## ANALYTICS_HASH_SECRET
+Server-only key for the daily pseudonymous `PageView.visitorHash` (HMAC-SHA256, `src/lib/privacy/visitor-hash.ts`; contract in `docs/analytics-v2-contract.md` §10.1).
+- Generate: `openssl rand -base64 48`. Set it in Vercel for **Production and Preview** (a different value per environment is fine). Never `NEXT_PUBLIC_*`, never commit it, never log it.
+- Not set (or shorter than 32 chars): the app still tracks, using a random per-process key and logging one warning ("ANALYTICS_HASH_SECRET is missing…"). Distinct-visitor counts are then approximate (every serverless instance has its own key). It is safe to deploy before the variable exists.
+- First deploy with the variable: distinct-visitor counts reset once (old date-salted hashes never match the new ones).
+- Do not rotate casually: rotation only breaks distinct-visitor continuity within the day it happens (hashes already rotate daily anyway). Rotate only if the value leaked.
+
 ## Provider outages
 - **Stripe**: signed-in shops keep working (subscription state is stored locally). Webhooks are retried by Stripe and are idempotent
   per `event.id`; after an outage, resend failed events from the Stripe dashboard. New signups/upgrades can't reach Checkout until Stripe is back.
