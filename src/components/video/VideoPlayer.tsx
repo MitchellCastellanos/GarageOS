@@ -115,7 +115,7 @@ export function VideoPlayer({ src, poster, title, lang, seconds, token, reportPa
       {!started ? (
         <button type="button" onClick={begin} aria-label={L.playVideo(title)} className="absolute inset-0 flex items-center justify-center focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-white">
           {/* eslint-disable-next-line @next/next/no-img-element -- approved pre-optimized poster (≈55 KB); explicit dimensions, lazy unless above the fold */}
-          <img src={poster} alt="" width={1280} height={720} loading={priority ? "eager" : "lazy"} fetchPriority={priority ? "high" : "auto"} decoding="async" className="absolute inset-0 size-full object-cover" />
+          <img src={poster} alt="" width={1280} height={720} loading={priority ? "eager" : "lazy"} fetchPriority={priority ? "high" : "auto"} decoding="async" referrerPolicy="no-referrer" className="absolute inset-0 size-full object-cover" />
           <span className="absolute inset-0 bg-gradient-to-t from-brand-navy/55 via-transparent to-transparent" />
           <span className="relative flex flex-col items-center gap-3">
             <span className="flex size-16 items-center justify-center rounded-full bg-brand-blue text-white shadow-lg shadow-blue-900/40 transition-transform group-hover:scale-105 sm:size-20"><Play className="ml-1 size-7 fill-white sm:size-8" aria-hidden /></span>
