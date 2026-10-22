@@ -64,7 +64,7 @@ for (const file of suites) {
   const r = { file, code, pass: count(out, "pass"), fail: count(out, "fail"), skipped: count(out, "skipped") };
   rows.push(r);
   if (logFile) appendFileSync(logFile, `\n### ${file}\n${out}\n`);
-  else if (code !== 0) console.log(out);
+  if (code !== 0) console.log(out.split("\n").filter((l) => /not ok|^\s+(error|code|expected|actual|message|operator):|^\s+(\+|-) /.test(l)).join("\n").slice(0, 12000));
   console.log(`${code === 0 ? "PASS" : "FAIL"}  ${file}  pass=${r.pass} fail=${r.fail} skipped=${r.skipped}`);
 }
 const bad = rows.filter((r) => r.code !== 0 || r.fail > 0);
