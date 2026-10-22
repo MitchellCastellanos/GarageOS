@@ -27,7 +27,7 @@ if (!enabled) {
   const as = (id: string | null) => setSession(id ? { user: { id, role: "VIEWER", shopId: null } } : null);
   const users: Record<string, string> = {};
   const soon = () => Date.now() + 120_000;
-  const PH = String(Date.now() % 100000).padStart(5, "0");
+  const PH = "2" + String(Date.now() % 10000).padStart(4, "0"); // NANP exchange codes cannot start with 0/1: a random leading digit made ~20% of runs stage no phone-only record
   let seq = 0;
   const ON = { freeform: "1 Rue Test", locality: "Ottawa", postcode: "K1P 5G3", region: "ON", country: "CA" };
   const MTL = { freeform: "2 Rue Test", locality: "Montréal", postcode: "H2X 3K4", region: "QC", country: "CA" };
