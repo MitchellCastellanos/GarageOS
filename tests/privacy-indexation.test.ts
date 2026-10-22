@@ -278,8 +278,12 @@ test("no sitemap or public metadata exposes private routes", () => {
   }
   // The video page canonicalizes the clean URL; the attribution token travels in the query and is never in metadata.
   const watch = read("src/lib/watch-page.tsx");
-  assert.match(watch, /robots: token \? \{ index: false, follow: false \}/);
+  // Watch pages are campaign landing pages, never part of the indexable site: noindex with or without a token, canonical on the
+  // authority host, no hreflang pairs, and no VideoObject (it needs a real upload date that the registry does not carry).
+  assert.match(watch, /robots: \{ index: false, follow: false \}/);
   assert.ok(!/canonical:[^\n]*\?t=/.test(watch));
+  assert.match(watch, /canonicalUrl\(/);
+  assert.ok(!/getAppUrl|languages:|VideoObject|uploadDate/.test(watch), "watch metadata uses the site host helper and emits no hreflang or VideoObject");
   // Public pages that set canonical/OG go through the helper, which only ever receives literal public paths.
   const helper = read("src/lib/seo/metadata.ts");
   assert.ok(!/token/i.test(helper.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "")));
