@@ -44,11 +44,11 @@ export function AuthHero() {
           <p className="text-xs font-semibold tracking-[0.2em] text-slate-400 mb-3 uppercase">
             {hero.eyebrow}
           </p>
-          <h1 className="text-3xl xl:text-4xl font-bold leading-tight mb-3">
+          <h2 className="text-3xl xl:text-4xl font-bold leading-tight mb-3">
             {hero.titleLine1}
             <br />
             {hero.titleLine2} <span className="text-brand-blue-bright">{hero.titleAccent}</span>
-          </h1>
+          </h2>
           <p className="text-slate-300 text-sm leading-relaxed max-w-lg mb-5">{hero.description}</p>
 
           <ul className="grid grid-cols-2 gap-x-4 gap-y-2">
