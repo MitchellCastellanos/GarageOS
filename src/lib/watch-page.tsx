@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getAppUrl } from "@/config/app";
+import { canonicalUrl } from "@/lib/seo/site";
 import { WatchClient } from "@/components/video/WatchClient";
 import { getWatchVideo, resolveVideoLink } from "@/lib/sales-video";
 import { WATCH_COPY } from "@/lib/video-copy";
@@ -15,16 +15,14 @@ export async function watchMetadata({ params, searchParams }: { params: Params; 
   const lang = parseLang((await params).lang);
   if (!lang) return {};
   const c = WATCH_COPY[lang];
-  const token = first((await searchParams).t);
-  const app = getAppUrl();
-  const path = (l: "en" | "fr") => `${app}${watchPath(l === "fr" ? "FR" : "EN", kind)}`;
-  const image = `${app}/video/thumb-${lang}.jpg`;
+  const path = canonicalUrl(watchPath(lang === "fr" ? "FR" : "EN", kind));
+  const image = canonicalUrl(`/video/thumb-${lang}.jpg`);
   return {
     title: c.metaTitle(kind), description: c.metaDescription,
-    alternates: { canonical: path(lang), languages: { en: path("en"), fr: path("fr") } },
-    // An attributed (tokenised) URL must never be indexed or shared by search engines; the clean URL is the public one.
-    robots: token ? { index: false, follow: false } : { index: true, follow: true },
-    openGraph: { type: "website", url: path(lang), title: c.metaTitle(kind), description: c.metaDescription, locale: lang === "fr" ? "fr_CA" : "en_CA", images: [{ url: image, width: 1280, height: 720, alt: c.metaTitle(kind) }] },
+    alternates: { canonical: path },
+    // These campaign/watch pages are not part of the indexable site. Tokenized links must never be indexed.
+    robots: { index: false, follow: false },
+    openGraph: { type: "website", url: path, title: c.metaTitle(kind), description: c.metaDescription, locale: lang === "fr" ? "fr_CA" : "en_CA", images: [{ url: image, width: 1280, height: 720, alt: c.metaTitle(kind) }] },
     twitter: { card: "summary_large_image", title: c.metaTitle(kind), description: c.metaDescription, images: [image] },
   };
 }
@@ -41,7 +39,7 @@ export async function WatchPage({ params, searchParams }: { params: Params; sear
   const c = WATCH_COPY[lang];
   const ld = !link && video ? {
     "@context": "https://schema.org", "@type": "VideoObject", name: c.metaTitle(kind), description: c.metaDescription, inLanguage: lang === "fr" ? "fr-CA" : "en-CA",
-    thumbnailUrl: [`${getAppUrl()}/video/thumb-${lang}.jpg`], uploadDate: "2026-10-09", duration: `PT${VIDEO_KINDS[kind].seconds}S`, contentUrl: video.url,
+    thumbnailUrl: [canonicalUrl(`/video/thumb-${lang}.jpg`)], duration: `PT${VIDEO_KINDS[kind].seconds}S`, contentUrl: video.url,
   } : null;
   return (
     <>
