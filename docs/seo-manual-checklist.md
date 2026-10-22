@@ -30,16 +30,16 @@ Legend: ☐ pending · ☑ done · ⏸ waiting on a PR
 
 ## D. Email provider
 
-- ☐ **Final external-configuration step (not touched yet):** review Resend and turn **click tracking off** for the transactional sending domains. Quote-approval, portal, inspection-report, appointment-management and unsubscribe links carry bearer tokens; with click tracking on, the links are rewritten through a tracking domain that sees them. Do not change Resend until this step.
+- ☑ **Read-only Resend check (2026-10-22):** both domains visible in the connected Resend account have click and open tracking disabled. **Owner must still confirm that this is the production account and identify the transactional `EMAIL_FROM_*` domains.** Quote-approval, portal, inspection-report, appointment-management and unsubscribe links may carry bearer tokens; keep click tracking disabled on every sending domain used for these messages. Verify a real transactional test email has direct GarageOS links.
 
 ## E. Analytics (after the analytics PR)
 
-- ☐ Update the privacy policy text with the new first-party events/attribution fields (legal review, D8/D13).
+- ☐ Update the privacy policy text with any new first-party events/attribution fields (legal review, D8/D13). Owner selected a 13-month retention target on 2026-10-22, subject to legal review and implementation.
 - ☐ Confirm no cookies are introduced.
 
 ## F. Content and compliance (later stages)
 
-- ☐ **Québec contextual terminology review — required BEFORE publishing French commercial content (PR 4).** Do not impose France terminology: validate with shop owners / a Québec reviewer what Québec garages actually say. Decision so far: **"Devis"** is the official module name; **"Soumission"** may be used as a commercial/educational synonym where natural (e.g. "devis (soumission)" in marketing and help text); "ordre de travail" with "bon de travail" as a synonym. Also check the Québec Consumer Protection Act wording for the written repair estimate.
+- ☐ **Québec contextual terminology review — required BEFORE publishing French commercial content.** Do not impose France terminology: validate with shop owners / a Québec reviewer what Québec garages actually say. Decision so far: **"Devis"** is the official module name; **"Soumission"** may be used as a commercial/educational synonym where natural (e.g. "devis (soumission)" in marketing and help text); "ordre de travail" with "bon de travail" as a synonym. Also check the Québec Consumer Protection Act wording for the written repair estimate.
 - ☐ French videos (`video/src/locales/fr.ts`, narration alignment) still use the old terms: **not regenerated automatically**; decide later if it is really necessary.
 - ☐ Existing data: the sales CRM seed row 'Soumissions et factures' lives in an already-applied migration. Never edit applied migrations; correct existing data only through a new, safe, reviewed procedure (new migration or controlled data update with backup).
 - ☐ Privacy / terms FR pages: legal review of the terminology swap (meaning unchanged).
