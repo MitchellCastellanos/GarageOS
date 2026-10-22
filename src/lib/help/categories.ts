@@ -29,7 +29,7 @@ export const HELP_CATEGORIES: readonly HelpCategory[] = [
     id: "estimates-invoices",
     slug: { en: "estimates-and-invoices", fr: "devis-et-factures" },
     name: { en: "Estimates & invoices", fr: "Devis et factures" },
-    description: { en: "From the estimate to the invoice and approval history.", fr: "Du devis à la facture, et historique des approbations." },
+    description: { en: "From the estimate to the invoice, and how customer approvals work.", fr: "Du devis à la facture, et fonctionnement des approbations client." },
   },
   {
     id: "run-the-shop",

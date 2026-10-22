@@ -44,18 +44,18 @@ export const GUIDES: ResourceArticle[] = [
     summary: "Prepare an estimate, record the customer's decision and follow the invoice through payment.",
     sections: [
       { title: "Prepare a clear estimate", body: "Open Estimates and create a draft for the correct client and vehicle. Add the service and parts lines, quantities and prices. Review totals and shop details before sending. Draft estimates can be edited; review them before moving to a later status." },
-      { title: "Record the customer's decision", body: "When you send an estimate through an available communication channel, the customer can use the secure approval link to accept or reject it. Check the estimate status afterward; sending alone does not mean the customer approved it. If the customer replies by phone or another channel, follow your shop’s documented process rather than assuming the link recorded that conversation." },
+      { title: "Record the customer's decision", body: "When you send an estimate, the customer receives a secure link. They enter their name and choose to accept or reject. The link can be used once and expires, and your team is notified of the decision. Open the estimate afterward and check its status: sending an estimate does not mean it was approved. If the customer answers by phone or in person instead, open the sent estimate and use the Accepted or Rejected button to update its status yourself; this changes the status only, it does not store the customer's name or a copy of what they saw. Note who approved what, and when, in your own shop records." },
       { title: "Create and review the invoice", body: "Use the estimate's conversion action when you are ready to invoice.", steps: ["Open the resulting draft invoice and check the client and vehicle.", "Review each line, totals and notes before sending.", "Send the invoice by email or text, or download its PDF.", "Check the send result and correct recipient details if delivery fails."] },
       { title: "Record a received payment", body: "After payment is received, use the invoice payment action to record the applicable method and amounts. Recording a card payment in GarageOS is a record of a payment collected through your shop's payment process; it does not charge a card. Review the payment record and any receipt before closing out the job." },
     ],
   },
   {
-    slug: "approval-history", title: "Understand estimate approval history", category: "Estimates & invoices",
-    summary: "Understand estimate approval status and what the customer sees when responding.",
+    slug: "approval-history", title: "Understand estimate approvals", category: "Estimates & invoices",
+    summary: "What happens to an estimate when a customer responds, and what you can and cannot see afterward.",
     sections: [
-      { title: "What happens when a customer responds", body: "A customer can accept or reject an estimate using its secure approval link. GarageOS updates the estimate status and records approval data internally. The shop interface does not currently provide a dedicated approval-history screen or a view of stored document snapshots." },
-      { title: "Check the estimate status", body: "Open the estimate in GarageOS to check its current status. Do not assume that a visible status provides a complete audit history, a customer approval timestamp or an approved-document comparison. If you need a historical approval record for a dispute, contact your shop administrator or GarageOS support rather than relying on a screen that does not exist." },
-      { title: "When the scope changes", body: "If the proposed work changes after a customer responds, confirm the revised scope with the customer and follow your shop’s approval process. Do not assume an earlier approval covers newly added work." },
+      { title: "What happens when a customer responds", body: "A customer can accept or reject an estimate from its secure link. The estimate's status changes to Accepted or Rejected, the link stops working and your team is notified. GarageOS also keeps an internal record of the decision, but the shop interface does not currently show an approval-history screen or a copy of what the customer saw." },
+      { title: "Check an estimate's status", body: "Open the estimate to see whether it is Draft, Sent, Accepted or Rejected. Use this as your working status for the job. Do not rely on it to show who responded, when they responded or what exact version they approved." },
+      { title: "Keep your own proof for important approvals", body: "For larger jobs, keep the sent estimate (PDF or email) and a note of the customer's reply in your own records. If the scope or price changes after a response, send a new estimate or confirm the change with the customer before starting the extra work, because an earlier approval does not cover added work." },
     ],
   },
   {
@@ -63,8 +63,8 @@ export const GUIDES: ResourceArticle[] = [
     summary: "Attach a future service need to a vehicle so the next visit doesn't get forgotten.",
     sections: [
       { title: "Create a reminder", body: "Open Reminders and create one for the relevant vehicle.", steps: ["Choose the service type the vehicle will need.", "Set a due date, a due mileage, or both.", "Add any notes the team should see when the reminder comes due."] },
-      { title: "Send a reminder", body: "Available reminder delivery and automation options depend on the shop’s plan and configuration. Check the reminder settings and its current status before relying on a scheduled send. A saved reminder does not, by itself, confirm that a message was delivered." },
-      { title: "Review reminder status", body: "Review pending and previously sent reminders in the shop interface, and follow up using the actions available for each reminder. Confirm a customer response through your normal communication workflow rather than assuming that a message marked sent has been acknowledged." },
+      { title: "Send a reminder", body: "Basic reminders are emailed automatically about a week before the due date. To send one earlier, open the pending reminder and use Send; this needs an email address on the client and works once per reminder. On Pro and Complete, reminder rules can create the next reminder for you when a matching job is completed. A saved reminder is not a delivered message, so check that its status changes to Sent." },
+      { title: "Review reminder status", body: "Use the Pending, Sent and Dismissed tabs on the Reminders page. Pending means it has not been sent yet; Sent means GarageOS emailed it. Dismiss a reminder you no longer need, for example when the customer already booked. GarageOS does not record whether the customer replied, so follow up through your normal channels." },
     ],
   },
   {
