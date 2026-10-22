@@ -69,6 +69,7 @@ export const RATE_LIMITS = {
   loginIp: (ip: string): RateLimitRule => ({ key: `login-ip:${ip}`, limit: 40, windowSec: 15 * 60 }),
   signupIp: (ip: string): RateLimitRule => ({ key: `signup-ip:${ip}`, limit: 10, windowSec: 60 * 60 }),
   verifyResend: (email: string): RateLimitRule => ({ key: `verify-resend:${email.toLowerCase()}`, limit: 5, windowSec: 60 * 60 }),
+  trackIp: (ip: string): RateLimitRule => ({ key: `track-ip:${ip}`, limit: 120, windowSec: 60 }),
   portalView: (ip: string): RateLimitRule => ({ key: `portal-view:${ip}`, limit: 120, windowSec: 60 }),
   portalInvalid: (ip: string): RateLimitRule => ({ key: `portal-invalid:${ip}`, limit: 30, windowSec: 10 * 60 }),
   portalPdf: (ip: string): RateLimitRule => ({ key: `portal-pdf:${ip}`, limit: 20, windowSec: 60 }),

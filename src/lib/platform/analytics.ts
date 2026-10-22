@@ -89,7 +89,8 @@ export async function trackPageView(input: TrackPageViewInput): Promise<void> {
       },
     });
   } catch (e) {
-    console.error("[platform/analytics] trackPageView falló:", e);
+    // Solo el tipo de error: un error de Prisma incluye los valores insertados (ruta, UTM, hash).
+    console.error("[platform/analytics] trackPageView falló:", e instanceof Error ? e.name : "unknown");
   }
 }
 

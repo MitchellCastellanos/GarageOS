@@ -4,7 +4,7 @@ Status: **design approved in concept by the owner on 2026-10-13; this document (
 
 ## 1. What exists today (verified in code)
 - `AnalyticsBeacon` → `POST /api/track` → `trackPageView` → `PageView` row: normalised path (private/token paths never stored), `locale` (from the route), `referrerHost` (host only, own host dropped), sanitised `utmSource/Medium/Campaign`, `device`, `browser`, `country` (Vercel header), `shopSlug`, `visitorHash` = sha256(daily salt | IP | UA) truncated to 32 hex (rotates daily; IP is never stored). Bot user-agents are skipped. No cookies, no client storage.
-- Gaps: no channel, no page type, no CTA events, no signup/demo attribution, no rate limit on `/api/track`, no body-size cap, no dimensions for language/channel/landing in `/platform/analytics` (it has top referrers).
+- Gaps: no channel, no page type, no CTA events, no signup/demo attribution, (SEC-06 done: `/api/track` now has a 120/min per-IP rate limit, a 2 KB body cap, strict validation and a same-site Origin/Sec-Fetch-Site check; every rejection is a silent 204), no dimensions for language/channel/landing in `/platform/analytics` (it has top referrers).
 
 ## 2. Event contract
 All events go through the same endpoint family, always answer `204`, never block navigation, and carry **no identifier beyond the daily `visitorHash`**.
