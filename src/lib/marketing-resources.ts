@@ -44,18 +44,18 @@ export const GUIDES: ResourceArticle[] = [
     summary: "Prepare an estimate, record the customer's decision and follow the invoice through payment.",
     sections: [
       { title: "Prepare a clear estimate", body: "Open Estimates and create a draft for the correct client and vehicle. Add the service and parts lines, quantities and prices. Review totals and shop details before sending. Draft estimates can be edited; review them before moving to a later status." },
-      { title: "Record the customer's decision", body: "Send the estimate by email or text. The customer opens a secure page (or their customer portal) and accepts or declines, and GarageOS records the decision. If they answer another way, record the decision yourself. Sending the estimate does not by itself mean the customer has approved it." },
+      { title: "Record the customer's decision", body: "When you send an estimate through an available communication channel, the customer can use the secure approval link to accept or reject it. Check the estimate status afterward; sending alone does not mean the customer approved it. If the customer replies by phone or another channel, follow your shop’s documented process rather than assuming the link recorded that conversation." },
       { title: "Create and review the invoice", body: "Use the estimate's conversion action when you are ready to invoice.", steps: ["Open the resulting draft invoice and check the client and vehicle.", "Review each line, totals and notes before sending.", "Send the invoice by email or text, or download its PDF.", "Check the send result and correct recipient details if delivery fails."] },
       { title: "Record a received payment", body: "After payment is received, use the invoice payment action to record the applicable method and amounts. Recording a card payment in GarageOS is a record of a payment collected through your shop's payment process; it does not charge a card. Review the payment record and any receipt before closing out the job." },
     ],
   },
   {
     slug: "approval-history", title: "Understand estimate approval history", category: "Estimates & invoices",
-    summary: "Every recorded decision keeps a traceable record you can review later.",
+    summary: "Understand estimate approval status and what the customer sees when responding.",
     sections: [
-      { title: "Why the record matters", body: "When you record a customer's decision on an estimate, GarageOS keeps a timestamped entry of the decision, the channel it came through and a snapshot of what was approved. This gives you a reference if a customer later asks what they agreed to." },
-      { title: "Review a past approval", body: "Open the estimate and review its recorded decisions.", steps: ["Confirm the decision (accepted or rejected) and when it was recorded.", "Compare the approved snapshot with the current estimate if it was edited afterward.", "Use the record to resolve any disagreement about what was approved."] },
-      { title: "Keep the trail clean", body: "Record a new decision rather than editing an old one if the scope changes after approval — this keeps each decision tied to what the customer actually saw at the time." },
+      { title: "What happens when a customer responds", body: "A customer can accept or reject an estimate using its secure approval link. GarageOS updates the estimate status and records approval data internally. The shop interface does not currently provide a dedicated approval-history screen or a view of stored document snapshots." },
+      { title: "Check the estimate status", body: "Open the estimate in GarageOS to check its current status. Do not assume that a visible status provides a complete audit history, a customer approval timestamp or an approved-document comparison. If you need a historical approval record for a dispute, contact your shop administrator or GarageOS support rather than relying on a screen that does not exist." },
+      { title: "When the scope changes", body: "If the proposed work changes after a customer responds, confirm the revised scope with the customer and follow your shop’s approval process. Do not assume an earlier approval covers newly added work." },
     ],
   },
   {
@@ -63,8 +63,8 @@ export const GUIDES: ResourceArticle[] = [
     summary: "Attach a future service need to a vehicle so the next visit doesn't get forgotten.",
     sections: [
       { title: "Create a reminder", body: "Open Reminders and create one for the relevant vehicle.", steps: ["Choose the service type the vehicle will need.", "Set a due date, a due mileage, or both.", "Add any notes the team should see when the reminder comes due."] },
-      { title: "Send a reminder", body: "Basic reminders are sent by email a week before the due date, or you can send one from the reminder. On Pro and Complete, reminder rules create the next reminder automatically when you complete a matching job and send it by the customer's preferred channel. Check the delivery result the same way you would for an estimate or invoice — a saved reminder does not guarantee a delivered message." },
-      { title: "Track reminder status", body: "Reminders move from pending to sent, and can be marked acknowledged once the customer responds or dismissed if no longer needed. Review pending reminders regularly so follow-ups don't pile up." },
+      { title: "Send a reminder", body: "Available reminder delivery and automation options depend on the shop’s plan and configuration. Check the reminder settings and its current status before relying on a scheduled send. A saved reminder does not, by itself, confirm that a message was delivered." },
+      { title: "Review reminder status", body: "Review pending and previously sent reminders in the shop interface, and follow up using the actions available for each reminder. Confirm a customer response through your normal communication workflow rather than assuming that a message marked sent has been acknowledged." },
     ],
   },
   {
