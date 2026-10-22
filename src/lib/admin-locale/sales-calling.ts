@@ -320,7 +320,7 @@ const fr: Dict = {
           tip: "Posez la question, puis écoutez. Notez les réponses dans l’onglet Découverte.",
           items: {
             booking: { label: "Prise de rendez-vous", text: "Comment vos clients prennent-ils rendez-vous aujourd’hui : par téléphone, sans rendez-vous ou en ligne?" },
-            workOrders: { label: "Bons de travail", text: "Comment rédigez-vous les travaux et faites-vous le suivi des bons de travail?" },
+            workOrders: { label: "Ordres de travail", text: "Comment rédigez-vous les ordres de travail et en assurez-vous le suivi?" },
             dvi: { label: "Inspections de véhicules", text: "Quand vous inspectez un véhicule, comment montrez-vous au client ce que vous avez trouvé?" },
             software: { label: "Logiciel actuel", text: "Utilisez-vous un logiciel de gestion d’atelier en ce moment, ou surtout du papier et des chiffriers?" },
             comms: { label: "Communications avec les clients", text: "Comment avisez-vous vos clients que leur véhicule est prêt ou que vous avez besoin de leur approbation?" },
