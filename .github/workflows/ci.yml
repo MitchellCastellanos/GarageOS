@@ -27,7 +27,6 @@ jobs:
       # Placeholders only. They satisfy the modules that read them at import time; nothing connects.
       DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/ci
       NEXTAUTH_SECRET: ci-placeholder-secret
-      NEXTAUTH_URL: http://localhost:3000
       NEXT_PUBLIC_APP_URL: http://localhost:3000
       NEXT_TELEMETRY_DISABLED: "1"
       # tsc, eslint and next build exceed Node's default ~2 GB heap on this codebase.
@@ -47,6 +46,10 @@ jobs:
       - name: Lint (errors fail; warnings are a known backlog)
         run: npm run lint
       - name: Production build
+        # NEXTAUTH_URL is set for the build only: with it defined, next-auth wraps requests in a way the
+        # auth-claims end-to-end tests (plain Request objects) do not model, so the test step runs without it.
+        env:
+          NEXTAUTH_URL: http://localhost:3000
         run: npx next build
       - name: Tests (unit, SEO, terminology, rendered HTML)
         run: |

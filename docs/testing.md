@@ -11,22 +11,25 @@ Last verified: 2026-10-22 on `main` after PRs #179–#183 (Node 22.22, npm 10.9)
 | Types | `npm run typecheck` | **Needs a bigger heap**: `NODE_OPTIONS=--max-old-space-size=6144`. With Node's default (~2 GB) `tsc` aborts out of memory. ~75 s. |
 | Lint | `npm run lint` | 0 errors, ~1,100 warnings (known backlog; warnings do not fail). ~70 s with the larger heap. |
 | Production build | `npx next build` | Placeholder env only (below). ~2 min. Do **not** use `npm run build` locally: it also runs `scripts/deploy-migrations.mjs`. |
-| Tests | `npm test` (= `tsx --test tests/*.test.ts`) | ~1,200 tests, <1 min. Run **after** a build so the rendered-HTML SEO suites execute. |
+| Tests | `npm test` (= `tsx --test tests/*.test.ts`) | 1,216 tests, ~50 s. Run **after** a build so the rendered-HTML SEO suites execute. |
 
 Placeholder environment for build and tests (nothing connects to anything):
 
 ```
 DATABASE_URL=postgresql://ci:ci@127.0.0.1:5432/ci
 NEXTAUTH_SECRET=ci-placeholder-secret
-NEXTAUTH_URL=http://localhost:3000
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+# build only:
+NEXTAUTH_URL=http://localhost:3000
 ```
+
+`NEXTAUTH_URL` must be **unset when running the tests**: with it defined, `tests/auth-claims.test.ts` (two end-to-end cases that pass a plain `Request` to the Auth.js handler) fails with `Cannot destructure property 'href' of 'req.nextUrl'`.
 
 Never put a production or shared database URL in these variables.
 
 ## Expected skips
 
-`npm test` reports ~35 skipped tests. They are legitimate and listed in `scripts/ci/check-skips.mjs`:
+`npm test` reports 32 skipped tests after a build. They are legitimate and listed in `scripts/ci/check-skips.mjs`:
 
 - **Database suites** (`tests/*-db.test.ts`, 32 suites): they skip unless `GARAGEOS_CRM_TEST_DB_URL` points at a local **scratch** PostgreSQL. They are not run by the lightweight CI job.
 - **`tests/integration/*`**: only through `npm run test:integration`, which is fail-closed against anything but the authorised Neon preview database (see `docs/integration-testing.md`). Never part of CI.
