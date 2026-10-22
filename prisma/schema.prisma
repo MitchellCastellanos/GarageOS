@@ -1815,11 +1815,41 @@ model PageView {
   shopId       String?
   shop         Shop?    @relation(fields: [shopId], references: [id], onDelete: SetNull)
   visitorHash  String
+  /// Analytics v2 (additive, default ''): derived server-side from the referrer host and UTM — see src/lib/analytics/contract.ts.
+  channel      String   @default("")
+  /// Analytics v2 (additive, default ''): derived server-side from the normalised path.
+  pageType     String   @default("")
   createdAt    DateTime @default(now())
 
   @@index([createdAt])
   @@index([path, createdAt])
   @@index([visitorHash, createdAt])
+  @@schema("garageos")
+}
+
+enum AnalyticsEventType {
+  CTA_CLICK
+
+  @@schema("garageos")
+}
+
+/// Analytics v2 call-to-action clicks on PUBLIC pages (docs/analytics-v2-contract.md §2, §4). Carries no identifier beyond the daily
+/// pseudonymous visitorHash (HMAC, SEC-05); never an IP, user-agent, token, e-mail or free text. Retention: 13 months via the shared
+/// engine (src/lib/privacy/retention.ts). Separate from the sales-video attribution (CrmVideoEvent), which concerns known prospects.
+model AnalyticsEvent {
+  id          String             @id @default(cuid())
+  type        AnalyticsEventType
+  /// Allowlisted id (CTA_IDS); validated before insert.
+  ctaId       String
+  path        String
+  locale      String             @default("en")
+  channel     String             @default("")
+  pageType    String             @default("")
+  visitorHash String
+  createdAt   DateTime           @default(now())
+
+  @@index([createdAt])
+  @@index([type, ctaId, createdAt])
   @@schema("garageos")
 }
 
