@@ -1,24 +1,17 @@
 import "server-only";
-import crypto from "node:crypto";
 import { db } from "@/lib/db";
 import { getAppUrl } from "@/config/app";
+import { hashVisitor } from "@/lib/privacy/visitor-hash";
 import { isTrackablePath, normalizeForStorage, sanitizeCampaignValue, shopSlugFromPath } from "@/lib/privacy/private-paths";
 
 /**
  * Analytics de visitas de primera parte, sin cookies — mismo enfoque que
- * Montreal Spider Co (src/lib/data/analytics.ts): visitorHash es un hash
- * unidireccional de IP+UA salado por día, nunca se guarda IP cruda.
+ * Montreal Spider Co (src/lib/data/analytics.ts): visitorHash es un HMAC
+ * diario (clave secreta ANALYTICS_HASH_SECRET, ver src/lib/privacy/visitor-hash.ts) de IP+UA: seudónimo, no anónimo.
+ * Nunca se guarda IP cruda.
  */
 
 const BOT_UA = /bot|crawl|spider|slurp|bingpreview|facebookexternalhit|whatsapp|pingdom|uptimerobot|headlesschrome|lighthouse|ahrefsbot|semrushbot|mj12bot|dotbot/i;
-
-function dailySalt(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function hashVisitor(ip: string, ua: string): string {
-  return crypto.createHash("sha256").update(`${dailySalt()}|${ip}|${ua}`).digest("hex").slice(0, 32);
-}
 
 function deviceFromUA(ua: string): string {
   if (/tablet|ipad/i.test(ua)) return "tablet";
@@ -89,7 +82,8 @@ export async function trackPageView(input: TrackPageViewInput): Promise<void> {
       },
     });
   } catch (e) {
-    console.error("[platform/analytics] trackPageView falló:", e);
+    // Solo el tipo de error: un error de Prisma incluye los valores insertados (ruta, UTM, hash).
+    console.error("[platform/analytics] trackPageView falló:", e instanceof Error ? e.name : "unknown");
   }
 }
 

@@ -32,7 +32,8 @@ export type PlatformAuditAction =
   | "SALES_STAFF_DEACTIVATED"
   | "SALES_STAFF_REACTIVATED"
   | "SALES_STAFF_CORPORATE_EMAIL_ASSIGNED"
-  | "SALES_STAFF_WORK_REASSIGNED";
+  | "SALES_STAFF_WORK_REASSIGNED"
+  | "ANALYTICS_RETENTION_RUN";
 
 interface LogPlatformActionInput {
   actorUserId: string;

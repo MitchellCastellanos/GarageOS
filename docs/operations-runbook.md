@@ -64,6 +64,13 @@ Storage for files; Stripe, Twilio, Resend, QuickBooks Online as providers; Verce
 ## Provider side effects are opt-in per environment
 Outbound effects (SMS, email, Pusher events, Telegram, Twilio/Resend management, Stripe mutations, QuickBooks) only happen when `PROVIDER_SIDE_EFFECTS=enabled` is set — Production explicitly, **Preview never** (except a provider-specific controlled test; for Stripe TEST use `STRIPE_TEST_MUTATIONS=enabled` with a test key). If SMS/email/realtime silently stop in Production, check that variable first. Crons report `providerSideEffects: "disabled"` and skip outbound steps. `NEXTAUTH_SECRET` must be different per environment. Details: `docs/provider-isolation.md`.
 
+## ANALYTICS_HASH_SECRET
+Server-only key for the daily pseudonymous `PageView.visitorHash` (HMAC-SHA256, `src/lib/privacy/visitor-hash.ts`; contract in `docs/analytics-v2-contract.md` §10.1).
+- Generate: `openssl rand -base64 48`. Set it in Vercel for **Production and Preview** (a different value per environment is fine). Never `NEXT_PUBLIC_*`, never commit it, never log it.
+- Not set (or shorter than 32 chars): the app still tracks, using a random per-process key and logging one warning ("ANALYTICS_HASH_SECRET is missing…"). Distinct-visitor counts are then approximate (every serverless instance has its own key). It is safe to deploy before the variable exists.
+- First deploy with the variable: distinct-visitor counts reset once (old date-salted hashes never match the new ones).
+- Do not rotate casually: rotation only breaks distinct-visitor continuity within the day it happens (hashes already rotate daily anyway). Rotate only if the value leaked.
+
 ## Provider outages
 - **Stripe**: signed-in shops keep working (subscription state is stored locally). Webhooks are retried by Stripe and are idempotent
   per `event.id`; after an outage, resend failed events from the Stripe dashboard. New signups/upgrades can't reach Checkout until Stripe is back.
@@ -163,3 +170,6 @@ General rules: (1) one responsible operator (Mitchell) per incident; (2) stabili
 3. Vercel → remove/regenerate the old bypass secret.
 4. Verify: Stripe TEST → the endpoint → *Send test webhook* → HTTP 2xx (or 400 invalid-signature, which proves the request reached the app); a request to the Preview URL without the secret gets the Vercel SSO page / 401; Preview `STRIPE_TEST_MUTATIONS` stays `disabled`; `git grep` and CI logs for the old token (none expected); check any other automation (QA scripts, tools) that used the old secret.
 **Invoice/public token expiry.** `Invoice.downloadToken` (192-bit random) has no expiry or rate limit — POST-LAUNCH (PIA §7 accepted risk (f)); quote approval tokens already expire. No change made (schema + customer-link behavior change; low exploitability).
+
+## Tokenised /watch URLs and Referer (SEC-07, 2026-10-22)
+`/watch/{en,fr}[/teaser]?t=<token>` is sent in sales emails. Checked in code: the token reaches only (a) the first-party `/api/video/event` (JSON body) and `/api/video/cta` (query, same-origin 302) endpoints, which authenticate by token and never read Referer/Origin; (b) the client component props. It is not in metadata (canonical/og:url use `watchPath()` without query), not in the analytics beacon (`AnalyticsBeacon` sends `usePathname()` only), not in any external link (none exist on the page). The only third-party-capable request is the MP4 `src` (host configured in the video table, possibly a CDN): the default browser policy already sends only the origin there, and `next.config.ts` now pins `Referrer-Policy: same-origin` on `/watch/*` (no Referer at all to third parties; `no-referrer` is avoided because it makes browsers send `Origin: null` on same-origin POSTs), `X-Robots-Tag: noindex, nofollow`, and `Cache-Control: private, no-store` whenever `?t=` is present. Poster `<img>` has `referrerPolicy="no-referrer"`. Residual: same-origin navigations (e.g. to `/privacy`) still carry the full URL as Referer to our own servers; the token is not logged by the app.

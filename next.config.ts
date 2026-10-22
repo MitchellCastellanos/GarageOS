@@ -27,6 +27,19 @@ const nextConfig: NextConfig = {
         source,
         headers: [{ key: "Referrer-Policy", value: "same-origin" }],
       })),
+      // Shareable video pages (/watch/{en,fr}[/teaser]?t=<token>): the page URL carries an attribution token, so it must not
+      // leave the origin through Referer (the MP4 host may be a third-party CDN). `same-origin` rather than `no-referrer` for the
+      // reason above (`Origin: null` on same-origin POSTs would break /api/track's same-site check and any origin-checked POST).
+      // Never indexable or cached (metadata already says noindex; this also covers errors/non-HTML). `/watch` is deliberately NOT
+      // a private prefix: it stays crawlable in robots.txt so crawlers can see the noindex.
+      {
+        source: "/watch/:path*",
+        headers: [
+          { key: "Referrer-Policy", value: "same-origin" },
+          { key: "X-Robots-Tag", value: "noindex, nofollow" },
+        ],
+      },
+      { source: "/watch/:path*", has: [{ type: "query", key: "t" }], headers: [{ key: "Cache-Control", value: "private, no-store" }] },
       // Approved video posters/thumbnails (≈35-57 KB each): cache a day at the edge/browser, revalidate in the background.
       { source: "/video/:file*.jpg", headers: [{ key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=604800" }] },
       // Attributed video pages and the tracking endpoints must never be cached or indexed.
