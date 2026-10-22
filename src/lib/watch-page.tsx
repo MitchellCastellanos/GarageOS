@@ -11,7 +11,7 @@ type Search = Promise<{ t?: string | string[]; at?: string | string[] }>;
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 const parseLang = (l: string) => (l === "en" || l === "fr" ? l : null);
 
-export async function watchMetadata({ params, searchParams }: { params: Params; searchParams: Search }, kind: VideoKind): Promise<Metadata> {
+export async function watchMetadata({ params }: { params: Params; searchParams: Search }, kind: VideoKind): Promise<Metadata> {
   const lang = parseLang((await params).lang);
   if (!lang) return {};
   const c = WATCH_COPY[lang];
