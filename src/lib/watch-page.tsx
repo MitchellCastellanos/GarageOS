@@ -36,7 +36,6 @@ export async function WatchPage({ params, searchParams }: { params: Params; sear
   const link = await resolveVideoLink(first(sp.t)).catch(() => null);
   const video = await getWatchVideo(kind, lang === "fr" ? "FR" : "EN");
   const at = Math.max(0, Math.min(Number.parseInt(first(sp.at) ?? "0", 10) || 0, VIDEO_KINDS[kind].seconds - 2));
-  const c = WATCH_COPY[lang];
   return (
     <>
       <WatchClient lang={lang} kind={kind} video={video ? { title: video.title, url: video.url } : null} token={link?.token ?? null} startAt={at} />
