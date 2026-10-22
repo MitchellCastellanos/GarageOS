@@ -22,7 +22,7 @@ export function AuthPanel({ variant, children }: AuthPanelProps) {
   const topBarLinkHref = variant === "login" ? ADMIN.signup : ADMIN.login;
 
   return (
-    <div className="flex-1 relative overflow-hidden bg-slate-50 flex flex-col min-h-screen">
+    <main className="flex-1 relative overflow-hidden bg-slate-50 flex flex-col min-h-screen">
       <div className="pointer-events-none absolute -bottom-24 -right-24 w-96 h-96 rounded-full bg-brand-blue/10 blur-3xl" />
       <div className="pointer-events-none absolute top-0 right-0 w-64 h-64 rounded-full bg-brand-blue/5 blur-2xl" />
 
@@ -52,6 +52,6 @@ export function AuthPanel({ variant, children }: AuthPanelProps) {
       <div className="relative flex-1 flex items-center justify-center px-6 py-2 min-h-0">
         <div className="w-full max-w-sm">{children}</div>
       </div>
-    </div>
+    </main>
   );
 }
