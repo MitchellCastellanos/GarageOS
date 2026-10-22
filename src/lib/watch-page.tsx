@@ -37,14 +37,9 @@ export async function WatchPage({ params, searchParams }: { params: Params; sear
   const video = await getWatchVideo(kind, lang === "fr" ? "FR" : "EN");
   const at = Math.max(0, Math.min(Number.parseInt(first(sp.at) ?? "0", 10) || 0, VIDEO_KINDS[kind].seconds - 2));
   const c = WATCH_COPY[lang];
-  const ld = !link && video ? {
-    "@context": "https://schema.org", "@type": "VideoObject", name: c.metaTitle(kind), description: c.metaDescription, inLanguage: lang === "fr" ? "fr-CA" : "en-CA",
-    thumbnailUrl: [canonicalUrl(`/video/thumb-${lang}.jpg`)], duration: `PT${VIDEO_KINDS[kind].seconds}S`, contentUrl: video.url,
-  } : null;
   return (
     <>
       <WatchClient lang={lang} kind={kind} video={video ? { title: video.title, url: video.url } : null} token={link?.token ?? null} startAt={at} />
-      {ld && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ld).replace(/</g, "\\u003c") }} />}
     </>
   );
 }
