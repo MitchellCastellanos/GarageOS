@@ -2,7 +2,8 @@ import "server-only";
 import { db } from "@/lib/db";
 import { getAppUrl } from "@/config/app";
 import { hashVisitor } from "@/lib/privacy/visitor-hash";
-import { isTrackablePath, normalizeForStorage, sanitizeCampaignValue, shopSlugFromPath } from "@/lib/privacy/private-paths";
+import { isTrackablePath, normalizeForStorage, shopSlugFromPath } from "@/lib/privacy/private-paths";
+import { classifyChannel, classifyPageType, strictCampaignValue } from "@/lib/analytics/contract";
 
 /**
  * Analytics de visitas de primera parte, sin cookies — mismo enfoque que
@@ -63,6 +64,12 @@ export async function trackPageView(input: TrackPageViewInput): Promise<void> {
     }
   }
 
+  // Analytics v2: strict UTM allowlist (contract 10.4) and server-derived classification. Nothing here comes from the client as-is.
+  const utmSource = strictCampaignValue(input.utmSource);
+  const utmMedium = strictCampaignValue(input.utmMedium);
+  const utmCampaign = strictCampaignValue(input.utmCampaign);
+  const channel = classifyChannel({ utmSource, utmMedium, utmCampaign, referrerHost });
+
   try {
     const shop = shopSlug ? await db.shop.findUnique({ where: { slug: shopSlug }, select: { id: true } }) : null;
     await db.pageView.create({
@@ -70,9 +77,11 @@ export async function trackPageView(input: TrackPageViewInput): Promise<void> {
         path: path.slice(0, 300),
         locale: input.locale === "fr" ? "fr" : "en",
         referrerHost: referrerHost.slice(0, 200),
-        utmSource: sanitizeCampaignValue(input.utmSource),
-        utmMedium: sanitizeCampaignValue(input.utmMedium),
-        utmCampaign: sanitizeCampaignValue(input.utmCampaign),
+        utmSource,
+        utmMedium,
+        utmCampaign,
+        channel,
+        pageType: classifyPageType(path),
         device: deviceFromUA(input.userAgent),
         browser: browserFromUA(input.userAgent),
         country: /^[A-Za-z]{2}$/.test(input.country) ? input.country.toUpperCase() : "",
