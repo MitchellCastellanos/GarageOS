@@ -1,23 +1,32 @@
 import { requireSuperAdmin } from "@/lib/permissions";
-import { getLast24HoursSeries, getDailySeries, getRangeBreakdown } from "@/lib/platform/analytics";
+import { getLast24HoursSeries, getDailySeries, getDailySeriesBetween, getRangeBreakdown } from "@/lib/platform/analytics";
+import { getAnalyticsPanels } from "@/lib/platform/analytics-panels";
+import { parseRange } from "@/lib/platform/analytics-panels-core";
 import { AnalyticsDashboard } from "@/components/admin/AnalyticsDashboard";
-
-const VALID_RANGES = [7, 30, 90] as const;
+import { AnalyticsPanels } from "@/components/admin/AnalyticsPanels";
 
 export default async function PlatformAnalyticsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ days?: string }>;
+  searchParams: Promise<{ days?: string; from?: string; to?: string }>;
 }) {
   await requireSuperAdmin();
-  const { days: daysParam } = await searchParams;
-  const days = VALID_RANGES.includes(Number(daysParam) as (typeof VALID_RANGES)[number]) ? Number(daysParam) : 30;
+  const params = await searchParams;
+  // 7/30/90 presets (default 30) or a validated custom from/to; anything invalid falls back to 30 days and says so.
+  const range = parseRange(params);
+  const custom = range.kind === "custom";
 
-  const [last24h, daily, breakdown] = await Promise.all([
+  const [last24h, daily, breakdown, panels] = await Promise.all([
     getLast24HoursSeries(),
-    getDailySeries(days),
-    getRangeBreakdown(days),
+    custom ? getDailySeriesBetween(range.from, range.to) : getDailySeries(range.days),
+    getRangeBreakdown(custom ? { from: range.from, to: range.to } : range.days),
+    getAnalyticsPanels(range),
   ]);
 
-  return <AnalyticsDashboard last24h={last24h} daily={daily} breakdown={breakdown} days={days} />;
+  return (
+    <>
+      <AnalyticsDashboard last24h={last24h} daily={daily} breakdown={breakdown} days={range.days} customRange={custom ? { from: range.fromDay, to: range.toDay } : undefined} />
+      <AnalyticsPanels range={range} data={panels} />
+    </>
+  );
 }
