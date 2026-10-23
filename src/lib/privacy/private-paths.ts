@@ -131,6 +131,11 @@ export function looksLikeToken(value: string): boolean {
 /** Forma de dato personal: correo (`@`), URL (`://`), secuencias con `%` (codificadas) o números tipo teléfono (7+ dígitos). */
 const PERSONAL_LIKE = /@|:\/\/|%[0-9a-f]{2}|\d{7,}|\d{3}[\s.-]\d{3}[\s.-]\d{4}/i;
 
+/** ¿Tiene forma de dato personal (correo, URL, teléfono)? Para valores que no son tokens legítimamente largos (p. ej. un slug de blog). */
+export function looksPersonal(value: string): boolean {
+  return PERSONAL_LIKE.test(value);
+}
+
 /**
  * utm_* viene del query de la página visitada (lo controla quien enlaza): nunca se guarda algo con forma de token ni de
  * dato personal (correo, teléfono, URL). Los valores legítimos (`newsletter`, `fall-2026_promo`, `google`) pasan intactos.

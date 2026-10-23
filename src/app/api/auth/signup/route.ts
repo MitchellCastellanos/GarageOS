@@ -7,7 +7,7 @@ import { ADMIN } from "@/lib/routes";
 import { createPendingSubscription } from "@/lib/subscription";
 import { sendVerificationEmail } from "@/lib/email-verification";
 import { captureSignupAttribution } from "@/lib/platform/signup-attribution";
-import { HANDOFF_QUERY, sanitizeHandoff } from "@/lib/analytics/signup-attribution";
+import { HANDOFF_QUERY, sanitizeHandoff, signupAttributionEnabled } from "@/lib/analytics/signup-attribution";
 import {
   MARKETING_DICTIONARIES,
   DEFAULT_MARKETING_LOCALE,
@@ -49,7 +49,8 @@ function signupRedirect(req: NextRequest, error: string, handoff: Record<string,
 export async function POST(req: NextRequest) {
   const formData = await req.formData();
   const locale = resolveLocale(formData.get("locale"));
-  const handoff = readHandoffFields(formData);
+  // With the privacy flag off the hand-off is not even read: redirects and behaviour are exactly as before this feature.
+  const handoff = signupAttributionEnabled() ? readHandoffFields(formData) : {};
   const errors = MARKETING_DICTIONARIES[locale].auth.errors;
 
   if (!(await checkRateLimit(RATE_LIMITS.signupIp(clientIpFromHeaders(req.headers)))).allowed) {

@@ -134,13 +134,22 @@ if (!enabled) {
     }
   });
 
-  test("validation errors keep the validated hand-off in the redirect", async () => {
-    const res: Response = await signup(form({ password: "short", ho_from: "help:getting-started", ho_lang: "en", ho_utm_source: "me@x.com" }));
-    const loc = new URL(res.headers.get("location") ?? "", "https://www.garage-os.ca");
-    assert.equal(loc.pathname, "/admin/signup");
-    assert.equal(loc.searchParams.get("from"), "help:getting-started");
-    assert.equal(loc.searchParams.get("lang"), "en");
-    assert.equal(loc.searchParams.get("utm_source"), null, "invalid values never come back");
+  test("validation errors keep the validated hand-off in the redirect (flag on); with the flag off the redirect is exactly as before", async () => {
+    const bad = { password: "short", ho_from: "help:getting-started", ho_lang: "en", ho_utm_source: "me@x.com" };
+    const off: Response = await signup(form(bad));
+    const offLoc = new URL(off.headers.get("location") ?? "", "https://www.garage-os.ca");
+    assert.deepEqual([...offLoc.searchParams.keys()], ["error"], "flag off: only the error param, no hand-off echoed");
+    process.env.ANALYTICS_SIGNUP_ATTRIBUTION_ENABLED = "true";
+    try {
+      const res: Response = await signup(form(bad));
+      const loc = new URL(res.headers.get("location") ?? "", "https://www.garage-os.ca");
+      assert.equal(loc.pathname, "/admin/signup");
+      assert.equal(loc.searchParams.get("from"), "help:getting-started");
+      assert.equal(loc.searchParams.get("lang"), "en");
+      assert.equal(loc.searchParams.get("utm_source"), null, "invalid values never come back");
+    } finally {
+      delete process.env.ANALYTICS_SIGNUP_ATTRIBUTION_ENABLED;
+    }
   });
 
   test("cascade: deleting the shop deletes its attribution", async () => {

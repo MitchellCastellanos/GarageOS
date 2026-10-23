@@ -2,7 +2,7 @@
 // Nothing here touches the database, the network or storage. Every value that survives is an allowlisted token or a validated public
 // pathname; anything else is dropped, and a signup with no (or only invalid) hand-off simply records a "direct" first touch.
 import { classifyChannel, classifyPageType, isCtaId, parseHandoff, strictCampaignValue, type CtaId, type PageType } from "@/lib/analytics/contract";
-import { isTrackablePath, normalizeForStorage } from "@/lib/privacy/private-paths";
+import { isTrackablePath, looksLikeToken, looksPersonal, normalizeForStorage } from "@/lib/privacy/private-paths";
 
 /** Privacy gate: collection is OFF unless the server env ANALYTICS_SIGNUP_ATTRIBUTION_ENABLED is exactly "true" (docs/analytics-v2-contract.md §12). */
 export function signupAttributionEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
@@ -25,7 +25,9 @@ function cleanLandingPath(raw: string): string {
   if (!raw || raw.length > 300 || !raw.startsWith("/")) return "";
   const pathOnly = raw.split(/[?#]/)[0];
   if (!isTrackablePath(pathOnly)) return "";
-  return normalizeForStorage(pathOnly) ?? "";
+  const stored = normalizeForStorage(pathOnly) ?? "";
+  // The path comes from a URL anyone can craft: a segment shaped like an email, phone number or URL is never stored.
+  return looksPersonal(stored) ? "" : stored;
 }
 
 /**
@@ -43,7 +45,8 @@ export function sanitizeHandoff(raw: Record<string, unknown>): HandoffParams {
   if (isCtaId(cta)) out.cta = cta;
   for (const k of ["utm_source", "utm_medium", "utm_campaign"] as const) {
     const v = strictCampaignValue(firstString(raw[k]));
-    if (v) out[k] = v;
+    // Dots/spaces/+ can split a token (e.g. a JWT is three dot-separated parts): check the value with those removed as well.
+    if (v && !looksLikeToken(v.replace(/[.+\s]/g, "")) && !/\d+\.\d+\.\d+\.\d+/.test(v)) out[k] = v;
   }
   return out;
 }
@@ -64,7 +67,10 @@ export interface SignupAttributionRecord {
 export function cleanReferrerHost(raw: unknown, ownHost?: string): string {
   if (typeof raw !== "string") return "";
   const host = raw.trim().toLowerCase().replace(/^www\./, "");
-  if (!HOST_SHAPE.test(host) || host.includes("..")) return "";
+  // A real public hostname only: has a dot and an alphabetic TLD (so no IP literals, "localhost" or digit-only/phone-like strings) and nothing personal-looking.
+  if (!HOST_SHAPE.test(host) || host.includes("..") || !/\.(xn--[a-z0-9-]+|[a-z]{2,})$/.test(host) || looksPersonal(host)) return "";
+  // A long label mixing letters and digits is an identifier/token (e.g. a JWT part or hex id), not a site name.
+  if (host.split(".").some((label) => label.length >= 16 && /\d/.test(label) && /[a-z]/.test(label))) return "";
   if (ownHost && host === ownHost.toLowerCase().replace(/^www\./, "")) return "";
   return host;
 }
