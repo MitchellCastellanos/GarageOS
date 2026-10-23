@@ -10,7 +10,7 @@ Written 2026-10-23 after the question "production has no new `PageView` rows sin
 | 1. `isTrackingOptOut` | `DNT: 1` or `Sec-GPC: 1` | none |
 | 2. `isAllowedTrackOrigin` | foreign/`null` Origin, or neither Origin nor a same-site `Sec-Fetch-Site` | none |
 | 3. declared `Content-Length` > 2 KB | oversized | none |
-| 4. `checkRateLimit(trackIp)` | > 120 requests/min per IP | **a `RateLimitBucket` row `track-ip:<ip>`** (this is how you prove a request reached the server and passed steps 1–3) |
+| 4. `checkRateLimit(trackIp)` | > 120 requests/min per IP | **a `RateLimitBucket` row `track-ip:<keyed hash>:<window>` (since the hashing change the id no longer contains the IP)** (this is how you prove a request reached the server and passed steps 1–3) |
 | 5. bounded body read, JSON, `parseTrackPayload` | bad JSON, private/token path, locale ∉ en/fr | none |
 | 6. `trackPageView` | bot user agent (`bot|crawl|spider|…|headlesschrome|lighthouse`), untrackable path, **or a database error (swallowed; only the error class name is logged)** | `console.error("[platform/analytics] trackPageView falló: <ErrorName>")` on failure |
 

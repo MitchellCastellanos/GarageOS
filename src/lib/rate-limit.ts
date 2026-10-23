@@ -2,18 +2,37 @@
 // counter lives in Postgres: `upsert` + `increment` is one atomic INSERT … ON CONFLICT DO UPDATE.
 // It FAILS OPEN on a database error — a limiter outage must never lock real users out; the
 // underlying operation has its own auth/validation.
+import crypto from "node:crypto";
 import { db } from "@/lib/db";
 
 export type RateLimitResult = { allowed: boolean; count: number; retryAfterSec: number };
 
 export type RateLimitRule = { key: string; limit: number; windowSec: number };
 
+/**
+ * Primary key of a counter row. The limiter name (text before the first ":") stays readable so operators can still group
+ * by limiter; everything after it (client IP, email, staff id…) is replaced by a keyed hash so the table never holds a raw
+ * IP address or email. The key is stable on purpose (unlike the daily visitor hash) because the window must match across
+ * serverless instances. The secret is server-only; without any it degrades to an unkeyed SHA-256, still not a raw value.
+ */
+export function bucketId(ruleKey: string, windowIndex: number): string {
+  const sep = ruleKey.indexOf(":");
+  const name = sep === -1 ? ruleKey : ruleKey.slice(0, sep);
+  if (sep === -1) return `${name}:${windowIndex}`;
+  const secret = process.env.RATE_LIMIT_HASH_SECRET || process.env.ANALYTICS_HASH_SECRET || process.env.NEXTAUTH_SECRET || "";
+  const subject = ruleKey.slice(sep + 1);
+  const digest = secret
+    ? crypto.createHmac("sha256", secret).update(subject).digest("base64url")
+    : crypto.createHash("sha256").update(`rate-limit|${subject}`).digest("base64url");
+  return `${name}:${digest.slice(0, 22)}:${windowIndex}`;
+}
+
 export async function checkRateLimit(rule: RateLimitRule, now: Date = new Date()): Promise<RateLimitResult> {
   const windowMs = rule.windowSec * 1000;
   const windowIndex = Math.floor(now.getTime() / windowMs);
   const windowEnd = (windowIndex + 1) * windowMs;
   const retryAfterSec = Math.max(1, Math.ceil((windowEnd - now.getTime()) / 1000));
-  const id = `${rule.key}:${windowIndex}`;
+  const id = bucketId(rule.key, windowIndex);
   try {
     const row = await db.rateLimitBucket.upsert({
       where: { id },
@@ -56,7 +75,7 @@ export async function currentRequestIp(): Promise<string | null> {
 /** Clears a counter family for a key (e.g. after a successful login). */
 export async function resetRateLimit(rule: Pick<RateLimitRule, "key" | "windowSec">, now: Date = new Date()) {
   const windowIndex = Math.floor(now.getTime() / (rule.windowSec * 1000));
-  await db.rateLimitBucket.deleteMany({ where: { id: `${rule.key}:${windowIndex}` } }).catch(() => undefined);
+  await db.rateLimitBucket.deleteMany({ where: { id: bucketId(rule.key, windowIndex) } }).catch(() => undefined);
 }
 
 export async function purgeExpiredRateLimits(now: Date = new Date()) {
