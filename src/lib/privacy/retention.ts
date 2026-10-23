@@ -106,3 +106,54 @@ export async function runRetention(opts: RetentionOptions): Promise<RetentionRes
     durationMs: clock() - started,
   };
 }
+
+export interface MultiRetentionOptions {
+  /** Named stores (one per table). Each is processed with the same policy; counts are reported separately. */
+  stores: Record<string, RetentionStore>;
+  now?: Date;
+  months?: number;
+  dryRun: boolean;
+  batchSize?: number;
+  /** Per-table cap on batches. */
+  maxBatches?: number;
+  /** One budget shared by all tables. */
+  timeBudgetMs?: number;
+  clock?: () => number;
+}
+
+export type TableRetentionOutcome = { ok: true; result: RetentionResult } | { ok: false; error: string };
+
+/**
+ * One run over several tables with a SHARED time budget split fairly: each table gets an equal share of the time that is left when
+ * its turn comes (time one table did not use flows to the next, and a slow first table can never starve the second). A failing table
+ * is reported and does not prevent the others from running. Counts are per table; nothing but counts and dates is returned.
+ */
+export async function runRetentionForTables(opts: MultiRetentionOptions): Promise<Record<string, TableRetentionOutcome>> {
+  const clock = opts.clock ?? Date.now;
+  const started = clock();
+  const total = opts.timeBudgetMs ?? 20_000;
+  const now = opts.now ?? new Date();
+  const names = Object.keys(opts.stores);
+  const out: Record<string, TableRetentionOutcome> = {};
+  for (let i = 0; i < names.length; i++) {
+    const name = names[i];
+    const left = Math.max(0, total - (clock() - started));
+    const share = Math.floor(left / (names.length - i));
+    try {
+      const result = await runRetention({
+        store: opts.stores[name],
+        now,
+        months: opts.months,
+        dryRun: opts.dryRun,
+        batchSize: opts.batchSize,
+        maxBatches: opts.maxBatches,
+        timeBudgetMs: share,
+        clock,
+      });
+      out[name] = { ok: true, result };
+    } catch (err) {
+      out[name] = { ok: false, error: err instanceof Error ? err.name : "unknown" };
+    }
+  }
+  return out;
+}
