@@ -101,7 +101,7 @@ export const HELP_UI: Record<HelpLocale, {
   home: string; helpCenter: string; breadcrumb: string; onThisPage: string; related: string; articlesIn: (n: number) => string;
   browseByTopic: string; backTo: (name: string) => string; stillNeedHelp: string; contactUs: string; topicHeading: string; steps: string;
   searchLabel: string; searchPlaceholder: string; searchResults: (n: number) => string; searchTooShort: string;
-  noResults: (q: string) => string; noResultsHelp: string; englishOnly: string; clear: string;
+  noResults: (q: string) => string; noResultsHelp: string; englishOnly: string; clear: string; moreResources?: string;
 }> = {
   en: {
     home: "Home", helpCenter: "Help Center", breadcrumb: "Breadcrumb", onThisPage: "In this article", related: "Related articles",
@@ -109,7 +109,7 @@ export const HELP_UI: Record<HelpLocale, {
     stillNeedHelp: "Still need help?", contactUs: "Contact us", topicHeading: "Help topic", steps: "Steps",
     searchLabel: "Search the Help Center", searchPlaceholder: "Search help articles", searchResults: (n) => (n === 1 ? "1 result" : `${n} results`),
     searchTooShort: "Type at least 2 letters to search.", noResults: (q) => `No articles match "${q}".`,
-    noResultsHelp: "Try different words, browse the topics below, or contact us.", englishOnly: "", clear: "Clear search",
+    noResultsHelp: "Try different words, browse the topics below, or contact us.", englishOnly: "", clear: "Clear search", moreResources: "Browse all resources",
   },
   fr: {
     home: "Accueil", helpCenter: "Centre d'aide", breadcrumb: "Fil d'Ariane", onThisPage: "Dans cet article", related: "Articles connexes",

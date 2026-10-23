@@ -22,7 +22,7 @@ Audit against `main` (`a7ded96`, then PRs #179–#188). Evidence level: code and
 | QA-04 | **DONE (non-required check)** | #191: `.github/workflows/db-tests.yml` — `postgres:16` service, one fresh database per suite, all 31 DB suites (408 tests) pass with 0 skips. Suites leak shared state when run together in one database (issue-ready note in `docs/testing.md`); nine suites share a flaky `Date.now()` phone-fixture pattern. Owner decides whether `db-tests` becomes required |
 | New, still open | SEC-08 (PIA/retention register entry for analytics), FR-02 (missing FR routes, `/fr/aide`), QA-06 (link checker over built HTML), DOC-02 (remaining stale docs), PRD-09 (approval history UI — **not pursued, owner decision**) | audit report 2026-10-22 |
 
-Corrections to statements further down: `proxy.ts` is at the repository root (not `src/proxy.ts`); DNT/GPC is honoured by `/api/track` since #116; the "analytics-v2-contract.md §1: gaps" list is outdated for DNT/GPC only; the visitor-hash salt is currently the public date (SEC-05).
+Corrections to statements further down: the proxy was at the repository root, where Next.js 16 never loads it when `app` lives under `src/` (see PERF-01 / `docs/perf-01-investigation.md`); it now lives in `src/proxy.ts`; DNT/GPC is honoured by `/api/track` since #116; the "analytics-v2-contract.md §1: gaps" list is outdated for DNT/GPC only; the visitor-hash salt is currently the public date (SEC-05).
 
 ## Priorities
 - **P0** — security or legal/external prerequisites that gate indexing or expose users. Do first.

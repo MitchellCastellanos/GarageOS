@@ -98,7 +98,7 @@ export function ProductContent() {
             })}
           </div>
           <div className="mt-10 flex flex-wrap gap-4">
-            {[{ href: "/features", label: c.seeFeatures }, { href: "/pricing", label: c.seePricing }, { href: "/demo", label: c.walkthrough }].map((l) => (
+            {[{ href: "/features", label: c.seeFeatures }, { href: "/pricing", label: c.seePricing }, { href: "/demo", label: c.walkthrough }, { href: "/integrations", label: c.seeIntegrations }, { href: "/changelog", label: c.seeChangelog }].map((l) => (
               <Link key={l.href} href={l.href} className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-blue hover:text-brand-blue-dark">
                 {l.label} <ArrowRight className="w-4 h-4" />
               </Link>
