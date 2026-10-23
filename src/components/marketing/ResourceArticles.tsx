@@ -44,7 +44,8 @@ export function ResourceArticleBody({ article, basePath, label }: { article: Res
       </section>)}</div>
       <aside className="mt-14 border-t border-slate-200 pt-8">
         {related && <Link href={helpPathForGuide(related.slug) ?? "/help"} className="mb-5 block font-semibold text-brand-blue">Step-by-step guide: {related.title} →</Link>}
-        <p className="text-sm text-slate-600">Need help with your shop? <Link href="/help" className="font-semibold text-brand-blue">Visit the Help Center</Link> or <Link href="/contact" className="font-semibold text-brand-blue">contact us</Link>.</p>
+        {article.relatedLinks?.map((l) => <Link key={l.href} href={l.href} className="mb-5 block font-semibold text-brand-blue">Related: {l.label} →</Link>)}
+        <p className="text-sm text-slate-600">Need help with your shop? <Link href="/help" className="font-semibold text-brand-blue">Visit the Help Center</Link>, <Link href="/resources" className="font-semibold text-brand-blue">browse all resources</Link> or <Link href="/contact" className="font-semibold text-brand-blue">contact us</Link>.</p>
       </aside>
     </article>
   </div>;
