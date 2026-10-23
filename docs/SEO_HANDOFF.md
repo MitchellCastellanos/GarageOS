@@ -13,6 +13,8 @@
 
 Original handoff written 2026-10-10; rewritten at V1 close-out so that nothing below claims a merged PR is still missing. Statements are marked **verified** only if checked; otherwise *not verified*. Repo: `MitchellCastellanos/GarageOS`. Owner speaks Spanish; code and docs are in an English/Spanish mix (new docs in English).
 
+> **Latest state (2026-10-23):** see [`handoffs/2026-10-23-analytics-seo-handoff.md`](./handoffs/2026-10-23-analytics-seo-handoff.md) for merged PRs and SHAs, what is OFF, and what awaits owner approval.
+
 ## 1. Program objective
 
 GarageOS (auto-shop management SaaS, Canada) must become a **national, bilingual (EN-CA / FR-CA) commercial site that ranks organically**, and its Resources / Help Center must be renovated:
