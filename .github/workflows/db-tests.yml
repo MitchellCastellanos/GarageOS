@@ -1,0 +1,86 @@
+name: DB tests
+
+# Runs the database-backed suites (tests/*-db.test.ts) against a throwaway PostgreSQL 16 service container.
+# The fast "verify" job in ci.yml is unchanged and still skips these suites. This job is NOT a required status
+# check unless the repository owner adds it to branch protection (see docs/testing.md).
+#
+# No secrets, no Neon, no providers: the only credential is the disposable password of the service container,
+# which lives for the duration of the job and is reachable only on the runner's localhost.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "prisma/**"
+      - "src/**"
+      - "tests/**"
+      - "scripts/**"
+      - "package.json"
+      - "package-lock.json"
+      - "prisma.config.ts"
+      - ".github/workflows/db-tests.yml"
+  workflow_dispatch:
+  schedule:
+    - cron: "17 6 * * 1" # weekly: catches date-dependent failures without a code change
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  db-tests:
+    name: db-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: scratch-only-not-a-secret
+          POSTGRES_DB: garageos_scratch_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # The throwaway service database. Used as the migrated TEMPLATE; each suite runs in its own copy of it.
+      GARAGEOS_CRM_TEST_DB_URL: postgresql://postgres:scratch-only-not-a-secret@127.0.0.1:5432/garageos_scratch_test
+      # Placeholders only (modules read these at import time); the suites override them with the scratch URL.
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/ci
+      NEXTAUTH_SECRET: ci-placeholder-secret
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      NEXT_TELEMETRY_DISABLED: "1"
+      NODE_OPTIONS: --max-old-space-size=6144
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Refuse anything but a local scratch database
+        run: node scripts/ci/assert-scratch-db.mjs
+      - name: Apply repository migrations
+        env:
+          DIRECT_URL: postgresql://postgres:scratch-only-not-a-secret@127.0.0.1:5432/garageos_scratch_test
+        run: npx prisma migrate deploy
+      - name: Database suites (one fresh database per suite, sequential)
+        run: |
+          set -o pipefail
+          node scripts/ci/run-db-tests.mjs --log db-test-output.log
+      - name: No database suite may be skipped
+        if: always()
+        run: node scripts/ci/check-skips.mjs --strict db-test-output.log
+      - name: Upload test output on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-test-output
+          path: db-test-output.log

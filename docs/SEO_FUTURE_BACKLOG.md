@@ -2,6 +2,28 @@
 
 **Purpose.** Everything that is *not* done after SEO + Resources V1 (2026-10-13), written so any agent can resume months later without the original conversation. Start with [`SEO_HANDOFF.md`](./SEO_HANDOFF.md) and [`SEO_V1_FINAL_REPORT.md`](./SEO_V1_FINAL_REPORT.md). **No task is done merely because it is documented.** Status words: *NOT STARTED / DESIGNED / PARTIAL / OPEN / UNVERIFIED / NOT RUN*.
 
+## Reconciliation 2026-10-22 (supersedes the per-task "Verified current state" lines below where they differ)
+Audit against `main` (`a7ded96`, then PRs #179–#188). Evidence level: code and CI; production only where stated. Anything not listed keeps the status written below.
+
+| ID | Status now | Evidence |
+|---|---|---|
+| INF-02 | **DONE (account connected to the tooling)** — owner still confirms it is the production account and which domain each `EMAIL_FROM_*` uses | Resend read-only check 2026-10-22: `garage-os.ca` and `mail.garage-os.ca`, both verified, click and open tracking `false`; `docs/sales-email-launch-readiness.md:20` |
+| INF-05 | **REPLACED** — billing exists; the premise "#47 unmerged" was wrong | #63 merged 2026-09-29 (`ensureSmsOverageItem`, `reportSmsOverageUsage`, `retryPendingSmsOverage`); LIVE meter recorded in `docs/stripe-live-cutover.md`. **Owner decision 2026-10-22: the overage price stays inside the product, not public marketing.** #47 is obsolete and should be closed |
+| QA-01 | **DONE** | #180 merged; rendered `/admin/login`, `/admin/signup`, `/admin/verify-email-sent`: one `<h1>`, one `<main>` |
+| QA-02 / QA-05 | **PARTIAL** — 3 articles corrected; the rest verified against code only | #181: `approval-history` (now "Understand estimate approvals"), `estimate-to-invoice`, `maintenance-reminders`. **Owner decision: do not build an approval-history screen**; `QuoteApproval.channel` is hard-coded `SMS_LINK` (product finding, unchanged). UI click-through still pending |
+| LANG-03 (new) | **DONE** | #179: `sales-calling.ts` "Bons de travail" → "Ordres de travail"; `tests/fr-terminology.test.ts` green |
+| SEO-07 (new) | **DONE** | #182: `/watch/*` noindex, canonical on the site host without the token, no hreflang, no `VideoObject` (no verified upload date) |
+| OPS-01 / DOC-01 | **DONE** | #184: untracked the self-referencing `node_modules` symlink (from #178) and `.pyc`; `.github/workflows/ci.yml` job `verify`; baseline in `docs/testing.md` (1,216 tests, 0 fail, 32 DB skips). **Owner action: require `verify` in branch protection** |
+| SEC-04 | **IMPLEMENTED, DELETION OFF** (#185) | `src/lib/privacy/retention.ts`, daily dry-run cron, `docs/analytics-retention-runbook.md`; deletes only with `ANALYTICS_RETENTION_APPLY=true`; 13 months subject to legal review |
+| PRD-01 | **IN PROGRESS** — step 1 merged (#188 pure vocabulary); step 2 migration (#190, draft) and step 3 server tracking (#192, draft) wait for owner approval because the Vercel production build applies migrations on merge | `src/lib/analytics/contract.ts`. DNT/GPC and the UTM sanitiser were already live (#116) |
+| SEC-05 | **DONE in code; owner action pending** — set `ANALYTICS_HASH_SECRET` (Production + Preview) | #186: `src/lib/privacy/visitor-hash.ts` (HMAC-SHA256, ephemeral random key + one warning when the variable is missing; never the public date). `docs/operations-runbook.md` § ANALYTICS_HASH_SECRET. Distinct-visitor counts reset once when the secret goes live |
+| SEC-06 | **DONE** | #187: `/api/track` — DNT/GPC, same-site Origin/Sec-Fetch-Site, 2 KB bounded read, 120/min per IP via the shared limiter, strict payload validation, always 204, payload-free logs. Follow-up: `RateLimitBucket.id` still embeds the raw IP for every limiter |
+| SEC-07 | **DONE (no active leak found; protection pinned)** | #189: `/watch/*` `Referrer-Policy: same-origin` (not `no-referrer`: that would make same-origin POSTs send `Origin: null` and `/api/track` would drop them), `X-Robots-Tag`, `no-store` when `?t=` is present, `referrerPolicy="no-referrer"` on the poster image |
+| QA-04 | **DONE (non-required check)** | #191: `.github/workflows/db-tests.yml` — `postgres:16` service, one fresh database per suite, all 31 DB suites (408 tests) pass with 0 skips. Suites leak shared state when run together in one database (issue-ready note in `docs/testing.md`); nine suites share a flaky `Date.now()` phone-fixture pattern. Owner decides whether `db-tests` becomes required |
+| New, still open | SEC-08 (PIA/retention register entry for analytics), FR-02 (missing FR routes, `/fr/aide`), QA-06 (link checker over built HTML), DOC-02 (remaining stale docs), PRD-09 (approval history UI — **not pursued, owner decision**) | audit report 2026-10-22 |
+
+Corrections to statements further down: `proxy.ts` is at the repository root (not `src/proxy.ts`); DNT/GPC is honoured by `/api/track` since #116; the "analytics-v2-contract.md §1: gaps" list is outdated for DNT/GPC only; the visitor-hash salt is currently the public date (SEC-05).
+
 ## Priorities
 - **P0** — security or legal/external prerequisites that gate indexing or expose users. Do first.
 - **P1** — needed for a complete, bilingual, measurable product.
