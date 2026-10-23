@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { oswald } from "@/components/root/fonts";
 import AnalyticsBeacon from "@/components/AnalyticsBeacon";
+import { CtaListenerMount } from "@/components/analytics/CtaListenerMount";
 import type { MarketingLocale } from "@/lib/marketing-locale";
 import { HTML_LANG } from "@/lib/seo/html-lang";
 
@@ -17,6 +18,7 @@ export function RootShell({ locale, children }: { locale: MarketingLocale; child
         <Suspense fallback={null}>
           <AnalyticsBeacon />
         </Suspense>
+        <CtaListenerMount />
       </body>
     </html>
   );

@@ -73,6 +73,7 @@ export const FEATURE_PAGES: readonly FeaturePage[] = [
     related: [
       { href: helpPathForGuide("configure-online-booking")!, label: { en: "Guide: configure online booking", fr: "Guide : configurer la réservation en ligne" } },
       { href: "/features/sms-and-email", label: { en: "SMS & email communications", fr: "Communications SMS et courriel" } },
+      { href: "/product", label: { en: "The full shop workflow", fr: "Le flux de travail complet de l'atelier" } },
       { href: "/pricing", label: { en: "Compare plans", fr: "Comparer les forfaits" } },
     ],
   },
@@ -172,6 +173,7 @@ export const FEATURE_PAGES: readonly FeaturePage[] = [
       { href: helpPathForGuide("estimate-to-invoice")!, label: { en: "Guide: from estimate to invoice", fr: "Guide : du devis à la facture" } },
       { href: "/features/digital-vehicle-inspections", label: { en: "Digital vehicle inspections", fr: "Inspections numériques de véhicules" } },
       { href: "/features/sms-and-email", label: { en: "SMS & email communications", fr: "Communications SMS et courriel" } },
+      { href: "/integrations", label: { en: "Integrations, including QuickBooks Online", fr: "Intégrations, dont QuickBooks Online" } },
     ],
   },
   {
@@ -221,6 +223,7 @@ export const FEATURE_PAGES: readonly FeaturePage[] = [
       { href: helpPathForGuide("branded-communications")!, label: { en: "Guide: branded communications", fr: "Guide : communications à votre image" } },
       { href: helpPathForGuide("maintenance-reminders")!, label: { en: "Guide: maintenance reminders", fr: "Guide : rappels d'entretien" } },
       { href: "/features/online-booking", label: { en: "Online booking", fr: "Réservation en ligne" } },
+      { href: "/integrations", label: { en: "Integrations: branded email and two-way SMS", fr: "Intégrations : courriels à votre image et SMS bidirectionnel" } },
     ],
   },
 ];

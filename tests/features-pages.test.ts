@@ -59,7 +59,7 @@ test("related links resolve: Help articles exist, feature links map to the page 
   for (const page of FEATURE_PAGES) {
     for (const r of page.related) {
       if (r.href.startsWith("/help/")) assert.ok(helpTargets.has(r.href), r.href);
-      else assert.ok(r.href === "/pricing" || r.href.startsWith("/features/"), r.href);
+      else assert.ok(["/pricing", "/product", "/integrations"].includes(r.href) || r.href.startsWith("/features/"), r.href);
       if (r.href.startsWith("/features/")) {
         assert.ok(FEATURE_PAGES.some((p) => featurePath("en", p) === r.href), `${r.href} is a real feature page`);
         assert.match(relatedHref("fr", r.href), /^\/fr\/fonctionnalites\//);

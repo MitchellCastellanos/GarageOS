@@ -20,6 +20,7 @@ export function CTASection() {
         </div>
         <Link
           href="/get-started"
+          data-cta="signup_start"
           className="shrink-0 bg-white hover:bg-blue-50 text-brand-blue font-semibold text-sm px-7 py-3.5 rounded-xl transition-colors"
         >
           {t.ctaBanner.cta}

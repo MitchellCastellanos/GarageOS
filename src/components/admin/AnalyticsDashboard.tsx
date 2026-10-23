@@ -24,11 +24,14 @@ export function AnalyticsDashboard({
   daily,
   breakdown,
   days,
+  customRange,
 }: {
   last24h: HourlyPoint[];
   daily: DailyPoint[];
   breakdown: RangeBreakdown;
   days: number;
+  /** Set when a validated custom from/to range is active: no preset is highlighted. */
+  customRange?: { from: string; to: string };
 }) {
   const views24h = last24h.reduce((sum, p) => sum + p.views, 0);
 
@@ -45,7 +48,7 @@ export function AnalyticsDashboard({
               key={d}
               href={`${PLATFORM.analytics}?days=${d}`}
               className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                days === d ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"
+                !customRange && days === d ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"
               }`}
             >
               {d}d
