@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ctaCollectionEnabled } from "@/lib/analytics/cta-flag";
 import { trackCtaEvent } from "@/lib/platform/analytics-events";
 import { isAllowedTrackOrigin, parseEventPayload, readBoundedBody, TRACK_MAX_BODY_BYTES } from "@/lib/platform/track-guard";
 import { isTrackingOptOut } from "@/lib/privacy/opt-out";
@@ -14,6 +15,8 @@ const NO_CONTENT = () => new NextResponse(null, { status: 204 });
  * bounded read → validation. ALWAYS 204; failures are swallowed and logged without payload, so signup and navigation never depend on it.
  */
 export async function POST(req: Request) {
+  // Privacy gate (docs/analytics-v2-contract.md §11): collection is OFF unless ANALYTICS_CTA_ENABLED=true. Checked before the limiter or any DB access.
+  if (!ctaCollectionEnabled()) return NO_CONTENT();
   try {
     if (isTrackingOptOut(req.headers)) return NO_CONTENT();
     if (!isAllowedTrackOrigin(req.headers)) return NO_CONTENT();

@@ -30,6 +30,9 @@ FROM "garageos"."PlatformAuditLog" WHERE action = 'ANALYTICS_RETENTION_RUN' ORDE
 
 To pause: unset the variable (back to dry runs). The schedule can stay.
 
+## CTA collection flag (dormant)
+`AnalyticsEvent` only receives rows when `ANALYTICS_CTA_ENABLED=true` (default OFF; see `docs/analytics-v2-contract.md` §11 for the activation procedure and the privacy-review gate). **The owner must NOT enable it before the privacy notice is legally reviewed.** The retention run above covers the table whether or not the flag is on (while OFF it simply finds nothing).
+
 ## Not done here
 - A watchdog that alerts when no successful run happened for 3 days (the audit log is the evidence source; a GitHub Actions watchdog like `db-backup-watchdog.yml` is a follow-up).
 - Aggregated daily counts to keep after deletion (decision pending: the contract proposes minimum cell size 5, no `visitorHash`).

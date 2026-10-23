@@ -98,3 +98,19 @@ Today `/api/track` ignores them. The implementation PR makes `trackPageView` and
 
 ### 10.9 Not authorised by this document
 No migration, no new table or column, no deployment of storage, no publication of privacy text. The implementation PR must be opened, reviewed and explicitly authorised by the owner.
+
+## 11. CTA click collection — privacy gate (`ANALYTICS_CTA_ENABLED`)
+
+**Status: instrumented but DORMANT. Collection is OFF in production by default.**
+
+- Server-side flag `ANALYTICS_CTA_ENABLED`; only the exact string `true` enables it (`src/lib/analytics/cta-flag.ts`). Unset, empty, `1`, `TRUE`, `false` and anything else mean OFF.
+- With the flag OFF: (1) `CtaListenerMount` (rendered by `RootShell`, both EN and FR root layouts) returns `null`, so no listener, no script behaviour and no request exists in the page; (2) `POST /api/track/event` answers `204` immediately, before the rate limiter or any database access. Page-view analytics (`/api/track`) are not affected by this flag.
+- What is collected when ON: for an element marked `data-cta="<id>"` (the eight allowlisted ids), one `sendBeacon` to `/api/track/event` with `{ ctaId, path, locale }` — pathname only (never query string or fragment), once per (id, path) per page view, no cookies/storage/form data, never blocks navigation or signup, skipped on private/token paths and for DNT/GPC (client and server). The server derives `pageType` and stores the daily pseudonymous `visitorHash`, as in §3.
+- Tokenised sales-video views (`/watch/...?t=`) never carry a `data-cta`, so they send nothing; the `watch_play` id is anonymous public traffic only.
+- Placement (only where the id's meaning is exact): `signup_start` (get-started / trial buttons, header, banners), `demo_interactive` (links to `/demo`), `demo_book` (anonymous `/watch` "book your demo"), `plan_select_core|pro|complete` (the three plan cards, in plan order), `pricing_view` (links to `/pricing` from other marketing pages, not from `/pricing` itself), `watch_play` (poster play button of the anonymous `/watch` page).
+
+**Activation procedure (owner) — do NOT enable before the privacy notice is legally reviewed.**
+1. Legal review of the privacy text (§8, §10.2) and publication of the updated privacy notice that mentions call-to-action clicks. The owner must NOT set the flag before this is done.
+2. Set `ANALYTICS_CTA_ENABLED=true` in Vercel (Production) and **redeploy**: marketing pages are prerendered, so the layout reads the flag at build time (the API route reads it at request time).
+3. Verify on the site: click a CTA with DevTools open, expect one `POST /api/track/event` → `204`; with `DNT: 1` expect none. Rows appear in `AnalyticsEvent` and, once the panels PR is merged, in `/platform/analytics`.
+4. To stop: unset the variable and redeploy. Existing rows are removed by the 13-month retention (runbook).
