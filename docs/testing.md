@@ -33,7 +33,7 @@ Never put a production or shared database URL in these variables.
 
 - **Database suites** (`tests/*-db.test.ts`, 31 suites, 408 tests): they skip unless `GARAGEOS_CRM_TEST_DB_URL` points at a local **scratch** PostgreSQL. They are not run by the lightweight `verify` job; the separate `db-tests` workflow runs them (next section).
 - **`tests/integration/*`**: only through `npm run test:integration`, which is fail-closed against anything but the authorised Neon preview database (see `docs/integration-testing.md`). Never part of CI.
-- **Rendered SEO suites** (`seo-rendered`, `seo-fr-wave1`, `features-pages`) skip with "run `next build` first". In CI they must **not** skip: the build runs before the tests and `check-skips.mjs` fails the job if they do.
+- **Rendered SEO suites** (`seo-rendered`, `seo-fr-wave1`, `features-pages`, `link-audit`) skip with "run `next build` first". In CI they must **not** skip: the build runs before the tests and `check-skips.mjs` fails the job if they do.
 
 ## Database suites (`*-db.test.ts`) against a disposable PostgreSQL
 
@@ -102,3 +102,7 @@ In GitHub → Settings → Branches → rule for `main`, require the status chec
 - Tests: all pass except the intentionally skipped suites above.
 - Flaky: the Vercel Preview/CI build can fail while fetching the Oswald Google font; re-run the same job once, never push an empty commit.
 - The repository must not track `node_modules` or Python bytecode; `.gitignore` covers `/node_modules`, `__pycache__/` and `*.pyc`. (A self-referencing `node_modules` symlink was committed once in #178 and broke local installs.)
+
+## Internal link audit (`tests/link-audit.test.ts`)
+
+Reads the prerendered HTML after `next build` for every sitemap URL and fails on: broken internal links (not a prerendered page, registered route, `public/` file or allowed dynamic prefix such as `/book`, `/admin`, `/watch`, `/portal`), links to legacy `/guides/*`, EN pages linking to noindex FR drafts (the `hreflang` language switcher is exempt), and orphans (no inbound link from another indexable page; home excluded). It prints an inbound-count table; to refresh the committed snapshot `docs/link-audit.md` run, after a build, `WRITE_LINK_REPORT=docs/link-audit.md npx tsx --test tests/link-audit.test.ts` (output is deterministic). "Contextual" counts exclude links inside `<header>`/`<footer>`.
