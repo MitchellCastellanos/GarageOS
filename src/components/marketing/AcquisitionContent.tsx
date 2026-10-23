@@ -47,11 +47,11 @@ export function GetStartedContent() {
           <h2 className="text-2xl sm:text-3xl font-bold text-slate-900">{c.ctaTitle}</h2>
           <p className="mt-3 text-slate-600">{c.ctaBody}</p>
           <div className="mt-7 flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Link href={ADMIN.signup} className="inline-flex items-center gap-2 bg-brand-blue hover:bg-brand-blue-dark text-white font-semibold text-sm px-7 py-3.5 rounded-xl transition-colors shadow-md shadow-blue-600/20">
+            <Link href={ADMIN.signup} data-cta="signup_start" className="inline-flex items-center gap-2 bg-brand-blue hover:bg-brand-blue-dark text-white font-semibold text-sm px-7 py-3.5 rounded-xl transition-colors shadow-md shadow-blue-600/20">
               {c.create}
               <ArrowRight className="w-4 h-4" />
             </Link>
-            <Link href="/pricing" className="text-sm font-medium text-brand-blue hover:underline transition-colors">{c.compare}</Link>
+            <Link href="/pricing" data-cta="pricing_view" className="text-sm font-medium text-brand-blue hover:underline transition-colors">{c.compare}</Link>
             <Link href={ADMIN.login} className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">{c.signIn}</Link>
           </div>
         </div>

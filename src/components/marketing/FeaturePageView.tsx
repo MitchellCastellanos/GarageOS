@@ -20,8 +20,8 @@ export function FeaturePageView({ locale, page }: { locale: MarketingLocale; pag
           <h1 className="text-3xl font-bold leading-tight tracking-tight text-slate-900 sm:text-4xl">{hero.h1}</h1>
           <p className="mt-4 leading-relaxed text-slate-600">{hero.intro}</p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-            <Link href="/demo" className="rounded-lg bg-brand-blue px-6 py-3 text-sm font-semibold text-white hover:bg-brand-blue-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue">{ui.demo}</Link>
-            <Link href="/get-started" className="rounded-lg border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-800 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue">{ui.start}</Link>
+            <Link href="/demo" data-cta="demo_interactive" className="rounded-lg bg-brand-blue px-6 py-3 text-sm font-semibold text-white hover:bg-brand-blue-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue">{ui.demo}</Link>
+            <Link href="/get-started" data-cta="signup_start" className="rounded-lg border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-800 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue">{ui.start}</Link>
           </div>
         </div>
       </header>
