@@ -78,6 +78,8 @@ Readable only by Super Admin (platform) and, for aggregate counts, platform role
 ### 10.4 UTM values cannot carry tokens or personal data
 Server-side allowlist, not just truncation: each of `utm_source|medium|campaign` must match `^[a-z0-9][a-z0-9_.\-+ ]{0,39}$` after lower-casing; values containing `@`, more than 20 consecutive url-safe characters, 24+ hex/base64url strings, digits-only runs of 7+ (phone-like) or `%` sequences are replaced by empty string (extends the existing `sanitizeCampaignValue`). Applied to pageview, events and signup attribution, and to the language-switch carry-over. Unit tests with token-, e-mail- and phone-shaped values.
 
+**Implementation note (2026-10-23).** `strictCampaignValue` (`src/lib/analytics/contract.ts`) refines the regex above after comparing it with the sanitiser it replaced: Unicode letters are allowed (Québec campaign names such as `promo-été-2026`), apostrophes are allowed (`pneus d'hiver`), and the token heuristic is the existing 24+ url-safe characters rule rather than 20+ (so `email-blast-2026-10-22` is kept). Values with `| / ( ) { }` or other punctuation, or longer than 40 characters, are dropped.
+
 ### 10.5 Idempotent signup attribution
 `SignupAttribution` has `shopId` UNIQUE: one record per shop, created in the same transaction as the shop (or by `INSERT ... ON CONFLICT (shopId) DO NOTHING`), never updated afterwards (first-touch wins). Retries, double submits and email-verification replays therefore cannot duplicate or overwrite. A failure to write attribution never fails the signup (caught, logged without payload, signup continues). Test: create twice → one row; attribution failure → shop still created.
 

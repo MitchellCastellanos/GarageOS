@@ -35,8 +35,8 @@ test("page type from normalised public paths, EN and FR", () => {
 });
 
 test("utm values: legitimate pass (lower-cased), personal-looking and token-shaped are dropped", () => {
-  for (const ok of ["google", "Newsletter", "fall-2026_promo", "spring sale", "fr-ca", "cpc", "a1"]) assert.equal(strictCampaignValue(ok), ok.toLowerCase(), ok);
-  const bad = ["user@example.com", "https://evil.example/x", "514-555-0199", "5145550199", "a%40b.com", "a".repeat(30), "token_" + "A1b2C3d4".repeat(4), "-leading", "has/slash", "x".repeat(41), "", "   ", "9876543210", "ab12cd34ef56ab12cd34ef56"];
+  for (const ok of ["google", "Newsletter", "fall-2026_promo", "spring sale", "fr-ca", "cpc", "a1", "promo-été-2026", "Québec 2026", "pneus d'hiver", "Pneus d\u2019hiver", "email-blast-2026-10-22", "2026-10-13"]) assert.equal(strictCampaignValue(ok), ok.toLowerCase(), ok);
+  const bad = ["user@example.com", "https://evil.example/x", "514-555-0199", "5145550199", "a%40b.com", "a".repeat(30), "token_" + "A1b2C3d4".repeat(4), "-leading", "has/slash", "x".repeat(41), "", "   ", "9876543210", "ab12cd34ef56ab12cd34ef56", "promo\u202eevil", "brand | search", "q4/launch", "{campaignid}"];
   for (const v of bad) assert.equal(strictCampaignValue(v), "", v);
   for (const v of [null, undefined, 5, {}, []]) assert.equal(strictCampaignValue(v), "");
 });
