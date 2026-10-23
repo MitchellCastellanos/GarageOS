@@ -36,6 +36,7 @@ Other behavior:
 - Logs never contain connection strings or credentials.
 
 ## Recent migrations
+- `20261105090000_analytics_v2_events` — Analytics v2 step 1: `PageView.channel` / `PageView.pageType` (`TEXT NOT NULL DEFAULT ''`, metadata-only on PG ≥ 11) + enum `AnalyticsEventType` + table `AnalyticsEvent` (CTA clicks, 2 indexes). Additive; old code ignores it; no backfill. **Merging applies it to Production through the Vercel build.**
 - `20261015090000_lead_radar_foundation` — National Lead Radar: 7 enums + `CrmDiscoveryRun/Candidate/BudgetLedger/Settings` + CHECK constraints (CAD 25 cap, approval invariants). Additive only; no existing row touched. See `docs/lead-radar/`. Not applied to Production yet.
 - `20261013090000_per_prospect_field_priority` — per-prospect FIELD priority window + manual FIELD↔REMOTE release: two nullable `CrmProspect` columns (`fieldPriorityStartedAt`, `remoteReleasedAt`) and one index. Additive, modifies no row, no backfill (existing prospects stay NULL = unchanged behaviour). See `docs/lead-engine-contracts.md` §5. Not applied to Production yet.
 - `20261012100000_lead_engine_foundation` — Lead Engine: source observations, duplicate reviews, assignment runs, derived address/territory columns, structured CASL evidence + a nullable review status (no backfill: existing bases stay `NULL` = unchanged behaviour; reclassification is a separate Super Admin procedure). Additive, modifies no existing row. See `docs/lead-engine-contracts.md`. Not applied to Production yet.
