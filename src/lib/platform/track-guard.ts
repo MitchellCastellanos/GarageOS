@@ -1,6 +1,7 @@
 import { getAppUrl } from "@/config/app";
 import { getSiteUrl } from "@/lib/seo/site";
 import { isTrackablePath, normalizeForStorage } from "@/lib/privacy/private-paths";
+import { isCtaId, type CtaId } from "@/lib/analytics/contract";
 
 /**
  * Pure request guards for POST /api/track (SEC-06). No database, no logging, nothing from the payload is ever echoed.
@@ -113,4 +114,27 @@ export function parseTrackPayload(body: unknown): TrackPayload | null {
     utmCampaign: str(b.utmCampaign, 200),
     shopSlug: /^[a-z0-9-]*$/i.test(slug) ? slug : "",
   };
+}
+
+export interface TrackEventPayload {
+  ctaId: CtaId;
+  path: string;
+  locale: "en" | "fr";
+}
+
+/** Strict validation of a CTA click: allowlisted `ctaId`, a trackable public path, locale en/fr. Anything else is dropped silently. */
+export function parseEventPayload(body: unknown): TrackEventPayload | null {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return null;
+  const b = body as Record<string, unknown>;
+  if (!isCtaId(b.ctaId)) return null;
+  if (typeof b.path !== "string" || b.path.length === 0 || b.path.length > TRACK_MAX_PATH) return null;
+  if (!isTrackablePath(b.path)) return null;
+  const path = normalizeForStorage(b.path);
+  if (!path) return null;
+  let locale: "en" | "fr" = "en";
+  if (b.locale !== undefined) {
+    if (b.locale !== "en" && b.locale !== "fr") return null;
+    locale = b.locale;
+  }
+  return { ctaId: b.ctaId, path, locale };
 }

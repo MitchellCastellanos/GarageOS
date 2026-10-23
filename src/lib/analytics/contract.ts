@@ -67,18 +67,22 @@ export function classifyPageType(path: string): PageType {
   return "other";
 }
 
-// Contract §10.4 — strict allowlist for utm_*: lower-case, starts alphanumeric, short, no personal-looking or token-like shapes.
-const UTM_SHAPE = /^[a-z0-9][a-z0-9_.\-+ ]{0,39}$/;
+// Contract §10.4 — strict allowlist for utm_*: lower-case, starts with a letter/digit, short, no personal-looking or token-like shapes.
+// Two deliberate refinements of the contract's ASCII regex, found by comparing it with the sanitiser it replaces:
+//  - Unicode letters are allowed (NFC-normalised): the site is bilingual and Québec campaign names carry accents ("promo-été-2026").
+//  - Apostrophes are allowed ("pneus d'hiver"). Still dropped: | / ( ) { } and other punctuation (attribution is lost for those rare names rather than risking URL- or path-shaped values).
+//  - The token heuristic is the existing `looksLikeToken` (24+ url-safe characters), not 21+: readable hyphenated names such as
+//    "email-blast-2026-10-22" were being dropped while real tokens (32+ characters) are caught either way.
+const UTM_SHAPE = /^[\p{L}\p{N}][\p{L}\p{N}_.\-+ '\u2019]{0,39}$/u;
 const LONG_DIGITS = /\d{7,}/;
 const PHONE_SHAPE = /\d{3}[-. ]?\d{3}[-. ]?\d{4}/;
-const LONG_URLSAFE_RUN = /[a-z0-9_-]{21,}/;
 
-/** Returns the lower-cased value when it satisfies the contract allowlist, otherwise "". Stricter than sanitizeCampaignValue. */
+/** Returns the lower-cased value when it satisfies the allowlist, otherwise "". Stricter than sanitizeCampaignValue (length 40, no punctuation beyond _ . - + space). */
 export function strictCampaignValue(value: unknown): string {
   if (typeof value !== "string") return "";
-  const v = value.trim().toLowerCase();
+  const v = value.normalize("NFC").trim().toLowerCase();
   if (!UTM_SHAPE.test(v)) return "";
-  if (LONG_DIGITS.test(v) || PHONE_SHAPE.test(v) || LONG_URLSAFE_RUN.test(v) || looksLikeToken(v) || v.includes("@") || v.includes("%")) return "";
+  if (LONG_DIGITS.test(v) || PHONE_SHAPE.test(v) || looksLikeToken(v) || v.includes("@") || v.includes("%")) return "";
   return v;
 }
 
