@@ -1,5 +1,7 @@
 # SEO + Resources program — HANDOFF (entry point)
 
+> **Update 2026-10-22:** statuses were reconciled against `main` — see the table at the top of [`SEO_FUTURE_BACKLOG.md`](./SEO_FUTURE_BACKLOG.md) ("Reconciliation 2026-10-22") and the test/CI baseline in [`testing.md`](./testing.md). Where this file disagrees (e.g. Resend click tracking, SMS overage #47, "no CI"), the backlog table wins.
+
 > **Executive summary (2026-10-14).** SEO + Resources **V1 is closed conditionally (CONDITIONAL GO)** — see [`SEO_V1_FINAL_REPORT.md`](./SEO_V1_FINAL_REPORT.md). Everything not done, with priorities, acceptance criteria and dependencies, is in [`SEO_FUTURE_BACKLOG.md`](./SEO_FUTURE_BACKLOG.md). **Read those two files before anything else; this file is the map.**
 >
 > - **Works in production** (verified on www.garage-os.ca): per-page canonicals; `robots.txt` with all private-route rules and the `Sitemap:` line; sitemap on the authority host; private/token routes `noindex` + `Referrer-Policy: same-origin`; EN/FR routing with `lang` `en-CA`/`fr-CA`; Pricing single H1; four French draft pages (`noindex`); Help Center platform (7 categories, 13 articles, breadcrumbs, TOC, related); `/guides/<slug>` canonical → Help article.
