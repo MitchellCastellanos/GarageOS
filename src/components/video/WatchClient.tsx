@@ -54,7 +54,7 @@ export function WatchClient({ lang, kind, video, token, startAt }: WatchClientPr
 
         <div className="mx-auto mt-8 max-w-4xl sm:mt-10">
           {video ? (
-            <VideoPlayer src={video.url} poster={`/video/thumb-${lang}.jpg`} title={video.title} lang={lang} seconds={VIDEO_KINDS[kind].seconds} token={token} reportPageView={!!token} startAt={startAt} priority onTime={(t) => { time.current = t; }} />
+            <VideoPlayer src={video.url} poster={`/video/thumb-${lang}.jpg`} title={video.title} lang={lang} seconds={VIDEO_KINDS[kind].seconds} token={token} reportPageView={!!token} startAt={startAt} playCta={token ? undefined : "watch_play"} priority onTime={(t) => { time.current = t; }} />
           ) : (
             <div role="status" className="rounded-2xl border border-slate-200 bg-slate-50 p-8 text-center">
               <PlayCircle className="mx-auto size-10 text-brand-blue" aria-hidden />
@@ -66,10 +66,10 @@ export function WatchClient({ lang, kind, video, token, startAt }: WatchClientPr
         </div>
 
         <div className="mx-auto mt-8 flex max-w-xl flex-col items-stretch gap-3 sm:flex-row sm:justify-center">
-          <a href={cta("demo")} className={btnPrimary}>{c.ctaDemo}</a>
-          <a href="/demo" className={btnSecondary}><PlayCircle className="size-5 text-brand-blue" aria-hidden />{c.ctaInteractive}</a>
+          <a href={cta("demo")} data-cta={token ? undefined : "demo_book"} className={btnPrimary}>{c.ctaDemo}</a>
+          <a href="/demo" data-cta={token ? undefined : "demo_interactive"} className={btnSecondary}><PlayCircle className="size-5 text-brand-blue" aria-hidden />{c.ctaInteractive}</a>
         </div>
-        <p className="mt-3 text-center text-sm text-slate-500">{c.noCardNote} <a href={cta("trial")} className="font-medium text-brand-blue hover:underline">{c.ctaTrial}</a> · {c.trialNote}</p>
+        <p className="mt-3 text-center text-sm text-slate-500">{c.noCardNote} <a href={cta("trial")} data-cta={token ? undefined : "signup_start"} className="font-medium text-brand-blue hover:underline">{c.ctaTrial}</a> · {c.trialNote}</p>
         {kind === "teaser" && <p className="mt-4 text-center"><a href={`${watchPath(lang.toUpperCase() as "EN" | "FR", "commercial")}`} className="inline-flex min-h-11 items-center text-sm font-medium text-brand-blue hover:underline">{c.fullVersion}</a></p>}
 
         <ul className="mx-auto mt-12 grid max-w-3xl gap-3 sm:grid-cols-2">

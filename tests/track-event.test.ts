@@ -6,6 +6,7 @@ import "./helpers/action-harness";
 import { patchDb } from "./helpers/db-mock";
 
 process.env.NEXT_PUBLIC_APP_URL = "https://www.garage-os.ca";
+process.env.ANALYTICS_CTA_ENABLED = "true"; // collection is OFF by default; the flag-off behaviour is pinned in tests/cta-instrumentation.test.ts
 const { POST } = await import("../src/app/api/track/event/route");
 const { POST: POST_VIEW } = await import("../src/app/api/track/route");
 const { parseEventPayload } = await import("../src/lib/platform/track-guard");

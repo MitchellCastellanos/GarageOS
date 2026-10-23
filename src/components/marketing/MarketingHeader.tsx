@@ -111,6 +111,7 @@ export function MarketingHeader() {
             </Link>
             <Link
               href="/get-started"
+              data-cta="signup_start"
               className="bg-brand-blue hover:bg-brand-blue-dark text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors shadow-sm shadow-blue-600/20"
             >
               {t.nav.getStarted}
@@ -177,6 +178,7 @@ export function MarketingHeader() {
           </div>
           <Link
             href="/get-started"
+            data-cta="signup_start"
             onClick={closeMenus}
             className="block text-center w-full bg-brand-blue text-white text-sm font-semibold px-5 py-3 rounded-lg mt-2"
           >

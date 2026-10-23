@@ -161,6 +161,27 @@ export async function getDailySeries(days: number): Promise<DailyPoint[]> {
   return series;
 }
 
+/** Daily series for an explicit UTC window [from, to) (custom date range): one point per calendar day, zero-filled. */
+export async function getDailySeriesBetween(from: Date, to: Date): Promise<DailyPoint[]> {
+  const rows = await db.$queryRaw<{ day: Date; views: bigint; uniques: bigint }[]>`
+    SELECT date_trunc('day', "createdAt") AS day,
+           COUNT(*)::bigint AS views,
+           COUNT(DISTINCT "visitorHash")::bigint AS uniques
+    FROM "garageos"."PageView"
+    WHERE "createdAt" >= ${from} AND "createdAt" < ${to}
+    GROUP BY 1
+    ORDER BY 1 ASC
+  `;
+  const byDay = new Map(rows.map((r) => [r.day.toISOString().slice(0, 10), r]));
+  const series: DailyPoint[] = [];
+  for (let t = from.getTime(); t < to.getTime(); t += 86_400_000) {
+    const key = new Date(t).toISOString().slice(0, 10);
+    const row = byDay.get(key);
+    series.push({ date: key, views: row ? Number(row.views) : 0, uniques: row ? Number(row.uniques) : 0 });
+  }
+  return series;
+}
+
 export interface RangeBreakdown {
   totals: { views: number; uniques: number };
   topPages: { path: string; views: number }[];
@@ -171,51 +192,63 @@ export interface RangeBreakdown {
   topShops: { shopSlug: string; views: number }[];
 }
 
-export async function getRangeBreakdown(days: number): Promise<RangeBreakdown> {
-  const since = new Date();
-  since.setDate(since.getDate() - days);
+/** A rolling window of N days ending now (existing behaviour) or an explicit [from, to) window (custom date range). */
+export type BreakdownWindow = number | { from: Date; to: Date };
+
+export async function getRangeBreakdown(window: BreakdownWindow): Promise<RangeBreakdown> {
+  let since: Date;
+  let until: Date;
+  if (typeof window === "number") {
+    since = new Date();
+    since.setDate(since.getDate() - window);
+    until = new Date("9999-01-01T00:00:00Z");
+  } else {
+    since = window.from;
+    until = window.to;
+  }
+  const inRange = { gte: since, lt: until };
 
   const [totalsRow, topPages, topReferrers, devices, countries, browsers, topShops] = await Promise.all([
     db.$queryRaw<{ views: bigint; uniques: bigint }[]>`
       SELECT COUNT(*)::bigint AS views, COUNT(DISTINCT "visitorHash")::bigint AS uniques
-      FROM "garageos"."PageView" WHERE "createdAt" >= ${since}
+      FROM "garageos"."PageView" WHERE "createdAt" >= ${since} AND "createdAt" < ${until}
     `,
     db.pageView.groupBy({
       by: ["path"],
-      where: { createdAt: { gte: since } },
+      where: { createdAt: inRange },
       _count: { _all: true },
       orderBy: { _count: { path: "desc" } },
       take: 10,
     }),
     db.pageView.groupBy({
       by: ["referrerHost"],
-      where: { createdAt: { gte: since }, referrerHost: { not: "" } },
+      where: { createdAt: inRange, referrerHost: { not: "" } },
       _count: { _all: true },
       orderBy: { _count: { referrerHost: "desc" } },
       take: 10,
     }),
     db.pageView.groupBy({
       by: ["device"],
-      where: { createdAt: { gte: since } },
+      where: { createdAt: inRange },
       _count: { _all: true },
       orderBy: { _count: { device: "desc" } },
     }),
     db.pageView.groupBy({
       by: ["country"],
-      where: { createdAt: { gte: since }, country: { not: "" } },
+      where: { createdAt: inRange, country: { not: "" } },
       _count: { _all: true },
       orderBy: { _count: { country: "desc" } },
       take: 10,
     }),
     db.pageView.groupBy({
       by: ["browser"],
-      where: { createdAt: { gte: since }, browser: { not: "" } },
+      where: { createdAt: inRange, browser: { not: "" } },
       _count: { _all: true },
       orderBy: { _count: { browser: "desc" } },
     }),
     db.pageView.groupBy({
       by: ["shopSlug"],
-      where: { createdAt: { gte: since }, shopSlug: { not: "" } },
+      where: { createdAt: inRange, shopSlug: { not: "" } },
       _count: { _all: true },
       orderBy: { _count: { shopSlug: "desc" } },
       take: 10,
