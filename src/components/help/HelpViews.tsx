@@ -5,6 +5,7 @@ import {
   HELP_UI, articlePath, articlesInCategory, breadcrumbsFor, categoriesFor, categoryPath, contentOf, relatedFor, sectionId,
   type HelpArticle, type HelpCategory, type HelpLocale,
 } from "@/lib/help";
+import { BLOG_POSTS } from "@/lib/marketing-resources";
 
 const CARD = "group block rounded-2xl border border-slate-200 p-6 transition-colors hover:border-brand-blue focus-visible:outline-2 focus-visible:outline-brand-blue";
 
@@ -69,6 +70,8 @@ export function HelpArticleView({ locale, category, article }: { locale: HelpLoc
   const ui = HELP_UI[locale];
   const content = contentOf(article, locale);
   const related = relatedFor(locale, article);
+  // The blog is English-only: show the post that discusses this guide's topic on the English article only.
+  const post = locale === "en" ? BLOG_POSTS.find((p) => p.relatedGuide === article.legacyGuide) : undefined;
   return (
     <div lang={locale}>
       <header className="border-b border-slate-100 bg-slate-50">
@@ -116,8 +119,10 @@ export function HelpArticleView({ locale, category, article }: { locale: HelpLoc
               </ul>
             </aside>
           )}
+          {post && <p className="mt-10 text-sm text-slate-600">From the blog: <Link href={`/blog/${post.slug}`} className="font-semibold text-brand-blue hover:underline">{post.title} →</Link></p>}
           <p className="mt-10 text-sm text-slate-600">
             {ui.stillNeedHelp} <Link href="/contact" className="font-semibold text-brand-blue hover:underline">{ui.contactUs}</Link>
+            {ui.moreResources && <> · <Link href="/resources" className="font-semibold text-brand-blue hover:underline">{ui.moreResources}</Link></>}
           </p>
         </article>
       </div>
