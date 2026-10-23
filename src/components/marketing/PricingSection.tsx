@@ -5,6 +5,7 @@ import { LocaleLink as Link } from "@/components/marketing/LocaleLink";
 import { Check } from "lucide-react";
 import { useMarketingLocale } from "@/components/marketing/MarketingLocaleProvider";
 import { MARKETING_PRICING } from "@/lib/marketing-pricing";
+import { PLAN_CTA_IDS } from "@/lib/analytics/cta-client";
 
 /** `asPageHeading`: en /pricing el encabezado es el único <h1> de la página; en la home sigue siendo un <h2>. */
 export function PricingSection({ asPageHeading = false }: { asPageHeading?: boolean } = {}) {
@@ -88,6 +89,7 @@ export function PricingSection({ asPageHeading = false }: { asPageHeading?: bool
 
                 <Link
                   href="/get-started"
+                  data-cta={PLAN_CTA_IDS[i]}
                   className={`mt-7 text-center font-semibold text-sm px-5 py-3 rounded-xl transition-colors ${
                     popular
                       ? "bg-brand-blue hover:bg-brand-blue-dark text-white"
@@ -105,7 +107,7 @@ export function PricingSection({ asPageHeading = false }: { asPageHeading?: bool
           <p>{pricing.currencyNote}</p>
           {yearly && <p>{pricing.annualNote}</p>}
           <p>
-            <Link href="/pricing" className="font-semibold text-brand-blue hover:text-brand-blue-dark">
+            <Link href="/pricing" data-cta={asPageHeading ? undefined : "pricing_view"} className="font-semibold text-brand-blue hover:text-brand-blue-dark">
               {pricing.compare} →
             </Link>
           </p>

@@ -24,6 +24,20 @@ Audit against `main` (`a7ded96`, then PRs #179–#188). Evidence level: code and
 
 Corrections to statements further down: the proxy was at the repository root, where Next.js 16 never loads it when `app` lives under `src/` (see PERF-01 / `docs/perf-01-investigation.md`); it now lives in `src/proxy.ts`; DNT/GPC is honoured by `/api/track` since #116; the "analytics-v2-contract.md §1: gaps" list is outdated for DNT/GPC only; the visitor-hash salt is currently the public date (SEC-05).
 
+## Reconciliation 2026-10-23 (end of the autonomous sprint; supersedes 2026-10-22 where different)
+Full detail, merge SHAs and next steps: [`handoffs/2026-10-23-analytics-seo-handoff.md`](./handoffs/2026-10-23-analytics-seo-handoff.md).
+
+| ID | Status now | Evidence |
+|---|---|---|
+| PRD-01 | **Server side DONE and in production; CTA collection OFF; signup attribution (#203) awaits owner approval** | #190 migration applied; #192 tracking; #200 dormant CTA instrumentation (`ANALYTICS_CTA_ENABLED` unset); #201 panels in `/platform/analytics` |
+| SEC-04 | **DONE, deletion still OFF** | #197 extends retention to `AnalyticsEvent`; `ANALYTICS_RETENTION_APPLY` unset; daily dry-run cron |
+| PERF-01 | **Root cause fixed** | #198: proxy moved to `src/proxy.ts`, host lookup fails open (1.5 s); #103 not reproduced with production data |
+| QA-02 | **DONE for code verification** (#199, #204 "Quotes" menu name); a 5-item live-UI walk remains | `docs/help-article-verification-2026-10.md` |
+| QA-06 / CNT-09 | **DONE** | #195 link audit, #202 contextual links |
+| Page-view gap | **Pipeline proven working**; normal-profile miss unexplained | `docs/analytics-production-verification.md` |
+| SEC-01/02/03 | **Still not executed** (needs owner approval + backup) | `docs/pageview-token-purge-runbook.md` |
+| Owner-gated | #203 merge, CTA flag, retention apply, privacy notice wording, French indexing, Quote vs Estimate naming | handoff §11 |
+
 ## Priorities
 - **P0** — security or legal/external prerequisites that gate indexing or expose users. Do first.
 - **P1** — needed for a complete, bilingual, measurable product.

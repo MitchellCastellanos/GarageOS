@@ -7,6 +7,7 @@ import {
   MIN_RETENTION_MONTHS,
   retentionCutoff,
   runRetention,
+  runRetentionForTables,
   type RetentionStore,
 } from "../src/lib/privacy/retention";
 
@@ -115,4 +116,77 @@ test("production wiring: apply is opt-in, the cron route is authenticated, and t
   const route = fs.readFileSync("src/app/api/webhooks/cron/analytics-retention/route.ts", "utf8");
   assert.match(route, /isAuthorizedCronRequest\(request\)/);
   assert.ok(JSON.parse(fs.readFileSync("vercel.json", "utf8")).crons.some((c: { path: string }) => c.path === "/api/webhooks/cron/analytics-retention"));
+});
+
+// ---- multi-table (PageView + AnalyticsEvent) ----
+
+test("one run covers several tables with separate counts; dry run deletes nothing in any", async () => {
+  const pv = memoryStore(["2024-01-01T00:00:00Z", "2026-10-01T00:00:00Z"]);
+  const ev = memoryStore(["2024-02-01T00:00:00Z", "2024-03-01T00:00:00Z", "2026-10-01T00:00:00Z"]);
+  const dry = await runRetentionForTables({ stores: { PageView: pv, AnalyticsEvent: ev }, now: NOW, dryRun: true });
+  assert.ok(dry.PageView.ok && dry.AnalyticsEvent.ok);
+  if (dry.PageView.ok && dry.AnalyticsEvent.ok) {
+    assert.equal(dry.PageView.result.candidates, 1);
+    assert.equal(dry.AnalyticsEvent.result.candidates, 2);
+    assert.equal(dry.PageView.result.deleted + dry.AnalyticsEvent.result.deleted, 0);
+  }
+  assert.equal(pv.rows.length, 2);
+  assert.equal(ev.rows.length, 3);
+  const applied = await runRetentionForTables({ stores: { PageView: pv, AnalyticsEvent: ev }, now: NOW, dryRun: false });
+  assert.ok(applied.PageView.ok && applied.AnalyticsEvent.ok);
+  if (applied.PageView.ok && applied.AnalyticsEvent.ok) {
+    assert.equal(applied.PageView.result.deleted, 1);
+    assert.equal(applied.AnalyticsEvent.result.deleted, 2);
+    assert.ok(applied.PageView.result.complete && applied.AnalyticsEvent.result.complete);
+  }
+  assert.equal(pv.rows.length, 1);
+  assert.equal(ev.rows.length, 1);
+  const again = await runRetentionForTables({ stores: { PageView: pv, AnalyticsEvent: ev }, now: NOW, dryRun: false });
+  assert.ok(again.PageView.ok && again.PageView.result.deleted === 0 && again.AnalyticsEvent.ok && again.AnalyticsEvent.result.deleted === 0);
+});
+
+test("the 12-month floor applies to every table", async () => {
+  const pv = memoryStore(["2024-01-01T00:00:00Z"]);
+  const ev = memoryStore(["2024-01-01T00:00:00Z"]);
+  const r = await runRetentionForTables({ stores: { PageView: pv, AnalyticsEvent: ev }, now: NOW, months: 6, dryRun: false });
+  assert.ok(!r.PageView.ok && !r.AnalyticsEvent.ok);
+  assert.equal(pv.rows.length, 1);
+  assert.equal(ev.rows.length, 1);
+});
+
+test("the shared time budget is split fairly: a busy first table cannot starve the second", async () => {
+  const big = memoryStore(Array.from({ length: 500 }, () => "2024-01-01T00:00:00Z"));
+  const small = memoryStore(Array.from({ length: 5 }, () => "2024-01-01T00:00:00Z"));
+  let t = 0;
+  const clock = () => t;
+  // every delete batch "costs" 10 ms; budget 100 ms over 2 tables -> 50 ms each, so the first table gets about 5 batches
+  const slow: RetentionStore = { ...big, deleteOldestBatch: async (c, l) => { t += 10; return big.deleteOldestBatch(c, l); } };
+  const r = await runRetentionForTables({ stores: { A: slow, B: small }, now: NOW, dryRun: false, batchSize: 10, timeBudgetMs: 100, clock });
+  assert.ok(r.A.ok && r.B.ok);
+  if (r.A.ok && r.B.ok) {
+    assert.equal(r.A.result.complete, false, "first table is bounded by its share");
+    assert.ok(r.A.result.batches <= 5);
+    assert.equal(r.B.result.deleted, 5, "second table still got its turn");
+    assert.equal(r.B.result.complete, true);
+  }
+});
+
+test("a failing table is reported and does not stop the others", async () => {
+  const broken: RetentionStore = { ...memoryStore([]), countOlderThan: async () => { throw new Error("boom with secret payload"); } };
+  const ev = memoryStore(["2024-01-01T00:00:00Z"]);
+  const r = await runRetentionForTables({ stores: { PageView: broken, AnalyticsEvent: ev }, now: NOW, dryRun: false });
+  assert.equal(r.PageView.ok, false);
+  assert.ok(r.AnalyticsEvent.ok);
+  assert.equal(ev.rows.length, 0);
+  assert.ok(!JSON.stringify(r).includes("secret payload"), "only the error class name is kept, never its message");
+});
+
+test("production wiring covers both tables, one audit entry per table, and the cron route reports per-table counts", () => {
+  const mod = fs.readFileSync("src/lib/platform/analytics-retention.ts", "utf8");
+  assert.match(mod, /DELETE FROM "garageos"."AnalyticsEvent"[\s\S]*"createdAt" < \$\{cutoff\}[\s\S]*LIMIT \$\{limit\}/);
+  assert.match(mod, /RETENTION_TABLES = \["PageView", "AnalyticsEvent"\]/);
+  assert.match(mod, /targetType: table/);
+  const route = fs.readFileSync("src/app/api/webhooks/cron/analytics-retention/route.ts", "utf8");
+  assert.match(route, /runAnalyticsRetention/);
+  assert.match(route, /isAuthorizedCronRequest\(request\)/);
 });

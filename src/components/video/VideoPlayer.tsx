@@ -22,6 +22,8 @@ export interface VideoPlayerProps {
   onTime?: (t: number, playing: boolean) => void;
   onPlayingChange?: (playing: boolean) => void;
   className?: string;
+  /** Analytics v2: set only for anonymous public traffic (never with a sales token); marks the poster play button as the `watch_play` CTA. */
+  playCta?: "watch_play";
 }
 
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
@@ -35,7 +37,7 @@ const privacyOptOut = () => typeof navigator !== "undefined" && (navigator.doNot
  * keyboard- and touch-friendly. Captions are burned into the video, so there is no separate caption track to toggle.
  * Reporting (only with a sales token) is fire-and-forget and can never affect playback.
  */
-export function VideoPlayer({ src, poster, title, lang, seconds, token, reportPageView, startAt = 0, autoPlay = false, priority, onTime, onPlayingChange, className }: VideoPlayerProps) {
+export function VideoPlayer({ src, poster, title, lang, seconds, token, reportPageView, startAt = 0, autoPlay = false, priority, onTime, onPlayingChange, className, playCta }: VideoPlayerProps) {
   const L = PLAYER_LABELS[lang];
   const wrap = useRef<HTMLDivElement>(null);
   const vid = useRef<HTMLVideoElement>(null);
@@ -113,7 +115,7 @@ export function VideoPlayer({ src, poster, title, lang, seconds, token, reportPa
   return (
     <div ref={wrap} onKeyDown={onKey} className={`group relative isolate aspect-video w-full overflow-hidden rounded-2xl bg-brand-navy shadow-xl shadow-slate-900/20 ring-1 ring-slate-900/10 ${className ?? ""}`}>
       {!started ? (
-        <button type="button" onClick={begin} aria-label={L.playVideo(title)} className="absolute inset-0 flex items-center justify-center focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-white">
+        <button type="button" onClick={begin} data-cta={playCta} aria-label={L.playVideo(title)} className="absolute inset-0 flex items-center justify-center focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-white">
           {/* eslint-disable-next-line @next/next/no-img-element -- approved pre-optimized poster (≈55 KB); explicit dimensions, lazy unless above the fold */}
           <img src={poster} alt="" width={1280} height={720} loading={priority ? "eager" : "lazy"} fetchPriority={priority ? "high" : "auto"} decoding="async" referrerPolicy="no-referrer" className="absolute inset-0 size-full object-cover" />
           <span className="absolute inset-0 bg-gradient-to-t from-brand-navy/55 via-transparent to-transparent" />

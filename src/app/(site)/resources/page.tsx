@@ -48,7 +48,7 @@ export default async function ResourcesPage() {
             <h2 id="res-start" className="text-2xl font-bold text-slate-900">Get started</h2>
             <ul className="mt-5 grid gap-4 sm:grid-cols-2">
               <li><Link href="/quick-start" className={CARD}><span className="font-semibold text-slate-900">Quick Start checklist</span><span className="mt-1 block text-sm text-slate-600">A practical checklist for running your first job end to end.</span></Link></li>
-              <li><Link href="/demo" className={CARD}><span className="font-semibold text-slate-900">Interactive demo</span><span className="mt-1 block text-sm text-slate-600">Follow a sample shop from booking to the next visit.</span></Link></li>
+              <li><Link href="/demo" data-cta="demo_interactive" className={CARD}><span className="font-semibold text-slate-900">Interactive demo</span><span className="mt-1 block text-sm text-slate-600">Follow a sample shop from booking to the next visit.</span></Link></li>
             </ul>
           </section>
 

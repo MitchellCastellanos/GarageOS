@@ -26,12 +26,14 @@ export function Hero() {
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <Link
                 href="/get-started"
+                data-cta="signup_start"
                 className="inline-flex items-center gap-2 bg-brand-blue hover:bg-brand-blue-dark text-white font-semibold text-sm px-6 py-3.5 rounded-xl transition-colors shadow-md shadow-blue-600/20"
               >
                 {t.hero.ctaPrimary}
               </Link>
               <Link
                 href="/demo"
+                data-cta="demo_interactive"
                 className="inline-flex items-center gap-2 border border-slate-200 hover:border-slate-300 text-slate-700 font-semibold text-sm px-6 py-3.5 rounded-xl transition-colors"
               >
                 <PlayCircle className="w-4 h-4 text-brand-blue" />
