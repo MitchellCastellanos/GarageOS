@@ -143,7 +143,7 @@ export const PRODUCT_COPY: Record<MarketingLocale, {
   customerTitle: string; customerIntro: string;
   frontEyebrow: string; frontTitle: string; frontBody: string; simpleTitle: string; simpleBody: string;
   managementTitle: string; managementIntro: string;
-  seeFeatures: string; seePricing: string; walkthrough: string;
+  seeFeatures: string; seePricing: string; walkthrough: string; seeIntegrations: string; seeChangelog: string;
 }> = {
   en: {
     meta: { title: "Product", description: "GarageOS connects the customer, vehicle, inspection, estimate, approval, Work Order and payment in one workflow — from booking to the next visit." },
@@ -162,7 +162,7 @@ export const PRODUCT_COPY: Record<MarketingLocale, {
     simpleBody: "Give each team member the access their role requires — owners and front desk get the full workflow, mechanics get what's relevant to the job in front of them.",
     managementTitle: "The management layer",
     managementIntro: "Around the job, GarageOS gives owners visibility and control over the whole business.",
-    seeFeatures: "See all features", seePricing: "Compare plans", walkthrough: "Walk through a sample visit",
+    seeFeatures: "See all features", seePricing: "Compare plans", walkthrough: "Walk through a sample visit", seeIntegrations: "See what GarageOS connects to", seeChangelog: "See what's new",
   },
   fr: {
     meta: { title: "Produit", description: "GarageOS relie le client, le véhicule, l'inspection, le devis, l'approbation, l'ordre de travail et le paiement dans un seul flux — de la réservation à la prochaine visite." },
@@ -181,7 +181,7 @@ export const PRODUCT_COPY: Record<MarketingLocale, {
     simpleBody: "Donnez à chaque membre de l'équipe l'accès que son rôle exige — propriétaires et réception ont tout le flux, les mécaniciens voient ce qui concerne le travail devant eux.",
     managementTitle: "La couche de gestion",
     managementIntro: "Autour du travail, GarageOS donne aux propriétaires visibilité et contrôle sur toute l'entreprise.",
-    seeFeatures: "Voir toutes les fonctionnalités", seePricing: "Comparer les forfaits", walkthrough: "Parcourir une visite type",
+    seeFeatures: "Voir toutes les fonctionnalités", seePricing: "Comparer les forfaits", walkthrough: "Parcourir une visite type", seeIntegrations: "Voir à quoi GarageOS se connecte", seeChangelog: "Voir les nouveautés",
   },
 };
 

@@ -9,7 +9,7 @@ export const GUIDE_TO_HELP: Record<string, { category: HelpCategoryId; related?:
   "set-up-your-shop": { category: "getting-started", related: ["import-your-data", "configure-online-booking"] },
   "import-your-data": { category: "getting-started", related: ["clients-and-vehicles", "set-up-your-shop"] },
   "configure-online-booking": { category: "appointments", related: ["set-up-your-shop", "clients-and-vehicles"] },
-  "clients-and-vehicles": { category: "client-records", related: ["customer-portal", "configure-online-booking"] },
+  "clients-and-vehicles": { category: "client-records", related: ["import-your-data", "customer-portal", "configure-online-booking"] },
   "digital-vehicle-inspections": { category: "inspect-authorize", related: ["estimate-to-invoice", "approval-history"] },
   "estimate-to-invoice": { category: "estimates-invoices", related: ["approval-history", "work-orders"] },
   "approval-history": { category: "estimates-invoices", related: ["estimate-to-invoice", "digital-vehicle-inspections"] },
