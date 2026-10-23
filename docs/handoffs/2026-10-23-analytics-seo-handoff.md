@@ -40,14 +40,14 @@ Merge method is "merge commit". All SHAs verified from GitHub at merge time.
 | #197 | Analytics v2 (PR-D): retention covers AnalyticsEvent | ff29b59b32af4ddcf2c48e390b0098c13edae1a9 |
 | #200 | Analytics v2 (PR-C): dormant CTA instrumentation, OFF | edbf84268caaccdb6c7e175a9675c9f737fae42f |
 | #201 | Analytics v2 (PR-P): real-data panels, no schema change | f5f2afc83d2f751f9c79b32676bb2029c3fb3450 |
-| #204 | Help Center: menu name "Quotes" | see PR page / final report |
+| #204 | Help Center: menu name "Quotes" | 7c84ab40d971d9f4b4a160858993db9adcdfd695 |
 | docs PR | handoff + runbooks (this file) | see PR page |
 
 Not merged: **#203** (draft, awaits owner), #47 (obsolete, close), #42, #82, #86 (to review; not touched).
 
 ## 3. Production deployment status
 
-- Every merge to `main` above produced a Vercel Production deployment that reached READY (verified per merge through the Vercel API). Latest verified at time of writing: `dpl_4HdMnh5ht9hEFdpHWXhyEwtHkNy4` for #201 (see the final report for READY confirmation of #204 and this PR).
+- Every merge to `main` above produced a Vercel Production deployment that reached READY (verified per merge through the Vercel API). Latest verified: see the final report for READY confirmation of #201, #204 and the docs PR.
 - Production build runs `prisma migrate deploy` (`scripts/deploy-migrations.mjs`). **Merging any PR that contains a migration applies it to production.** This is why #203 is held.
 - Vercel runtime logs are kept ~1 hour on this plan; Web Analytics is not enabled.
 
