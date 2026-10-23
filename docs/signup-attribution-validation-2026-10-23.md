@@ -69,7 +69,7 @@ Stored fields (model `SignupAttribution`): `id, createdAt, shopId, landingPath, 
 
 Tested bad values for `from/lang/cta/utm_*/referrer`: emails, formatted and unformatted phone numbers, absolute and protocol-relative URLs, `javascript:`, a JWT, a Stripe-style key, a 32-hex id, an IPv4, markup, path traversal. Landing paths: query strings and fragments are cut; private prefixes (`/admin/*`, `/api/*`, `/portal/<token>`) are dropped; legitimate long blog slugs survive.
 
-Four gaps found in the PR as opened, fixed in commit `df7fe27` (each has a failing-then-passing assertion in `tests/signup-attribution-privacy.test.ts`):
+Four gaps found in the PR as opened, fixed in commit `6a1653e` (each has a failing-then-passing assertion in `tests/signup-attribution-privacy.test.ts`):
 
 1. `lp` accepted path segments shaped like an email or phone number (`/a@b.com`, `/514-555-0199`): now dropped (`looksPersonal`).
 2. `referrerHost` accepted `514-555-0199`, IP literals, single-label hosts and token-like labels: now requires a dotted hostname with an alphabetic TLD, no personal-looking text, and no 16+ character label mixing letters and digits.
