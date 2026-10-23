@@ -5,6 +5,8 @@ export type ResourceArticle = {
   category: string;
   sections: { title: string; body: string; steps?: string[] }[];
   relatedGuide?: string;
+  /** Extra contextual links shown under a blog post (EN only; the blog has no FR version). */
+  relatedLinks?: { label: string; href: string }[];
 };
 
 // Documentation follows the implemented shop workflows, not a future roadmap.
@@ -139,6 +141,7 @@ export const BLOG_POSTS: ResourceArticle[] = [
   {
     slug: "a-clearer-start-to-the-shop-day", title: "A clearer start to the shop day", category: "Shop operations",
     summary: "A short morning review helps the front desk and workshop work from the same information.", relatedGuide: "configure-online-booking",
+    relatedLinks: [{ label: "Online booking for auto repair shops", href: "/features/online-booking" }],
     sections: [
       { title: "Start with the calendar", body: "Before the first vehicle arrives, review today's appointments with the people handling reception and repairs. Check the service requested, the assigned mechanic and missing customer details. A calendar entry is a starting point, but the team still needs to know whether the vehicle is arriving, already on site or waiting for a customer response." },
       { title: "Check capacity before promising a time", body: "A gap between appointments is not always enough time for another service. Consider service duration and the mechanic's working hours before offering it. In GarageOS, online availability uses the shop's booking rules and mechanic schedules. Keeping those settings accurate helps the public booking page reflect the time the shop can actually offer." },
@@ -149,6 +152,7 @@ export const BLOG_POSTS: ResourceArticle[] = [
   {
     slug: "estimates-customers-can-understand", title: "Write estimates customers can understand", category: "Customer communication",
     summary: "Clear descriptions and an explicit decision make the transition from estimate to invoice easier to follow.", relatedGuide: "estimate-to-invoice",
+    relatedLinks: [{ label: "Quotes and approvals", href: "/features/quotes-and-approvals" }],
     sections: [
       { title: "Name the work, then show the cost", body: "Write line descriptions that explain what the shop proposes to do. A specific service description is more useful than a generic 'repair' label. Review quantities, unit prices and totals before sending so the customer can connect the proposed work with the amount they are being asked to approve." },
       { title: "Check who and what the estimate is for", body: "Before sending, verify the customer, vehicle and recipient email. This matters when a customer owns several vehicles or when two customers have similar names. Reusing the correct record also keeps later service documents attached to the right history." },
@@ -159,6 +163,7 @@ export const BLOG_POSTS: ResourceArticle[] = [
   {
     slug: "useful-vehicle-history", title: "Make vehicle history useful at the next visit", category: "Client records",
     summary: "Consistent records help the next person understand what happened without reconstructing the job.", relatedGuide: "clients-and-vehicles",
+    relatedLinks: [{ label: "Digital vehicle inspections", href: "/features/digital-vehicle-inspections" }, { label: "Set up maintenance reminders", href: "/help/communicate-and-retain/maintenance-reminders" }],
     sections: [
       { title: "One customer, the right vehicles", body: "Start by searching for an existing customer. Creating a new record for each visit splits useful history across several places. Confirm the identifying details of the vehicle instead of choosing by make alone, especially for households or businesses that bring in several similar vehicles." },
       { title: "Write for the next person", body: "A service description should make sense to someone who did not handle the appointment. Record the work clearly and keep relevant documents associated with the correct customer and vehicle. Avoid relying on private shorthand that only one mechanic understands." },
