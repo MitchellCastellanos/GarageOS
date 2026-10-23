@@ -98,3 +98,31 @@ test("page views now store channel and page type, and a strict UTM allowlist", a
 test("parseEventPayload keeps only the three contract fields", () => {
   assert.deepEqual(parseEventPayload({ ctaId: "watch_play", path: "/watch/en?t=secret", locale: "fr", evil: 1 }), { ctaId: "watch_play", path: "/watch/en", locale: "fr" });
 });
+
+test("CTA events never store private/token paths, encoded variants, or a /watch ?t= token", async (t) => {
+  const { created } = setup(t);
+  const tok = "AbCdEfGhIjKlMnOpQrStUvWxYz012345";
+  const rejected = [
+    `/portal/${tok}`, `/quote/${tok}`, `/inspection/${tok}`, `/book/some-shop/manage/${tok}`, `/sales/book/${tok}`, `/sales-invite/${tok}`,
+    `/account-recovery/${tok}`, `/activate-demo/${tok}`, `//portal/${tok}`, `/%71uote/${tok}`, `/PORTAL/${tok}`, `/a/../portal/${tok}`, "/admin", "/platform/analytics", "/api/track", `\\portal\\${tok}`,
+  ];
+  for (const path of rejected) assert.equal((await POST(req("/api/track/event", JSON.stringify({ ctaId: "signup_start", path })))).status, 204);
+  assert.equal(created.length, 0, "no private or token path is ever stored");
+  // A tokenised public URL is accepted only after the query/hash are stripped; the token is never persisted.
+  for (const path of [`/watch/en?t=${tok}`, `/watch/fr/teaser?t=${tok}&at=10#x`, `/pricing?utm_source=a@b.com`]) {
+    await POST(req("/api/track/event", JSON.stringify({ ctaId: "watch_play", path })));
+  }
+  assert.deepEqual(created.map((c) => c.path), ["/watch/en", "/watch/fr/teaser", "/pricing"]);
+  assert.ok(!JSON.stringify(created).includes(tok) && !JSON.stringify(created).includes("a@b.com"));
+});
+
+test("existing attribution survives: accented, mixed-case and dated campaign names are kept (lower-cased)", async (t) => {
+  const { views } = setup(t);
+  const view = (b: object) => POST_VIEW(req("/api/track", JSON.stringify(b)));
+  await view({ path: "/fr/tarifs", locale: "fr", utmSource: "Facebook", utmMedium: "CPC", utmCampaign: "Promo-Été-2026" });
+  await view({ path: "/pricing", locale: "en", utmSource: "newsletter", utmMedium: "email", utmCampaign: "email-blast-2026-10-22" });
+  assert.deepEqual(views.map((v) => [v.utmSource, v.utmMedium, v.utmCampaign, v.channel]), [
+    ["facebook", "cpc", "promo-été-2026", "campaign"],
+    ["newsletter", "email", "email-blast-2026-10-22", "email"],
+  ]);
+});
