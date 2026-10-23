@@ -10,6 +10,7 @@ import {
   DEMO_SECTIONS, DEMO_UI, resolveDemoAsset, type DemoAssetKey, type DemoSectionCopy,
 } from "@/lib/demo-journey";
 import { ADMIN } from "@/lib/routes";
+import { signupHandoffHref } from "@/lib/analytics/signup-attribution";
 
 const SHOP_PETROL = "#0F4C5C";
 const SHOP_COPPER = "#C77845";
@@ -94,7 +95,7 @@ function JourneyBody() {
                 <a href="#booking" className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-blue px-6 py-3.5 text-sm font-semibold text-white shadow-md shadow-blue-600/20 hover:bg-brand-blue-dark">
                   {ui.explore}<ArrowRight className="h-4 w-4" aria-hidden />
                 </a>
-                <Link href={ADMIN.signup} className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-6 py-3.5 text-sm font-semibold text-slate-800 hover:bg-slate-50">{ui.trial}</Link>
+                <Link href={signupHandoffHref(ADMIN.signup, { pageType: "commercial", slug: "demo", lang: locale, landingPath: locale === "fr" ? "/fr/demo" : "/demo", ctaId: "signup_start" })} className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-6 py-3.5 text-sm font-semibold text-slate-800 hover:bg-slate-50">{ui.trial}</Link>
               </div>
               {locale === "en" && <p className="mt-5 text-xs text-slate-500">{ui.langNote}</p>}
             </div>
@@ -238,7 +239,7 @@ function JourneyBody() {
           <h2 className="text-2xl font-bold text-slate-900 sm:text-3xl">{ui.finalTitle}</h2>
           <p className="mt-3 text-slate-600">{ui.finalBody}</p>
           <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Link href={ADMIN.signup} className="inline-flex items-center gap-2 rounded-xl bg-brand-blue px-7 py-3.5 text-sm font-semibold text-white shadow-md shadow-blue-600/20 hover:bg-brand-blue-dark">{ui.trial}<ArrowRight className="h-4 w-4" aria-hidden /></Link>
+            <Link href={signupHandoffHref(ADMIN.signup, { pageType: "commercial", slug: "demo", lang: locale, landingPath: locale === "fr" ? "/fr/demo" : "/demo", ctaId: "signup_start" })} className="inline-flex items-center gap-2 rounded-xl bg-brand-blue px-7 py-3.5 text-sm font-semibold text-white shadow-md shadow-blue-600/20 hover:bg-brand-blue-dark">{ui.trial}<ArrowRight className="h-4 w-4" aria-hidden /></Link>
             <Link href="/pricing" className="text-sm font-semibold text-brand-blue hover:underline">{ui.compare}</Link>
             <Link href="/contact" className="text-sm font-semibold text-slate-700 hover:text-slate-900">{ui.contact}</Link>
           </div>
