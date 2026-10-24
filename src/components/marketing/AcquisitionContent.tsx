@@ -2,6 +2,7 @@
 
 import { LocaleLink as Link } from "@/components/marketing/LocaleLink";
 import { ArrowRight, CreditCard, LayoutDashboard, Palette, Users } from "lucide-react";
+import { signupHandoffHref } from "@/lib/analytics/signup-attribution";
 import { useMarketingLocale } from "@/components/marketing/MarketingLocaleProvider";
 import { PageHero } from "@/components/marketing/PageHero";
 import { DemoJourney } from "@/components/marketing/demo/DemoJourney";
@@ -47,7 +48,7 @@ export function GetStartedContent() {
           <h2 className="text-2xl sm:text-3xl font-bold text-slate-900">{c.ctaTitle}</h2>
           <p className="mt-3 text-slate-600">{c.ctaBody}</p>
           <div className="mt-7 flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Link href={ADMIN.signup} data-cta="signup_start" className="inline-flex items-center gap-2 bg-brand-blue hover:bg-brand-blue-dark text-white font-semibold text-sm px-7 py-3.5 rounded-xl transition-colors shadow-md shadow-blue-600/20">
+            <Link data-cta="signup_start" href={signupHandoffHref(ADMIN.signup, { pageType: "commercial", slug: "get-started", lang: locale, landingPath: locale === "fr" ? "/fr/commencer" : "/get-started", ctaId: "signup_start" })} className="inline-flex items-center gap-2 bg-brand-blue hover:bg-brand-blue-dark text-white font-semibold text-sm px-7 py-3.5 rounded-xl transition-colors shadow-md shadow-blue-600/20">
               {c.create}
               <ArrowRight className="w-4 h-4" />
             </Link>

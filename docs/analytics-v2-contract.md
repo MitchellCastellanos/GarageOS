@@ -98,6 +98,13 @@ Client: `sendBeacon`/`fetch(keepalive)` fire-and-forget inside try/catch, no `aw
 ### 10.8 DNT and GPC apply to the existing analytics too
 Today `/api/track` ignores them. The implementation PR makes `trackPageView` and the event endpoint return `204` without storing anything when `DNT: 1` or `Sec-GPC: 1` is present (server-side header check, so it holds even if the client script changes), including for the existing `pageview` event. A test covers both headers on both endpoints. The behaviour change (fewer recorded visits) is noted in the panel as a footnote, since counts will drop for those visitors.
 
+### 10.10 Implemented: `SignupAttribution` (migration `20261106090000_signup_attribution`, owner approval required)
+- Table `garageos."SignupAttribution"` (`shopId` UNIQUE, FK `Shop` ON DELETE CASCADE; `landingPath`, `locale`, `channel`, `pageType`, `ctaId` nullable, `utmSource/Medium/Campaign`, `referrerHost`; no email/IP/visitorHash/free text). One row per shop, first touch wins (`createMany({ skipDuplicates })` = `INSERT … ON CONFLICT ("shopId") DO NOTHING`), never updated.
+- Written by `POST /api/auth/signup` AFTER the shop transaction commits, inside a catch-all (`captureSignupAttribution`): any failure, including the table not existing yet, is logged by error class only and the signup is unchanged. Google sign-up does not carry the hand-off (no form post) and is not attributed yet.
+- Hand-off: CTA links to `/admin/signup` carry `?from=<pageType>:<slug>&lang=<en|fr>` (contract) plus two additive optional parameters, `lp=<public pathname>` (validated with `isTrackablePath`/`normalizeForStorage`, path only) and `cta=<CTA id>`; UTM already in the URL are read by the signup page. Everything is validated on the page and again in the API (`sanitizeHandoff`); invalid parts are dropped and the account is recorded as a `direct` first touch. Nothing is stored in the browser (`document.referrer` host is put in a hidden field for the single POST).
+- Privacy gate: OFF unless the server env `ANALYTICS_SIGNUP_ATTRIBUTION_ENABLED` is exactly `true`; also skipped for DNT/GPC. Same rule as §11: do not enable before the privacy notice is legally reviewed.
+- Read path: `getSignupAttributionSummary()` (`requireSuperAdmin()` first; aggregate counts only, buckets under 5 folded). Not wired to a screen yet.
+
 ### 10.9 Not authorised by this document
 No migration, no new table or column, no deployment of storage, no publication of privacy text. The implementation PR must be opened, reviewed and explicitly authorised by the owner.
 

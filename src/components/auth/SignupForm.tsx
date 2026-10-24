@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Mail, User, Building2 } from "lucide-react";
@@ -10,10 +11,25 @@ import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 
 interface SignupFormProps {
   error?: string;
+  /**
+   * Analytics v2 hand-off (already validated by the page; re-validated by the API). Passed ONLY when signup attribution is enabled on the
+   * server; when undefined the form renders and behaves exactly as before. Nothing is stored in the browser.
+   */
+  handoff?: Record<string, string>;
 }
 
-export function SignupForm({ error }: SignupFormProps) {
+export function SignupForm({ error, handoff }: SignupFormProps) {
   const { locale, t } = useMarketingLocale();
+  const refInput = useRef<HTMLInputElement>(null);
+  // Host only of document.referrer, put into a hidden field for the one POST; the server drops it unless it is a plain foreign hostname.
+  useEffect(() => {
+    if (!handoff || !refInput.current) return;
+    try {
+      if (document.referrer) refInput.current.value = new URL(document.referrer).hostname;
+    } catch {
+      /* ignore */
+    }
+  }, [handoff]);
   const { signup, login } = t.auth;
 
   return (
@@ -33,6 +49,14 @@ export function SignupForm({ error }: SignupFormProps) {
 
       <form action="/api/auth/signup" method="POST" className="space-y-2">
         <input type="hidden" name="locale" value={locale} />
+        {handoff && (
+          <>
+            {Object.entries(handoff).map(([k, v]) => (
+              <input key={k} type="hidden" name={`ho_${k}`} value={v} />
+            ))}
+            <input ref={refInput} type="hidden" name="ho_ref" defaultValue="" />
+          </>
+        )}
 
         <div>
           <label htmlFor="shopName" className="block text-sm font-medium text-slate-700 mb-1">

@@ -35,6 +35,8 @@ model Shop {
   platformConversations      PlatformConversation[]
   subscriptionCancellations  SubscriptionCancellation[]
   pageViews                  PageView[]
+  /// Analytics v2: first-touch source of this account (one row, deleted with the shop). Super Admin read only.
+  signupAttribution          SignupAttribution?
 
   id                        String        @id @default(cuid())
   organizationId            String?
@@ -1850,6 +1852,30 @@ model AnalyticsEvent {
 
   @@index([createdAt])
   @@index([type, ctaId, createdAt])
+  @@schema("garageos")
+}
+
+/// Analytics v2: where a business account came from (first touch wins, one row per shop, never updated, deleted with the shop).
+/// Deliberately NO email, IP, visitorHash, user agent or free text. Values are server-validated allowlisted tokens only.
+model SignupAttribution {
+  id           String   @id @default(cuid())
+  createdAt    DateTime @default(now())
+  shopId       String   @unique
+  shop         Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  /// Normalised public pathname of the page whose CTA led to signup ('' when unknown); never a query string.
+  landingPath  String   @default("")
+  locale       String   @default("en")
+  channel      String   @default("")
+  pageType     String   @default("")
+  /// Allowlisted CTA id (CTA_IDS) or null.
+  ctaId        String?
+  utmSource    String   @default("")
+  utmMedium    String   @default("")
+  utmCampaign  String   @default("")
+  /// Host only, own host dropped.
+  referrerHost String   @default("")
+
+  @@index([createdAt])
   @@schema("garageos")
 }
 
