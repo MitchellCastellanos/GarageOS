@@ -337,3 +337,19 @@ test("login route counts failed passwords against the per-account budget (not on
   const idxCompare = src.indexOf("bcrypt.compare");
   assert.ok(idxLimit > 0 && idxLimit < idxCompare, "the account budget is checked BEFORE the password comparison");
 });
+
+test("rate limiter bucket ids never contain the raw IP or email, keep the limiter name, and are stable per subject and window", async (t) => {
+  const rows = fakeBuckets(t);
+  await rl.checkRateLimit({ key: "track-ip:203.0.113.77", limit: 5, windowSec: 60 });
+  await rl.checkRateLimit({ key: "login-email:owner@example.com", limit: 5, windowSec: 60 });
+  await rl.checkRateLimit({ key: "track-ip:203.0.113.77", limit: 5, windowSec: 60 });
+  const ids = [...rows.keys()];
+  assert.equal(ids.length, 2, "same subject and window share one bucket");
+  for (const id of ids) {
+    assert.ok(!id.includes("203.0.113.77") && !id.includes("owner@example.com") && !id.includes("example.com"), "no raw subject in the id");
+  }
+  assert.ok(ids.some((id) => id.startsWith("track-ip:")) && ids.some((id) => id.startsWith("login-email:")), "limiter name stays readable");
+  assert.notEqual(rl.bucketId("track-ip:1.1.1.1", 5), rl.bucketId("track-ip:1.1.1.2", 5));
+  assert.notEqual(rl.bucketId("track-ip:1.1.1.1", 5), rl.bucketId("track-ip:1.1.1.1", 6));
+  assert.equal(rl.bucketId("plain", 7), "plain:7");
+});
