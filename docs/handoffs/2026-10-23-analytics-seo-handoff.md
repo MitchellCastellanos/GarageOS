@@ -62,7 +62,7 @@ Not merged: **#203** (draft, awaits owner), #47 (obsolete, close), #42, #82, #86
 `20261106090000_signup_attribution` (PR #203, draft).
 - Effects: `CREATE TABLE garageos."SignupAttribution"`, UNIQUE index on `shopId`, index on `createdAt`, FK to `Shop` `ON DELETE CASCADE`. No change to existing tables' data. The FK briefly takes SHARE ROW EXCLUSIVE on `Shop` (milliseconds); `deploy-migrations.mjs` sets no `lock_timeout`.
 - Verified by the agent: table does not exist in production; no unexpected pending migrations; `verify` and `db-tests` green on head `eeb0a61` (re-rebase on current `main` is required before merge); attribution writes are off by default (`ANALYTICS_SIGNUP_ATTRIBUTION_ENABLED`); validation report: `docs/signup-attribution-validation-2026-10-23.md` (on #203's branch).
-- Rollback: `DROP TABLE garageos."SignupAttribution"` and delete the row `20261106090000_signup_attribution` from `garageos._prisma_migrations`. (`prisma migrate resolve --rolled-back` fails with P3012 after a successful apply.)
+- Rollback: `DROP TABLE garageos."SignupAttribution"` and delete the row `20261106090000_signup_attribution` from `public._prisma_migrations`. (`prisma migrate resolve --rolled-back` fails with P3012 after a successful apply.)
 - **Before approval:** create a *fresh* Neon recovery point from production immediately beforehand (new branch, or confirm PITR window; it is 6 h). The older backup branch is not a substitute.
 - Do NOT merge #203 until the owner writes an explicit approval. After merge, flag stays OFF.
 
