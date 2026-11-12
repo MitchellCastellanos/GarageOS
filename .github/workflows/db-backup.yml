@@ -24,13 +24,24 @@ jobs:
         with:
           persist-credentials: false   # the job never pushes; do not leave the repo token in .git/config
 
+      # Runner DNS/mirrors are occasionally flaky ("Temporary failure resolving security.ubuntu.com" killed the
+      # 2026-11-11 run after ~5 min). Retry the whole update+install unit, fail fast per attempt, and cap the step.
       - name: Install postgresql-client-18 and age
+        timeout-minutes: 12
         run: |
+          set -euo pipefail
           sudo install -d /usr/share/postgresql-common/pgdg
-          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          sudo curl -fsSL --retry 5 --retry-all-errors --connect-timeout 15 -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
           echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq postgresql-client-18 age
+          APT_OPTS=(-o Acquire::Retries=3 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 -o APT::Update::Error-Mode=any)
+          for attempt in 1 2 3 4 5; do
+            if sudo apt-get "${APT_OPTS[@]}" update -qq && sudo apt-get "${APT_OPTS[@]}" install -y -qq postgresql-client-18 age; then
+              break
+            fi
+            if [ "$attempt" = 5 ]; then echo "::error::apt install failed after $attempt attempts"; exit 1; fi
+            echo "apt attempt $attempt failed; retrying in $((attempt * 20))s" >&2
+            sleep $((attempt * 20))
+          done
           echo "/usr/lib/postgresql/18/bin" >> "$GITHUB_PATH"
 
       - name: Dump + validate + encrypt
