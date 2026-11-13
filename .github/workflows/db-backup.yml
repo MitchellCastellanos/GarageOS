@@ -30,18 +30,31 @@ jobs:
         timeout-minutes: 12
         run: |
           set -euo pipefail
-          sudo install -d /usr/share/postgresql-common/pgdg
-          sudo curl -fsSL --retry 5 --retry-all-errors --connect-timeout 15 -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
-          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
           APT_OPTS=(-o Acquire::Retries=3 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 -o APT::Update::Error-Mode=any)
-          for attempt in 1 2 3 4 5; do
-            if sudo apt-get "${APT_OPTS[@]}" update -qq && sudo apt-get "${APT_OPTS[@]}" install -y -qq postgresql-client-18 age; then
-              break
-            fi
-            if [ "$attempt" = 5 ]; then echo "::error::apt install failed after $attempt attempts"; exit 1; fi
-            echo "apt attempt $attempt failed; retrying in $((attempt * 20))s" >&2
-            sleep $((attempt * 20))
-          done
+          apt_install() {   # update + install as one retried unit
+            for attempt in 1 2 3 4 5 6; do
+              if sudo apt-get "${APT_OPTS[@]}" update -qq && sudo apt-get "${APT_OPTS[@]}" install -y -qq "$@"; then
+                return 0
+              fi
+              if [ "$attempt" = 6 ]; then echo "::error::apt install $* failed after $attempt attempts"; return 1; fi
+              echo "apt attempt $attempt failed; retrying in $((attempt * 20))s" >&2
+              sleep $((attempt * 20))
+            done
+          }
+          # age comes from the Ubuntu archive. The PGDG repo (apt.postgresql.org) is the flakiest dependency
+          # (2026-11-12: "File has unexpected size ... Mirror sync in progress?"), so only touch it when the
+          # Ubuntu archive does not already ship postgresql-client-18.
+          apt_install age
+          if apt-cache show postgresql-client-18 >/dev/null 2>&1; then
+            echo "postgresql-client-18 available from the Ubuntu archive"
+          else
+            echo "postgresql-client-18 not in the Ubuntu archive; adding PGDG"
+            sudo install -d /usr/share/postgresql-common/pgdg
+            sudo curl -fsSL --retry 5 --retry-all-errors --connect-timeout 15 -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+            echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          fi
+          apt_install postgresql-client-18
+          /usr/lib/postgresql/18/bin/pg_dump --version
           echo "/usr/lib/postgresql/18/bin" >> "$GITHUB_PATH"
 
       - name: Dump + validate + encrypt
