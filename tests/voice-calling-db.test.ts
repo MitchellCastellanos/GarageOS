@@ -226,6 +226,25 @@ if (!enabled) {
     assert.equal(((await (await status({ CallSid: "CAunknown", CallStatus: "completed" })).json()) as any).applied, false, "unknown calls are acknowledged, not applied");
   });
 
+  test("a failed browser leg closes the call and lets the seller save its outcome", async () => {
+    await seller("FailureRep", "SALES_REP", "REMOTE");
+    const p = await prospect("FailureRep");
+    const r = await start("FailureRep", p.id);
+    assert.ok(r.ok);
+    const callSid = sid("CA");
+    const row = await db.crmCallSession.update({
+      where: { id: r.sessionId }, data: { parentCallSid: callSid },
+    });
+    assert.ok(row.openStaffKey);
+    as(u.FailureRep);
+    const response = await status({ CallSid: callSid, CallStatus: "failed", SequenceNumber: "1" });
+    assert.equal((await response.json()).applied, true);
+    const closed = await db.crmCallSession.findUniqueOrThrow({ where: { id: r.sessionId } });
+    assert.ok(closed.endedAt);
+    assert.deepEqual([closed.state, closed.openStaffKey, closed.openProspectKey, closed.openNumberKey], ["FAILED", null, null, null]);
+    assert.equal((await calling.saveCallDisposition(r.sessionId, { outcome: "NO_ANSWER" })).ok, true);
+  });
+
   test("a call that is no longer authorized at connect time is not dialled: DNC set after the click, expired or wrong-identity authorization; locks are freed", async () => {
     await db.crmCallSession.updateMany({ where: { endedAt: { not: null }, dispositionAt: null }, data: { dispositionAt: new Date(), dispositionCode: "NO_ANSWER" } }); // earlier tests left ended calls without an outcome; a new call is refused until one is saved
     const p = await prospect("Founder");

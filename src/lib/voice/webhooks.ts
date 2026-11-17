@@ -127,8 +127,9 @@ export async function handleStatus(body: Record<string, string>, now = new Date(
     const data: Prisma.CrmCallSessionUpdateInput = {};
     if (isChild && !cur.childCallSid) data.childCallSid = callSid;
     if (!isChild) {
-      // Parent leg: only its end matters (the rep's browser hung up or the call finished). It maps to COMPLETED if the far end answered, else CANCELED.
-      incoming = status === "completed" ? (cur.answeredAt ? "COMPLETED" : "CANCELED") : null;
+      // Parent progress describes the browser leg. Only terminal statuses can close the session.
+      if (incoming === "COMPLETED" && !cur.answeredAt) incoming = "CANCELED";
+      if (incoming && !isTerminal(incoming)) incoming = null;
     }
     const next = nextState(cur.state as CallState, incoming);
     if (next !== cur.state) {

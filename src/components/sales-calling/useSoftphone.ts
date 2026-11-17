@@ -91,11 +91,11 @@ export function useSoftphone(c: CallingCopy, initialDispo: Dispo | null) {
     let alive = true;
     const id = window.setInterval(() => {
       void getCallLiveState(sessionId).then((r) => {
-        if (!alive || !r.ok) return;
         const l = live.current;
+        if (!alive || !r.ok || l.done || l.sessionId !== sessionId) return;
         setHold(r.hold);
         if (r.state === "IN_PROGRESS" && !l.answered) { l.answered = true; l.startedAt = Date.now(); setPhase("connected"); }
-        if (r.ended && l.call) l.call.disconnect(); // the prospect hung up (or the call failed): the server already closed it, end the browser leg too
+        if (r.ended) finish(r.state === "FAILED" ? "failed" : "ended", sessionId);
       }).catch(() => undefined);
     }, 1500);
     return () => { alive = false; window.clearInterval(id); };
@@ -103,33 +103,37 @@ export function useSoftphone(c: CallingCopy, initialDispo: Dispo | null) {
 
   function teardown() {
     const l = live.current;
+    const call = l.call;
     l.call = null;
+    call?.disconnect();
     l.device?.destroy();
     l.device = null;
   }
 
   function finish(next: "ended" | "failed", sid: string) {
     const l = live.current;
-    if (l.done) return;
+    if (l.done || l.sessionId !== sid) return;
     l.done = true;
     teardown();
     setPhase(next);
     setMuted(false);
     setHold("NONE"); setHoldBusy(false);
     if (next === "failed") setError(c.softphone.callFailed);
-    const track = l.prospectId !== null && (next === "ended" || l.accepted);
+    const track = l.prospectId !== null;
     if (track) setDispo({ sessionId: sid, prospectId: l.prospectId, name: l.label, settling: true });
     window.setTimeout(() => {
-      void reconcileCall(sid).catch(() => undefined).finally(() => setDispo((d) => (d && d.sessionId === sid ? { ...d, settling: false } : d)));
+      void cancelCall(sid).catch(() => undefined)
+        .then(() => reconcileCall(sid)).catch(() => undefined)
+        .finally(() => setDispo((d) => (d && d.sessionId === sid ? { ...d, settling: false } : d)));
     }, 4000);
   }
 
   function failBeforeConnect(sid: string) {
     const l = live.current;
-    if (l.done) return;
+    if (l.done || l.sessionId !== sid) return;
     l.done = true;
     teardown();
-    void cancelCall(sid).catch(() => undefined);
+    void cancelCall(sid).then(() => reconcileCall(sid)).catch(() => undefined);
     setPhase("failed");
     setError(c.softphone.connectFailed);
   }
@@ -137,15 +141,22 @@ export function useSoftphone(c: CallingCopy, initialDispo: Dispo | null) {
   async function start(target: Target) {
     if (locked) return;
     const l = live.current;
+    l.hungUp = false;
     setError(null); setNotice(null); setPhase("authorizing"); setMuted(false); setSeconds(0); setHold("NONE"); setHoldAvail(false);
     const key = idempotencyKey();
     const micError = await requestMic(c);
+    if (l.hungUp) { setPhase("idle"); return; }
     if (micError) { setPhase("idle"); setError(micError); return; }
     let r: StartCallResult;
     try {
       r = target.kind === "PROSPECT" ? await startProspectCall(target.id, key, target.confirmOutOfHours === true) : await startTestCall(target.number, key);
     } catch {
-      setPhase("idle"); setError(c.unexpected); return;
+      setPhase("idle"); if (!l.hungUp) setError(c.unexpected); return;
+    }
+    if (l.hungUp) {
+      if (r.ok) await cancelCall(r.sessionId).catch(() => undefined);
+      setPhase("idle");
+      return;
     }
     if (!r.ok) { setPhase("idle"); setError(c.errors[r.code] ?? c.unexpected); return; }
     const sid = r.sessionId;
@@ -156,15 +167,18 @@ export function useSoftphone(c: CallingCopy, initialDispo: Dispo | null) {
     setPhase("dialing");
     try {
       const { Device: TwilioDevice, Call: TwilioCall } = await import("@twilio/voice-sdk");
+      if (l.done || l.sessionId !== sid) return;
       const device = new TwilioDevice(r.accessToken, { codecPreferences: [TwilioCall.Codec.Opus, TwilioCall.Codec.PCMU], closeProtection: true });
       l.device = device;
       device.on("error", () => { if (!l.call) failBeforeConnect(sid); });
       if (micId) await device.audio?.setInputDevice(micId).catch(() => undefined);
+      if (l.done || l.sessionId !== sid) return;
       const call = await device.connect({ params: { sessionId: sid, authToken: r.authToken } });
-      if (l.done) { call.disconnect(); return; }
+      if (l.done || l.sessionId !== sid) { call.disconnect(); return; }
       l.call = call;
-      call.on("ringing", () => { if (!l.answered) setPhase("ringing"); });
+      call.on("ringing", () => { if (!l.done && l.sessionId === sid && !l.answered) setPhase("ringing"); });
       call.on("accept", () => {
+        if (l.done || l.sessionId !== sid) return;
         l.accepted = true;
         if (r.holdAvailable) { setPhase("ringing"); return; } // joined the private conference: the prospect has not answered yet; the server state flips this to Connected
         l.answered = true; l.startedAt = Date.now(); setPhase("connected");
@@ -181,12 +195,8 @@ export function useSoftphone(c: CallingCopy, initialDispo: Dispo | null) {
   function hangUp() {
     const l = live.current;
     l.hungUp = true;
-    if (l.call) { l.call.disconnect(); return; }
-    if (l.done || !l.sessionId) return;
-    l.done = true;
-    teardown();
-    void cancelCall(l.sessionId).catch(() => undefined);
-    setPhase("idle");
+    if (phase === "authorizing" || l.done || !l.sessionId) return;
+    finish("ended", l.sessionId);
   }
 
   function toggleMute() {

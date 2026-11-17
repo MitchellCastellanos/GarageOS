@@ -17,6 +17,7 @@ import { parseShopDateTime } from "@/lib/shop-timezone";
 import { getSharedNumberAccountSid, getTwilioClientFor } from "@/lib/communications/twilio";
 import { publicGateView, readVoiceSettings } from "@/lib/voice/settings";
 import { reapStale, staffKeyOf, startCallSession } from "@/lib/voice/session";
+import { isTerminal, stateFromTwilio } from "@/domain/voice/state";
 import { handleStatus } from "@/lib/voice/webhooks";
 import { healHold, holdCallSession, resumeCallSession } from "@/lib/voice/hold";
 import type { HoldResult } from "@/lib/voice/types";
@@ -58,18 +59,29 @@ export async function reconcileCall(sessionId: string): Promise<{ ok: boolean; s
   const s = await ownSession(actor, sessionId);
   if (!s) return { ok: false, state: null };
   if (s.endedAt || !s.parentCallSid) return { ok: true, state: s.state };
+  await reconcileSession(s);
+  const after = await db.crmCallSession.findUnique({ where: { id: s.id }, select: { state: true } });
+  return { ok: true, state: after?.state ?? null };
+}
+
+async function reconcileSession(s: NonNullable<Awaited<ReturnType<typeof ownSession>>>) {
+  if (s.endedAt || !s.parentCallSid) return;
   try {
     const c = getTwilioClientFor((await readVoiceSettings()).twilioAccountSid ?? getSharedNumberAccountSid());
     const parent = await c.calls(s.parentCallSid).fetch();
     const conf = s.topology === "CONFERENCE";
-    const kid = conf ? (s.childCallSid ? await c.calls(s.childCallSid).fetch() : undefined) : (await c.calls.list({ parentCallSid: s.parentCallSid, limit: 1 }))[0];
-    const src = kid ?? parent;
-    if (conf && kid) await handleStatus({ CallSid: kid.sid, CallStatus: kid.status, CallDuration: kid.duration ?? "", SequenceNumber: "999" }, new Date(), s.id);
-    else await handleStatus({ CallSid: src.sid, ...(kid ? { ParentCallSid: s.parentCallSid } : {}), CallStatus: src.status, CallDuration: src.duration ?? "", SequenceNumber: "999" });
-    if (parent.status === "completed" && !kid) await handleStatus({ CallSid: s.parentCallSid, CallStatus: "completed", SequenceNumber: "998" });
-  } catch { /* leave it open; the stale-call reaper closes it */ }
-  const after = await db.crmCallSession.findUnique({ where: { id: s.id }, select: { state: true } });
-  return { ok: true, state: after?.state ?? null };
+    const kid = await (conf
+      ? (s.childCallSid ? c.calls(s.childCallSid).fetch() : Promise.resolve(undefined))
+      : c.calls.list({ parentCallSid: s.parentCallSid, limit: 1 }).then((calls) => calls[0])
+    ).catch(() => undefined);
+    if (kid) {
+      await handleStatus({ CallSid: kid.sid, ...(conf ? {} : { ParentCallSid: s.parentCallSid }), CallStatus: kid.status, CallDuration: kid.duration ?? "", SequenceNumber: "-1" }, new Date(), conf ? s.id : null);
+    }
+    const parentState = stateFromTwilio(parent.status);
+    if (parentState && isTerminal(parentState)) {
+      await handleStatus({ CallSid: parent.sid, CallStatus: parent.status, SequenceNumber: "-1" });
+    }
+  } catch { /* A later callback or reconciliation can still close the session. */ }
 }
 
 /** Real Hold: the prospect leg is held (hears a waiting message) until Resume. Needs the hold-capable topology; never a microphone mute. */
@@ -100,9 +112,14 @@ const OUTCOME_OF: Record<(typeof DISPOSITIONS)[number], "CONNECTED" | "VOICEMAIL
 /** Saves the structured outcome of an ENDED call: CRM CALL activity (idempotent per session), optional follow-up task, number/business suppression. Never places a call. */
 export async function saveCallDisposition(sessionId: string, input: DispositionInput): Promise<DispositionResult> {
   const actor = await requireCrmActor("place_sales_calls");
-  const s = await ownSession(actor, sessionId);
+  let s = await ownSession(actor, sessionId);
   if (!s) return { ok: false, code: "SESSION_NOT_FOUND" };
   if (!DISPOSITIONS.includes(input.outcome)) return { ok: false, code: "INVALID_INPUT" };
+  if (!s.endedAt && s.parentCallSid) {
+    await reconcileSession(s);
+    s = await ownSession(actor, sessionId);
+    if (!s) return { ok: false, code: "SESSION_NOT_FOUND" };
+  }
   if (!s.endedAt) return { ok: false, code: "SESSION_NOT_ENDED" };
   if (s.dispositionAt) return { ok: false, code: "ALREADY_RECORDED" };
   const note = (input.note ?? "").trim().slice(0, 2000) || null;
