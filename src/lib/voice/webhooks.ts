@@ -24,27 +24,44 @@ async function closeWithFailure(sessionId: string, code: string, state: CallStat
   await db.crmCallSession.updateMany({ where: { id: sessionId, endedAt: null }, data: { state, failureCode: code, endedAt: new Date(), ...CLOSE } });
 }
 
+export function rejectOutbound(body: Record<string, string>, reason: string) {
+  const sessionId = /^c[a-z0-9]{24}$/.test(body.sessionId) ? body.sessionId : undefined;
+  const callSid = /^CA[0-9a-f]{32}$/i.test(body.CallSid) ? body.CallSid : undefined;
+  console.warn("[voice] outbound rejected", JSON.stringify({ reason, sessionId, callSid }));
+  return NO;
+}
+
 /**
  * TwiML App Voice URL. Called by Twilio (signature already verified by the route) when the browser Device connects. The destination is NEVER taken from the request: it comes from the
  * session created by the server, and every gate is evaluated again on live data before a single digit is dialled. The one-time authorization is consumed atomically (replay-proof).
  */
 export async function handleOutbound(body: Record<string, string>, now = new Date()): Promise<string> {
   const callSid = body.CallSid, sessionId = body.sessionId, token = body.authToken;
-  if (!callSid || !sessionId || !token) return NO;
+  if (!callSid || !sessionId || !token) {
+    return rejectOutbound(body, !callSid ? "MISSING_CALL_SID" : !sessionId ? "MISSING_SESSION_ID" : "MISSING_CALL_TOKEN");
+  }
   const s = await db.crmCallSession.findUnique({ where: { id: sessionId } });
-  if (!s) return NO;
+  if (!s) return rejectOutbound(body, "SESSION_NOT_FOUND");
   const settings = await readVoiceSettings();
   // Retry of the very same Twilio request (same CallSid): answer the same instruction without re-consuming anything.
-  if (s.parentCallSid && s.parentCallSid === callSid) return s.state === "PENDING" || s.state === "RINGING" || s.state === "IN_PROGRESS" ? (s.topology === "CONFERENCE" ? conferenceHostTwiml({ name: conferenceName(s.id), eventsUrl: twilioWebhookUrl(conferencePath(s.id, "events")), maxSeconds: settings.maxCallSeconds }) : dialTwiml(s.destinationE164, s.callerIdE164, settings.maxCallSeconds)) : NO;
-  if (s.state !== "PENDING" || s.endedAt || s.authConsumedAt || !s.authTokenHash || s.authTokenHash !== hashAuth(token) || s.authExpiresAt < now || body.From !== `client:${voiceIdentity(s.staffId)}`) {
+  if (s.parentCallSid && s.parentCallSid === callSid) return s.state === "PENDING" || s.state === "RINGING" || s.state === "IN_PROGRESS" ? (s.topology === "CONFERENCE" ? conferenceHostTwiml({ name: conferenceName(s.id), eventsUrl: twilioWebhookUrl(conferencePath(s.id, "events")), maxSeconds: settings.maxCallSeconds }) : dialTwiml(s.destinationE164, s.callerIdE164, settings.maxCallSeconds)) : rejectOutbound(body, "RETRY_SESSION_CLOSED");
+  const tokenMatches = s.authTokenHash === hashAuth(token);
+  const authFailure = s.state !== "PENDING" || s.endedAt ? "SESSION_NOT_PENDING"
+    : s.authConsumedAt ? "AUTH_ALREADY_CONSUMED"
+    : !s.authTokenHash ? "AUTH_HASH_MISSING"
+    : !tokenMatches ? "AUTH_TOKEN_MISMATCH"
+    : s.authExpiresAt < now ? "AUTH_EXPIRED"
+    : body.From !== `client:${voiceIdentity(s.staffId)}` ? "AUTH_IDENTITY_MISMATCH"
+    : null;
+  if (authFailure) {
     await audit(s.userId, s.id, "REJECTED", "AUTH_INVALID");
-    if (!s.endedAt && s.state === "PENDING" && s.authTokenHash === hashAuth(token)) await closeWithFailure(s.id, "AUTH_EXPIRED_OR_REPLAYED");
-    return NO;
+    if (!s.endedAt && s.state === "PENDING" && tokenMatches) await closeWithFailure(s.id, "AUTH_EXPIRED_OR_REPLAYED");
+    return rejectOutbound(body, authFailure);
   }
   const gate = checkBaseGates(settings) ?? (s.kind === "PROSPECT" ? checkCommercialGates(settings) : null);
-  if (gate) { await closeWithFailure(s.id, gate.code); await audit(s.userId, s.id, "REJECTED", gate.code); return NO; }
+  if (gate) { await closeWithFailure(s.id, gate.code); await audit(s.userId, s.id, "REJECTED", gate.code); return rejectOutbound(body, gate.code); }
   if (s.kind === "TEST") {
-    if (!settings.testDestinations.includes(s.destinationE164)) { await closeWithFailure(s.id, "TEST_NUMBER_NOT_ALLOWED"); return NO; }
+    if (!settings.testDestinations.includes(s.destinationE164)) { await closeWithFailure(s.id, "TEST_NUMBER_NOT_ALLOWED"); return rejectOutbound(body, "TEST_NUMBER_NOT_ALLOWED"); }
   } else {
     const actor = await resolvePlatformSalesActor(s.userId);
     const chk = actor && s.prospectId ? await checkProspect(actor, s.prospectId, now, { allowOutOfHours: settings.allowOutOfHoursCalls && (s.eligibilitySnapshot as { outOfHoursConfirmed?: boolean } | null)?.outOfHoursConfirmed === true }) : null;
@@ -54,7 +71,7 @@ export async function handleOutbound(body: Record<string, string>, now = new Dat
     }
   }
   const claimed = await db.crmCallSession.updateMany({ where: { id: s.id, state: "PENDING", authConsumedAt: null, endedAt: null }, data: { authConsumedAt: now, parentCallSid: callSid, authTokenHash: null } });
-  if (claimed.count !== 1) return NO; // lost a race with a concurrent request carrying the same authorization
+  if (claimed.count !== 1) return rejectOutbound(body, "SESSION_CLAIM_FAILED");
   if (!settings.holdEnabled) return dialTwiml(s.destinationE164, s.callerIdE164, settings.maxCallSeconds);
 
   // Hold-capable topology (Super Admin switch): the browser leg waits in a private conference and the prospect's call is placed through the REST API into the same conference.
@@ -66,10 +83,9 @@ export async function handleOutbound(body: Record<string, string>, now = new Dat
     });
     try { await db.crmCallSession.update({ where: { id: s.id }, data: { topology: "CONFERENCE", childCallSid: childSid } }); }
     catch (e) { await voiceProvider.endProviderCall({ accountSid: settings.twilioAccountSid, callSid: childSid }).catch(() => undefined); throw e; }
-  } catch (e) {
+  } catch {
     await closeWithFailure(s.id, "PROVIDER_ERROR"); await audit(s.userId, s.id, "REJECTED", "PROVIDER_ERROR");
-    console.error("[voice] conference dial failed", e instanceof Error ? e.message.slice(0, 120) : "unknown");
-    return NO;
+    return rejectOutbound(body, "PROVIDER_ERROR");
   }
   return conferenceHostTwiml({ name: conferenceName(s.id), eventsUrl: twilioWebhookUrl(conferencePath(s.id, "events")), maxSeconds: settings.maxCallSeconds });
 }
@@ -147,5 +163,3 @@ export async function handleStatus(body: Record<string, string>, now = new Date(
     return { applied: true };
   });
 }
-
-export const NOT_PLACED_TWIML = NO;
