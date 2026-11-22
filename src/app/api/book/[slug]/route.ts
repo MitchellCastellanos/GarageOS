@@ -56,6 +56,14 @@ export async function POST(
   }
 
   const data = parsed.data;
+  // Each booking notifies the phone/email the visitor typed: cap per recipient too, so one IP-rotating visitor cannot flood a
+  // third party (or burn the shop's SMS quota) through this public form.
+  const recipientKeys = [phoneDigits(data.phone), data.email?.trim().toLowerCase()].filter((v): v is string => !!v);
+  for (const key of recipientKeys) {
+    if (!(await checkRateLimit(RATE_LIMITS.bookingSubmitContact(shop.id, key))).allowed) {
+      return NextResponse.json({ error: "Too many requests" }, { status: 429, headers: { "Retry-After": "600" } });
+    }
+  }
   const serviceDurations = await getShopServiceDurations(shop.id);
   const durationMinutes = resolveServiceDuration(
     data.serviceValue,

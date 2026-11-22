@@ -198,6 +198,7 @@ export async function composeMessageAction(formData: FormData) {
   const subject = (formData.get("subject") as string)?.trim();
   if (!subject) return { error: "Subject is required" };
   const clientId = (formData.get("clientId") as string) || null;
+  if (clientId && !(await db.client.findFirst({ where: { id: clientId, shopId }, select: { id: true } }))) return { error: "Client not found" };
   const attachmentResult = await parseEmailAttachments(formData);
   if ("error" in attachmentResult) return { error: attachmentResult.error };
   const shop = await db.shop.findUniqueOrThrow({ where: { id: shopId } });

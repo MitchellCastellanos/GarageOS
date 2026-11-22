@@ -25,6 +25,10 @@ export async function decideQuoteApproval(
   if (!quote || !["SENT", "DRAFT"].includes(quote.status)) {
     return { error: t.linkInvalid };
   }
+  // An expired quote (validUntil) can no longer be accepted through the link (the portal path already enforces this).
+  if (decision === "ACCEPTED" && quote.validUntil && quote.validUntil.getTime() < Date.now()) {
+    return { error: t.linkInvalid };
+  }
 
   const snapshot = buildQuoteApprovalSnapshot(quote);
   const documentHash = hashQuoteApprovalSnapshot(snapshot);
