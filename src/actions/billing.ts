@@ -4,6 +4,7 @@ import { claimDemoCheckout } from "@/lib/sales-demo-conversion";
 import { getStripeClient } from "@/lib/stripe";
 import { db } from "@/lib/db";
 import { requireOwner } from "@/lib/permissions";
+import { canManageOrganizationBilling } from "@/lib/organization";
 import { findSubscriptionRow, getEffectiveSubscription } from "@/lib/subscription";
 import { ensureStripeCustomer, confirmCheckoutSession } from "@/lib/stripe-sync";
 import { decideTrialPlan, isLiveStripeStatus } from "@/domain/subscription-state";
@@ -34,6 +35,11 @@ async function assertCommercialBilling(shopId: string, activation = false) {
     if (!activation || demo.status !== "AWAITING_PAYMENT" || demo.activatedOwnerId !== session.user.id || session.impersonation) throw new Error("DEMO_BILLING_DISABLED");
   }
   return demo;
+}
+
+/** La suscripción es de toda la organización: un OWNER de ubicación hija no la gestiona (ver canManageOrganizationBilling). */
+async function assertBillingAuthority(session: Awaited<ReturnType<typeof requireOwner>>) {
+  if (!(await canManageOrganizationBilling(session))) throw new Error("BILLING_ORG_ADMIN_REQUIRED");
 }
 
 export async function getBillingOverview() {
@@ -70,6 +76,7 @@ function checkoutReturnUrls(returnTo: "onboarding" | "billing" | "activation") {
  */
 export async function startCheckoutAction(formData: FormData) {
   const session = await requireOwner();
+  await assertBillingAuthority(session);
   const shopId = session.user.shopId!;
   const demo = await assertCommercialBilling(shopId, true);
   const t = BILLING_DICT[await getAdminLocale()];
@@ -159,6 +166,7 @@ export async function startCheckoutAction(formData: FormData) {
  */
 export async function confirmCheckoutAction(sessionId: string) {
   const session = await requireOwner();
+  await assertBillingAuthority(session);
   const shopId = session.user.shopId!;
   const demo = await assertCommercialBilling(shopId, true);
   const t = BILLING_DICT[await getAdminLocale()];
@@ -182,6 +190,7 @@ export async function confirmCheckoutAction(sessionId: string) {
 
 export async function openBillingPortalAction() {
   const session = await requireOwner();
+  await assertBillingAuthority(session);
   const shopId = session.user.shopId!;
   await assertCommercialBilling(shopId);
   const subscription = await getEffectiveSubscription(shopId);
@@ -212,6 +221,7 @@ export async function openBillingPortalAction() {
  */
 export async function cancelSubscriptionAction(reason?: string) {
   const session = await requireOwner();
+  await assertBillingAuthority(session);
   const shopId = session.user.shopId!;
   await assertCommercialBilling(shopId);
   const t = BILLING_DICT[await getAdminLocale()];
@@ -250,6 +260,7 @@ export async function cancelSubscriptionAction(reason?: string) {
 /** Deshace una cancelación programada (mientras siga el período pagado). */
 export async function resumeSubscriptionAction() {
   const session = await requireOwner();
+  await assertBillingAuthority(session);
   const shopId = session.user.shopId!;
   await assertCommercialBilling(shopId);
   const t = BILLING_DICT[await getAdminLocale()];

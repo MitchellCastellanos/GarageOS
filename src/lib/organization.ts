@@ -70,3 +70,35 @@ export async function getOrganizationAdminContext(session: {
   if (!rootShopId || !access.locations.some((l) => l.id === rootShopId)) return null;
   return { ...access, organizationId: access.organizationId, rootShopId };
 }
+
+/**
+ * ¿Puede esta sesión gestionar la suscripción (Stripe: checkout, portal, cancelar/reanudar)? La Subscription es de toda la
+ * organización, así que en una organización solo la gestiona su administrador (OWNER con acceso a la raíz) o el OWNER del
+ * propio Shop que posee la suscripción. Un OWNER de una ubicación hija solo la ve. Un Shop sin organización: siempre.
+ */
+export async function canManageOrganizationBilling(session: {
+  user: { id: string; role: string; shopId?: string | null };
+}): Promise<boolean> {
+  if (session.user.role !== "OWNER" || !session.user.shopId) return false;
+  const shop = await db.shop.findUnique({
+    where: { id: session.user.shopId },
+    select: { organizationId: true, subscription: { select: { id: true } } },
+  });
+  if (!shop?.organizationId || shop.subscription) return true;
+  return (await getOrganizationAdminContext(session)) !== null;
+}
+
+/**
+ * Un usuario está "protegido" frente al OWNER de una ubicación cuando administra la organización o tiene acceso a otras
+ * ubicaciones: ese OWNER local no puede resetearle la contraseña, cambiarle el rol ni borrarlo. Devuelve true si SOLO el
+ * administrador de la organización puede gestionarlo.
+ */
+export async function isOrganizationLevelUser(target: { id: string; role: string; shopId: string | null }): Promise<boolean> {
+  if (!target.shopId) return false;
+  const access = await resolveLocationAccess(target.id, target.shopId);
+  if (!access.organizationId) return false;
+  if (access.locations.length > 1) return true;
+  if (target.role !== "OWNER") return false;
+  const rootShopId = await getOrganizationRootShopId(access.organizationId);
+  return !!rootShopId && access.locations.some((l) => l.id === rootShopId);
+}

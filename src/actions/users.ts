@@ -5,6 +5,7 @@ import { ADMIN, PLATFORM, adminPath } from "@/lib/routes";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireOwner, requireSession } from "@/lib/permissions";
+import { getOrganizationAdminContext, isOrganizationLevelUser } from "@/lib/organization";
 import { canAddUser, checkEntitlement } from "@/lib/subscription";
 import { isRole, sanitizeOverrides } from "@/domain/permissions";
 import { sendVerificationEmail } from "@/lib/email-verification";
@@ -104,6 +105,16 @@ export async function createTeamMember(formData: FormData) {
   return { success: true };
 }
 
+/** Un OWNER de ubicación no gestiona a quien administra la organización o tiene acceso a otras ubicaciones (solo el admin de la org). */
+const ORG_LEVEL_USER_ERROR = "Only an organization administrator can manage this user";
+async function assertCanManageTarget(
+  session: Awaited<ReturnType<typeof requireOwner>>,
+  target: { id: string; role: string; shopId: string | null }
+): Promise<string | null> {
+  if (!(await isOrganizationLevelUser(target))) return null;
+  return (await getOrganizationAdminContext(session)) ? null : ORG_LEVEL_USER_ERROR;
+}
+
 // ── RESET PASSWORD (owner) ───────────────────────────────────
 
 export async function resetTeamMemberPassword(formData: FormData) {
@@ -126,6 +137,8 @@ export async function resetTeamMemberPassword(formData: FormData) {
   });
 
   if (!target) return { error: "User not found" };
+  const blocked = await assertCanManageTarget(session, target);
+  if (blocked) return { error: blocked };
 
   const passwordHash = await bcrypt.hash(newPassword, 12);
   await db.user.update({ where: { id: userId }, data: { passwordHash } });
@@ -149,6 +162,8 @@ export async function updateTeamMemberRole(formData: FormData) {
     where: { id: userId, shopId: session.user.shopId },
   });
   if (!target) return { error: "User not found" };
+  const blocked = await assertCanManageTarget(session, target);
+  if (blocked) return { error: blocked };
 
   if (target.id === session.user.id && parsedRole.data !== "OWNER") {
     return { error: "You can't remove your own owner role" };
@@ -212,6 +227,8 @@ export async function deleteTeamMember(userId: string) {
     where: { id: userId, shopId: session.user.shopId },
   });
   if (!target) return { error: "User not found" };
+  const blocked = await assertCanManageTarget(session, target);
+  if (blocked) return { error: blocked };
 
   if (target.role === "OWNER") {
     const ownerCount = await db.user.count({
