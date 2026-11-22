@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { setSession } from "./helpers/action-harness";
 import { patchDb } from "./helpers/db-mock";
+import { signImpersonation } from "../src/lib/impersonation-sig";
 
 process.env.AUTH_SECRET = "test-secret-test-secret-test-secret-00";
 process.env.AUTH_TRUST_HOST = "true";
@@ -170,7 +171,7 @@ test("JWT: deactivated or not-yet-activated staff lose the session; active staff
   const { authConfig } = await import("../src/lib/auth");
   const jwt = authConfig.callbacks!.jwt! as (p: any) => Promise<any>;
   const FUTURE = Date.now() + 3_600_000;
-  const imp = { salesDemoId: "d", shopId: "shopM", shopName: "M", startedByUserId: "rep", startedByName: "R", expiresAt: FUTURE };
+  const imp = signImpersonation({ salesDemoId: "d", shopId: "shopM", shopName: "M", startedByUserId: "rep", startedByName: "R", expiresAt: FUTURE });
   patchDb(t, "salesDemo", "findUnique", (async () => ({ id: "d", shopId: "shopM", status: "ACTIVE", currentPlan: "PRO", expiresAt: new Date(FUTURE) })) as never);
   const run = async (dbUser: any, staffRow: any, extra: any = {}) => {
     patchDb(t, "user", "findUnique", (async () => dbUser) as never);

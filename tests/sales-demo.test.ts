@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- inspect mocked Prisma transactions */
 import assert from "node:assert/strict";
+process.env.AUTH_SECRET ??= "test-secret-test-secret-test-secret-00";
 import test from "node:test";
 import sharp from "sharp";
 import { setSession, RedirectError } from "./helpers/action-harness";

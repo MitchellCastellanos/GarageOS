@@ -10,6 +10,8 @@ export interface ImpersonationClaim {
   startedByUserId: string;
   startedByName: string;
   expiresAt: number;
+  /** HMAC emitido por el servidor (src/lib/impersonation-sig.ts). Un claim sin firma válida se descarta. */
+  sig?: string;
 }
 
 declare module "next-auth" {

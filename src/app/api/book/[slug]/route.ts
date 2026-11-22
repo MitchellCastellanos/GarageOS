@@ -102,20 +102,10 @@ export async function POST(
         notes: "Cliente creado desde reserva web",
       },
     });
-  } else {
-    client = await db.client.update({
-      where: { id: client.id },
-      data: {
-        firstName: data.firstName,
-        lastName: data.lastName || null,
-        email: email ?? client.email,
-        language: data.language,
-        // Si vuelve a reservar sin email, no le pisamos una preferencia que ya
-        // eligió (ej. BOTH la última vez); solo se actualiza si hay algo que elegir.
-        ...(email ? { notifyChannel: data.notifyChannel } : {}),
-      },
-    });
   }
+  // Cliente existente (coincidencia por teléfono): el formulario público es ANÓNIMO y el teléfono no prueba identidad, así que
+  // NO se modifica nada de su ficha (nombre, email, idioma, canal). Cambiar el email permitiría pedir el enlace del portal
+  // (requestPortalLink busca por email) y tomar su cuenta; el personal del taller actualiza la ficha desde el panel.
 
   const licensePlate = data.licensePlate?.trim() || "";
 

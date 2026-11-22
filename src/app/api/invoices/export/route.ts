@@ -3,12 +3,10 @@ import { auth } from "@/lib/auth";
 import { getEffectivePermissions } from "@/lib/access";
 import { db } from "@/lib/db";
 import { formatClientName } from "@/lib/client-name";
+import { csvCell } from "@/domain/reports";
 import { ensureFullShopDate, parseShopDateTime } from "@/lib/shop-timezone";
 
-function csvEscape(value: string): string {
-  if (/[",\n]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
-  return value;
-}
+// csvCell neutraliza fórmulas (=, +, -, @, tab, CR al inicio): el nombre del cliente puede venir de la reserva pública anónima.
 
 export async function GET(request: NextRequest) {
   const session = await auth();
@@ -58,13 +56,13 @@ export async function GET(request: NextRequest) {
   ]);
 
   const csv = [header, ...rows]
-    .map((row) => row.map((cell) => csvEscape(String(cell))).join(","))
+    .map((row) => row.map((cell) => csvCell(String(cell))).join(","))
     .join("\n");
 
   return new NextResponse(csv, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="invoices-${from}-to-${to}.csv"`,
+      "Content-Disposition": `attachment; filename="invoices-${from.replace(/[^0-9A-Za-z_-]/g, "")}-to-${to.replace(/[^0-9A-Za-z_-]/g, "")}.csv"`,
     },
   });
 }

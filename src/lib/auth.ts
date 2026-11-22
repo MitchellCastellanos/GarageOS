@@ -10,6 +10,7 @@ import { createPendingSubscription } from "@/lib/subscription";
 import { ADMIN } from "@/lib/routes";
 import { isDemoAvailable } from "@/domain/sales-demo";
 import { salesStaffStatus } from "@/lib/sales-crm/staff-status";
+import { isValidImpersonationSig } from "@/lib/impersonation-sig";
 
 export const authConfig: NextAuthConfig = {
   session: { strategy: "jwt" },
@@ -104,12 +105,21 @@ export const authConfig: NextAuthConfig = {
       // admin (token.userId/shopId/role arriba siguen siendo los suyos). Solo un SUPER_ADMIN
       // vigente en la DB puede iniciar una impersonación.
       if (trigger === "update" && session && "impersonation" in session) {
-        if (session.impersonation && (dbUser.role === "SUPER_ADMIN" || staffActive)) {
+        // El cuerpo de `update()` lo controla el cliente: solo vale un claim firmado por el servidor y emitido para ESTE usuario.
+        if (
+          session.impersonation &&
+          (dbUser.role === "SUPER_ADMIN" || staffActive) &&
+          isValidImpersonationSig(session.impersonation) &&
+          session.impersonation.startedByUserId === dbUser.id
+        ) {
           token.impersonation = session.impersonation;
         } else {
           delete token.impersonation;
         }
       }
+
+      // Defensa en profundidad: un claim ya guardado en el token también debe llevar firma válida (tokens previos a este control caen).
+      if (token.impersonation && !isValidImpersonationSig(token.impersonation)) delete token.impersonation;
 
       // Una impersonación solo vale si el usuario REAL sigue siendo SUPER_ADMIN en la DB (un claim
       // `impersonation` de un token viejo/foráneo no otorga acceso a ningún taller).

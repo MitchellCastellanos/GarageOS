@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { registerHooks } from "node:module";
 import { patchDb } from "./helpers/db-mock";
+import { signImpersonation } from "../src/lib/impersonation-sig";
 
 registerHooks({
   resolve(specifier, context, nextResolve) {
@@ -43,7 +44,7 @@ test("Sales demo claims are revalidated against lifecycle, actor and Shop on eve
   let demo: any = { id: "demo", shopId: "shopA", status: "ACTIVE", currentPlan: "PRO", expiresAt: new Date(FUTURE) };
   patchDb(t, "salesDemo", "findUnique", async () => demo);
   const impersonation = { salesDemoId: "demo", shopId: "shopA", shopName: "A", startedByUserId: "root", startedByName: "Sales", expiresAt: FUTURE };
-  const run = (over = {}) => jwtCb({ token: claims({ userId: "root", impersonation: { ...impersonation, ...over } }) });
+  const run = (over = {}) => jwtCb({ token: claims({ userId: "root", impersonation: signImpersonation({ ...impersonation, ...over }) }) });
   assert.equal((await run()).impersonation.salesDemoId, "demo");
   assert.equal((await run({ shopId: "shopB" })).impersonation, undefined);
   assert.equal((await run({ startedByUserId: "owner" })).impersonation, undefined);
@@ -155,7 +156,7 @@ test("a sign-in for an email with no user row (e.g. signIn creation failed) yiel
 
 // ── Impersonación ────────────────────────────────────────────────────────────
 
-const IMP = { shopId: "shopA", shopName: "A", expiresAt: FUTURE };
+const IMP = signImpersonation({ shopId: "shopA", shopName: "A", startedByUserId: "root", startedByName: "Root", expiresAt: FUTURE });
 
 test("impersonation: only a SUPER_ADMIN present in the DB can start it; everyone else's update is ignored", async (t) => {
   users(t, [{ id: "root", shopId: null, role: "SUPER_ADMIN" }]);
@@ -175,7 +176,7 @@ test("a leftover/forged `impersonation` claim is dropped when the real user is n
   // Un SUPER_ADMIN vigente conserva su impersonación válida y se le limpia la vencida.
   users(t, [{ id: "root", shopId: null, role: "SUPER_ADMIN" }]);
   assert.deepEqual((await jwtCb({ token: claims({ userId: "root", role: "SUPER_ADMIN", impersonation: IMP }) })).impersonation, IMP);
-  assert.equal((await jwtCb({ token: claims({ userId: "root", role: "SUPER_ADMIN", impersonation: { ...IMP, expiresAt: Date.now() - 1 } }) })).impersonation, undefined);
+  assert.equal((await jwtCb({ token: claims({ userId: "root", role: "SUPER_ADMIN", impersonation: signImpersonation({ shopId: "shopA", shopName: "A", startedByUserId: "root", startedByName: "Root", expiresAt: Date.now() - 1 }) }) })).impersonation, undefined);
 });
 
 test("session callback exposes the DB-derived claims (and impersonation as OWNER of the target shop, for SUPER_ADMIN only)", async () => {
@@ -207,4 +208,15 @@ test("END TO END: the same signed cookie for an existing user yields a session w
   assert.equal(body.user.role, "MECHANIC");
   assert.equal(body.user.id, "u1");
   assert.equal(body.user.shopId, "shopA");
+});
+
+test("forged impersonation via update() is ignored: unsigned claims and claims issued to another user are dropped", async (t) => {
+  users(t, [{ id: "root", shopId: null, role: "SUPER_ADMIN" }]);
+  const forged = { shopId: "shopVictim", shopName: "V", startedByUserId: "root", startedByName: "Root", expiresAt: FUTURE };
+  const tok = () => claims({ userId: "root", role: "SUPER_ADMIN", shopId: undefined });
+  assert.equal((await jwtCb({ token: tok(), trigger: "update", session: { impersonation: forged } })).impersonation, undefined, "unsigned");
+  const foreign = signImpersonation({ ...forged, startedByUserId: "someone-else" });
+  assert.equal((await jwtCb({ token: tok(), trigger: "update", session: { impersonation: foreign } })).impersonation, undefined, "issued to another user");
+  const tampered = { ...signImpersonation(forged), shopId: "shopOther" };
+  assert.equal((await jwtCb({ token: tok(), trigger: "update", session: { impersonation: tampered } })).impersonation, undefined, "tampered");
 });
