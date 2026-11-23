@@ -4,7 +4,7 @@ import { patchDb } from "./helpers/db-mock";
 import { canManageOrganizationBilling, isOrganizationLevelUser } from "../src/lib/organization";
 
 function org(t: Parameters<typeof patchDb>[0], opts: { homeShop: string; subscription?: boolean; grants?: string[] }) {
-  patchDb(t, "shop", "findUnique", (async ({ where }: any) => ({
+  patchDb(t, "shop", "findUnique", (async ({ where }: { where: { id: string } }) => ({
     id: where.id, name: where.id, organizationId: "org1", subscription: opts.subscription ? { id: "sub" } : null,
   })) as never);
   patchDb(t, "shop", "findFirst", (async () => ({ id: "root" })) as never);
