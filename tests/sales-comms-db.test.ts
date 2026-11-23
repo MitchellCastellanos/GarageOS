@@ -551,6 +551,9 @@ if (!enabled) {
     await assert.rejects(() => seqActions.changeSequenceStatus(s.id, "ACTIVE"), /SALES_FORBIDDEN/);
     as(ids.root);
     assert.equal(((await seqActions.changeSequenceStatus(s.id, "ACTIVE")) as any).ok, true);
+    // These tests exercise replies/bounces/CASL, not business-day scheduling: with businessDaysOnly the first step is pushed to the
+    // next business day, so on a weekend/holiday (real clock) nothing is due and the suite flakes (it failed on a Sunday CI run).
+    await db.crmSequence.update({ where: { id: s.id }, data: { businessDaysOnly: false } });
     return s.id;
   }
 
