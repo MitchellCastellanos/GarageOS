@@ -448,3 +448,11 @@ test("updateInvoice on a pending invoice keeps its issued tax lines/registration
   assert.equal(events[0].type, "INVOICE_UPDATED");
   assert.deepEqual((events[0].data as { before: unknown }).before, { subtotal: "100.00", taxAmount: "14.98", total: "114.98" });
 });
+
+test("a MECHANIC (invoices.write, payments.write, no refunds.write) cannot void a PAID invoice", async (t) => {
+  const st = await paidInvoice(t);
+  setSession({ user: { id: "m1", role: "MECHANIC", shopId: "shop-A" } });
+  patchDb(t, "user", "findUnique", (async () => ({ permissionGrants: [], permissionDenies: [] })) as never);
+  await assert.rejects(() => invoices.cancelInvoice("inv1"), /refunds\.write/);
+  assert.equal(st.invoice.status, "PAID");
+});

@@ -93,7 +93,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
     console.error("[contact] aviso al taller falló:", err);
   }
 
-  if (email) {
+  // Acknowledgment goes to an address nobody verified: cap per recipient (the message itself is still stored for the shop).
+  const ackAllowed = email ? (await checkRateLimit(RATE_LIMITS.bookingContactEmail(shop.id, email))).allowed : false;
+  if (email && ackAllowed) {
     try {
       await sendContactAcknowledgment({
         shop: shopConfig,

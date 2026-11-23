@@ -192,22 +192,38 @@ export async function setLandingDomain(formData: FormData) {
     };
   }
 
-  await db.shopDomain.upsert({
-    where: { shopId_purpose: { shopId, purpose: "LANDING" } },
-    create: {
-      shopId,
-      purpose: "LANDING",
-      domain,
-      status: "PENDING",
-      dnsRecords: toJson(getLandingDnsInstructions(domain)),
-    },
-    update: {
-      domain,
-      status: "PENDING",
-      dnsRecords: toJson(getLandingDnsInstructions(domain)),
-      verifiedAt: null,
-    },
+  // Un dominio solo lo posee quien lo VERIFICÓ (CNAME + TXT de propiedad). Una reclamación ajena aún sin verificar no bloquea
+  // a quien sí controla el dominio: se descarta; una ya verificada por otro taller sí se respeta.
+  const holder = await db.shopDomain.findUnique({
+    where: { domain_purpose: { domain, purpose: "LANDING" } },
+    select: { id: true, shopId: true, status: true },
   });
+  if (holder && holder.shopId !== shopId) {
+    if (holder.status === "VERIFIED") return { error: "Este dominio ya está en uso por otro taller." };
+    await db.shopDomain.deleteMany({ where: { id: holder.id, status: { not: "VERIFIED" } } });
+  }
+
+  try {
+    await db.shopDomain.upsert({
+      where: { shopId_purpose: { shopId, purpose: "LANDING" } },
+      create: {
+        shopId,
+        purpose: "LANDING",
+        domain,
+        status: "PENDING",
+        dnsRecords: toJson(getLandingDnsInstructions(domain, shopId)),
+      },
+      update: {
+        domain,
+        status: "PENDING",
+        dnsRecords: toJson(getLandingDnsInstructions(domain, shopId)),
+        verifiedAt: null,
+      },
+    });
+  } catch (err) {
+    if ((err as { code?: string }).code === "P2002") return { error: "Este dominio ya está en uso por otro taller." };
+    throw err;
+  }
 
   revalidatePath(ADMIN.settings);
   return { success: true };
@@ -222,7 +238,7 @@ export async function verifyLandingDomainAction() {
   });
   if (!row) return { error: "No landing domain is configured" };
 
-  const ok = await checkLandingDnsRecord(row.domain);
+  const ok = await checkLandingDnsRecord(row.domain, shopId);
 
   await db.shopDomain.update({
     where: { id: row.id },
@@ -230,6 +246,8 @@ export async function verifyLandingDomainAction() {
       status: ok ? "VERIFIED" : "FAILED",
       lastCheckedAt: new Date(),
       verifiedAt: ok ? new Date() : null,
+      // Filas anteriores a la prueba de propiedad no traían el TXT: se regeneran para que la UI lo muestre.
+      ...(ok ? {} : { dnsRecords: toJson(getLandingDnsInstructions(row.domain, shopId)) }),
     },
   });
 

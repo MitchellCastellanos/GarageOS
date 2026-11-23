@@ -56,6 +56,14 @@ export async function POST(
   }
 
   const data = parsed.data;
+  // Each booking notifies the phone/email the visitor typed: cap per recipient too, so one IP-rotating visitor cannot flood a
+  // third party (or burn the shop's SMS quota) through this public form.
+  const recipientKeys = [phoneDigits(data.phone), data.email?.trim().toLowerCase()].filter((v): v is string => !!v);
+  for (const key of recipientKeys) {
+    if (!(await checkRateLimit(RATE_LIMITS.bookingSubmitContact(shop.id, key))).allowed) {
+      return NextResponse.json({ error: "Too many requests" }, { status: 429, headers: { "Retry-After": "600" } });
+    }
+  }
   const serviceDurations = await getShopServiceDurations(shop.id);
   const durationMinutes = resolveServiceDuration(
     data.serviceValue,
@@ -102,20 +110,10 @@ export async function POST(
         notes: "Cliente creado desde reserva web",
       },
     });
-  } else {
-    client = await db.client.update({
-      where: { id: client.id },
-      data: {
-        firstName: data.firstName,
-        lastName: data.lastName || null,
-        email: email ?? client.email,
-        language: data.language,
-        // Si vuelve a reservar sin email, no le pisamos una preferencia que ya
-        // eligió (ej. BOTH la última vez); solo se actualiza si hay algo que elegir.
-        ...(email ? { notifyChannel: data.notifyChannel } : {}),
-      },
-    });
   }
+  // Cliente existente (coincidencia por teléfono): el formulario público es ANÓNIMO y el teléfono no prueba identidad, así que
+  // NO se modifica nada de su ficha (nombre, email, idioma, canal). Cambiar el email permitiría pedir el enlace del portal
+  // (requestPortalLink busca por email) y tomar su cuenta; el personal del taller actualiza la ficha desde el panel.
 
   const licensePlate = data.licensePlate?.trim() || "";
 

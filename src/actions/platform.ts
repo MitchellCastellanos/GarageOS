@@ -11,6 +11,7 @@ import { isLiveStripeStatus } from "@/domain/subscription-state";
 import { createPendingSubscription, resolveBillingNotificationRecipients } from "@/lib/subscription";
 import { sendVerificationEmail } from "@/lib/email-verification";
 import { auth, unstable_update } from "@/lib/auth";
+import { signImpersonation } from "@/lib/impersonation-sig";
 import { logPlatformAction, getShopAuditLog } from "@/lib/platform/audit";
 import { notifyPlanChanged, notifySubscriptionCanceled } from "@/lib/platform/notify";
 import { updateStripeSubscriptionPrice, cancelStripeSubscriptionAtPeriodEnd, getPriceId } from "@/lib/stripe";
@@ -641,13 +642,13 @@ export async function startImpersonation(shopId: string) {
   }
 
   await unstable_update({
-    impersonation: {
+    impersonation: signImpersonation({
       shopId: shop.id,
       shopName: shop.name,
       startedByUserId: session.user.id,
       startedByName: session.user.name ?? session.user.email ?? "Super admin",
       expiresAt: Date.now() + 60 * 60 * 1000,
-    },
+    }),
   });
 
   await logPlatformAction({

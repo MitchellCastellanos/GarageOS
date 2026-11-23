@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { unstable_update } from "@/lib/auth";
+import { signImpersonation } from "@/lib/impersonation-sig";
 import { requireSalesActor, requirePreparedDemo, requireCurrentDemo } from "@/lib/sales-demo";
 import { DEMO_DURATION_MS, demoPlanSchema, prospectSchema } from "@/domain/sales-demo";
 import { createPendingSubscription } from "@/lib/subscription";
@@ -60,11 +61,11 @@ export async function startSalesDemo(demoId: string) {
   await db.salesDemo.updateMany({ where: {
     id: demo.id, shopId: demo.shopId, status: demo.status, expiresAt: { gt: new Date() },
   }, data: { status: demo.status === "PREPARING" ? "ACTIVE" : demo.status } }).then((r) => { if (r.count !== 1) throw new Error("DEMO_UNAVAILABLE"); });
-  await unstable_update({ impersonation: {
+  await unstable_update({ impersonation: signImpersonation({
     salesDemoId: demo.id, shopId: demo.shopId, shopName: demo.shop.name,
     startedByUserId: actor.id, startedByName: session.user.name ?? "Sales",
     expiresAt: Math.min(demo.expiresAt.getTime(), Date.now() + 60 * 60 * 1000),
-  } });
+  }) });
   redirect(demo.shop.onboardingCompletedAt ? ADMIN.dashboard : ADMIN.onboarding);
 }
 

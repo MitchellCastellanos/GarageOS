@@ -15,6 +15,23 @@ const nextConfig: NextConfig = {
   },
   async headers() {
     return [
+      // Baseline hardening for every response. HSTS is ignored over plain http (local dev).
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
+        ],
+      },
+      // Anti-clickjacking for everything session- or token-protected. Deliberately NOT applied to /book/* (the public booking page is
+      // meant to be embedded by shops via an <iframe>, see EmbedSnippetCard) nor to the marketing site.
+      ...PRIVATE_HEADER_SOURCES.map((source) => ({
+        source,
+        headers: [
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
+        ],
+      })),
       // App, APIs and token links: never indexable (also covers non-HTML responses such as PDFs and 404s for a bad
       // token). Not a security control; access is protected by the token itself or the session.
       ...PRIVATE_HEADER_SOURCES.map((source) => ({

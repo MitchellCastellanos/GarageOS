@@ -526,7 +526,8 @@ export async function cancelAppointment(id: string) {
 }
 
 export async function getAppointmentManageUrl(id: string) {
-  const shopId = await getShopId();
+  // The link is a capability (the client can confirm/cancel/reschedule with it) and it is minted on first use: write-level.
+  const shopId = await getShopId("ops.write");
 
   const appointment = await db.appointment.findFirst({
     where: { id, shopId },

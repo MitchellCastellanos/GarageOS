@@ -2,7 +2,7 @@ import NextAuth, { type NextAuthConfig, customFetch } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
-import { RATE_LIMITS, checkRateLimit, resetRateLimit } from "@/lib/rate-limit";
+import { RATE_LIMITS, checkRateLimit, currentRequestIp, resetRateLimit } from "@/lib/rate-limit";
 import { db } from "@/lib/db";
 import { provisionDefaultSenderIdentities } from "@/lib/communications/sender-identity";
 import { createPendingSubscription } from "@/lib/subscription";
@@ -10,6 +10,7 @@ import { createPendingSubscription } from "@/lib/subscription";
 import { ADMIN } from "@/lib/routes";
 import { isDemoAvailable } from "@/domain/sales-demo";
 import { salesStaffStatus } from "@/lib/sales-crm/staff-status";
+import { isValidImpersonationSig } from "@/lib/impersonation-sig";
 
 export const authConfig: NextAuthConfig = {
   session: { strategy: "jwt" },
@@ -25,7 +26,14 @@ export const authConfig: NextAuthConfig = {
       if (!user.email) return false;
 
       const existing = await db.user.findUnique({ where: { email: user.email } });
-      if (existing) return true;
+      if (existing) {
+        // Account pre-hijacking guard: an account that was never email-verified may have been registered by someone else with a
+        // password of their choosing. Google has now proven control of this address, so mark it verified and drop that password.
+        if (!existing.emailVerified) {
+          await db.user.update({ where: { id: existing.id }, data: { emailVerified: new Date(), passwordHash: null } });
+        }
+        return true;
+      }
 
       const ownerName = user.name?.trim() || user.email.split("@")[0];
       // Shop + OWNER + Subscription (AWAITING_PLAN) en UNA transacción: un fallo a
@@ -97,12 +105,21 @@ export const authConfig: NextAuthConfig = {
       // admin (token.userId/shopId/role arriba siguen siendo los suyos). Solo un SUPER_ADMIN
       // vigente en la DB puede iniciar una impersonación.
       if (trigger === "update" && session && "impersonation" in session) {
-        if (session.impersonation && (dbUser.role === "SUPER_ADMIN" || staffActive)) {
+        // El cuerpo de `update()` lo controla el cliente: solo vale un claim firmado por el servidor y emitido para ESTE usuario.
+        if (
+          session.impersonation &&
+          (dbUser.role === "SUPER_ADMIN" || staffActive) &&
+          isValidImpersonationSig(session.impersonation) &&
+          session.impersonation.startedByUserId === dbUser.id
+        ) {
           token.impersonation = session.impersonation;
         } else {
           delete token.impersonation;
         }
       }
+
+      // Defensa en profundidad: un claim ya guardado en el token también debe llevar firma válida (tokens previos a este control caen).
+      if (token.impersonation && !isValidImpersonationSig(token.impersonation)) delete token.impersonation;
 
       // Una impersonación solo vale si el usuario REAL sigue siendo SUPER_ADMIN en la DB (un claim
       // `impersonation` de un token viejo/foráneo no otorga acceso a ningún taller).
@@ -188,6 +205,9 @@ export const authConfig: NextAuthConfig = {
           // reaches authorize() directly, bypassing /api/auth/login.
           const emailRule = RATE_LIMITS.loginEmail(email);
           if (!(await checkRateLimit(emailRule)).allowed) return null;
+          // Per-IP throttle too: the per-account limit alone does not stop password spraying (one password, many emails).
+          const ip = await currentRequestIp();
+          if (ip && !(await checkRateLimit(RATE_LIMITS.loginAuthIp(ip))).allowed) return null;
 
           const user = await db.user.findUnique({
             where: { email },

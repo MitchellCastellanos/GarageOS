@@ -60,7 +60,7 @@ export async function sendInboxMessage(params: SendInboxMessageParams): Promise<
   const replyTo = identity.replyTo ?? identity.address;
 
   const client = params.clientId
-    ? await db.client.findUnique({ where: { id: params.clientId }, select: { language: true } })
+    ? await db.client.findFirst({ where: { id: params.clientId, shopId: params.shopId }, select: { language: true } })
     : null;
   const lang = client?.language === "FR" ? "fr" : "en";
 

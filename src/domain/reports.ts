@@ -239,7 +239,7 @@ export function agingBucket(daysLate: number): AgingBucket {
 // ── CSV ────────────────────────────────────────────────────
 
 /** Neutraliza inyección de fórmulas en hojas de cálculo (=, +, -, @, tab, CR al inicio de texto). */
-function csvCell(value: string | number | null | undefined): string {
+export function csvCell(value: string | number | null | undefined): string {
   if (value == null) return "";
   let s = typeof value === "number" ? String(value) : value;
   if (typeof value === "string" && /^[=+\-@\t\r]/.test(s)) s = `'${s}`;

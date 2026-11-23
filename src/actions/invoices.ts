@@ -777,6 +777,9 @@ export async function cancelInvoice(id: string): Promise<{ success?: boolean; er
   const msg = INVOICE_ACTION_MESSAGES[locale];
   const actorId = (await auth())?.user?.id ?? null;
 
+  // Anular una factura PAID revierte ingresos y borra pagos/caja: exige refunds.write (por defecto solo OWNER; un MECHANIC
+  // tiene invoices.write y payments.write). invoices.write basta para anular borradores/enviadas/vencidas.
+
   const outcome = await db.$transaction(async (tx) => {
     const invoice = await tx.invoice.findFirst({
       where: { id, shopId, status: { in: [...VOIDABLE_STATUSES] } },
@@ -784,6 +787,8 @@ export async function cancelInvoice(id: string): Promise<{ success?: boolean; er
     });
     if (!invoice) return { error: msg.cannotCancel };
     if (invoice.refunds.length > 0) return { error: msg.hasRefunds };
+    // Lanza PermissionDeniedError (y revierte la transacción) si falta el permiso.
+    if (invoice.status === "PAID") await getShopId("refunds.write");
 
     await tx.invoice.updateMany({
       where: { id, shopId, status: { in: [...VOIDABLE_STATUSES] } },

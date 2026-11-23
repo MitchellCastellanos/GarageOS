@@ -230,7 +230,7 @@ export async function recordInventoryMovement(
 // ── DELETE ──────────────────────────────────────────────────
 
 export async function deleteInventoryPart(id: string) {
-  const shopId = await getWritableShopId();
+  const shopId = await getWritableShopId("inventory.write");
   await db.inventoryPart.deleteMany({ where: { id, shopId } });
   revalidatePath(ADMIN.inventory);
   redirect(ADMIN.inventory);
